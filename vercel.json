@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "icoffio",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_SITE_URL": "@site-url",
+    "NEXT_PUBLIC_WP_ENDPOINT": "https://icoffio.com/graphql",
+    "REVALIDATE_TOKEN": "@revalidate-token"
+  }
+}

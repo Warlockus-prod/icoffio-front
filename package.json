@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "seed": "node --import tsx scripts/seed-wp.ts || node scripts/seed-wp.js",
-    "seed-new": "node --import tsx scripts/seed-wp-new.ts"
+    "seed-new": "node --import tsx scripts/seed-wp-new.ts",
+    "seed-all": "node --import tsx scripts/seed-all-categories.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

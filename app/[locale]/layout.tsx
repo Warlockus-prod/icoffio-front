@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { WebVitals } from "@/components/WebVitals";
+import { TelegramBot } from "@/components/TelegramBot";
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
@@ -59,6 +60,7 @@ export default function LocaleLayout({
         <Header />
         <main className="pb-10">{children}</main>
         <Footer />
+        <TelegramBot />
       </body>
     </html>
   );

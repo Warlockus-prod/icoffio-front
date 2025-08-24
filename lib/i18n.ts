@@ -206,6 +206,8 @@ export const translations = {
   }
 };
 
-export function getTranslation(locale: Locale = 'en') {
-  return translations[locale] || translations.en;
+export function getTranslation(locale: Locale | string = 'en') {
+  // Convert to Locale type and validate
+  const validLocale = (locales.includes(locale as Locale) ? locale : 'en') as Locale;
+  return translations[validLocale];
 }

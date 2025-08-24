@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { WebVitals } from "@/components/WebVitals";
-import { TelegramBot } from "@/components/TelegramBot";
+import { ReadingProgress } from "@/components/ReadingProgress";
+
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
@@ -48,19 +49,20 @@ export default function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
-  // Проверяем валидность локали
+  // Validate locale
   if (!locales.includes(params.locale)) {
     notFound();
   }
 
   return (
     <html lang={params.locale} suppressHydrationWarning>
-      <body className="min-h-dvh bg-white text-neutral-900 antialiased selection:bg-neutral-900 selection:text-white">
+      <body className="min-h-dvh bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 antialiased selection:bg-neutral-900 selection:text-white dark:selection:bg-neutral-100 dark:selection:text-neutral-900 transition-colors duration-300">
+        <ReadingProgress />
         <WebVitals />
         <Header />
         <main className="pb-10">{children}</main>
         <Footer />
-        <TelegramBot />
+
       </body>
     </html>
   );

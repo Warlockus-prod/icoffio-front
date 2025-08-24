@@ -9,15 +9,20 @@ export const revalidate = 120;
 
 export async function generateStaticParams() {
   const slugs = await getAllSlugs();
-  return slugs.map((slug) => ({ slug }));
+  const locales = ['en', 'pl', 'de', 'ro', 'cs'];
+  
+  // Generate params for all locale/slug combinations
+  return locales.flatMap(locale => 
+    slugs.map(slug => ({ locale, slug }))
+  );
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { locale: string; slug: string } }): Promise<Metadata> {
   const post = await getPostBySlug(params.slug);
   if (!post) return {};
 
   const publishedTime = new Date(post.date).toISOString();
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/article/${post.slug}`;
+  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/${params.locale}/article/${post.slug}`;
 
   return {
     title: post.title,
@@ -63,7 +68,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function Article({ params }: { params: { slug: string } }) {
+export default async function Article({ params }: { params: { locale: string; slug: string } }) {
   const post = await getPostBySlug(params.slug);
   if (!post) return notFound();
   const related = await getRelated(post.category, post.slug, 4);
@@ -75,7 +80,7 @@ export default async function Article({ params }: { params: { slug: string } }) 
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <Link 
-              href={`/category/${post.category.slug}`} 
+              href={`/${params.locale}/category/${post.category.slug}`} 
               className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full hover:bg-blue-200 transition-colors"
             >
               {post.category.name}
@@ -114,7 +119,7 @@ export default async function Article({ params }: { params: { slug: string } }) 
           <h2 className="text-2xl font-bold mb-8 text-neutral-900">Читайте также</h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {related.map((p) => (
-              <Link key={p.slug} href={`/article/${p.slug}`} className="group block">
+              <Link key={p.slug} href={`/${params.locale}/article/${p.slug}`} className="group block">
                 <div className="rounded-xl overflow-hidden border border-neutral-200 bg-white hover:shadow-lg transition-shadow">
                   <img 
                     src={p.image || fallback} 

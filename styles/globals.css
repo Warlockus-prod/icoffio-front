@@ -2,8 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-html { scroll-behavior: smooth; }
+html { 
+  scroll-behavior: smooth; 
+}
+
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.prose { --tw-prose-headings: #111827; }
-body { background-color: #ffffff; color: #111827; }
+
+/* Dark mode support */
+.prose { --tw-prose-headings: theme(colors.neutral.900); }
+
+:root {
+  --foreground-rgb: 17, 24, 39;
+  --background-rgb: 255, 255, 255;
+  --neutral-50: 249, 250, 251;
+  --neutral-100: 243, 244, 246;
+  --neutral-200: 229, 231, 235;
+  --neutral-600: 75, 85, 99;
+  --neutral-900: 17, 24, 39;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 249, 250, 251;
+    --background-rgb: 17, 24, 39;
+    --neutral-50: 31, 41, 55;
+    --neutral-100: 55, 65, 81;
+    --neutral-200: 75, 85, 99;
+    --neutral-600: 156, 163, 175;
+    --neutral-900: 249, 250, 251;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode image support */
+.light-mode-img {
+  display: block;
+}
+
+.dark-mode-img {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .light-mode-img {
+    display: none;
+  }
+  
+  .dark-mode-img {
+    display: block;
+  }
+}

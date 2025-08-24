@@ -61,7 +61,7 @@ export const revalidate = 120;
 
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
-  const [hero] = await getTopPosts(1);
+  const heroPosts = await getTopPosts(3); // Получаем 3 поста для Hero
   const posts = await getAllPosts(12);
   const cats = await getCategories();
 
@@ -71,28 +71,28 @@ export default async function Page({ params }: { params: { locale: string } }) {
         <CategoryNav categories={cats} locale={params.locale} />
       </Container>
 
-      {hero && <Hero post={hero} locale={params.locale} />}
+      <Hero posts={heroPosts} locale={params.locale} />
 
-      <Container>
-        <section className="py-12">
+      <div className="mx-auto max-w-6xl px-4">
+        <section className="py-8">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-2">{t.latestNews}</h2>
-            <p className="text-neutral-600">{t.mostActualEvents}</p>
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-2">{t.latestNews}</h2>
+            <p className="text-neutral-600 dark:text-neutral-300">{t.mostActualEvents}</p>
           </div>
           
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((p) => (
               <ArticleCard key={p.slug} post={p} locale={params.locale} />
             ))}
           </div>
 
           <div className="mt-12 text-center">
-            <button className="px-8 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors font-medium">
+            <button className="px-8 py-3 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors font-medium shadow-sm hover:shadow-md">
               {t.showMore}
             </button>
           </div>
         </section>
-      </Container>
+      </div>
     </>
   );
 }

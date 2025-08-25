@@ -1,12 +1,14 @@
-import { getAllSlugs, getCategorySlugs } from "@/lib/data";
-
+// ВРЕМЕННО УПРОЩЕН пока GraphQL нестабилен
 export default async function sitemap() {
-  const posts = await getAllSlugs();
-  const cats = await getCategorySlugs();
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
+  
+  // Статичный sitemap пока DNS стабилизируется
   return [
     { url: base, priority: 1 },
-    ...posts.map((slug) => ({ url: `${base}/article/${slug}`, priority: 0.8 })),
-    ...cats.map((slug) => ({ url: `${base}/category/${slug}`, priority: 0.6 })),
+    { url: `${base}/en`, priority: 0.9 },
+    { url: `${base}/pl`, priority: 0.9 },
+    { url: `${base}/de`, priority: 0.9 },
+    { url: `${base}/ro`, priority: 0.9 },
+    { url: `${base}/cs`, priority: 0.9 },
   ];
 }

@@ -5,14 +5,15 @@ import { notFound } from "next/navigation";
 
 export const revalidate = 120;
 
-export async function generateStaticParams() {
-  const slugs = await getCategorySlugs();
-  const locales = ['en', 'pl', 'de', 'ro', 'cs'];
-  
-  return locales.flatMap(locale => 
-    slugs.map(slug => ({ locale, slug }))
-  );
-}
+// ВРЕМЕННО ОТКЛЮЧЕНО пока DNS не стабилизируется
+// export async function generateStaticParams() {
+//   const slugs = await getCategorySlugs();
+//   const locales = ['en', 'pl', 'de', 'ro', 'cs'];
+//   
+//   return locales.flatMap(locale => 
+//     slugs.map(slug => ({ locale, slug }))
+//   );
+// }
 
 export default async function CategoryPage({ params }: { params: { locale: string; slug: string } }) {
   const category = await getCategoryBySlug(params.slug);

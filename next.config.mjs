@@ -4,6 +4,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'icoffio.com' },
+      { protocol: 'https', hostname: '185.41.68.62' },
       { protocol: 'https', hostname: 'images.unsplash.com' }
     ],
   },

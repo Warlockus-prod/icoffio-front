@@ -7,15 +7,16 @@ import type { Metadata } from "next";
 
 export const revalidate = 120;
 
-export async function generateStaticParams() {
-  const slugs = await getAllSlugs();
-  const locales = ['en', 'pl', 'de', 'ro', 'cs'];
-  
-  // Generate params for all locale/slug combinations
-  return locales.flatMap(locale => 
-    slugs.map(slug => ({ locale, slug }))
-  );
-}
+// ВРЕМЕННО ОТКЛЮЧЕНО пока DNS не стабилизируется
+// export async function generateStaticParams() {
+//   const slugs = await getAllSlugs();
+//   const locales = ['en', 'pl', 'de', 'ro', 'cs'];
+//   
+//   // Generate params for all locale/slug combinations
+//   return locales.flatMap(locale => 
+//     slugs.map(slug => ({ locale, slug }))
+//   );
+// }
 
 export async function generateMetadata({ params }: { params: { locale: string; slug: string } }): Promise<Metadata> {
   const post = await getPostBySlug(params.slug);

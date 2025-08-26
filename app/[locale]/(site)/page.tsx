@@ -61,9 +61,20 @@ export const revalidate = 120;
 
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
-  const heroPosts = await getTopPosts(3); // Получаем 3 поста для Hero
-  const posts = await getAllPosts(12);
-  const cats = await getCategories();
+  
+  // Безопасные GraphQL вызовы с fallback
+  let heroPosts, posts, cats;
+  try {
+    heroPosts = await getTopPosts(3);
+    posts = await getAllPosts(12);
+    cats = await getCategories();
+  } catch (error) {
+    console.error('GraphQL Error:', error);
+    // Fallback к пустым массивам если GraphQL недоступен
+    heroPosts = [];
+    posts = [];
+    cats = [];
+  }
 
   return (
     <>
@@ -71,7 +82,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
         <CategoryNav categories={cats} locale={params.locale} />
       </Container>
 
-      <Hero posts={heroPosts} locale={params.locale} />
+      {heroPosts && heroPosts.length > 0 && <Hero posts={heroPosts} locale={params.locale} />}
 
       <div className="mx-auto max-w-6xl px-4">
         <section className="py-8">

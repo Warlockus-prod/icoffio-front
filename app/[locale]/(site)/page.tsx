@@ -63,17 +63,17 @@ export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
   
   // Безопасные GraphQL вызовы с fallback
-  let heroPosts, posts, cats;
+  let heroPosts: any[] = [];
+  let posts: any[] = [];
+  let cats: any[] = [];
+  
   try {
     heroPosts = await getTopPosts(3);
     posts = await getAllPosts(12);
     cats = await getCategories();
   } catch (error) {
     console.error('GraphQL Error:', error);
-    // Fallback к пустым массивам если GraphQL недоступен
-    heroPosts = [];
-    posts = [];
-    cats = [];
+    // Fallback к пустым массивам если GraphQL недоступен - уже инициализированы выше
   }
 
   return (

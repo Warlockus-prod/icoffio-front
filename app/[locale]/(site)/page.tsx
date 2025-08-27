@@ -3,7 +3,7 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
-import { SearchProvider } from "@/components/SearchProvider";
+import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 
@@ -195,7 +195,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
   }
 
   return (
-    <SearchProvider posts={posts} locale={params.locale}>
+    <>
       <Container>
         <CategoryNav categories={cats} locale={params.locale} />
       </Container>
@@ -228,6 +228,8 @@ export default async function Page({ params }: { params: { locale: string } }) {
           </div>
         </section>
       </div>
-    </SearchProvider>
+
+      <SearchModalWrapper posts={posts} locale={params.locale} />
+    </>
   );
 }

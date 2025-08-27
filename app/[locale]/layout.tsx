@@ -6,6 +6,7 @@ import { WebVitals } from "@/components/WebVitals";
 import { ReadingProgress } from "@/components/ReadingProgress";
 import { BackToTop } from "@/components/BackToTop";
 import { Analytics } from "@/components/Analytics";
+import { SearchProvider } from "@/components/SearchProvider";
 import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
 
 import { getTranslation } from "@/lib/i18n";
@@ -64,13 +65,15 @@ export default function LocaleLayout({
         <OrganizationSchema locale={params.locale} />
       </head>
       <body className="min-h-dvh bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 antialiased selection:bg-neutral-900 selection:text-white dark:selection:bg-neutral-100 dark:selection:text-neutral-900 transition-colors duration-300">
-        <ReadingProgress />
-        <WebVitals />
-        <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
-        <Header />
-        <main className="pb-10">{children}</main>
-        <Footer />
-        <BackToTop />
+        <SearchProvider>
+          <ReadingProgress />
+          <WebVitals />
+          <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+          <Header />
+          <main className="pb-10">{children}</main>
+          <Footer />
+          <BackToTop />
+        </SearchProvider>
       </body>
     </html>
   );

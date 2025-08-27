@@ -2,7 +2,7 @@ import { getPostBySlug, getAllSlugs, getRelated } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
 import { Prose } from "@/components/Prose";
-import { SearchProvider } from "@/components/SearchProvider";
+import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import Link from "next/link";
@@ -201,7 +201,7 @@ export default async function Article({ params }: { params: { locale: string; sl
   ];
 
   return (
-    <SearchProvider posts={mockPosts} locale={params.locale}>
+    <>
       <ArticleSchema post={post} locale={params.locale} />
       <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
       <Container>
@@ -280,6 +280,8 @@ export default async function Article({ params }: { params: { locale: string; sl
           </section>
         )}
       </Container>
-    </SearchProvider>
+
+      <SearchModalWrapper posts={mockPosts} locale={params.locale} />
+    </>
   );
 }

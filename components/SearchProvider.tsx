@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { Post } from '@/lib/types';
-import { SearchModal } from './SearchModal';
 
 interface SearchContextType {
   openSearch: () => void;
@@ -22,11 +21,9 @@ export function useSearch() {
 
 interface SearchProviderProps {
   children: React.ReactNode;
-  posts: Post[];
-  locale: string;
 }
 
-export function SearchProvider({ children, posts, locale }: SearchProviderProps) {
+export function SearchProvider({ children }: SearchProviderProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const openSearch = () => setIsSearchOpen(true);
@@ -54,12 +51,6 @@ export function SearchProvider({ children, posts, locale }: SearchProviderProps)
   return (
     <SearchContext.Provider value={value}>
       {children}
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={closeSearch}
-        posts={posts}
-        locale={locale}
-      />
     </SearchContext.Provider>
   );
 }

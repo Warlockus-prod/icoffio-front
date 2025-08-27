@@ -1,15 +1,29 @@
 import type { Post, Category } from "./types";
 
-const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT!; // https://icoffio.com/graphql
+const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
 
 async function gql<T>(query: string, variables?: Record<string, any>): Promise<T> {
+  if (!WP || WP === "undefined") {
+    throw new Error("WordPress GraphQL endpoint not configured");
+  }
+  
   const res = await fetch(WP, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
     next: { revalidate: 120 }, // ISR
   });
+  
+  if (!res.ok) {
+    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
+  }
+  
   const json = await res.json();
+  
+  if (json.errors) {
+    throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
+  }
+  
   return json.data;
 }
 

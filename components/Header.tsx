@@ -6,12 +6,13 @@ import { getTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "./LanguageSelector";
 import { useSearch } from "./SearchProvider";
 import { CategoryIcon } from "./CategoryIcon";
+import { useTheme } from "./ThemeProvider";
 
 export function Header() {
   const [locale, setLocale] = useState<string>('en');
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { openSearch } = useSearch();
+  const { isDarkMode, toggleTheme } = useTheme();
   
   useEffect(() => {
     // Get locale from URL
@@ -24,25 +25,7 @@ export function Header() {
       const browserLang = navigator.language.split('-')[0];
       setLocale(supportedLocales.includes(browserLang) ? browserLang : 'en');
     }
-
-    // Инициализация темной темы
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      document.documentElement.classList.add('dark');
-      setIsDarkMode(true);
-    } else {
-      document.documentElement.classList.remove('dark');
-      setIsDarkMode(false);
-    }
   }, []);
-
-  const toggleTheme = () => {
-    document.documentElement.classList.toggle('dark');
-    setIsDarkMode(!isDarkMode);
-    localStorage.setItem('theme', isDarkMode ? 'light' : 'dark');
-  };
 
   const categories = [
     { name: "AI", href: `/${locale}/category/ai` },

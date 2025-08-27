@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { Newsletter } from "./Newsletter";
+import { getTranslation } from "@/lib/i18n";
 
-export function Footer() {
-  // Get locale from URL - simplified approach
-  const currentLocale = typeof window !== 'undefined' 
-    ? window.location.pathname.split('/')[1] || 'en'
-    : 'en';
+interface FooterProps {
+  locale?: string;
+}
+
+export function Footer({ locale = 'en' }: FooterProps = {}) {
+  const t = getTranslation(locale);
   return (
     <footer className="bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
       <div className="mx-auto max-w-6xl px-4 py-12">
         {/* Newsletter Section */}
         <div className="mb-12">
-          <Newsletter locale={currentLocale} />
+          <Newsletter locale={locale} />
         </div>
 
         {/* Main footer content */}
@@ -22,22 +24,22 @@ export function Footer() {
               <span className="font-bold text-xl text-neutral-900 dark:text-neutral-100">icoffio</span>
             </Link>
             <p className="text-neutral-600 dark:text-neutral-400 mb-4 max-w-sm">
-              Covering the most important events in the world of technology
+              {t.coveringTechEvents}
             </p>
           </div>
 
           {/* About section */}
           <div>
-            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">About</h3>
+            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{t.about}</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
-                  Editorial
+                  {t.editorial}
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
-                  Advertising
+                  {t.advertising}
                 </Link>
               </li>
             </ul>
@@ -45,7 +47,7 @@ export function Footer() {
 
           {/* Follow Us section */}
           <div>
-            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Follow Us</h3>
+            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{t.followUs}</h3>
             <div className="flex gap-3">
               <Link href="#" className="p-2 rounded-lg bg-neutral-200 dark:bg-neutral-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -70,7 +72,7 @@ export function Footer() {
         <div className="mt-8 pt-8 border-t border-neutral-200 dark:border-neutral-800">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="text-neutral-500 dark:text-neutral-400 text-sm">
-              © 2025 icoffio. All rights reserved.
+              {t.allRightsReservedFull}
             </div>
           </div>
         </div>

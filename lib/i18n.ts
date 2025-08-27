@@ -36,12 +36,14 @@ export const translations = {
     mostActualEvents: "The most actual events from the world of technology",
     
     // Footer
+    about: "About",
     aboutProject: "About Project",
     editorial: "Editorial",
     advertising: "Advertising", 
     applications: "Applications",
     followUs: "Follow Us",
     allRightsReserved: "All rights reserved",
+    allRightsReservedFull: "© 2025 icoffio. All rights reserved.",
     coveringTechEvents: "Covering the most important events in the world of technology",
     
     // Dates
@@ -75,13 +77,15 @@ export const translations = {
     latestNews: "Najnowsze wiadomości",
     mostActualEvents: "Najaktualniejsze wydarzenia ze świata technologii",
     
-    // Footer
+        // Footer
+    about: "O nas",
     aboutProject: "O Projekcie",
     editorial: "Redakcja",
-    advertising: "Reklama",
-    applications: "Aplikacje", 
+    advertising: "Reklama", 
+    applications: "Aplikacje",
     followUs: "Śledź nas",
     allRightsReserved: "Wszystkie prawa zastrzeżone",
+    allRightsReservedFull: "© 2025 icoffio. Wszystkie prawa zastrzeżone.",
     coveringTechEvents: "Relacjonujemy najważniejsze wydarzenia ze świata technologii",
     
     // Dates
@@ -116,12 +120,14 @@ export const translations = {
     mostActualEvents: "Die aktuellsten Ereignisse aus der Welt der Technologie",
     
     // Footer
+    about: "Über",
     aboutProject: "Über das Projekt",
     editorial: "Redaktion",
     advertising: "Werbung",
     applications: "Anwendungen",
     followUs: "Folge uns",
     allRightsReserved: "Alle Rechte vorbehalten", 
+    allRightsReservedFull: "© 2025 icoffio. Alle Rechte vorbehalten.",
     coveringTechEvents: "Wir berichten über die wichtigsten Ereignisse in der Welt der Technologie",
     
     // Dates
@@ -156,12 +162,14 @@ export const translations = {
     mostActualEvents: "Evenimentele cele mai actuale din lumea tehnologiei",
     
     // Footer
+    about: "Despre",
     aboutProject: "Despre Proiect",
     editorial: "Echipa editorială",
     advertising: "Publicitate",
     applications: "Aplicații",
     followUs: "Urmărește-ne",
     allRightsReserved: "Toate drepturile rezervate",
+    allRightsReservedFull: "© 2025 icoffio. Toate drepturile rezervate.",
     coveringTechEvents: "Acoperim cele mai importante evenimente din lumea tehnologiei",
     
     // Dates
@@ -196,12 +204,14 @@ export const translations = {
     mostActualEvents: "Nejaktuálnější události ze světa technologií",
     
     // Footer
+    about: "O nás",
     aboutProject: "O Projektu", 
     editorial: "Redakce",
     advertising: "Reklama",
     applications: "Aplikace",
     followUs: "Sleduj nás",
     allRightsReserved: "Všechna práva vyhrazena",
+    allRightsReservedFull: "© 2025 icoffio. Všechna práva vyhrazena.",
     coveringTechEvents: "Pokrýváme nejdůležitější události ze světa technologií",
     
     // Dates

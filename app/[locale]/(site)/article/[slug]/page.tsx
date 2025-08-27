@@ -577,9 +577,10 @@ export default async function Article({ params }: { params: { locale: string; sl
         </article>
 
         <RelatedArticles 
-          posts={related}
+          posts={related.length > 0 ? related : mockPosts}
           locale={params.locale}
           currentPostSlug={post.slug}
+          currentPost={post}
         />
       </Container>
 

@@ -6,15 +6,54 @@ interface RelatedArticlesProps {
   posts: Post[];
   locale: string;
   currentPostSlug?: string;
+  currentPost?: Post; // Добавляем для лучших рекомендаций
 }
 
-export function RelatedArticles({ posts, locale, currentPostSlug }: RelatedArticlesProps) {
+export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }: RelatedArticlesProps) {
   const t = getTranslation(locale);
   
-  // Filter out current post and take first 3
-  const relatedPosts = posts
-    .filter(post => post.slug !== currentPostSlug)
-    .slice(0, 3);
+  // Умный алгоритм рекомендаций на основе тегов и категории
+  const getSmartRecommendations = (allPosts: Post[], current?: Post): Post[] => {
+    if (!current) {
+      // Fallback: просто фильтруем текущий пост
+      return allPosts.filter(post => post.slug !== currentPostSlug).slice(0, 3);
+    }
+
+    const scoredPosts = allPosts
+      .filter(post => post.slug !== currentPostSlug)
+      .map(post => {
+        let score = 0;
+        
+        // Бонус за совпадение категории
+        if (post.category.slug === current.category.slug) {
+          score += 3;
+        }
+        
+        // Бонус за совпадающие теги
+        if (current.tags && post.tags) {
+          const currentTagSlugs = current.tags.map(tag => tag.slug);
+          const postTagSlugs = post.tags.map(tag => tag.slug);
+          const commonTags = currentTagSlugs.filter(slug => postTagSlugs.includes(slug));
+          score += commonTags.length * 2; // 2 балла за каждый общий тег
+        }
+        
+        // Небольшой бонус за новизну (более новые статьи)
+        if (post.publishedAt) {
+          const postDate = new Date(post.publishedAt);
+          const currentDate = new Date(current.publishedAt);
+          const daysDifference = Math.abs((currentDate.getTime() - postDate.getTime()) / (1000 * 3600 * 24));
+          if (daysDifference < 7) score += 1; // Бонус за статьи в пределах недели
+        }
+        
+        return { ...post, relevanceScore: score };
+      })
+      .sort((a, b) => b.relevanceScore - a.relevanceScore) // Сортируем по релевантности
+      .slice(0, 3);
+
+    return scoredPosts;
+  };
+
+  const relatedPosts = getSmartRecommendations(posts, currentPost);
 
   if (relatedPosts.length === 0) return null;
 
@@ -55,11 +94,34 @@ export function RelatedArticles({ posts, locale, currentPostSlug }: RelatedArtic
                       })}
                     </time>
                   )}
+                  {/* Индикатор релевантности для дебага */}
+                  {(post as any).relevanceScore > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                      {(post as any).relevanceScore}
+                    </span>
+                  )}
                 </div>
                 
                 <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {post.title}
                 </h3>
+                
+                {/* Показать общие теги с текущим постом */}
+                {currentPost?.tags && post.tags && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {post.tags
+                      .filter(tag => currentPost.tags?.some(currentTag => currentTag.slug === tag.slug))
+                      .slice(0, 2)
+                      .map(tag => (
+                        <span 
+                          key={tag.slug}
+                          className="px-1.5 py-0.5 text-xs rounded bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                  </div>
+                )}
                 
                 {post.excerpt && (
                   <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400 line-clamp-2">

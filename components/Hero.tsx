@@ -34,7 +34,7 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
           <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100">
             <img 
               src={getImage(main)} 
-              alt="" 
+              alt={main.imageAlt || main.title} 
               className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
             />
           </div>
@@ -58,7 +58,7 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
               <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
                 <img 
                   src={getImage(post)} 
-                  alt="" 
+                  alt={post.imageAlt || post.title} 
                   className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" 
                 />
               </div>

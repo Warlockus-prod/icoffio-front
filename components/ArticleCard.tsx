@@ -54,7 +54,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
       <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800">
         <img 
           src={img} 
-          alt="" 
+          alt={post.imageAlt || post.title} 
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300" 
         />
       </div>
@@ -63,7 +63,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
           <span className="px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
             {post.category.name}
           </span>
-          <time>{formatDate(post.date)}</time>
+          <time>{formatDate(post.publishedAt)}</time>
         </div>
         <h3 className="mt-2 text-[18px] font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-neutral-100">
           {post.title}

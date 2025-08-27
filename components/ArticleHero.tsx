@@ -10,10 +10,10 @@ export function ArticleHero({ post }: { post: Post }) {
           {post.title}
         </h2>
         <p className="mt-2 text-neutral-700 max-w-prose">{post.excerpt}</p>
-        <div className="mt-4 text-sm text-neutral-500">{new Date(post.date).toLocaleDateString()}</div>
+        <div className="mt-4 text-sm text-neutral-500">{new Date(post.publishedAt).toLocaleDateString()}</div>
       </div>
       <div className="order-1 md:order-2 rounded-2xl overflow-hidden">
-        <img src={post.image} alt="" className="w-full h-full object-cover" />
+        <img src={post.image} alt={post.imageAlt || post.title} className="w-full h-full object-cover" />
       </div>
     </Link>
   );

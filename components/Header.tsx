@@ -9,6 +9,7 @@ export function Header() {
   const [locale, setLocale] = useState<string>('en');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   useEffect(() => {
     // Get locale from URL
@@ -56,6 +57,21 @@ export function Header() {
         <Link href={`/${locale}`} className="font-bold tracking-tight text-xl text-neutral-900 dark:text-white">
           ICOFFIO
         </Link>
+        
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle mobile menu"
+          className="md:hidden p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isMobileMenuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
         
         {/* Navigation */}
         <nav className="hidden md:flex gap-4 text-sm">
@@ -107,6 +123,33 @@ export function Header() {
           </button>
         </div>
       </div>
+      
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+          <nav className="px-4 py-4 space-y-2">
+            {categories.map(category => (
+              <Link
+                key={category.name}
+                href={category.href}
+                className="block px-3 py-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {category.name}
+              </Link>
+            ))}
+            <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-sm px-3 py-2 rounded-md bg-neutral-100 dark:bg-neutral-800 border-0 outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+              />
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

@@ -1,0 +1,16 @@
+URGENT VERCEL SYNC ISSUE
+======================
+
+GitHub has latest commit: becbc8d
+- Fixed GraphQL endpoint undefined error  
+- Added proper error handling
+- Should resolve digest 3742252848
+
+But Vercel still shows old buildId: FKKS2N-tGLwmeH-X8-7c-
+
+This file forces new deployment to sync GitHub with Vercel.
+
+Expected: New buildId, working site, no 500 errors
+
+Timestamp: $(date)
+Emergency fix priority: CRITICAL

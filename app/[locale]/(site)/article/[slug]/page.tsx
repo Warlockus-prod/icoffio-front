@@ -4,6 +4,8 @@ import { Container } from "@/components/Container";
 import { Prose } from "@/components/Prose";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { BackButton } from "@/components/BackButton";
+import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -204,8 +206,11 @@ export default async function Article({ params }: { params: { locale: string; sl
     <>
       <ArticleSchema post={post} locale={params.locale} />
       <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
-      <Container>
-        <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
+              <Container>
+          <div className="flex items-center justify-between mb-4">
+            <BackButton locale={params.locale} />
+          </div>
+          <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
         <article className="max-w-4xl mx-auto">
           <header className="mb-8">
             <div className="flex items-center gap-3 mb-4">
@@ -253,32 +258,11 @@ export default async function Article({ params }: { params: { locale: string; sl
           </div>
         </article>
 
-        {related.length > 0 && (
-          <section className="mt-16 border-t border-neutral-200 dark:border-neutral-800 pt-12">
-            <h2 className="text-2xl font-bold mb-8 text-neutral-900 dark:text-neutral-100">Related Articles</h2>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {related.map((p) => (
-                <Link key={p.slug} href={`/${params.locale}/article/${p.slug}`} className="group block">
-                  <div className="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg transition-shadow">
-                    <img 
-                      src={p.image || fallback} 
-                      alt={p.imageAlt || p.title} 
-                      className="aspect-[16/10] w-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                    />
-                    <div className="p-4">
-                      <div className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-1">
-                        {p.category.name}
-                      </div>
-                      <div className="font-semibold line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-neutral-900 dark:text-neutral-100">
-                        {p.title}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        <RelatedArticles 
+          posts={related}
+          locale={params.locale}
+          currentPostSlug={post.slug}
+        />
       </Container>
 
       <SearchModalWrapper posts={mockPosts} locale={params.locale} />

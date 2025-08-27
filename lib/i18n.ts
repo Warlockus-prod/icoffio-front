@@ -34,6 +34,7 @@ export const translations = {
     relatedArticles: "Related articles",
     latestNews: "Latest news",
     mostActualEvents: "The most actual events from the world of technology",
+    goBack: "Go Back",
     
     // Footer
     about: "About",
@@ -76,6 +77,7 @@ export const translations = {
     relatedArticles: "Powiązane artykuły",
     latestNews: "Najnowsze wiadomości",
     mostActualEvents: "Najaktualniejsze wydarzenia ze świata technologii",
+    goBack: "Wróć",
     
         // Footer
     about: "O nas",
@@ -118,6 +120,7 @@ export const translations = {
     relatedArticles: "Ähnliche Artikel", 
     latestNews: "Neueste Nachrichten",
     mostActualEvents: "Die aktuellsten Ereignisse aus der Welt der Technologie",
+    goBack: "Zurück",
     
     // Footer
     about: "Über",
@@ -160,6 +163,7 @@ export const translations = {
     relatedArticles: "Articole similare",
     latestNews: "Ultimele știri", 
     mostActualEvents: "Evenimentele cele mai actuale din lumea tehnologiei",
+    goBack: "Înapoi",
     
     // Footer
     about: "Despre",
@@ -202,6 +206,7 @@ export const translations = {
     relatedArticles: "Související články",
     latestNews: "Nejnovější zprávy",
     mostActualEvents: "Nejaktuálnější události ze světa technologií",
+    goBack: "Zpět",
     
     // Footer
     about: "O nás",

@@ -22,7 +22,7 @@ export function LanguageSelector({ currentLocale }: { currentLocale: string }) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-neutral-100 rounded-lg transition-colors flex items-center gap-1"
+        className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors flex items-center gap-1 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white"
       >
         <span className="text-sm font-medium">{currentLocale.toUpperCase()}</span>
         <svg 
@@ -37,13 +37,13 @@ export function LanguageSelector({ currentLocale }: { currentLocale: string }) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[120px] z-50">
+        <div className="absolute right-0 top-full mt-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 min-w-[120px] z-50">
           {Object.entries(localeNames).map(([locale, name]) => (
             <button
               key={locale}
               onClick={() => switchLanguage(locale)}
-              className={`block w-full text-left px-4 py-2 text-sm hover:bg-neutral-50 transition-colors ${
-                locale === currentLocale ? 'bg-neutral-100 font-medium' : ''
+              className={`block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:text-neutral-900 dark:hover:text-white transition-colors ${
+                locale === currentLocale ? 'bg-neutral-100 dark:bg-neutral-700 font-medium' : ''
               }`}
             >
               {name}

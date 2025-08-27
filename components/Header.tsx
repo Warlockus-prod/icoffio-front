@@ -44,7 +44,7 @@ export function Header() {
   const categories = [
     { name: "AI", href: `/${locale}/category/ai` },
     { name: "Apple", href: `/${locale}/category/apple` },
-    { name: "Games", href: `/${locale}/category/games` },
+    { name: "Digital", href: `/${locale}/category/digital` },
     { name: "Tech", href: `/${locale}/category/tech` },
     { name: "News", href: `/${locale}/category/news-2` }
   ];

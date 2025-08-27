@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { getTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "./LanguageSelector";
+import { useSearch } from "./SearchProvider";
+import { CategoryIcon } from "./CategoryIcon";
 
 export function Header() {
   const [locale, setLocale] = useState<string>('en');
-  const [searchQuery, setSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { openSearch } = useSearch();
   
   useEffect(() => {
     // Get locale from URL
@@ -79,8 +81,9 @@ export function Header() {
             <Link
               key={category.name}
               href={category.href}
-              className="px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors"
             >
+              <CategoryIcon category={category.name} size="sm" />
               {category.name}
             </Link>
           ))}
@@ -89,18 +92,16 @@ export function Header() {
         {/* Right section */}
         <div className="ml-auto flex items-center gap-2">
           {/* Search */}
-          <div className="relative hidden md:block">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-sm px-3 py-1.5 pl-8 pr-3 rounded-md bg-neutral-100 dark:bg-neutral-800 border-0 outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400 w-48"
-            />
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            onClick={openSearch}
+            className="relative hidden md:flex items-center gap-2 text-sm px-3 py-1.5 pl-8 pr-3 rounded-md bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 w-48 text-left"
+          >
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-          </div>
+            <span>Search articles...</span>
+            <kbd className="ml-auto text-xs bg-neutral-200 dark:bg-neutral-600 px-1.5 py-0.5 rounded border">⌘K</kbd>
+          </button>
 
           {/* Language Selector */}
           <LanguageSelector currentLocale={locale} />
@@ -132,20 +133,26 @@ export function Header() {
               <Link
                 key={category.name}
                 href={category.href}
-                className="block px-3 py-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors font-medium"
+                className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors font-medium"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
+                <CategoryIcon category={category.name} size="sm" />
                 {category.name}
               </Link>
             ))}
             <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-sm px-3 py-2 rounded-md bg-neutral-100 dark:bg-neutral-800 border-0 outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
-              />
+              <button
+                onClick={() => {
+                  openSearch();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 text-sm px-3 py-2 rounded-md bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 text-left"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>Search articles...</span>
+              </button>
             </div>
           </nav>
         </div>

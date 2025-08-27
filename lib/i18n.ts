@@ -16,6 +16,7 @@ export const translations = {
     siteDescription: "We tell about important events in the world of technology. News, reviews and articles about Apple, AI, games and new technologies.",
     
     // Navigation
+    home: "Home",
     articles: "Articles",
     reviews: "Reviews", 
     news: "News",
@@ -55,6 +56,7 @@ export const translations = {
     siteDescription: "Opowiadamy o ważnych wydarzeniach w świecie technologii. Wiadomości, recenzje i artykuły o Apple, AI, grach i nowych technologiach.",
     
     // Navigation
+    home: "Strona główna",
     articles: "Artykuły",
     reviews: "Recenzje",
     news: "Wiadomości",
@@ -94,6 +96,7 @@ export const translations = {
     siteDescription: "Wir berichten über wichtige Ereignisse in der Welt der Technologie. Nachrichten, Bewertungen und Artikel über Apple, KI, Spiele und neue Technologien.",
     
     // Navigation
+    home: "Startseite",
     articles: "Artikel",
     reviews: "Bewertungen",
     news: "Nachrichten",
@@ -133,6 +136,7 @@ export const translations = {
     siteDescription: "Povestim despre evenimente importante din lumea tehnologiei. Știri, recenzii și articole despre Apple, AI, jocuri și tehnologii noi.",
     
     // Navigation
+    home: "Acasă",
     articles: "Articole",
     reviews: "Recenzii", 
     news: "Știri",
@@ -172,6 +176,7 @@ export const translations = {
     siteDescription: "Vyprávíme o důležitých událostech ve světě technologií. Zprávy, recenze a články o Apple, AI, hrách a nových technologiích.",
     
     // Navigation
+    home: "Domů",
     articles: "Články",
     reviews: "Recenze",
     news: "Zprávy",

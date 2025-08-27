@@ -1,9 +1,19 @@
 import Link from "next/link";
+import { Newsletter } from "./Newsletter";
 
 export function Footer() {
+  // Get locale from URL - simplified approach
+  const currentLocale = typeof window !== 'undefined' 
+    ? window.location.pathname.split('/')[1] || 'en'
+    : 'en';
   return (
     <footer className="bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
       <div className="mx-auto max-w-6xl px-4 py-12">
+        {/* Newsletter Section */}
+        <div className="mb-12">
+          <Newsletter locale={currentLocale} />
+        </div>
+
         {/* Main footer content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand section */}

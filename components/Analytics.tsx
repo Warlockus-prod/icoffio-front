@@ -3,17 +3,21 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
+// Type for gtag function
+type GtagFunction = (
+  command: string,
+  targetId: string,
+  config?: {
+    page_path?: string;
+    [key: string]: any;
+  }
+) => void;
+
 // Extend Window interface to include gtag
 declare global {
   interface Window {
-    gtag: (
-      command: string,
-      targetId: string,
-      config?: {
-        page_path?: string;
-        [key: string]: any;
-      }
-    ) => void;
+    gtag?: GtagFunction;
+    dataLayer?: any[];
   }
 }
 
@@ -59,7 +63,7 @@ export function Analytics({ gaId }: AnalyticsProps) {
 
   // Track page views on route change
   useEffect(() => {
-    if (process.env.NODE_ENV === 'production' && gaId && window.gtag) {
+    if (process.env.NODE_ENV === 'production' && gaId && typeof window !== 'undefined' && window.gtag) {
       window.gtag('config', gaId, {
         page_path: pathname,
       });
@@ -71,7 +75,7 @@ export function Analytics({ gaId }: AnalyticsProps) {
 
 // Helper functions for tracking events
 export const trackEvent = (action: string, category: string, label?: string, value?: number) => {
-  if (process.env.NODE_ENV === 'production' && window.gtag) {
+  if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', action, {
       event_category: category,
       event_label: label,

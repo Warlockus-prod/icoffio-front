@@ -62,6 +62,27 @@ export default function LocaleLayout({
   return (
     <html lang={params.locale} suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedTheme = localStorage.getItem('theme');
+                  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+                  
+                  if (shouldBeDark) {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {
+                  // Fallback - no theme applied on error
+                }
+              })();
+            `,
+          }}
+        />
         <WebsiteSchema locale={params.locale} />
         <OrganizationSchema locale={params.locale} />
       </head>

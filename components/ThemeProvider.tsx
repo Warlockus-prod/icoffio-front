@@ -26,18 +26,20 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Инициализация темной темы
+    // Инициализация темной темы при монтировании компонента
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
     const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
     
+    // Устанавливаем состояние
+    setIsDarkMode(shouldBeDark);
+    
+    // Применяем класс к документу
     if (shouldBeDark) {
       document.documentElement.classList.add('dark');
-      setIsDarkMode(true);
     } else {
       document.documentElement.classList.remove('dark');
-      setIsDarkMode(false);
     }
     
     setMounted(true);
@@ -45,18 +47,27 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const toggleTheme = () => {
     const newDarkMode = !isDarkMode;
-    document.documentElement.classList.toggle('dark', newDarkMode);
+    
+    // Обновляем состояние
     setIsDarkMode(newDarkMode);
-    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    
+    // Применяем изменения к DOM
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
   };
 
-  // Избегаем hydration mismatch - не рендерим до монтирования
-  if (!mounted) {
-    return null;
-  }
-
+  // Рендерим детей даже до монтирования, чтобы избежать hydration mismatch
+  // До монтирования используем значение по умолчанию
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ 
+      isDarkMode: mounted ? isDarkMode : false, 
+      toggleTheme 
+    }}>
       {children}
     </ThemeContext.Provider>
   );

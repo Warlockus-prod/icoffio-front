@@ -57,12 +57,23 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   };
 
   useEffect(() => {
-    // Инициализация при первой загрузке
-    const savedTheme = localStorage.getItem('theme') as ThemeMode || 'system';
+    // Простая инициализация при первой загрузке
+    const savedTheme = (localStorage.getItem('theme') || 'system') as ThemeMode;
+    
     setTheme(savedTheme);
     
-    const computedTheme = getComputedTheme(savedTheme);
-    const shouldBeDark = computedTheme === 'dark';
+    // Определяем должна ли быть темная тема
+    let shouldBeDark = false;
+    
+    if (savedTheme === 'dark') {
+      shouldBeDark = true;
+    } else if (savedTheme === 'light') {
+      shouldBeDark = false;
+    } else { // system
+      const hour = new Date().getHours();
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      shouldBeDark = prefersDark || (hour < 6 || hour >= 18);
+    }
     
     applyTheme(shouldBeDark);
     setMounted(true);
@@ -103,20 +114,34 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const toggleTheme = () => {
     if (!mounted) return; // Не переключаем до монтирования
     
-    // Циклическое переключение: light → dark → system → light
-    const nextTheme: ThemeMode = 
-      theme === 'light' ? 'dark' : 
-      theme === 'dark' ? 'system' : 'light';
+    // Простое циклическое переключение: light → dark → system → light
+    let nextTheme: ThemeMode;
     
-    console.log(`Theme switching: ${theme} → ${nextTheme}`); // Debug log
+    if (theme === 'light') {
+      nextTheme = 'dark';
+    } else if (theme === 'dark') {
+      nextTheme = 'system';
+    } else {
+      nextTheme = 'light';
+    }
     
     // Обновляем состояние
     setTheme(nextTheme);
     localStorage.setItem('theme', nextTheme);
     
-    // Вычисляем и применяем новую тему
-    const computedTheme = getComputedTheme(nextTheme);
-    const shouldBeDark = computedTheme === 'dark';
+    // Применяем тему с простой логикой
+    let shouldBeDark = false;
+    
+    if (nextTheme === 'dark') {
+      shouldBeDark = true;
+    } else if (nextTheme === 'light') {
+      shouldBeDark = false;
+    } else { // system
+      const hour = new Date().getHours();
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      shouldBeDark = prefersDark || (hour < 6 || hour >= 18);
+    }
+    
     applyTheme(shouldBeDark);
   };
 

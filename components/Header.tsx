@@ -41,8 +41,10 @@ export function Header() {
         {/* Logo */}
         <Link href={`/${locale}`} className="flex items-center gap-2 group">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-500 dark:to-indigo-600 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-105">
-            <svg className="h-4 w-4 text-white transform -rotate-12 group-hover:rotate-0 transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            {/* Coffee Cup Icon - красивая кружка как на фото */}
+            <svg className="h-5 w-5 text-white transform group-hover:rotate-12 transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M2 19h20v3H2v-3zM20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-1h2c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-2V3zm0 7h2v2h-2v-2z"/>
+              <path d="M5 1h14c.55 0 1 .45 1 1s-.45 1-1 1H5c-.55 0-1-.45-1-1s.45-1 1-1z"/>
             </svg>
           </div>
           <span className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">

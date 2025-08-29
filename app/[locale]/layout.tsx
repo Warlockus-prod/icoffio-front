@@ -67,17 +67,37 @@ export default function LocaleLayout({
             __html: `
               (function() {
                 try {
-                  var savedTheme = localStorage.getItem('theme');
-                  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+                  var savedTheme = localStorage.getItem('theme') || 'system';
+                  
+                  // Функция для определения темной темы по времени суток
+                  function isDarkByTime() {
+                    var hour = new Date().getHours();
+                    return hour < 6 || hour >= 18; // Темно с 18:00 до 6:00
+                  }
+                  
+                  // Функция для получения вычисленной темы
+                  function getComputedTheme(theme) {
+                    if (theme === 'system') {
+                      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                      return prefersDark || isDarkByTime() ? 'dark' : 'light';
+                    }
+                    return theme;
+                  }
+                  
+                  var computedTheme = getComputedTheme(savedTheme);
+                  var shouldBeDark = computedTheme === 'dark';
+                  
+                  var html = document.documentElement;
+                  html.classList.remove('light', 'dark');
                   
                   if (shouldBeDark) {
-                    document.documentElement.classList.add('dark');
+                    html.classList.add('dark');
                   } else {
-                    document.documentElement.classList.remove('dark');
+                    html.classList.add('light');
                   }
                 } catch (e) {
-                  // Fallback - no theme applied on error
+                  // Fallback - применяем светлую тему
+                  document.documentElement.classList.add('light');
                 }
               })();
             `,

@@ -2,7 +2,10 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 
+type ThemeMode = 'light' | 'dark' | 'system';
+
 interface ThemeContextType {
+  theme: ThemeMode;
   isDarkMode: boolean;
   toggleTheme: () => void;
 }
@@ -22,49 +25,94 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
+  const [theme, setTheme] = useState<ThemeMode>('system');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    // Инициализация темной темы при монтировании компонента
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-    
-    // Устанавливаем состояние
-    setIsDarkMode(shouldBeDark);
-    
-    // Применяем класс к документу
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => {
-    const newDarkMode = !isDarkMode;
-    
-    // Обновляем состояние
-    setIsDarkMode(newDarkMode);
-    
-    // Применяем изменения к DOM
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+  // Функция для определения темной темы по времени суток
+  const isDarkByTime = () => {
+    const hour = new Date().getHours();
+    return hour < 6 || hour >= 18; // Темно с 18:00 до 6:00
   };
 
-  // Рендерим детей даже до монтирования, чтобы избежать hydration mismatch
-  // До монтирования используем значение по умолчанию
+  // Функция для получения вычисленной темы
+  const getComputedTheme = (currentTheme: ThemeMode): 'light' | 'dark' => {
+    if (currentTheme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches || isDarkByTime() ? 'dark' : 'light';
+    }
+    return currentTheme;
+  };
+
+  // Применить тему к DOM
+  const applyTheme = (shouldBeDark: boolean) => {
+    const html = document.documentElement;
+    if (shouldBeDark) {
+      html.classList.add('dark');
+      html.classList.remove('light');
+    } else {
+      html.classList.add('light');
+      html.classList.remove('dark');
+    }
+    setIsDarkMode(shouldBeDark);
+  };
+
+  useEffect(() => {
+    // Инициализация при загрузке
+    const savedTheme = localStorage.getItem('theme') as ThemeMode || 'system';
+    setTheme(savedTheme);
+    
+    const computedTheme = getComputedTheme(savedTheme);
+    const shouldBeDark = computedTheme === 'dark';
+    
+    applyTheme(shouldBeDark);
+    setMounted(true);
+
+    // Автообновление каждую минуту для system режима
+    const interval = setInterval(() => {
+      if (savedTheme === 'system') {
+        const newComputedTheme = getComputedTheme('system');
+        const newShouldBeDark = newComputedTheme === 'dark';
+        if (newShouldBeDark !== isDarkMode) {
+          applyTheme(newShouldBeDark);
+        }
+      }
+    }, 60000); // Обновляем каждую минуту
+
+    // Слушаем изменения системных предпочтений
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleMediaChange = () => {
+      if (savedTheme === 'system') {
+        const newComputedTheme = getComputedTheme('system');
+        const newShouldBeDark = newComputedTheme === 'dark';
+        applyTheme(newShouldBeDark);
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleMediaChange);
+
+    return () => {
+      clearInterval(interval);
+      mediaQuery.removeEventListener('change', handleMediaChange);
+    };
+  }, [theme]);
+
+  const toggleTheme = () => {
+    // Циклическое переключение: light → dark → system → light
+    const nextTheme: ThemeMode = 
+      theme === 'light' ? 'dark' : 
+      theme === 'dark' ? 'system' : 'light';
+    
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    
+    const computedTheme = getComputedTheme(nextTheme);
+    const shouldBeDark = computedTheme === 'dark';
+    applyTheme(shouldBeDark);
+  };
+
   return (
     <ThemeContext.Provider value={{ 
+      theme: mounted ? theme : 'system',
       isDarkMode: mounted ? isDarkMode : false, 
       toggleTheme 
     }}>

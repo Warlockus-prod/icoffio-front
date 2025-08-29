@@ -39,8 +39,15 @@ export function Header() {
     <header className="sticky top-0 z-50 bg-white/80 dark:bg-neutral-950/70 backdrop-blur border-b border-neutral-200 dark:border-neutral-800 h-14">
       <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-4">
         {/* Logo */}
-        <Link href={`/${locale}`} className="font-bold tracking-tight text-xl text-neutral-900 dark:text-white">
-          ICOFFIO
+        <Link href={`/${locale}`} className="flex items-center gap-2 group">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-500 dark:to-indigo-600 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-105">
+            <svg className="h-4 w-4 text-white transform -rotate-12 group-hover:rotate-0 transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+          </div>
+          <span className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+            icoffio
+          </span>
         </Link>
         
         {/* Mobile Menu Button */}

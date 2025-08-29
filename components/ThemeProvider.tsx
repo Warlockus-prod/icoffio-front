@@ -57,7 +57,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   };
 
   useEffect(() => {
-    // Инициализация при загрузке
+    // Инициализация при первой загрузке
     const savedTheme = localStorage.getItem('theme') as ThemeMode || 'system';
     setTheme(savedTheme);
     
@@ -66,10 +66,14 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     
     applyTheme(shouldBeDark);
     setMounted(true);
+  }, []); // Только при первой загрузке
+
+  useEffect(() => {
+    if (!mounted) return; // Не запускаем до монтирования
 
     // Автообновление каждую минуту для system режима
     const interval = setInterval(() => {
-      if (savedTheme === 'system') {
+      if (theme === 'system') {
         const newComputedTheme = getComputedTheme('system');
         const newShouldBeDark = newComputedTheme === 'dark';
         if (newShouldBeDark !== isDarkMode) {
@@ -81,7 +85,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     // Слушаем изменения системных предпочтений
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleMediaChange = () => {
-      if (savedTheme === 'system') {
+      if (theme === 'system') {
         const newComputedTheme = getComputedTheme('system');
         const newShouldBeDark = newComputedTheme === 'dark';
         applyTheme(newShouldBeDark);
@@ -94,17 +98,23 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       clearInterval(interval);
       mediaQuery.removeEventListener('change', handleMediaChange);
     };
-  }, [theme]);
+  }, [theme, isDarkMode, mounted]); // Зависимости для правильного обновления
 
   const toggleTheme = () => {
+    if (!mounted) return; // Не переключаем до монтирования
+    
     // Циклическое переключение: light → dark → system → light
     const nextTheme: ThemeMode = 
       theme === 'light' ? 'dark' : 
       theme === 'dark' ? 'system' : 'light';
     
+    console.log(`Theme switching: ${theme} → ${nextTheme}`); // Debug log
+    
+    // Обновляем состояние
     setTheme(nextTheme);
     localStorage.setItem('theme', nextTheme);
     
+    // Вычисляем и применяем новую тему
     const computedTheme = getComputedTheme(nextTheme);
     const shouldBeDark = computedTheme === 'dark';
     applyTheme(shouldBeDark);

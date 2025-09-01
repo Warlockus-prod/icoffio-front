@@ -4,8 +4,10 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'admin.icoffio.com' },
+      { protocol: 'http', hostname: 'admin.icoffio.com' }, // HTTP fallback
       { protocol: 'https', hostname: 'icoffio.com' }, // Backward compatibility
       { protocol: 'https', hostname: '185.41.68.62' },
+      { protocol: 'http', hostname: '185.41.68.62' }, // HTTP fallback
       { protocol: 'https', hostname: 'images.unsplash.com' }
     ],
   },

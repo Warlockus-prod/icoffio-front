@@ -1,13 +1,13 @@
-# 🚀 DNS RECOVERY & Blog Setup Guide
-## icoffio.com (WordPress) + blog.icoffio.com (Next.js)
+# 🚀 Premium Architecture Setup Guide
+## icoffio.com (Next.js Frontend) + admin.icoffio.com (WordPress Admin)
 
-## 🚨 СРОЧНОЕ ИСПРАВЛЕНИЕ DNS
+## 🎯 ВЫБРАННАЯ АРХИТЕКТУРА: ВАРИАНТ 1
 
-**ПРОБЛЕМА НАЙДЕНА:** icoffio.com указывает на Vercel вместо WordPress сервера!
+**ЦЕЛЬ:** Красивый Next.js сайт на главном домене + WordPress админка на поддомене
 
 ```bash
-БЫЛО ПРАВИЛЬНО: icoffio.com → 185.41.68.62 (WordPress)
-СТАЛО НЕПРАВИЛЬНО: icoffio.com → 216.198.79.1 (Vercel)  
+icoffio.com → Next.js ⚡ (красивый сайт для пользователей)
+admin.icoffio.com → WordPress 🔧 (админка + API)
 ```
 
 ## 📋 **DNS ЗАПИСИ ДЛЯ НАСТРОЙКИ:**
@@ -15,16 +15,20 @@
 ### **В вашем DNS провайдере создайте:**
 
 ```dns
-# ИСПРАВИТЬ ПРОБЛЕМУ:
-❌ УДАЛИТЬ: icoffio.com A 216.198.79.1 (Vercel)
-✅ ВОССТАНОВИТЬ: icoffio.com A 185.41.68.62 (WordPress)
+# ГЛАВНЫЙ САЙТ NEXT.JS:
+❌ УДАЛИТЬ: icoffio.com. A 185.41.68.62 (старый WordPress)
+✅ ДОБАВИТЬ: icoffio.com CNAME cname.vercel-dns.com (Next.js)
+✅ ДОБАВИТЬ: www CNAME icoffio.com (редирект на главный)
 
-# ДОБАВИТЬ ДЛЯ NEXT.JS:
-✅ blog.icoffio.com CNAME cname.vercel-dns.com (Next.js)
-✅ www.blog.icoffio.com CNAME blog.icoffio.com
+# WORDPRESS АДМИНКА:
+✅ ОСТАВИТЬ: admin A 185.41.68.62 (admin.icoffio.com)
 
-# ОПЦИОНАЛЬНО (НА БУДУЩЕЕ):
-admin.icoffio.com A 185.41.68.62 (для Headless CMS)
+# ИСПРАВИТЬ БЛОГ (если добавляли):
+❌ ИСПРАВИТЬ: blog CNAME cname.vercel-dns.com.icoffio.com
+✅ НА: blog CNAME cname.vercel-dns.com
+
+# ПОЧТА (оставить как есть):
+mail A 185.41.68.62
 ```
 
 ---
@@ -33,15 +37,15 @@ admin.icoffio.com A 185.41.68.62 (для Headless CMS)
 
 ### **1. Environment Variables в Vercel:**
 ```bash
-NEXT_PUBLIC_WP_ENDPOINT=https://icoffio.com/graphql
-NEXT_PUBLIC_SITE_URL=https://blog.icoffio.com  
+NEXT_PUBLIC_WP_ENDPOINT=https://admin.icoffio.com/graphql
+NEXT_PUBLIC_SITE_URL=https://icoffio.com
 OPENAI_API_KEY=[ваш OpenAI ключ]
 ```
 
 ### **2. Domains в Vercel:**
-- ❌ УДАЛИТЬ: `icoffio.com` (возвращаем WordPress)
-- ✅ ДОБАВИТЬ: `blog.icoffio.com` 
-- ✅ ДОБАВИТЬ: `www.blog.icoffio.com` (redirect to blog.icoffio.com)
+- ✅ ДОБАВИТЬ: `icoffio.com` (главный домен)
+- ✅ ДОБАВИТЬ: `www.icoffio.com` (redirect to icoffio.com)
+- ❌ УДАЛИТЬ: `blog.icoffio.com` (если был добавлен)
 
 ---
 
@@ -49,10 +53,16 @@ OPENAI_API_KEY=[ваш OpenAI ключ]
 
 ### **1. В WordPress Admin (admin.icoffio.com/wp-admin):**
 
-#### **Site URL Settings:**
+#### **Site URL Settings (ВАЖНО!):**
 ```bash
 WordPress Address (URL): https://admin.icoffio.com
 Site Address (URL): https://icoffio.com
+```
+
+**ИЛИ через wp-config.php:**
+```php
+define('WP_HOME', 'https://icoffio.com');
+define('WP_SITEURL', 'https://admin.icoffio.com');
 ```
 
 #### **Обязательные плагины:**
@@ -67,16 +77,17 @@ Site Address (URL): https://icoffio.com
 ## 🌐 **АРХИТЕКТУРА:**
 
 ```
-┌──────────────────┐   GraphQL    ┌─────────────────┐
-│ blog.icoffio.com │ ────────────→ │   icoffio.com   │
-│    (Next.js)     │   API Data   │  (WordPress)    │
-│   Blog Frontend  │ ←──────────── │   CMS + Site    │
-└──────────────────┘              └─────────────────┘
+┌─────────────────┐   GraphQL    ┌────────────────────┐
+│   icoffio.com   │ ────────────→ │ admin.icoffio.com  │
+│   (Next.js)     │   API Data   │   (WordPress)      │
+│ Main Frontend   │ ←──────────── │  Headless CMS      │
+└─────────────────┘              └────────────────────┘
         │                                   │
-        ├── Красивый блог                   ├── Основной сайт WordPress
-        ├── Быстрая загрузка                ├── /wp-admin панель  
-        ├── SEO оптимизация                 ├── /wp-json API
-        └── PWA возможности                 └── Плагины и темы
+        ├── 🎨 Красивый главный сайт         ├── 🔧 WordPress админка  
+        ├── ⚡ Молниеносная загрузка         ├── 📝 Управление контентом
+        ├── 📱 PWA поддержка               ├── 📡 GraphQL API
+        ├── 🚀 SEO на главном домене        ├── 🔌 Плагины и темы
+        └── 🎯 Современный дизайн           └── 📊 Аналитика
 ```
 
 ---
@@ -118,11 +129,11 @@ curl https://admin.icoffio.com/wp-json/wp/v2/posts
 ---
 
 ## 🚨 **ВАЖНО:**
-- **WordPress админка:** https://icoffio.com/wp-admin (восстановлено)
-- **Основной сайт:** https://icoffio.com (WordPress как раньше)
-- **Красивый блог:** https://blog.icoffio.com (Next.js)  
-- **API данных:** https://icoffio.com/graphql
-- **Все обновления контента** делаются через WordPress, автоматически появляются на блоге!
+- **Главный сайт:** https://icoffio.com (Next.js - красивый и быстрый)
+- **WordPress админка:** https://admin.icoffio.com/wp-admin (управление контентом)
+- **API данных:** https://admin.icoffio.com/graphql
+- **Все обновления контента** делаются через WordPress, автоматически появляются на главном сайте!
+- **SEO преимущество:** Главный домен занимает Next.js с отличной производительностью
 
 ---
 

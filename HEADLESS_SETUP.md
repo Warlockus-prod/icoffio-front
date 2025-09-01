@@ -1,18 +1,30 @@
-# 🚀 Headless CMS Setup Guide
-## admin.icoffio.com (WordPress) + icoffio.com (Next.js)
+# 🚀 DNS RECOVERY & Blog Setup Guide
+## icoffio.com (WordPress) + blog.icoffio.com (Next.js)
+
+## 🚨 СРОЧНОЕ ИСПРАВЛЕНИЕ DNS
+
+**ПРОБЛЕМА НАЙДЕНА:** icoffio.com указывает на Vercel вместо WordPress сервера!
+
+```bash
+БЫЛО ПРАВИЛЬНО: icoffio.com → 185.41.68.62 (WordPress)
+СТАЛО НЕПРАВИЛЬНО: icoffio.com → 216.198.79.1 (Vercel)  
+```
 
 ## 📋 **DNS ЗАПИСИ ДЛЯ НАСТРОЙКИ:**
 
 ### **В вашем DNS провайдере создайте:**
 
 ```dns
-# Next.js Frontend (Vercel)
-icoffio.com        → A     → [Vercel IP] или CNAME → cname.vercel-dns.com
-www.icoffio.com    → CNAME → icoffio.com
+# ИСПРАВИТЬ ПРОБЛЕМУ:
+❌ УДАЛИТЬ: icoffio.com A 216.198.79.1 (Vercel)
+✅ ВОССТАНОВИТЬ: icoffio.com A 185.41.68.62 (WordPress)
 
-# WordPress Admin (ваш текущий хостинг)
-admin.icoffio.com  → A     → [IP адрес вашего WordPress хостинга]
-# Например: admin.icoffio.com → A → 185.41.68.62
+# ДОБАВИТЬ ДЛЯ NEXT.JS:
+✅ blog.icoffio.com CNAME cname.vercel-dns.com (Next.js)
+✅ www.blog.icoffio.com CNAME blog.icoffio.com
+
+# ОПЦИОНАЛЬНО (НА БУДУЩЕЕ):
+admin.icoffio.com A 185.41.68.62 (для Headless CMS)
 ```
 
 ---
@@ -21,14 +33,15 @@ admin.icoffio.com  → A     → [IP адрес вашего WordPress хост�
 
 ### **1. Environment Variables в Vercel:**
 ```bash
-NEXT_PUBLIC_WP_ENDPOINT=https://admin.icoffio.com/graphql
-NEXT_PUBLIC_SITE_URL=https://icoffio.com
+NEXT_PUBLIC_WP_ENDPOINT=https://icoffio.com/graphql
+NEXT_PUBLIC_SITE_URL=https://blog.icoffio.com  
 OPENAI_API_KEY=[ваш OpenAI ключ]
 ```
 
 ### **2. Domains в Vercel:**
-- ✅ Добавить: `icoffio.com`
-- ✅ Добавить: `www.icoffio.com` (redirect to icoffio.com)
+- ❌ УДАЛИТЬ: `icoffio.com` (возвращаем WordPress)
+- ✅ ДОБАВИТЬ: `blog.icoffio.com` 
+- ✅ ДОБАВИТЬ: `www.blog.icoffio.com` (redirect to blog.icoffio.com)
 
 ---
 
@@ -54,16 +67,16 @@ Site Address (URL): https://icoffio.com
 ## 🌐 **АРХИТЕКТУРА:**
 
 ```
-┌─────────────────┐    GraphQL     ┌─────────────────┐
-│   icoffio.com   │ ──────────────→ │admin.icoffio.com│
-│   (Next.js)     │    API Data    │   (WordPress)   │
-│   Frontend      │ ←────────────── │   Headless CMS  │
-└─────────────────┘                └─────────────────┘
-        │                                    │
-        ├── Пользователи видят               ├── Вы управляете контентом
-        ├── Быстрая загрузка                 ├── /wp-admin панель
-        ├── SEO оптимизация                  ├── /wp-json API
-        └── PWA возможности                  └── Плагины и темы
+┌──────────────────┐   GraphQL    ┌─────────────────┐
+│ blog.icoffio.com │ ────────────→ │   icoffio.com   │
+│    (Next.js)     │   API Data   │  (WordPress)    │
+│   Blog Frontend  │ ←──────────── │   CMS + Site    │
+└──────────────────┘              └─────────────────┘
+        │                                   │
+        ├── Красивый блог                   ├── Основной сайт WordPress
+        ├── Быстрая загрузка                ├── /wp-admin панель  
+        ├── SEO оптимизация                 ├── /wp-json API
+        └── PWA возможности                 └── Плагины и темы
 ```
 
 ---
@@ -105,10 +118,11 @@ curl https://admin.icoffio.com/wp-json/wp/v2/posts
 ---
 
 ## 🚨 **ВАЖНО:**
-- **WordPress админка:** https://admin.icoffio.com/wp-admin
-- **Пользователи заходят на:** https://icoffio.com  
-- **API данных:** https://admin.icoffio.com/graphql
-- **Все обновления контента** делаются через WordPress, автоматически появляются на сайте!
+- **WordPress админка:** https://icoffio.com/wp-admin (восстановлено)
+- **Основной сайт:** https://icoffio.com (WordPress как раньше)
+- **Красивый блог:** https://blog.icoffio.com (Next.js)  
+- **API данных:** https://icoffio.com/graphql
+- **Все обновления контента** делаются через WordPress, автоматически появляются на блоге!
 
 ---
 

@@ -39,7 +39,10 @@ export function TestPanel({ locale }: TestPanelProps) {
     } catch (error) {
       setTestResults(prev => ({ 
         ...prev, 
-        translation_service: { available: false, error: error.message }
+        translation_service: { 
+          available: false, 
+          error: error instanceof Error ? error.message : String(error)
+        }
       }));
     }
   };
@@ -109,7 +112,9 @@ export function TestPanel({ locale }: TestPanelProps) {
     } catch (error) {
       setTestResults(prev => ({ 
         ...prev, 
-        translation_test: { error: error.message }
+        translation_test: { 
+          error: error instanceof Error ? error.message : String(error)
+        }
       }));
     }
     setIsLoading(false);

@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   
   // Article pages
   try {
-    const posts = await getAllPosts('en');
+    const posts = await getAllPosts(100);
     locales.forEach(locale => {
       posts.forEach(post => {
         routes.push({

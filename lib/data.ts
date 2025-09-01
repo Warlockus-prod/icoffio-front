@@ -1,6 +1,6 @@
 import type { Post, Category } from "./types";
 
-const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://admin.icoffio.com/graphql";
+const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
 
 async function gql<T>(query: string, variables?: Record<string, any>): Promise<T> {
   if (!WP || WP === "undefined") {

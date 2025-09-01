@@ -97,3 +97,4 @@ async function batchTranslateAll() {
 
 // Запуск
 batchTranslateAll().catch(console.error);
+

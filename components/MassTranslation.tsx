@@ -236,3 +236,4 @@ export function MassTranslation() {
     </div>
   );
 }
+

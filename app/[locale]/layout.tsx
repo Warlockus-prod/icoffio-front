@@ -79,9 +79,8 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     },
     icons: [
       { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },
-      { rel: "icon", type: "image/x-icon", url: "/favicon.ico" },
       { rel: "apple-touch-icon", url: "/favicon.svg", sizes: "180x180" },
-      { rel: "mask-icon", url: "/favicon.svg", color: "#111827" }
+      { rel: "mask-icon", url: "/favicon.svg", color: "#2563eb" }
     ],
     manifest: "/manifest.json",
     robots: {

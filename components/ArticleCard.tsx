@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Post } from "@/lib/types";
+import { OptimizedImage } from "./OptimizedImage";
+import { getTranslation } from "@/lib/i18n";
 
 export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: string }) {
   // Large collection of diverse fallback images to ensure uniqueness

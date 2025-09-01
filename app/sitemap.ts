@@ -1,14 +1,60 @@
-// ВРЕМЕННО УПРОЩЕН пока GraphQL нестабилен
-export default async function sitemap() {
+import { MetadataRoute } from 'next'
+import { getAllPosts } from '@/lib/data'
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
+  const locales = ['en', 'pl', 'de', 'ro', 'cs'];
+  const categories = ['ai', 'apple', 'digital', 'tech', 'news-2'];
   
-  // Статичный sitemap пока DNS стабилизируется
-  return [
-    { url: base, priority: 1 },
-    { url: `${base}/en`, priority: 0.9 },
-    { url: `${base}/pl`, priority: 0.9 },
-    { url: `${base}/de`, priority: 0.9 },
-    { url: `${base}/ro`, priority: 0.9 },
-    { url: `${base}/cs`, priority: 0.9 },
-  ];
+  const routes: MetadataRoute.Sitemap = [];
+  
+  // Homepage and language versions
+  routes.push({ url: base, priority: 1, changeFrequency: 'daily' });
+  locales.forEach(locale => {
+    routes.push({
+      url: `${base}/${locale}`,
+      priority: 0.9,
+      changeFrequency: 'daily',
+      alternates: {
+        languages: Object.fromEntries(
+          locales.map(l => [l, `${base}/${l}`])
+        )
+      }
+    });
+  });
+  
+  // Category pages
+  locales.forEach(locale => {
+    categories.forEach(category => {
+      routes.push({
+        url: `${base}/${locale}/category/${category}`,
+        priority: 0.8,
+        changeFrequency: 'weekly'
+      });
+    });
+  });
+  
+  // Article pages
+  try {
+    const posts = await getAllPosts('en');
+    locales.forEach(locale => {
+      posts.forEach(post => {
+        routes.push({
+          url: `${base}/${locale}/article/${post.slug}`,
+          priority: 0.7,
+          changeFrequency: 'monthly',
+          lastModified: post.modifiedAt || post.publishedAt || new Date(),
+          alternates: {
+            languages: Object.fromEntries(
+              locales.map(l => [l, `${base}/${l}/article/${post.slug}`])
+            )
+          }
+        });
+      });
+    });
+  } catch (error) {
+    console.warn('Could not fetch posts for sitemap:', error);
+  }
+  
+  return routes;
 }

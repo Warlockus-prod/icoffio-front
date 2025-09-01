@@ -23,29 +23,93 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   }
 
   const t = getTranslation(params.locale as any);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
   
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+    metadataBase: new URL(siteUrl),
     title: { default: t.siteTitle, template: `%s • icoffio` },
     description: t.siteDescription,
-    keywords: "technology, gadgets, Apple, iPhone, AI, games, news, reviews",
+    keywords: [
+      "technology", "gadgets", "Apple", "iPhone", "AI", "artificial intelligence",
+      "games", "news", "reviews", "tech news", "innovation", "smartphones",
+      "laptops", "quantum computing", "cybersecurity", "blockchain", "web3",
+      "metaverse", "virtual reality", "augmented reality", "machine learning",
+      "robotics", "automation", "sustainable tech", "green computing"
+    ].join(", "),
+    authors: [{ name: "icoffio Editorial Team", url: siteUrl }],
+    creator: "icoffio",
+    publisher: "icoffio",
+    category: "Technology",
+    classification: "Technology News and Reviews",
+    viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+    themeColor: [
+      { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+      { media: "(prefers-color-scheme: dark)", color: "#111827" }
+    ],
+    colorScheme: "light dark",
     openGraph: { 
+      type: "website",
+      siteName: "icoffio",
       title: t.siteTitle, 
       description: t.siteDescription, 
-      images: ["/og.png"], 
-      type: "website",
-      locale: params.locale === 'en' ? 'en_US' : `${params.locale}_${params.locale.toUpperCase()}` 
+      images: [
+        {
+          url: "/og.png",
+          width: 1200,
+          height: 630,
+          alt: "icoffio — Technology News and Reviews"
+        }
+      ], 
+      locale: params.locale === 'en' ? 'en_US' : `${params.locale}_${params.locale.toUpperCase()}`,
+      url: `${siteUrl}/${params.locale}`
     },
     twitter: {
       card: "summary_large_image",
+      site: "@icoffio",
+      creator: "@icoffio",
       title: t.siteTitle,
       description: t.siteDescription,
+      images: ["/og.png"]
     },
-    icons: [{ rel: "icon", url: "/favicon.ico" }],
+    alternates: {
+      canonical: `${siteUrl}/${params.locale}`,
+      languages: Object.fromEntries(
+        locales.map(locale => [locale, `${siteUrl}/${locale}`])
+      ),
+    },
+    icons: [
+      { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },
+      { rel: "icon", type: "image/x-icon", url: "/favicon.ico" },
+      { rel: "apple-touch-icon", url: "/favicon.svg", sizes: "180x180" },
+      { rel: "mask-icon", url: "/favicon.svg", color: "#111827" }
+    ],
+    manifest: "/manifest.json",
     robots: {
       index: true,
       follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
+    verification: {
+      google: process.env.GOOGLE_SITE_VERIFICATION,
+      yandex: process.env.YANDEX_VERIFICATION,
+      other: {
+        "msvalidate.01": process.env.BING_VERIFICATION || "",
+      }
+    },
+    other: {
+      "apple-mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-status-bar-style": "default",
+      "apple-mobile-web-app-title": "icoffio",
+      "mobile-web-app-capable": "yes",
+      "msapplication-TileColor": "#111827",
+      "msapplication-config": "/browserconfig.xml"
+    }
   };
 }
 

@@ -139,9 +139,10 @@ interface OrganizationSchemaProps {
 export function OrganizationSchema({ locale }: OrganizationSchemaProps) {
   const schema = {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": ["Organization", "NewsMediaOrganization"],
     "name": "icoffio",
-    "description": "Technology news, reviews, and articles about Apple, AI, games and new technologies",
+    "alternateName": "icoffio Tech News",
+    "description": "Leading technology news, reviews, and articles about Apple, AI, games and new technologies",
     "url": process.env.NEXT_PUBLIC_SITE_URL,
     "logo": {
       "@type": "ImageObject",
@@ -149,31 +150,119 @@ export function OrganizationSchema({ locale }: OrganizationSchemaProps) {
       "width": 512,
       "height": 512
     },
+    "image": {
+      "@type": "ImageObject",
+      "url": `${process.env.NEXT_PUBLIC_SITE_URL}/og.png`,
+      "width": 1200,
+      "height": 630
+    },
     "contactPoint": {
       "@type": "ContactPoint",
       "contactType": "customer support",
-      "availableLanguage": ["English", "Polish", "German", "Romanian", "Czech"]
+      "availableLanguage": ["English", "Polish", "German", "Romanian", "Czech"],
+      "email": "contact@icoffio.com"
+    },
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "US"
     },
     "sameAs": [
       "https://twitter.com/icoffio",
       "https://www.facebook.com/icoffio", 
       "https://www.linkedin.com/company/icoffio",
-      "https://www.instagram.com/icoffio"
+      "https://www.instagram.com/icoffio",
+      "https://github.com/icoffio"
     ],
     "founder": {
       "@type": "Person",
-      "name": "icoffio Team"
+      "name": "icoffio Editorial Team"
     },
     "foundingDate": "2024",
     "knowsAbout": [
-      "Technology",
-      "Apple products", 
-      "Artificial Intelligence",
-      "Gaming",
-      "Consumer Electronics",
-      "Software",
-      "Hardware Reviews"
-    ]
+      "Technology", "Apple products", "Artificial Intelligence", "Machine Learning",
+      "Gaming", "Consumer Electronics", "Software", "Hardware Reviews",
+      "Cybersecurity", "Blockchain", "Web3", "Metaverse", "Quantum Computing",
+      "Robotics", "Automation", "Sustainable Technology", "Green Computing"
+    ],
+    "publishingPrinciples": `${process.env.NEXT_PUBLIC_SITE_URL}/editorial-policy`,
+    "diversityPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/diversity-policy`,
+    "ethicsPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/ethics-policy`,
+    "masthead": `${process.env.NEXT_PUBLIC_SITE_URL}/about`,
+    "missionCoveragePrioritiesPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/coverage-policy`,
+    "verificationFactCheckingPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/fact-checking`
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema, null, 2) }}
+    />
+  );
+}
+
+// FAQ Schema for better search results
+export function FAQSchema({ faqs }: { faqs: Array<{ question: string; answer: string }> }) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map(faq => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema, null, 2) }}
+    />
+  );
+}
+
+// Product Review Schema for tech reviews
+export function ProductReviewSchema({ 
+  product, 
+  rating, 
+  reviewBody, 
+  author, 
+  locale 
+}: { 
+  product: { name: string; brand?: string; model?: string; category?: string };
+  rating: { value: number; bestRating?: number; worstRating?: number };
+  reviewBody: string;
+  author: string;
+  locale: string;
+}) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Review",
+    "itemReviewed": {
+      "@type": "Product",
+      "name": product.name,
+      "brand": product.brand,
+      "model": product.model,
+      "category": product.category || "Technology"
+    },
+    "reviewRating": {
+      "@type": "Rating",
+      "ratingValue": rating.value,
+      "bestRating": rating.bestRating || 5,
+      "worstRating": rating.worstRating || 1
+    },
+    "author": {
+      "@type": "Person",
+      "name": author
+    },
+    "reviewBody": reviewBody,
+    "publisher": {
+      "@type": "Organization",
+      "name": "icoffio"
+    },
+    "inLanguage": locale
   };
 
   return (

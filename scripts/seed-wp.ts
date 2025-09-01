@@ -103,3 +103,4 @@ async function createPost(p: PostSeed) {
   }
   console.log("🎉 Seeding completed!");
 })();
+

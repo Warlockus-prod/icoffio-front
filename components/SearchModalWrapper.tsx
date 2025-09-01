@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearch } from './SearchProvider';
-import { SearchModal } from './SearchModal';
+import { AdvancedSearch } from './AdvancedSearch';
 import type { Post } from '@/lib/types';
 
 interface SearchModalWrapperProps {
@@ -13,11 +13,11 @@ export function SearchModalWrapper({ posts, locale }: SearchModalWrapperProps) {
   const { isSearchOpen, closeSearch } = useSearch();
 
   return (
-    <SearchModal
+    <AdvancedSearch
       isOpen={isSearchOpen}
       onClose={closeSearch}
-      posts={posts}
       locale={locale}
     />
   );
 }
+

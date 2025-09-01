@@ -9,6 +9,8 @@ import { Analytics } from "@/components/Analytics";
 import { SearchProvider } from "@/components/SearchProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
+import { TestPanel } from "@/components/TestPanel";
+import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
@@ -112,10 +114,12 @@ export default function LocaleLayout({
             <ReadingProgress />
             <WebVitals />
             <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
-                        <Header />
-          <main className="pb-10">{children}</main>
-          <Footer locale={params.locale} />
+            <Header />
+            <main className="pb-10">{children}</main>
+            <Footer locale={params.locale} />
             <BackToTop />
+            <SearchModalWrapper posts={[]} locale={params.locale} />
+            <TestPanel locale={params.locale} />
           </SearchProvider>
         </ThemeProvider>
       </body>

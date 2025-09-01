@@ -59,3 +59,4 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
     </nav>
   );
 }
+

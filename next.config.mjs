@@ -8,6 +8,22 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' }
     ],
   },
+  async redirects() {
+    return [
+      // Редирект с icoffio.com на www.icoffio.com
+      {
+        source: '/(.*)',
+        has: [
+          {
+            type: 'host',
+            value: 'icoffio.com',
+          },
+        ],
+        destination: 'https://www.icoffio.com/:path*',
+        permanent: true,
+      },
+    ]
+  },
   async rewrites() {
     return [
       {

@@ -114,7 +114,8 @@ export function OptimizedImage({
       </svg>
     `;
     
-    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+    // Используем btoa для кодирования в base64 (browser-compatible)
+    return `data:image/svg+xml;base64,${typeof window !== 'undefined' ? btoa(svg) : ''}`;
   };
 
   // Обновляем src при изменении isInView

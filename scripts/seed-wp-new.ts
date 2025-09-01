@@ -190,3 +190,4 @@ async function createPost(p: PostSeed, digitalCategoryId: number) {
     process.exit(1);
   }
 })();
+

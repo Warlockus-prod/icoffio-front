@@ -41,3 +41,4 @@ export function BackButton({ locale = 'en' }: BackButtonProps) {
     </button>
   );
 }
+

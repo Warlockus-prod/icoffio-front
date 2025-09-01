@@ -28,3 +28,4 @@ export function ReadingProgress() {
     </div>
   );
 }
+

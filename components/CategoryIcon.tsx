@@ -93,3 +93,4 @@ export function getCategoryColor(category: string): string {
       return 'text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800';
   }
 }
+

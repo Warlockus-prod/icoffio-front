@@ -160,7 +160,7 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
       );
     } else if (filters.sortBy === 'relevance' && filters.query) {
-      filteredResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+      filteredResults.sort((a, b) => ((b as SearchResult).score || 0) - ((a as SearchResult).score || 0));
     }
 
     setResults(filteredResults);
@@ -343,9 +343,9 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
                           {post.category.name}
                         </span>
                         <time>{formatDate(post.publishedAt)}</time>
-                        {post.score && (
+                        {(post as SearchResult).score && (
                           <span className="text-blue-600 dark:text-blue-400">
-                            {locale === 'en' ? 'Relevance' : 'Релевантность'}: {post.score}
+                            {locale === 'en' ? 'Relevance' : 'Релевантность'}: {(post as SearchResult).score}
                           </span>
                         )}
                       </div>

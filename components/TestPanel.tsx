@@ -130,8 +130,9 @@ export function TestPanel({ locale }: TestPanelProps) {
     setIsLoading(false);
   };
 
+  // Показываем Test Panel только в development режиме
   if (process.env.NODE_ENV === 'production') {
-    return null; // Скрываем в продакшене
+    return null; 
   }
 
   return (

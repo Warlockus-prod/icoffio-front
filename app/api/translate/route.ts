@@ -103,9 +103,9 @@ export async function GET() {
     supportedLanguages: ['en', 'pl', 'de', 'ro', 'cs'],
     endpoints: {
       'POST /api/translate': {
-        'Single text': { content: 'string', targetLanguage: 'string', contentType?: 'title|excerpt|body' },
-        'Whole article': { action: 'translate-article', content: { title: 'string', excerpt: 'string', body: 'string' }, excludeLanguages?: 'string[]' },
-        'Check availability': { action: 'check-availability' }
+        'Single text': 'content: string, targetLanguage: string, contentType?: title|excerpt|body',
+        'Whole article': 'action: translate-article, content: {title, excerpt, body}, excludeLanguages?: string[]',
+        'Check availability': 'action: check-availability'
       }
     }
   });

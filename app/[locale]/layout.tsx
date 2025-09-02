@@ -186,30 +186,7 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* Рекламный скрипт для интеграции в изображения */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof window._tx === "undefined") {
-                  var s = document.createElement("script");
-                  s.type = "text/javascript";
-                  s.async = true;
-                  s.src = "https://st.hbrd.io/ssp.js?t=" + new Date().getTime();
-                  (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
-              }
-              window._tx = window._tx || {};
-              window._tx.cmds = window._tx.cmds || [];
-              window._tx.cmds.push(function () {
-                  window._tx.integrateInImage({
-                      placeId: "63d93bb54d506e95f039e2e3",
-                      fetchSelector: true,
-                      setDisplayBlock: true
-                  });
-                  window._tx.init();
-              });
-            `,
-          }}
-        />
+
       </body>
     </html>
   );

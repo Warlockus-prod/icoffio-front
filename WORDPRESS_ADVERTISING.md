@@ -1,5 +1,7 @@
 # 📈 WordPress Advertising Setup Guide
 
+> **Status:** ✅ Ad script removed from Next.js, ready for WordPress integration
+
 ## 🎯 РЕКЛАМНЫЕ СКРИПТЫ В WORDPRESS
 
 ### **1️⃣ СПОСОБ 1: Ad Inserter плагин (РЕКОМЕНДУЮ)**

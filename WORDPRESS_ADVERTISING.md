@@ -1,6 +1,21 @@
-# 📈 WordPress Advertising Setup Guide
+# 📈 Hybrid Advertising Strategy
 
-> **Status:** ✅ Ad script removed from Next.js, ready for WordPress integration
+> **Status:** ✅ VOX script in Next.js + Ad Inserter in WordPress for maximum coverage
+
+## 🎯 ГИБРИДНАЯ СТРАТЕГИЯ РЕКЛАМЫ
+
+### **📊 ПОКРЫТИЕ ВСЕХ СТРАНИЦ:**
+- ✅ **Next.js страницы** (www.icoffio.com) → VOX скрипт в layout.tsx
+- ✅ **WordPress страницы** (icoffio.com/wp-admin) → Ad Inserter плагин
+- 🎯 **Максимальное покрытие** без дублирования
+
+### **💡 ПОЧЕМУ ГИБРИДНАЯ МОДЕЛЬ:**
+- WordPress Ad Inserter работает только на WP страницах  
+- Next.js красивый дизайн нуждается в собственной рекламе
+- VOX интегрируется в изображения на фронтенде
+- Ad Inserter управляет рекламой в контенте WordPress
+
+---
 
 ## 🎯 РЕКЛАМНЫЕ СКРИПТЫ В WORDPRESS
 

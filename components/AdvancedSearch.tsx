@@ -238,7 +238,7 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
             <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">
-              🔍 {locale === 'en' ? 'Advanced Search' : 'Расширенный поиск'}
+              🔍 Advanced Search
             </h2>
             <button
               onClick={onClose}
@@ -257,13 +257,13 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
               {/* Search Query */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  {locale === 'en' ? 'Search query' : 'Поисковый запрос'}
+                  Search query
                 </label>
                 <input
                   type="text"
                   value={filters.query}
                   onChange={(e) => setFilters(prev => ({ ...prev, query: e.target.value }))}
-                  placeholder={locale === 'en' ? 'Search articles...' : 'Поиск статей...'}
+                  placeholder="Search articles..."
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -271,14 +271,14 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
               {/* Category Filter */}
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  {locale === 'en' ? 'Category' : 'Категория'}
+                  Category
                 </label>
                 <select
                   value={filters.category}
                   onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="all">{locale === 'en' ? 'All categories' : 'Все категории'}</option>
+                  <option value="all">All categories</option>
                   {categories.map(category => (
                     <option key={category.slug} value={category.slug}>
                       {category.name}
@@ -290,18 +290,18 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
               {/* Date Range Filter */}
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  {locale === 'en' ? 'Date range' : 'Период'}
+                  Date range
                 </label>
                 <select
                   value={filters.dateRange}
                   onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value as SearchFilters['dateRange'] }))}
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="all">{locale === 'en' ? 'All time' : 'Все время'}</option>
-                  <option value="week">{locale === 'en' ? 'Last week' : 'Последняя неделя'}</option>
-                  <option value="month">{locale === 'en' ? 'Last month' : 'Последний месяц'}</option>
-                  <option value="3months">{locale === 'en' ? 'Last 3 months' : 'Последние 3 месяца'}</option>
-                  <option value="year">{locale === 'en' ? 'Last year' : 'Последний год'}</option>
+                  <option value="all">All time</option>
+                  <option value="week">Last week</option>
+                  <option value="month">Last month</option>
+                  <option value="3months">Last 3 months</option>
+                  <option value="year">Last year</option>
                 </select>
               </div>
             </div>
@@ -313,7 +313,7 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
               <div className="flex items-center justify-center py-12">
                 <div className="flex items-center gap-3 text-neutral-600 dark:text-neutral-400">
                   <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <span>{locale === 'en' ? 'Searching...' : 'Поиск...'}</span>
+                  <span>Searching...</span>
                 </div>
               </div>
             ) : results.length > 0 ? (
@@ -345,7 +345,7 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
                         <time>{formatDate(post.publishedAt)}</time>
                         {(post as SearchResult).score && (
                           <span className="text-blue-600 dark:text-blue-400">
-                            {locale === 'en' ? 'Relevance' : 'Релевантность'}: {(post as SearchResult).score}
+                            Relevance: {(post as SearchResult).score}
                           </span>
                         )}
                       </div>
@@ -365,13 +365,10 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <p className="text-lg font-medium">
-                  {locale === 'en' ? 'No results found' : 'Результаты не найдены'}
+                  No results found
                 </p>
                 <p className="text-sm">
-                  {locale === 'en' 
-                    ? 'Try adjusting your search terms or filters' 
-                    : 'Попробуйте изменить поисковый запрос или фильтры'
-                  }
+                  Try adjusting your search terms or filters
                 </p>
               </div>
             )}

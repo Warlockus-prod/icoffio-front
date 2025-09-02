@@ -43,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           url: `${base}/${locale}/article/${post.slug}`,
           priority: 0.7,
           changeFrequency: 'monthly',
-          lastModified: post.modifiedAt || post.publishedAt || new Date(),
+          lastModified: new Date(post.publishedAt || post.date || new Date()),
           alternates: {
             languages: Object.fromEntries(
               locales.map(l => [l, `${base}/${l}/article/${post.slug}`])

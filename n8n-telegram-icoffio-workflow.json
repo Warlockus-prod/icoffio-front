@@ -1,0 +1,288 @@
+{
+  "name": "Telegram to icoffio Article Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-article",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-telegram",
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.message?.text }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "filter-messages",
+      "name": "Filter Text Messages",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://icoffio.com/api/n8n-webhook",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.N8N_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "process-article"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify({\n  title: $json.message.text.split('\\n')[0] || 'Статья из Telegram',\n  content: $json.message.text,\n  category: 'tech',\n  language: 'ru',\n  author: $json.message.from?.first_name || 'AI Assistant',\n  chatId: $json.message.chat.id,\n  messageId: $json.message.message_id\n}) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "process-article",
+      "name": "Process Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "Check Processing Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Telegram Webhook').item.json.message.chat.id }}"
+            },
+            {
+              "name": "text",
+              "value": "🎉 Статья успешно обработана и опубликована!\n\n📝 Заголовок: {{ $json.article.title }}\n🏷️ Категория: {{ $json.article.category }}\n🌍 Языки: {{ $json.publicationResults.publishedLanguages.join(', ') }}\n\n🔗 Ссылки:\n{{ Object.entries($json.urls).map(([lang, url]) => `${lang.toUpperCase()}: ${url}`).join('\\n') }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            }
+          ]
+        }
+      },
+      "id": "success-notification",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Telegram Webhook').item.json.message.chat.id }}"
+            },
+            {
+              "name": "text",
+              "value": "❌ Ошибка при обработке статьи:\n\n{{ $json.error || 'Неизвестная ошибка' }}\n\nПожалуйста, попробуйте позже или обратитесь к администратору."
+            }
+          ]
+        }
+      },
+      "id": "error-notification",
+      "name": "Send Error Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}"
+            },
+            {
+              "name": "text",
+              "value": "ℹ️ Получено сообщение, но оно не содержит текста для обработки."
+            }
+          ]
+        }
+      },
+      "id": "no-text-notification",
+      "name": "Send No Text Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filter Text Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Text Messages": {
+      "main": [
+        [
+          {
+            "node": "Process Article",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send No Text Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Article": {
+      "main": [
+        [
+          {
+            "node": "Check Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Processing Success": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Success Notification": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Error Notification": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send No Text Notification": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "Europe/Moscow"
+  },
+  "meta": {
+    "templateId": "telegram-icoffio-integration"
+  },
+  "tags": [
+    {
+      "id": "telegram",
+      "name": "telegram"
+    },
+    {
+      "id": "icoffio",
+      "name": "icoffio"
+    },
+    {
+      "id": "content-automation",
+      "name": "content-automation"
+    }
+  ]
+}
+
+

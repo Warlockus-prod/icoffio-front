@@ -187,10 +187,10 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* VOX Advertising Script - In-Image Ads */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
+                    {/* VOX Advertising Script - In-Image Ads */}
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
               if (typeof window._tx === "undefined") {
                   var s = document.createElement("script");
                   s.type = "text/javascript";
@@ -200,36 +200,16 @@ export default function LocaleLayout({
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
-              
-              // Функция для инициализации VOX с ожиданием загрузки изображений
-              function initVOX() {
+              window._tx.cmds.push(function () {
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      setDisplayBlock: true
+                      fetchSelector: true,
                   });
                   window._tx.init();
-              }
-              
-              window._tx.cmds.push(function () {
-                  // Проверяем готовность изображений и DOM
-                  if (document.readyState === 'complete') {
-                      // Страница уже полностью загружена
-                      initVOX();
-                  } else {
-                      // Ждем полной загрузки включая изображения
-                      window.addEventListener('load', function() {
-                          initVOX();
-                      });
-                      
-                      // Дополнительная задержка для надежности
-                      setTimeout(function() {
-                          initVOX();
-                      }, 2000);
-                  }
               });
             `,
-          }}
-        />
+              }}
+            />
       </body>
     </html>
   );

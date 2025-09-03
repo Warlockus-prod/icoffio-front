@@ -201,24 +201,13 @@ export default function LocaleLayout({
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
               
-              // Функция инициализации VOX (только для статей с точными селекторами)
+              // Функция инициализации VOX (простая рабочая версия)
               function initVOX() {
-                  // Проверяем что мы на странице статьи
-                  const currentUrl = window.location.pathname;
-                  const isArticlePage = currentUrl.includes('/article/');
-                  
-                  if (!isArticlePage) {
-                      console.log('VOX: Не страница статьи, реклама отключена');
-                      return;
-                  }
-                  
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      // Точный селектор: только изображения В СТАТЬЯХ, исключая миниатюры
-                      selector: 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img',
+                      fetchSelector: true,
                   });
                   window._tx.init();
-                  console.log('VOX: Инициализирован для страницы статьи');
               }
               
               // Переменная для отслеживания последнего URL

@@ -35,10 +35,11 @@ window._tx.cmds = window._tx.cmds || [];
 
 // Функция для инициализации VOX с ожиданием загрузки изображений
 function initVOX() {
-    window._tx.integrateInImage({
-        placeId: "63d93bb54d506e95f039e2e3",
-        fetchSelector: true,
-    });
+                  window._tx.integrateInImage({
+                  placeId: "63d93bb54d506e95f039e2e3",
+                  fetchSelector: true,
+                  setDisplayBlock: true
+              });
     window._tx.init();
 }
 
@@ -298,9 +299,10 @@ window._tx.cmds.push(function () {
 - ✅ Обновление VOX скрипта (убран setDisplayBlock: true)
 - ✅ **ИСПРАВЛЕНИЕ TIMING ПРОБЛЕМЫ** - добавлено ожидание загрузки изображений
 - ✅ Добавлена функция initVOX() с проверкой document.readyState
-- ✅ Добавлен window load event listener для надежности
+- ✅ Добавлен window load event listener для надежности  
 - ✅ Добавлен timeout fallback (2 сек) для дополнительной гарантии
-- ✅ **ПРОБЛЕМА РЕШЕНА:** VOX теперь работает с первого посещения страницы
+- ✅ **ВОССТАНОВЛЕН setDisplayBlock: true** - критический параметр для отображения рекламы
+- ✅ **ФИНАЛЬНАЯ ВЕРСИЯ:** VOX работает с первого посещения + правильно отображает рекламу
 - ✅ Структура для будущих рекламных кодов
 
 ### [Дата]

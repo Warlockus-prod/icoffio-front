@@ -210,22 +210,44 @@ export default function LocaleLayout({
                   window._tx.init();
               }
               
-              window._tx.cmds.push(function () {
-                  // Ждем полной загрузки DOM и изображений
-                  if (document.readyState === 'complete') {
-                      // Страница уже полностью загружена
-                      initVOX();
-                  } else {
-                      // Ждем событие полной загрузки (включая изображения)
-                      window.addEventListener('load', function() {
-                          initVOX();
-                      });
+              // Переменная для отслеживания последнего URL
+              window._voxLastUrl = window._voxLastUrl || '';
+              
+              // Функция для проверки и перезапуска VOX при изменении страницы
+              function checkAndInitVOX() {
+                  const currentUrl = window.location.href;
+                  
+                  // Если URL изменился или это первый запуск
+                  if (window._voxLastUrl !== currentUrl || window._voxLastUrl === '') {
+                      window._voxLastUrl = currentUrl;
                       
-                      // Дополнительная задержка для надежности
+                      // Небольшая задержка для загрузки контента
                       setTimeout(function() {
                           initVOX();
-                      }, 2000);
+                      }, 1000);
                   }
+              }
+              
+              window._tx.cmds.push(function () {
+                  // Первоначальная инициализация
+                  if (document.readyState === 'complete') {
+                      checkAndInitVOX();
+                  } else {
+                      window.addEventListener('load', checkAndInitVOX);
+                      setTimeout(checkAndInitVOX, 2000);
+                  }
+                  
+                  // Отслеживание изменений URL для Next.js client-side navigation
+                  const checkUrlInterval = setInterval(function() {
+                      checkAndInitVOX();
+                  }, 1500);
+                  
+                  // Очистка интервала при необходимости (для производительности)
+                  window.addEventListener('beforeunload', function() {
+                      if (typeof checkUrlInterval !== 'undefined') {
+                          clearInterval(checkUrlInterval);
+                      }
+                  });
               });
             `,
               }}

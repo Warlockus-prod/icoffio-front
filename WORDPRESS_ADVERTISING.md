@@ -44,7 +44,6 @@ window._tx.cmds.push(function () {
     window._tx.integrateInImage({
         placeId: "63d93bb54d506e95f039e2e3",
         fetchSelector: true,
-        setDisplayBlock: true
     });
     window._tx.init();
 });

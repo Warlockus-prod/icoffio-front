@@ -200,12 +200,32 @@ export default function LocaleLayout({
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
-              window._tx.cmds.push(function () {
+              
+              // Функция для инициализации VOX с ожиданием загрузки изображений
+              function initVOX() {
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       fetchSelector: true,
                   });
                   window._tx.init();
+              }
+              
+              window._tx.cmds.push(function () {
+                  // Проверяем готовность изображений и DOM
+                  if (document.readyState === 'complete') {
+                      // Страница уже полностью загружена
+                      initVOX();
+                  } else {
+                      // Ждем полной загрузки включая изображения
+                      window.addEventListener('load', function() {
+                          initVOX();
+                      });
+                      
+                      // Дополнительная задержка для надежности
+                      setTimeout(function() {
+                          initVOX();
+                      }, 2000);
+                  }
               });
             `,
           }}

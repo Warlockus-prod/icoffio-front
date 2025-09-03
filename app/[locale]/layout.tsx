@@ -201,15 +201,13 @@ export default function LocaleLayout({
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
               
-              // Функция для инициализации VOX (упрощенная версия для диагностики)
+              // Функция для инициализации VOX с ожиданием загрузки изображений
               function initVOX() {
-                  console.log('🔧 VOX initVOX вызвана');
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       setDisplayBlock: true
                   });
                   window._tx.init();
-                  console.log('✅ VOX init завершен');
               }
               
               window._tx.cmds.push(function () {

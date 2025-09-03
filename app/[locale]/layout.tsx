@@ -206,6 +206,7 @@ export default function LocaleLayout({
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       fetchSelector: true,
+                      setDisplayBlock: true
                   });
                   window._tx.init();
               }

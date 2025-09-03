@@ -205,7 +205,7 @@ export default function LocaleLayout({
               function initVOX() {
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      fetchSelector: true,
+                      selector: "img",
                       setDisplayBlock: true
                   });
                   window._tx.init();

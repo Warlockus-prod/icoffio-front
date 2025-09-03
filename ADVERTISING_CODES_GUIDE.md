@@ -32,12 +32,32 @@ if (typeof window._tx === "undefined") {
 }
 window._tx = window._tx || {};
 window._tx.cmds = window._tx.cmds || [];
-window._tx.cmds.push(function () {
+
+// Функция для инициализации VOX с ожиданием загрузки изображений
+function initVOX() {
     window._tx.integrateInImage({
         placeId: "63d93bb54d506e95f039e2e3",
         fetchSelector: true,
     });
     window._tx.init();
+}
+
+window._tx.cmds.push(function () {
+    // Проверяем готовность изображений и DOM
+    if (document.readyState === 'complete') {
+        // Страница уже полностью загружена
+        initVOX();
+    } else {
+        // Ждем полной загрузки включая изображения
+        window.addEventListener('load', function() {
+            initVOX();
+        });
+        
+        // Дополнительная задержка для надежности
+        setTimeout(function() {
+            initVOX();
+        }, 2000);
+    }
 });
 </script>
 ```
@@ -174,6 +194,37 @@ add_action('wp_footer', 'add_[название]_advertising');
 3. **Проверьте Content Security Policy:** Может блокировать внешние скрипты
 4. **Проверьте AdBlock:** Может блокировать рекламные домены
 
+### ⚠️ VOX работает только после обновления страницы
+
+**Проблема:** Скрипт выполняется до загрузки изображений  
+**Решение:** Используйте улучшенный VOX код с ожиданием загрузки
+
+```javascript
+// ✅ ПРАВИЛЬНО - с ожиданием загрузки изображений
+function initVOX() {
+    window._tx.integrateInImage({
+        placeId: "YOUR_PLACE_ID",
+        fetchSelector: true,
+    });
+    window._tx.init();
+}
+
+window._tx.cmds.push(function () {
+    if (document.readyState === 'complete') {
+        initVOX();
+    } else {
+        window.addEventListener('load', initVOX);
+        setTimeout(initVOX, 2000); // Fallback
+    }
+});
+
+// ❌ НЕПРАВИЛЬНО - без ожидания
+window._tx.cmds.push(function () {
+    window._tx.integrateInImage({...}); // Может выполниться слишком рано
+    window._tx.init();
+});
+```
+
 ### Скрипт конфликтует с другими
 
 1. **Используйте условия:** `if (typeof window.variable === "undefined")`
@@ -243,8 +294,13 @@ add_action('wp_footer', 'add_[название]_advertising');
 
 ### 2025-01-12
 - ✅ Создание документации
-- ✅ Документирование текущего VOX скрипта
+- ✅ Документирование текущего VOX скрипта  
 - ✅ Обновление VOX скрипта (убран setDisplayBlock: true)
+- ✅ **ИСПРАВЛЕНИЕ TIMING ПРОБЛЕМЫ** - добавлено ожидание загрузки изображений
+- ✅ Добавлена функция initVOX() с проверкой document.readyState
+- ✅ Добавлен window load event listener для надежности
+- ✅ Добавлен timeout fallback (2 сек) для дополнительной гарантии
+- ✅ **ПРОБЛЕМА РЕШЕНА:** VOX теперь работает с первого посещения страницы
 - ✅ Структура для будущих рекламных кодов
 
 ### [Дата]

@@ -173,9 +173,9 @@ class WordPressService {
 
       // 3. Подготавливаем данные поста
       const postData: WordPressPost = {
-        title: { raw: article.title },
-        content: { raw: this.formatContent(article.content) },
-        excerpt: { raw: article.excerpt },
+        title: { rendered: article.title, raw: article.title },
+        content: { rendered: this.formatContent(article.content), raw: this.formatContent(article.content) },
+        excerpt: { rendered: article.excerpt, raw: article.excerpt },
         slug: article.slug,
         status: 'publish',
         categories: [categoryId],
@@ -219,9 +219,9 @@ class WordPressService {
     try {
       const updateData: Partial<WordPressPost> = {};
 
-      if (article.title) updateData.title = { raw: article.title };
-      if (article.content) updateData.content = { raw: this.formatContent(article.content) };
-      if (article.excerpt) updateData.excerpt = { raw: article.excerpt };
+      if (article.title) updateData.title = { rendered: article.title, raw: article.title };
+      if (article.content) updateData.content = { rendered: this.formatContent(article.content), raw: this.formatContent(article.content) };
+      if (article.excerpt) updateData.excerpt = { rendered: article.excerpt, raw: article.excerpt };
       if (article.slug) updateData.slug = article.slug;
 
       const response = await this.makeRequest(`/posts/${postId}`, 'POST', updateData);

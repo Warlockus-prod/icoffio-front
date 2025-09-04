@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { WebVitals } from "@/components/WebVitals";
 import { ReadingProgress } from "@/components/ReadingProgress";
 import { BackToTop } from "@/components/BackToTop";
+import { Analytics } from "@/components/Analytics";
 import { SearchProvider } from "@/components/SearchProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
@@ -127,22 +128,6 @@ export default function LocaleLayout({
   return (
     <html lang={params.locale} suppressHydrationWarning>
       <head>
-        {/* Google Analytics */}
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-35P327PYGH"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-35P327PYGH');
-            `,
-          }}
-        />
-        
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -192,6 +177,7 @@ export default function LocaleLayout({
           <SearchProvider>
             <ReadingProgress />
             <WebVitals />
+            <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID || 'G-35P327PYGH'} />
             <Header />
             <main className="pb-10">{children}</main>
             <Footer locale={params.locale} />
@@ -201,10 +187,10 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-                    {/* VOX Advertising Script - In-Image Ads */}
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
+        {/* Рекламный скрипт для интеграции в изображения */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
               if (typeof window._tx === "undefined") {
                   var s = document.createElement("script");
                   s.type = "text/javascript";
@@ -214,58 +200,17 @@ export default function LocaleLayout({
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
-              
-              // Функция инициализации VOX (простая рабочая версия)
-              function initVOX() {
+              window._tx.cmds.push(function () {
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       fetchSelector: true,
+                      setDisplayBlock: true
                   });
                   window._tx.init();
-              }
-              
-              // Переменная для отслеживания последнего URL
-              window._voxLastUrl = window._voxLastUrl || '';
-              
-              // Функция для проверки и перезапуска VOX при изменении страницы
-              function checkAndInitVOX() {
-                  const currentUrl = window.location.href;
-                  
-                  // Если URL изменился или это первый запуск
-                  if (window._voxLastUrl !== currentUrl || window._voxLastUrl === '') {
-                      window._voxLastUrl = currentUrl;
-                      
-                      // Небольшая задержка для загрузки контента
-                      setTimeout(function() {
-                          initVOX();
-                      }, 1000);
-                  }
-              }
-              
-              window._tx.cmds.push(function () {
-                  // Первоначальная инициализация
-                  if (document.readyState === 'complete') {
-                      checkAndInitVOX();
-                  } else {
-                      window.addEventListener('load', checkAndInitVOX);
-                      setTimeout(checkAndInitVOX, 2000);
-                  }
-                  
-                  // Отслеживание изменений URL для Next.js client-side navigation
-                  const checkUrlInterval = setInterval(function() {
-                      checkAndInitVOX();
-                  }, 1500);
-                  
-                  // Очистка интервала при необходимости (для производительности)
-                  window.addEventListener('beforeunload', function() {
-                      if (typeof checkUrlInterval !== 'undefined') {
-                          clearInterval(checkUrlInterval);
-                      }
-                  });
               });
             `,
-              }}
-            />
+          }}
+        />
       </body>
     </html>
   );

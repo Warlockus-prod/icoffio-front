@@ -1,7 +1,7 @@
 import type { Post, Category } from "./types";
 
 // Локальные статьи для добавления на сайт
-export const localArticles: Post[] = [
+const localArticles: Post[] = [
   {
     slug: "chto-nuzhno-znat-esli-vy-reshili-vnedrit-llm",
     title: "Что нужно знать, если вы решили внедрить LLM",

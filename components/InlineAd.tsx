@@ -40,7 +40,7 @@ export function InlineAd({ placeId, format, className = '' }: InlineAdProps) {
 
   return (
     <div className={`my-6 w-full ${className}`}>
-      {/* Inline Banner Ad */}
+      {/* Inline Banner Ad - Пустой контейнер для VOX */}
       <div className="flex justify-center">
         <div 
           data-hyb-ssp-ad-place={placeId}
@@ -48,24 +48,12 @@ export function InlineAd({ placeId, format, className = '' }: InlineAdProps) {
             width: `${config.width}px`,
             height: `${config.height}px`,
             maxWidth: '100%',
-            minHeight: '90px',
+            minHeight: `${config.height}px`,
+            display: 'block',
           }}
-          className="border-2 border-dashed border-blue-400 bg-blue-50 dark:bg-blue-900/20 flex flex-col items-center justify-center text-blue-600 dark:text-blue-400 relative"
+          className="bg-gray-100 dark:bg-gray-800"
         >
-          <div className="text-center p-3">
-            <div className="text-sm font-bold mb-1">📺 INLINE AD</div>
-            <div className="text-xs font-semibold mb-1">{config.name}</div>
-            <div className="text-xs font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded">
-              {format}
-            </div>
-          </div>
-          
-          <div className="absolute top-1 left-1 text-xs bg-blue-500 text-white px-1 rounded">
-            VOX
-          </div>
-          <div className="absolute top-1 right-1 text-xs bg-gray-500 text-white px-1 rounded">
-            INLINE
-          </div>
+          {/* Пустой контейнер - VOX заполнит рекламой */}
         </div>
       </div>
     </div>

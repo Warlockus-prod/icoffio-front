@@ -242,10 +242,10 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
   
   const localFiltered = localArticles.filter(article => {
     const categoryMatch = article.category.slug === slug;
-    const languageMatch = 
-      article.slug.endsWith(`-${locale}`) ||  // Точное совпадение языка
-      (!article.slug.match(/-[a-z]{2}$/) && ['ru', 'en', 'pl', 'de', 'ro', 'cs'].includes(locale)); // Fallback к статьям без суффикса для всех языков
-    console.log(`📝 Article: ${article.slug}, category: ${article.category.slug}, categoryMatch: ${categoryMatch}, languageMatch: ${languageMatch}`);
+    // Временно упрощаем логику: показываем все статьи категории для любого языка
+    // TODO: восстановить фильтрацию по языкам когда будет больше переводов
+    const languageMatch = true; // Временно отключаем фильтрацию по языкам
+    console.log(`📝 Article: ${article.slug}, category: ${article.category.slug}, categoryMatch: ${categoryMatch}`);
     return categoryMatch && languageMatch;
   });
   

@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
+import { DisplayAd } from "@/components/DisplayAd";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -557,6 +558,14 @@ export default async function Article({ params }: { params: { locale: string; sl
             </p>
           </header>
 
+          {/* Leaderboard 728x90 - После заголовка, перед изображением героя */}
+          <DisplayAd 
+            placeId="63da9b577bc72f39bc3bfc68"
+            format="728x90"
+            position="После заголовка"
+            className="max-w-4xl mx-auto"
+          />
+
           <div className="mb-8">
             <img 
               src={post.image || fallback} 
@@ -576,11 +585,35 @@ export default async function Article({ params }: { params: { locale: string; sl
           </div>
         </article>
 
+        {/* Medium Rectangle 300x250 - После контента, перед RelatedArticles */}
+        <DisplayAd 
+          placeId="63da9b577bc72f39bc3bfc68"
+          format="300x250"
+          position="После контента статьи"
+          className="max-w-4xl mx-auto"
+        />
+
         <RelatedArticles 
           posts={related.length > 0 ? related : mockPosts}
           locale={params.locale}
           currentPostSlug={post.slug}
           currentPost={post}
+        />
+
+        {/* Large Leaderboard 970x250 - В конце статьи */}
+        <DisplayAd 
+          placeId="63daa3c24d506e16acfd2a38"
+          format="970x250"
+          position="В конце статьи"
+          className="max-w-5xl mx-auto"
+        />
+
+        {/* Large Skyscraper 300x600 - Дополнительный блок */}
+        <DisplayAd 
+          placeId="63daa2ea7bc72f39bc3bfc72"
+          format="300x600"
+          position="Финальный блок"
+          className="max-w-4xl mx-auto"
         />
       </Container>
 

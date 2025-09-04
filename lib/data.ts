@@ -280,13 +280,12 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
     console.warn('WordPress API недоступен, используем только локальные статьи');
   }
 
-  // Используем combineArticles для правильного объединения вместо простого concat
-  const combinedPosts = await combineArticles(wpPosts, locale);
-  const finalFiltered = combinedPosts.filter(article => article.category.slug === slug);
-  console.log(`🎯 Final combined and filtered posts for category ${slug}: ${finalFiltered.length}`);
+  // WordPress уже отфильтровал по категории, просто объединяем с локальными
+  const combinedPosts = [...localFiltered, ...wpPosts];
+  console.log(`🎯 Final combined posts for category ${slug}: ${combinedPosts.length} (local: ${localFiltered.length}, wp: ${wpPosts.length})`);
   
   // Сортируем по дате публикации (новые сверху)
-  finalFiltered.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  combinedPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   
-  return finalFiltered.slice(0, limit);
+  return combinedPosts.slice(0, limit);
 }

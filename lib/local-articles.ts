@@ -515,6 +515,47 @@ export const localArticles: Post[] = [
   </div>
 </div>
     `
+  },
+
+  // Английские переводы
+  {
+    slug: "what-you-need-to-know-if-you-decide-to-implement-llm-en",
+    title: "What You Need to Know if You Decide to Implement LLM",
+    excerpt: "Comprehensive guide to implementing large language models in your product. Strategies, tactics, and real experience from a Yandex expert.",
+    date: new Date().toISOString(),
+    publishedAt: new Date().toISOString(),
+    image: "/images/ai-llm-implementation.jpg",
+    imageAlt: "LLM implementation scheme in product",
+    category: { name: "AI", slug: "ai" },
+    images: ["/images/ai-llm-implementation.jpg", "/images/ai-strategy-planning.jpg"],
+    contentHtml: `<div class="prose prose-lg max-w-none">
+      <img src="/images/ai-llm-implementation.jpg" alt="LLM implementation" class="w-full h-64 object-cover rounded-lg mb-8" />
+      <p class="lead">There's a lot of mystification around LLMs. Many believe only special people can master large language models. This isn't true. Let's explore how to effectively implement LLM in your product.</p>
+      <h2>Implementation Strategy</h2>
+      <p>Start with narrow, clearly formulated tasks. Use ready APIs like OpenAI, Anthropic, or Replicate. Develop iteratively.</p>
+      <img src="/images/ai-strategy-planning.jpg" alt="AI strategy" class="w-full h-64 object-cover rounded-lg my-8" />
+      <p>Remember: LLM is a powerful tool, but not magic. Success depends on proper application and iterative improvement.</p>
+    </div>`
+  },
+
+  {
+    slug: "microsoft-doesnt-want-to-make-games-itself-en",
+    title: "Microsoft doesn't want to make games itself and doesn't let others",
+    excerpt: "Analysis of Microsoft's strategy in gaming industry after abandoning Perfect Dark and problems with independent studios.",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    image: "/images/microsoft-gaming-strategy.jpg",
+    imageAlt: "Microsoft Xbox gaming strategy",
+    category: { name: "Tech", slug: "tech" },
+    images: ["/images/microsoft-gaming-strategy.jpg", "/images/perfect-dark-xbox.jpg"],
+    contentHtml: `<div class="prose prose-lg max-w-none">
+      <img src="/images/microsoft-gaming-strategy.jpg" alt="Microsoft gaming" class="w-full h-64 object-cover rounded-lg mb-8" />
+      <p class="lead">Microsoft paused Perfect Dark development by The Initiative and handed project to Crystal Dynamics. This demonstrates current problems of the gaming division.</p>
+      <h2>Internal Development Problems</h2>
+      <p>The Initiative was created as "dream studio" but faced: high staff turnover, project management issues, lack of clear vision, creative conflicts.</p>
+      <img src="/images/perfect-dark-xbox.jpg" alt="Perfect Dark Xbox" class="w-full h-64 object-cover rounded-lg my-8" />
+      <p>Microsoft focuses on platform solutions rather than content creation, preferring to buy studios than develop internal teams.</p>
+    </div>`
   }
 ];
 

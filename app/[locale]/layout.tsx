@@ -5,7 +5,6 @@ import { Footer } from "@/components/Footer";
 import { WebVitals } from "@/components/WebVitals";
 import { ReadingProgress } from "@/components/ReadingProgress";
 import { BackToTop } from "@/components/BackToTop";
-import { Analytics } from "@/components/Analytics";
 import { SearchProvider } from "@/components/SearchProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
@@ -128,6 +127,22 @@ export default function LocaleLayout({
   return (
     <html lang={params.locale} suppressHydrationWarning>
       <head>
+        {/* Google Analytics */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-35P327PYGH"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-35P327PYGH');
+            `,
+          }}
+        />
+        
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -177,7 +192,6 @@ export default function LocaleLayout({
           <SearchProvider>
             <ReadingProgress />
             <WebVitals />
-            <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
             <Header />
             <main className="pb-10">{children}</main>
             <Footer locale={params.locale} />

@@ -224,9 +224,34 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const q = `query{ categories(first:100){ nodes{ name slug } } }`;
-  const d = await gql<{categories:{nodes:Category[]}}>(q);
-  return d.categories.nodes;
+  // Получаем категории из WordPress
+  let wpCategories: Category[] = [];
+  try {
+    const q = `query{ categories(first:100){ nodes{ name slug } } }`;
+    const d = await gql<{categories:{nodes:Category[]}}>(q);
+    wpCategories = d.categories.nodes;
+  } catch (error) {
+    console.warn('WordPress categories unavailable, using local categories only');
+  }
+
+  // Получаем уникальные категории из локальных статей
+  const localArticles = await getLocalArticles();
+  const localCategories = Array.from(
+    new Map(
+      localArticles.map(article => [article.category.slug, article.category])
+    ).values()
+  );
+
+  // Объединяем категории без дублирования
+  const allCategories = new Map<string, Category>();
+  
+  // Добавляем WordPress категории
+  wpCategories.forEach(cat => allCategories.set(cat.slug, cat));
+  
+  // Добавляем локальные категории (перезаписывают WordPress если конфликт)
+  localCategories.forEach(cat => allCategories.set(cat.slug, cat));
+
+  return Array.from(allCategories.values());
 }
 
 export async function getCategorySlugs(): Promise<string[]> {

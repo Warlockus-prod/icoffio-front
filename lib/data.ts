@@ -46,12 +46,20 @@ async function getTranslatedArticles(): Promise<Record<string, any>> {
 
 // Фильтрация статей по языку
 function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
-  if (locale === 'ru') {
-    // Для русского языка возвращаем статьи без языкового суффикса
-    return articles.filter(article => !article.slug.match(/-[a-z]{2}$/));
+  if (locale === 'ru' || locale === 'en') {
+    // Для русского и английского языков возвращаем статьи без языкового суффикса
+    // плюс статьи с соответствующим суффиксом
+    return articles.filter(article => 
+      !article.slug.match(/-[a-z]{2}$/) || 
+      article.slug.endsWith(`-${locale}`)
+    );
   } else {
-    // Для других языков ищем статьи с соответствующим суффиксом
-    return articles.filter(article => article.slug.endsWith(`-${locale}`));
+    // Для других языков ищем статьи с соответствующим суффиксом 
+    // или без суффикса как fallback
+    return articles.filter(article => 
+      article.slug.endsWith(`-${locale}`) ||
+      !article.slug.match(/-[a-z]{2}$/)
+    );
   }
 }
 
@@ -227,26 +235,47 @@ export async function getCategoryBySlug(slug: string): Promise<Category|null> {
   return cats.find(c => c.slug === slug) || null;
 }
 
-export async function getPostsByCategory(slug: string, limit = 24): Promise<Post[]> {
-  const q = `
-    query($first:Int!, $slug:String!){
-      posts(first:$first, where:{categoryName:$slug, orderby:{field:DATE, order:DESC}}){
-        nodes{
-          slug title excerpt date
-          featuredImage{ node{ sourceUrl } }
-          categories{ nodes{ name slug } }
+export async function getPostsByCategory(slug: string, limit = 24, locale: string = 'en'): Promise<Post[]> {
+  // Получаем локальные статьи и фильтруем по категории и языку
+  const localArticles = await getLocalArticles();
+  const localFiltered = localArticles.filter(article => 
+    article.category.slug === slug && 
+    (article.slug.includes(`-${locale}`) || locale === 'en')
+  );
+
+  // Пытаемся получить статьи из WordPress
+  let wpPosts: Post[] = [];
+  try {
+    const q = `
+      query($first:Int!, $slug:String!){
+        posts(first:$first, where:{categoryName:$slug, orderby:{field:DATE, order:DESC}}){
+          nodes{
+            slug title excerpt date
+            featuredImage{ node{ sourceUrl } }
+            categories{ nodes{ name slug } }
+          }
         }
-      }
-    }`;
-  const d = await gql<{posts:{nodes:any[]}}>(q, { first: limit, slug });
-  return d.posts.nodes.map(n => ({
-    slug: n.slug,
-    title: strip(n.title),
-    excerpt: strip(n.excerpt),
-    date: n.date,
-    publishedAt: n.date,
-    image: n.featuredImage?.node?.sourceUrl || "",
-    category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
-    contentHtml: "",
-  }));
+      }`;
+    const d = await gql<{posts:{nodes:any[]}}>(q, { first: limit, slug });
+    wpPosts = d.posts.nodes.map(n => ({
+      slug: n.slug,
+      title: strip(n.title),
+      excerpt: strip(n.excerpt),
+      date: n.date,
+      publishedAt: n.date,
+      image: n.featuredImage?.node?.sourceUrl || "",
+      category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
+      contentHtml: "",
+    }));
+  } catch (error) {
+    console.warn('WordPress API недоступен, используем только локальные статьи');
+  }
+
+  // Объединяем и сортируем
+  const allPosts = [...localFiltered, ...wpPosts];
+  
+  // Сортируем по дате публикации (новые сверху)
+  allPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  
+  return allPosts.slice(0, limit);
 }

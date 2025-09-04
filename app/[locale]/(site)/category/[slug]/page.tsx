@@ -18,7 +18,7 @@ export const revalidate = 120;
 export default async function CategoryPage({ params }: { params: { locale: string; slug: string } }) {
   const category = await getCategoryBySlug(params.slug);
   if (!category) return notFound();
-  const posts = await getPostsByCategory(category.slug, 24);
+  const posts = await getPostsByCategory(category.slug, 24, params.locale);
 
   return (
     <Container>

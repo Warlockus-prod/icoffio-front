@@ -32,6 +32,17 @@ interface ProcessedArticle extends TelegramArticle {
 // Поддерживаемые языки
 const SUPPORTED_LANGUAGES = ['en', 'pl', 'de', 'ro', 'cs'];
 
+// Утилита для генерации slug из заголовка
+function generateSlugFromTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // убираем спецсимволы
+    .replace(/\s+/g, '-')     // пробелы в дефисы
+    .replace(/-+/g, '-')      // множественные дефисы в одинарные
+    .trim()                   // убираем пробелы по краям
+    .replace(/^-+|-+$/g, ''); // убираем дефисы в начале/конце
+}
+
 // POST /api/n8n-webhook - основной webhook для n8n
 export async function POST(request: NextRequest) {
   try {
@@ -216,7 +227,7 @@ async function generateOrFetchImage(title: string, category: string): Promise<st
 
 
 // Перевод на все языки
-async function translateToAllLanguages(content: { title: string; excerpt: string; content: string }) {
+async function translateToAllLanguages(content: { title: string; excerpt: string; content: string }): Promise<Record<string, { title: string; excerpt: string; content: string; slug: string; }>> {
   try {
     if (!translationService.isAvailable()) {
       return {};
@@ -231,7 +242,21 @@ async function translateToAllLanguages(content: { title: string; excerpt: string
       ['ru'] // исключаем русский язык так как оригинал на русском
     );
 
-    return translations;
+    // Преобразуем результат в нужный формат
+    const formattedTranslations: Record<string, { title: string; excerpt: string; content: string; slug: string; }> = {};
+    
+    for (const [language, translation] of Object.entries(translations)) {
+      if (translation && typeof translation === 'object') {
+        formattedTranslations[language] = {
+          title: (translation as any).title || content.title,
+          excerpt: (translation as any).excerpt || content.excerpt,
+          content: (translation as any).body || (translation as any).content || content.content,
+          slug: generateSlugFromTitle((translation as any).title || content.title)
+        };
+      }
+    }
+
+    return formattedTranslations;
   } catch (error) {
     console.error('Translation error:', error);
     return {};
@@ -261,11 +286,11 @@ async function publishToWordPress(article: ProcessedArticle) {
       excerpt: article.excerpt,
       slug: article.slug,
       category: article.category,
-      tags: article.translations.tags || [],
+      tags: [article.category],
       image: article.image,
       author: article.author,
       language: 'ru',
-      metaDescription: article.translations.metaDescription,
+      metaDescription: article.excerpt,
       publishedAt: article.publishedAt
     }, article.translations);
 

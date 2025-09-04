@@ -27,10 +27,10 @@ export function InlineAd({ placeId, format, className = '' }: InlineAdProps) {
   const config = INLINE_AD_CONFIG[format]
   
   useEffect(() => {
-    if (typeof window !== 'undefined' && window._tx) {
+    if (typeof window !== 'undefined' && (window as any)._tx) {
       const timer = setTimeout(() => {
-        if (window._tx && window._tx.init) {
-          window._tx.init()
+        if ((window as any)._tx && (window as any)._tx.init) {
+          (window as any)._tx.init()
         }
       }, 500)
       

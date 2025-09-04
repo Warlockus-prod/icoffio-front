@@ -1,7 +1,75 @@
 import type { Post, Category } from "./types";
-import { getLocalArticles, getLocalArticleBySlug } from "./local-articles";
 
 const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
+
+// Локальные статьи (временное решение до интеграции с CMS)
+const localArticles: Post[] = [
+  {
+    slug: "chto-nuzhno-znat-esli-vy-reshili-vnedrit-llm",
+    title: "Что нужно знать, если вы решили внедрить LLM",
+    excerpt: "Подробное руководство по внедрению больших языковых моделей в ваш продукт",
+    date: "2025-01-01T10:00:00Z",
+    publishedAt: "2025-01-01T10:00:00Z",
+    image: "/images/ai-llm-implementation.jpg",
+    imageAlt: "LLM implementation",
+    category: { name: "AI", slug: "ai" },
+    contentHtml: ""
+  },
+  {
+    slug: "microsoft-ne-hochet-delat-igry",
+    title: "Microsoft не хочет делать игры сама и другим не даёт",
+    excerpt: "Анализ стратегии Microsoft в игровой индустрии",
+    date: "2025-01-02T10:00:00Z",
+    publishedAt: "2025-01-02T10:00:00Z",
+    image: "/images/microsoft-gaming.jpg",
+    imageAlt: "Microsoft gaming",
+    category: { name: "Tech", slug: "tech" },
+    contentHtml: ""
+  },
+  {
+    slug: "huawei-mate-xts",
+    title: "HUAWEI представила Mate XTS: минорное обновление",
+    excerpt: "Обзор нового складного смартфона HUAWEI",
+    date: "2025-01-03T10:00:00Z",
+    publishedAt: "2025-01-03T10:00:00Z",
+    image: "/images/huawei-mate.jpg",
+    imageAlt: "HUAWEI Mate XTS",
+    category: { name: "Tech", slug: "tech" },
+    contentHtml: ""
+  },
+  {
+    slug: "iphone-17-air-price",
+    title: "iPhone 17 Air: аналитики назвали цену",
+    excerpt: "Шокирующие прогнозы цены на новый ультратонкий iPhone",
+    date: "2025-01-04T10:00:00Z",
+    publishedAt: "2025-01-04T10:00:00Z",
+    image: "/images/iphone-17.jpg",
+    imageAlt: "iPhone 17 Air",
+    category: { name: "Apple", slug: "apple" },
+    contentHtml: ""
+  },
+  {
+    slug: "dji-mini-5-pro",
+    title: "DJI Mini 5 Pro шокирует мир дронов",
+    excerpt: "52-минутный полет и 1-дюймовая камера",
+    date: "2025-01-05T10:00:00Z",
+    publishedAt: "2025-01-05T10:00:00Z",
+    image: "/images/dji-drone.jpg",
+    imageAlt: "DJI Mini 5 Pro",
+    category: { name: "Tech", slug: "tech" },
+    contentHtml: ""
+  }
+];
+
+// Функция для получения локальных статей
+async function getLocalArticles(): Promise<Post[]> {
+  return localArticles;
+}
+
+// Функция для получения локальной статьи по slug
+async function getLocalArticleBySlug(slug: string): Promise<Post | null> {
+  return localArticles.find(article => article.slug === slug) || null;
+}
 
 async function gql<T>(query: string, variables?: Record<string, any>): Promise<T> {
   if (!WP || WP === "undefined") {
@@ -236,20 +304,13 @@ export async function getCategoryBySlug(slug: string): Promise<Category|null> {
 }
 
 export async function getPostsByCategory(slug: string, limit = 24, locale: string = 'en'): Promise<Post[]> {
-  // Получаем локальные статьи и фильтруем по категории и языку
+  // Получаем локальные статьи и фильтруем по категории
   const localArticles = await getLocalArticles();
-  console.log(`🔍 getPostsByCategory: slug=${slug}, locale=${locale}, totalArticles=${localArticles.length}`);
   
   const localFiltered = localArticles.filter(article => {
     const categoryMatch = article.category.slug === slug;
-    // Временно упрощаем логику: показываем все статьи категории для любого языка
-    // TODO: восстановить фильтрацию по языкам когда будет больше переводов
-    const languageMatch = true; // Временно отключаем фильтрацию по языкам
-    console.log(`📝 Article: ${article.slug}, category: ${article.category.slug}, categoryMatch: ${categoryMatch}`);
-    return categoryMatch && languageMatch;
+    return categoryMatch;
   });
-  
-  console.log(`✅ Filtered local articles: ${localFiltered.length}`);
 
   // Пытаемся получить статьи из WordPress
   let wpPosts: Post[] = [];
@@ -275,14 +336,12 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
       category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
       contentHtml: "",
     }));
-    console.log(`✅ WordPress articles for category: ${wpPosts.length}`);
   } catch (error) {
-    console.warn('WordPress API недоступен, используем только локальные статьи');
+    // WordPress API недоступен, используем только локальные статьи
   }
 
   // WordPress уже отфильтровал по категории, просто объединяем с локальными
   const combinedPosts = [...localFiltered, ...wpPosts];
-  console.log(`🎯 Final combined posts for category ${slug}: ${combinedPosts.length} (local: ${localFiltered.length}, wp: ${wpPosts.length})`);
   
   // Сортируем по дате публикации (новые сверху)
   combinedPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());

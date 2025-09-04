@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Hero } from "@/components/Hero";
@@ -216,7 +217,10 @@ export default async function Page({ params }: { params: { locale: string } }) {
           </div>
 
           <div className="mt-12 text-center">
-            <button className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900">
+            <Link 
+              href={`/${params.locale}/articles`}
+              className="group relative inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+            >
               <span className="relative z-10 flex items-center gap-2">
                 {t.showMore}
                 <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +228,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
                 </svg>
               </span>
               <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
-            </button>
+            </Link>
           </div>
         </section>
       </div>

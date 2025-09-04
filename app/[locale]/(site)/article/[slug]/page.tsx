@@ -434,7 +434,7 @@ export async function generateMetadata({ params }: { params: { locale: string; s
   let post: Post | null = null;
   
   try {
-    post = await getPostBySlug(params.slug);
+    post = await getPostBySlug(params.slug, params.locale);
   } catch (error) {
     console.error('GraphQL Error, using mock data:', error);
   }
@@ -498,7 +498,7 @@ export default async function Article({ params }: { params: { locale: string; sl
   let related: Post[] = [];
   
   try {
-    post = await getPostBySlug(params.slug);
+    post = await getPostBySlug(params.slug, params.locale);
     if (post) {
       related = await getRelated(post.category, post.slug, 4);
     }

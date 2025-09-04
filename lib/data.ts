@@ -1,4 +1,5 @@
 import type { Post, Category } from "./types";
+import { getLocalArticles, getLocalArticleBySlug } from "./local-articles";
 
 const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
 
@@ -29,28 +30,104 @@ async function gql<T>(query: string, variables?: Record<string, any>): Promise<T
 
 const strip = (s?: string) => (s || "").replace(/<[^>]+>/g, "").trim();
 
-export async function getAllPosts(limit = 12): Promise<Post[]> {
-  const q = `
-    query($first:Int!){
-      posts(first:$first, where:{orderby:{field:DATE, order:DESC}}){
-        nodes{
-          slug title excerpt date
-          featuredImage{ node{ sourceUrl } }
-          categories(first:1){ nodes{ name slug } }
+// Загрузка переводов статей (cloud-ready)
+async function getTranslatedArticles(): Promise<Record<string, any>> {
+  // В cloud среде переводы хранятся в памяти или внешней БД
+  // Пока возвращаем пустой массив, переводы будут генерироваться on-demand
+  
+  // В будущем здесь можно подключить:
+  // - External database
+  // - Headless CMS
+  // - Redis cache
+  // - CDN storage
+  
+  return [];
+}
+
+// Фильтрация статей по языку
+function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
+  if (locale === 'ru') {
+    // Для русского языка возвращаем статьи без языкового суффикса
+    return articles.filter(article => !article.slug.match(/-[a-z]{2}$/));
+  } else {
+    // Для других языков ищем статьи с соответствующим суффиксом
+    return articles.filter(article => article.slug.endsWith(`-${locale}`));
+  }
+}
+
+// Комбинирование WordPress и локальных статей
+async function combineArticles(wpArticles: Post[], locale: string = 'ru'): Promise<Post[]> {
+  const localArticles = await getLocalArticles();
+  const translatedArticles = await getTranslatedArticles();
+  
+  // Фильтруем локальные статьи по языку
+  const localFiltered = filterArticlesByLanguage(localArticles, locale);
+  
+  // Добавляем переводы для указанного языка (пока пустой массив)
+  const translatedForLocale: Post[] = [];
+  
+  // В будущем здесь будет логика загрузки переводов
+  // if (Array.isArray(translatedArticles)) {
+  //   for (const articleGroup of translatedArticles) {
+  //     if (articleGroup.translations && articleGroup.translations[locale]) {
+  //       translatedForLocale.push(articleGroup.translations[locale]);
+  //     }
+  //   }
+  // }
+  
+  // Комбинируем все статьи
+  const allArticles = [
+    ...wpArticles,
+    ...localFiltered,
+    ...translatedForLocale
+  ];
+  
+  // Удаляем дубликаты по slug
+  const uniqueArticles = allArticles.filter((article, index, self) => 
+    index === self.findIndex(a => a.slug === article.slug)
+  );
+  
+  // Сортируем по дате публикации (новые первыми)
+  return uniqueArticles.sort((a, b) => 
+    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  );
+}
+
+export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
+  try {
+    // Получаем WordPress статьи
+    const q = `
+      query($first:Int!){
+        posts(first:$first, where:{orderby:{field:DATE, order:DESC}}){
+          nodes{
+            slug title excerpt date
+            featuredImage{ node{ sourceUrl } }
+            categories(first:1){ nodes{ name slug } }
+          }
         }
-      }
-    }`;
-  const data = await gql<{posts:{nodes:any[]}}>(q, { first: limit });
-  return data.posts.nodes.map(n => ({
-    slug: n.slug,
-    title: strip(n.title) || "Untitled",
-    excerpt: strip(n.excerpt),
-    date: n.date,
-    publishedAt: n.date,
-    image: n.featuredImage?.node?.sourceUrl || "",
-    category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
-    contentHtml: "",
-  }));
+      }`;
+    const data = await gql<{posts:{nodes:any[]}}>(q, { first: Math.floor(limit / 2) });
+    const wpPosts = data.posts.nodes.map(n => ({
+      slug: n.slug,
+      title: strip(n.title) || "Untitled",
+      excerpt: strip(n.excerpt),
+      date: n.date,
+      publishedAt: n.date,
+      image: n.featuredImage?.node?.sourceUrl || "",
+      category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
+      contentHtml: "",
+    }));
+
+    // Комбинируем с локальными статьями
+    return await combineArticles(wpPosts, locale);
+  } catch (error) {
+    console.warn('Ошибка загрузки WordPress статей, используем только локальные:', error);
+    
+    // Fallback к только локальным статьям
+    const localArticles = await getLocalArticles();
+    const filtered = filterArticlesByLanguage(localArticles, locale);
+    return filtered.slice(0, limit);
+  }
 }
 
 export async function getTopPosts(limit = 1) { return getAllPosts(limit); }
@@ -61,38 +138,50 @@ export async function getAllSlugs(): Promise<string[]> {
   return data.posts.nodes.map(n => n.slug);
 }
 
-export async function getPostBySlug(slug: string): Promise<Post|null> {
-  const q1 = `query($slug:String!){
-    postBy(slug:$slug){
-      slug title content date
-      featuredImage{ node{ sourceUrl } }
-      categories{ nodes{ name slug } }
-    } }`;
-  const d1 = await gql<{postBy:any}>(q1, { slug });
-  let p = d1.postBy;
+export async function getPostBySlug(slug: string, locale: string = 'en'): Promise<Post|null> {
+  // Сначала ищем в локальных статьях
+  const localArticle = await getLocalArticleBySlug(slug);
+  if (localArticle) {
+    return localArticle;
+  }
 
-  if (!p) {
-    const q2 = `query($slug:ID!){
-      post(id:$slug, idType: SLUG){
+  // Если не найдено локально, ищем в WordPress
+  try {
+    const q1 = `query($slug:String!){
+      postBy(slug:$slug){
         slug title content date
         featuredImage{ node{ sourceUrl } }
         categories{ nodes{ name slug } }
       } }`;
-    const d2 = await gql<{post:any}>(q2, { slug });
-    p = d2.post;
-  }
-  if (!p) return null;
+    const d1 = await gql<{postBy:any}>(q1, { slug });
+    let p = d1.postBy;
 
-  return {
-    slug: p.slug,
-    title: strip(p.title),
-    excerpt: "",
-    date: p.date,
-    publishedAt: p.date,
-    image: p.featuredImage?.node?.sourceUrl || "",
-    category: p.categories?.nodes?.[0] || { name: "General", slug: "general" },
-    contentHtml: p.content || "",
-  };
+    if (!p) {
+      const q2 = `query($slug:ID!){
+        post(id:$slug, idType: SLUG){
+          slug title content date
+          featuredImage{ node{ sourceUrl } }
+          categories{ nodes{ name slug } }
+        } }`;
+      const d2 = await gql<{post:any}>(q2, { slug });
+      p = d2.post;
+    }
+    if (!p) return null;
+
+    return {
+      slug: p.slug,
+      title: strip(p.title),
+      excerpt: "",
+      date: p.date,
+      publishedAt: p.date,
+      image: p.featuredImage?.node?.sourceUrl || "",
+      category: p.categories?.nodes?.[0] || { name: "General", slug: "general" },
+      contentHtml: p.content || "",
+    };
+  } catch (error) {
+    console.warn('WordPress not available, using only local articles');
+    return null;
+  }
 }
 
 export async function getRelated(cat: Category, excludeSlug: string, limit = 4): Promise<Post[]> {

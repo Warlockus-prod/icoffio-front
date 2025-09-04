@@ -238,13 +238,18 @@ export async function getCategoryBySlug(slug: string): Promise<Category|null> {
 export async function getPostsByCategory(slug: string, limit = 24, locale: string = 'en'): Promise<Post[]> {
   // Получаем локальные статьи и фильтруем по категории и языку
   const localArticles = await getLocalArticles();
+  console.log(`🔍 getPostsByCategory: slug=${slug}, locale=${locale}, totalArticles=${localArticles.length}`);
+  
   const localFiltered = localArticles.filter(article => {
     const categoryMatch = article.category.slug === slug;
     const languageMatch = 
       article.slug.endsWith(`-${locale}`) ||  // Точное совпадение языка
       (!article.slug.match(/-[a-z]{2}$/) && ['ru', 'en', 'pl', 'de', 'ro', 'cs'].includes(locale)); // Fallback к статьям без суффикса для всех языков
+    console.log(`📝 Article: ${article.slug}, category: ${article.category.slug}, categoryMatch: ${categoryMatch}, languageMatch: ${languageMatch}`);
     return categoryMatch && languageMatch;
   });
+  
+  console.log(`✅ Filtered local articles: ${localFiltered.length}`);
 
   // Пытаемся получить статьи из WordPress
   let wpPosts: Post[] = [];

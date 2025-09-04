@@ -131,9 +131,9 @@ add_action('wp_footer', 'add_advertising_scripts');
 
 #### **Форматы и PlaceID:**
 - **728x90 (Leaderboard)** `63da9b577bc72f39bc3bfc68` - после заголовка
-- **300x250 (Medium Rectangle)** `63da9b577bc72f39bc3bfc68` - после контента  
+- **300x250 (Medium Rectangle)** `63da9e2a4d506e16acfd2a36` - в сайдбаре сверху  
 - **970x250 (Large Leaderboard)** `63daa3c24d506e16acfd2a38` - в конце статьи
-- **300x600 (Large Skyscraper)** `63daa2ea7bc72f39bc3bfc72` - финальный блок
+- **300x600 (Large Skyscraper)** `63daa2ea7bc72f39bc3bfc72` - в сайдбаре снизу
 
 #### **Особенности:**
 - ✅ Только в статьях (НЕ на главной)

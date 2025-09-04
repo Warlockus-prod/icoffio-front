@@ -602,7 +602,7 @@ export default async function Article({ params }: { params: { locale: string; sl
           <aside className="lg:sticky lg:top-4 lg:h-fit">
             {/* Medium Rectangle */}
             <SidebarAd 
-              placeId="63da9b577bc72f39bc3bfc68"
+              placeId="63da9e2a4d506e16acfd2a36"
               format="300x250"
               position="Sidebar Top"
             />

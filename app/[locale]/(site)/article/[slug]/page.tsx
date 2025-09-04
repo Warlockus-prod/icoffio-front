@@ -7,7 +7,8 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
-import { DisplayAd } from "@/components/DisplayAd";
+import { InlineAd } from "@/components/InlineAd";
+import { SidebarAd } from "@/components/SidebarAd";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -525,96 +526,105 @@ export default async function Article({ params }: { params: { locale: string; sl
     <>
       <ArticleSchema post={post} locale={params.locale} />
       <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
-              <Container>
-          <div className="flex items-center justify-between mb-4">
-            <BackButton locale={params.locale} />
-          </div>
-          <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
-        <article className="max-w-4xl mx-auto">
-          <header className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <Link 
-                href={`/${params.locale}/category/${post.category.slug}`} 
-                className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-              >
-                {post.category.name}
-              </Link>
-              <time 
-                dateTime={post.publishedAt || post.date} 
-                className="text-sm text-neutral-500 dark:text-neutral-400"
-              >
-                {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(params.locale === 'en' ? 'en-US' : 'ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </time>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-6 text-neutral-900 dark:text-neutral-100 leading-tight">
-              {post.title}
-            </h1>
-            <p className="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
-              {post.excerpt}
-            </p>
-          </header>
+      
+      <Container>
+        <div className="flex items-center justify-between mb-4">
+          <BackButton locale={params.locale} />
+        </div>
+        <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
-          {/* Leaderboard 728x90 - После заголовка, перед изображением героя */}
-          <DisplayAd 
-            placeId="63da9b577bc72f39bc3bfc68"
-            format="728x90"
-            position="После заголовка"
-            className="max-w-4xl mx-auto"
-          />
+        {/* Main Content Grid: Article + Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 max-w-7xl mx-auto">
+          
+          {/* Main Article Content */}
+          <article className="min-w-0">
+            <header className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <Link 
+                  href={`/${params.locale}/category/${post.category.slug}`} 
+                  className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                >
+                  {post.category.name}
+                </Link>
+                <time 
+                  dateTime={post.publishedAt || post.date} 
+                  className="text-sm text-neutral-500 dark:text-neutral-400"
+                >
+                  {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(params.locale === 'en' ? 'en-US' : 'ru-RU', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </time>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-6 text-neutral-900 dark:text-neutral-100 leading-tight">
+                {post.title}
+              </h1>
+              <p className="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                {post.excerpt}
+              </p>
+            </header>
 
-          <div className="mb-8">
-            <img 
-              src={post.image || fallback} 
-              alt={post.imageAlt || post.title} 
-              className="w-full rounded-xl aspect-[16/9] object-cover" 
+            {/* Inline Ad после заголовка */}
+            <InlineAd 
+              placeId="63da9b577bc72f39bc3bfc68"
+              format="728x90"
             />
-          </div>
 
-          <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
-            {post.content ? (
-              <div dangerouslySetInnerHTML={{ __html: post.content }} />
-            ) : post.contentHtml ? (
-              <Prose html={post.contentHtml} />
-            ) : (
-              <p className="text-neutral-600 dark:text-neutral-300">Content not available.</p>
-            )}
-          </div>
-        </article>
+            <div className="mb-8">
+              <img 
+                src={post.image || fallback} 
+                alt={post.imageAlt || post.title} 
+                className="w-full rounded-xl aspect-[16/9] object-cover" 
+              />
+            </div>
 
-        {/* Medium Rectangle 300x250 - После контента, перед RelatedArticles */}
-        <DisplayAd 
-          placeId="63da9b577bc72f39bc3bfc68"
-          format="300x250"
-          position="После контента статьи"
-          className="max-w-4xl mx-auto"
-        />
+            {/* Article Content */}
+            <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
+              {post.content ? (
+                <div dangerouslySetInnerHTML={{ __html: post.content }} />
+              ) : post.contentHtml ? (
+                <Prose html={post.contentHtml} />
+              ) : (
+                <p className="text-neutral-600 dark:text-neutral-300">Content not available.</p>
+              )}
+            </div>
 
-        <RelatedArticles 
-          posts={related.length > 0 ? related : mockPosts}
-          locale={params.locale}
-          currentPostSlug={post.slug}
-          currentPost={post}
-        />
+            {/* Large Inline Banner в середине контента */}
+            <InlineAd 
+              placeId="63daa3c24d506e16acfd2a38"
+              format="970x250"
+              className="my-8"
+            />
+          </article>
 
-        {/* Large Leaderboard 970x250 - В конце статьи */}
-        <DisplayAd 
-          placeId="63daa3c24d506e16acfd2a38"
-          format="970x250"
-          position="В конце статьи"
-          className="max-w-5xl mx-auto"
-        />
+          {/* Sidebar with Ads */}
+          <aside className="lg:sticky lg:top-4 lg:h-fit">
+            {/* Medium Rectangle */}
+            <SidebarAd 
+              placeId="63da9b577bc72f39bc3bfc68"
+              format="300x250"
+              position="Sidebar Top"
+            />
+            
+            {/* Large Skyscraper */}
+            <SidebarAd 
+              placeId="63daa2ea7bc72f39bc3bfc72"
+              format="300x600" 
+              position="Sidebar Bottom"
+            />
+          </aside>
+        </div>
 
-        {/* Large Skyscraper 300x600 - Дополнительный блок */}
-        <DisplayAd 
-          placeId="63daa2ea7bc72f39bc3bfc72"
-          format="300x600"
-          position="Финальный блок"
-          className="max-w-4xl mx-auto"
-        />
+        {/* Related Articles - Full Width */}
+        <div className="mt-16">
+          <RelatedArticles 
+            posts={related.length > 0 ? related : mockPosts}
+            locale={params.locale}
+            currentPostSlug={post.slug}
+            currentPost={post}
+          />
+        </div>
       </Container>
 
       <SearchModalWrapper posts={mockPosts} locale={params.locale} />

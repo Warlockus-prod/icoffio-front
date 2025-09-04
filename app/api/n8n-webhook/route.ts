@@ -285,10 +285,10 @@ async function publishToWordPress(article: ProcessedArticle) {
       content: article.content,
       excerpt: article.excerpt,
       slug: article.slug,
-      category: article.category,
-      tags: [article.category],
+      category: article.category || 'tech',
+      tags: [article.category || 'tech'],
       image: article.image,
-      author: article.author,
+      author: article.author || 'AI Assistant',
       language: 'ru',
       metaDescription: article.excerpt,
       publishedAt: article.publishedAt

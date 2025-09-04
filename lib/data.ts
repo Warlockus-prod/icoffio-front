@@ -275,15 +275,18 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
       category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
       contentHtml: "",
     }));
+    console.log(`✅ WordPress articles for category: ${wpPosts.length}`);
   } catch (error) {
     console.warn('WordPress API недоступен, используем только локальные статьи');
   }
 
-  // Объединяем и сортируем
-  const allPosts = [...localFiltered, ...wpPosts];
+  // Используем combineArticles для правильного объединения вместо простого concat
+  const combinedPosts = await combineArticles(wpPosts, locale);
+  const finalFiltered = combinedPosts.filter(article => article.category.slug === slug);
+  console.log(`🎯 Final combined and filtered posts for category ${slug}: ${finalFiltered.length}`);
   
   // Сортируем по дате публикации (новые сверху)
-  allPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  finalFiltered.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   
-  return allPosts.slice(0, limit);
+  return finalFiltered.slice(0, limit);
 }

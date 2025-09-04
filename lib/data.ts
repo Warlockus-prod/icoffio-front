@@ -58,11 +58,10 @@ function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
       article.slug.endsWith(`-${locale}`)
     );
   } else {
-    // Для других языков ищем статьи с соответствующим суффиксом 
-    // или без суффикса как fallback
+    // Для других языков показываем ТОЛЬКО статьи с соответствующим суффиксом
+    // НЕ показываем русские статьи как fallback
     return articles.filter(article => 
-      article.slug.endsWith(`-${locale}`) ||
-      !article.slug.match(/-[a-z]{2}$/)
+      article.slug.endsWith(`-${locale}`)
     );
   }
 }

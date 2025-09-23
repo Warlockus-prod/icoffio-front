@@ -48,18 +48,17 @@ async function getTranslatedArticles(): Promise<Record<string, any>> {
   return [];
 }
 
-// Фильтрация статей по языку
+// Строгая фильтрация статей по языку
 function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
-  if (locale === 'ru' || locale === 'en') {
-    // Для русского и английского языков возвращаем статьи без языкового суффикса
-    // плюс статьи с соответствующим суффиксом
+  if (locale === 'ru') {
+    // Для русского языка показываем статьи без суффикса (русские) и с суффиксом -ru
     return articles.filter(article => 
       !article.slug.match(/-[a-z]{2}$/) || 
-      article.slug.endsWith(`-${locale}`)
+      article.slug.endsWith('-ru')
     );
   } else {
-    // Для других языков показываем ТОЛЬКО статьи с соответствующим суффиксом
-    // НЕ показываем русские статьи как fallback
+    // Для всех других языков показываем ТОЛЬКО статьи с соответствующим суффиксом
+    // НИКОГДА не показываем русские статьи в неруссских версиях
     return articles.filter(article => 
       article.slug.endsWith(`-${locale}`)
     );
@@ -222,29 +221,54 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
     }));
 }
 
-// Локальные категории как fallback
-const LOCAL_CATEGORIES: Category[] = [
-  { name: "Искусственный интеллект", slug: "ai" },
-  { name: "Apple", slug: "apple" },
-  { name: "Технологии", slug: "tech" },
-  { name: "Игры", slug: "games" },
-  { name: "Digital", slug: "digital" },
-  { name: "Новости", slug: "news-2" }
-];
+// Локальные категории как fallback с учетом языка
+const getLocalCategories = (locale: string): Category[] => {
+  switch (locale) {
+    case 'en':
+      return [
+        { name: "Artificial Intelligence", slug: "ai" },
+        { name: "Apple", slug: "apple" },
+        { name: "Technology", slug: "tech" },
+        { name: "Games", slug: "games" },
+        { name: "Digital", slug: "digital" },
+        { name: "News", slug: "news-2" }
+      ];
+    case 'pl':
+      return [
+        { name: "Sztuczna Inteligencja", slug: "ai" },
+        { name: "Apple", slug: "apple" },
+        { name: "Technologie", slug: "tech" },
+        { name: "Gry", slug: "games" },
+        { name: "Digital", slug: "digital" },
+        { name: "Wiadomości", slug: "news-2" }
+      ];
+    default: // ru
+      return [
+        { name: "Искусственный интеллект", slug: "ai" },
+        { name: "Apple", slug: "apple" },
+        { name: "Технологии", slug: "tech" },
+        { name: "Игры", slug: "games" },
+        { name: "Digital", slug: "digital" },
+        { name: "Новости", slug: "news-2" }
+      ];
+  }
+};
 
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(locale: string = 'ru'): Promise<Category[]> {
   try {
     // Пробуем получить категории из WordPress
     const q = `query{ categories(first:100){ nodes{ name slug } } }`;
     const d = await gql<{categories:{nodes:Category[]}}>(q);
     
-    // Объединяем локальные и WordPress категории
+    // Получаем локализованные категории
+    const localCategories = getLocalCategories(locale);
     const wpCategories = d.categories.nodes || [];
-    const allCategories = [...LOCAL_CATEGORIES];
+    const allCategories = [...localCategories];
     
-    // Добавляем уникальные категории из WordPress
+    // Добавляем уникальные категории из WordPress (только slug, имя остается локализованным)
     for (const wpCat of wpCategories) {
       if (!allCategories.find(cat => cat.slug === wpCat.slug)) {
+        // Для WordPress категорий используем их имена как есть
         allCategories.push(wpCat);
       }
     }
@@ -252,17 +276,17 @@ export async function getCategories(): Promise<Category[]> {
     return allCategories;
   } catch (error) {
     console.warn('WordPress категории недоступны, используем локальные:', error);
-    return LOCAL_CATEGORIES;
+    return getLocalCategories(locale);
   }
 }
 
 export async function getCategorySlugs(): Promise<string[]> {
-  const cats = await getCategories();
+  const cats = await getCategories('ru'); // Default to Russian for slugs
   return cats.map(c => c.slug);
 }
 
-export async function getCategoryBySlug(slug: string): Promise<Category|null> {
-  const cats = await getCategories();
+export async function getCategoryBySlug(slug: string, locale: string = 'ru'): Promise<Category|null> {
+  const cats = await getCategories(locale);
   return cats.find(c => c.slug === slug) || null;
 }
 

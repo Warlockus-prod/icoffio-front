@@ -27,7 +27,7 @@ export default async function ArticlesPage({ params }: { params: { locale: strin
     // Пробуем загрузить данные из GraphQL
     const [graphqlPosts, graphqlCats] = await Promise.all([
       getAllPosts(48, params.locale),
-      getCategories()
+      getCategories(params.locale)
     ]);
     
     allPosts = graphqlPosts;
@@ -40,7 +40,7 @@ export default async function ArticlesPage({ params }: { params: { locale: strin
     try {
       const [localPosts, localCats] = await Promise.all([
         getAllPosts(48, params.locale), // Эта функция уже включает fallback к локальным статьям
-        getCategories() // Эта функция тоже теперь включает локальные категории
+        getCategories(params.locale) // Эта функция тоже теперь включает локальные категории
       ]);
       
       allPosts = localPosts;

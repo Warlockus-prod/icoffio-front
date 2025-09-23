@@ -184,8 +184,8 @@ export default async function Page({ params }: { params: { locale: string } }) {
   // Попытка получить данные из GraphQL (если работает)
   try {
     const graphqlHeroPosts = await getTopPosts(3);
-    const graphqlPosts = await getAllPosts(12);
-    const graphqlCats = await getCategories();
+    const graphqlPosts = await getAllPosts(12, params.locale);
+    const graphqlCats = await getCategories(params.locale);
     
     // Используем GraphQL данные если они есть
     if (graphqlHeroPosts && graphqlHeroPosts.length > 0) heroPosts = graphqlHeroPosts;

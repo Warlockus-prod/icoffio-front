@@ -1,6 +1,6 @@
 import { translationService } from './translation-service';
 import type { Post } from './types';
-import { addLocalArticle } from './local-articles';
+import { addRuntimeArticle } from './local-articles';
 
 interface ArticleInput {
   url?: string;
@@ -314,7 +314,7 @@ ${input.category ? `Категория: ${input.category}` : ''}
     
     for (const [language, post] of Object.entries(posts)) {
       // Добавляем в локальный массив (будет работать до следующего деплоя)
-      addLocalArticle(post);
+      addRuntimeArticle(post);
       console.log(`📝 Добавлена статья "${post.title}" (${language})`);
     }
 

@@ -7,7 +7,7 @@ import { translationService } from './translation-service';
 import { copywritingService } from './copywriting-service';
 import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
-import { addLocalArticle } from './local-articles';
+import { addRuntimeArticle } from './local-articles';
 import type { Post } from './types';
 
 // ========== ИНТЕРФЕЙСЫ ==========
@@ -433,7 +433,7 @@ class UnifiedArticleService {
         contentHtml: this.formatContentToHtml(article.content)
       };
       
-      addLocalArticle(mainPost);
+      addRuntimeArticle(mainPost);
       
       // Сохраняем переводы
       for (const [lang, translation] of Object.entries(article.translations)) {
@@ -446,7 +446,7 @@ class UnifiedArticleService {
           contentHtml: this.formatContentToHtml(translation.content)
         };
         
-        addLocalArticle(translatedPost);
+        addRuntimeArticle(translatedPost);
       }
       
       console.log(`✅ Статья сохранена локально: ${article.title}`);

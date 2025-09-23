@@ -187,7 +187,7 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* Рекламный скрипт для интеграции в изображения */}
+        {/* VOX рекламный скрипт - полная версия с исправлениями */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -200,13 +200,67 @@ export default function LocaleLayout({
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
-              window._tx.cmds.push(function () {
+              
+              // Функция инициализации VOX с избирательным показом
+              function initVOX() {
+                  // Проверяем, что мы на странице статьи
+                  const currentUrl = window.location.pathname;
+                  const isArticlePage = currentUrl.includes('/article/');
+                  
+                  if (!isArticlePage) {
+                      console.log('VOX: Не страница статьи, пропускаем инициализацию');
+                      return;
+                  }
+                  
+                  console.log('VOX: Инициализация на странице статьи:', currentUrl);
+                  
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      fetchSelector: true,
+                      selector: 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img',
                       setDisplayBlock: true
                   });
                   window._tx.init();
+              }
+              
+              // Переменная для отслеживания последнего URL
+              window._voxLastUrl = window._voxLastUrl || '';
+              
+              // Функция для проверки и перезапуска VOX при изменении страницы
+              function checkAndInitVOX() {
+                  const currentUrl = window.location.href;
+                  
+                  // Если URL изменился или это первый запуск
+                  if (window._voxLastUrl !== currentUrl || window._voxLastUrl === '') {
+                      window._voxLastUrl = currentUrl;
+                      console.log('VOX: URL изменился на:', currentUrl);
+                      
+                      // Небольшая задержка для загрузки контента
+                      setTimeout(function() {
+                          initVOX();
+                      }, 1000);
+                  }
+              }
+              
+              window._tx.cmds.push(function () {
+                  // Первоначальная инициализация с проверкой готовности DOM
+                  if (document.readyState === 'complete') {
+                      checkAndInitVOX();
+                  } else {
+                      window.addEventListener('load', checkAndInitVOX);
+                      setTimeout(checkAndInitVOX, 2000); // Fallback для медленных соединений
+                  }
+                  
+                  // Отслеживание изменений URL для Next.js client-side navigation
+                  const checkUrlInterval = setInterval(function() {
+                      checkAndInitVOX();
+                  }, 1500);
+                  
+                  // Очистка интервала при необходимости (для производительности)
+                  window.addEventListener('beforeunload', function() {
+                      if (typeof checkUrlInterval !== 'undefined') {
+                          clearInterval(checkUrlInterval);
+                      }
+                  });
               });
             `,
           }}

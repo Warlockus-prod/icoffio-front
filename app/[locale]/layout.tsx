@@ -191,21 +191,38 @@ export default function LocaleLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              console.log('VOX DEBUG: Script initialization started');
               if (typeof window._tx === "undefined") {
+                  console.log('VOX DEBUG: _tx undefined, loading VOX script');
                   var s = document.createElement("script");
                   s.type = "text/javascript";
                   s.async = true;
-                  s.src = "https://st.hbrd.io/ssp.js?t=" + new Date().getTime();
+                  // Добавляем более агрессивный cache buster
+                  s.src = "https://st.hbrd.io/ssp.js?t=" + new Date().getTime() + "&r=" + Math.random();
                   (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
+                  
+                  s.onload = function() {
+                      console.log('VOX DEBUG: VOX script loaded successfully');
+                  };
+                  s.onerror = function() {
+                      console.error('VOX ERROR: Failed to load VOX script');
+                  };
+              } else {
+                  console.log('VOX DEBUG: _tx already exists, skipping script load');
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
               
               // Функция инициализации VOX с избирательным показом
               function initVOX() {
+                  console.log('VOX DEBUG: initVOX() called');
+                  
                   // Проверяем, что мы на странице статьи
                   const currentUrl = window.location.pathname;
                   const isArticlePage = currentUrl.includes('/article/');
+                  
+                  console.log('VOX DEBUG: currentUrl =', currentUrl);
+                  console.log('VOX DEBUG: isArticlePage =', isArticlePage);
                   
                   if (!isArticlePage) {
                       console.log('VOX: Не страница статьи, пропускаем инициализацию');
@@ -214,12 +231,22 @@ export default function LocaleLayout({
                   
                   console.log('VOX: Инициализация на странице статьи:', currentUrl);
                   
+                  // Проверяем доступность VOX API
+                  if (!window._tx || !window._tx.integrateInImage) {
+                      console.error('VOX ERROR: _tx.integrateInImage не доступен!');
+                      return;
+                  }
+                  
+                  console.log('VOX DEBUG: Вызов integrateInImage...');
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       selector: 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img',
                       setDisplayBlock: true
                   });
+                  
+                  console.log('VOX DEBUG: Вызов init...');
                   window._tx.init();
+                  console.log('VOX DEBUG: initVOX() завершен');
               }
               
               // Переменная для отслеживания последнего URL
@@ -227,7 +254,11 @@ export default function LocaleLayout({
               
               // Функция для проверки и перезапуска VOX при изменении страницы
               function checkAndInitVOX() {
+                  console.log('VOX DEBUG: checkAndInitVOX() called');
+                  
                   const currentUrl = window.location.href;
+                  console.log('VOX DEBUG: currentUrl =', currentUrl);
+                  console.log('VOX DEBUG: _voxLastUrl =', window._voxLastUrl);
                   
                   // Если URL изменился или это первый запуск
                   if (window._voxLastUrl !== currentUrl || window._voxLastUrl === '') {
@@ -236,27 +267,44 @@ export default function LocaleLayout({
                       
                       // Небольшая задержка для загрузки контента
                       setTimeout(function() {
+                          console.log('VOX DEBUG: setTimeout callback - calling initVOX');
                           initVOX();
                       }, 1000);
+                  } else {
+                      console.log('VOX DEBUG: URL не изменился, пропускаем инициализацию');
                   }
               }
               
               window._tx.cmds.push(function () {
+                  console.log('VOX DEBUG: _tx.cmds callback executed');
+                  console.log('VOX DEBUG: document.readyState =', document.readyState);
+                  
                   // Первоначальная инициализация с проверкой готовности DOM
                   if (document.readyState === 'complete') {
+                      console.log('VOX DEBUG: DOM ready, calling checkAndInitVOX immediately');
                       checkAndInitVOX();
                   } else {
-                      window.addEventListener('load', checkAndInitVOX);
-                      setTimeout(checkAndInitVOX, 2000); // Fallback для медленных соединений
+                      console.log('VOX DEBUG: DOM not ready, setting up listeners');
+                      window.addEventListener('load', function() {
+                          console.log('VOX DEBUG: window load event fired');
+                          checkAndInitVOX();
+                      });
+                      setTimeout(function() {
+                          console.log('VOX DEBUG: setTimeout fallback fired (2000ms)');
+                          checkAndInitVOX();
+                      }, 2000);
                   }
                   
                   // Отслеживание изменений URL для Next.js client-side navigation
+                  console.log('VOX DEBUG: Setting up URL monitoring interval');
                   const checkUrlInterval = setInterval(function() {
+                      console.log('VOX DEBUG: Interval check (1500ms)');
                       checkAndInitVOX();
                   }, 1500);
                   
                   // Очистка интервала при необходимости (для производительности)
                   window.addEventListener('beforeunload', function() {
+                      console.log('VOX DEBUG: beforeunload - clearing interval');
                       if (typeof checkUrlInterval !== 'undefined') {
                           clearInterval(checkUrlInterval);
                       }

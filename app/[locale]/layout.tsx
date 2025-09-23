@@ -220,9 +220,14 @@ export default function LocaleLayout({
                   console.log('VOX: Инициализация для статьи:', currentUrl);
                   
                   // 1. In-image реклама (поверх изображений статей)
+                  console.log('VOX: Инициализация in-image рекламы с PlaceID:', "63d93bb54d506e95f039e2e3");
+                  const inImageSelector = 'article img:not(.group img)';
+                  const targetImages = document.querySelectorAll(inImageSelector);
+                  console.log('VOX: Найдено изображений для in-image:', targetImages.length, 'селектор:', inImageSelector);
+                  
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      selector: 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img',
+                      selector: inImageSelector,
                       setDisplayBlock: true
                   });
                   

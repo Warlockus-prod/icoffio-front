@@ -224,3 +224,4 @@ curl http://localhost:3000/api/articles?action=health-check
 *Все файлы проверены и протестированы*  
 *Документация актуальна на 2 сентября 2025*
 
+

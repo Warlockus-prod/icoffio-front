@@ -48,30 +48,31 @@ async function getTranslatedArticles(): Promise<Record<string, any>> {
   return [];
 }
 
-// Строгая фильтрация статей по языку
+// Строгая фильтрация статей по языку (только английский и польский)
 function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
-  if (locale === 'ru') {
-    // Для русского языка показываем статьи без суффикса (русские) и с суффиксом -ru
-    return articles.filter(article => 
-      !article.slug.match(/-[a-z]{2}$/) || 
-      article.slug.endsWith('-ru')
-    );
-  } else {
-    // Для всех других языков показываем ТОЛЬКО статьи с соответствующим суффиксом
-    // НИКОГДА не показываем русские статьи в неруссских версиях
+  // Показываем ТОЛЬКО статьи с соответствующим языковым суффиксом
+  // Поддерживаемые языки: en, pl
+  if (locale === 'en' || locale === 'pl') {
     return articles.filter(article => 
       article.slug.endsWith(`-${locale}`)
     );
   }
+  
+  // Для неподдерживаемых языков возвращаем пустой массив
+  console.warn(`Unsupported locale: ${locale}. Only 'en' and 'pl' are supported.`);
+  return [];
 }
 
 // Комбинирование WordPress и локальных статей
-async function combineArticles(wpArticles: Post[], locale: string = 'ru'): Promise<Post[]> {
+async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promise<Post[]> {
   const localArticles = await getLocalArticles();
   const translatedArticles = await getTranslatedArticles();
   
   // Фильтруем локальные статьи по языку
   const localFiltered = filterArticlesByLanguage(localArticles, locale);
+  
+  // ИСПРАВЛЕНИЕ: Фильтруем WordPress статьи по языку!
+  const wpFiltered = filterArticlesByLanguage(wpArticles, locale);
   
   // Добавляем переводы для указанного языка (пока пустой массив)
   const translatedForLocale: Post[] = [];
@@ -85,9 +86,9 @@ async function combineArticles(wpArticles: Post[], locale: string = 'ru'): Promi
   //   }
   // }
   
-  // Комбинируем все статьи
+  // Комбинируем все статьи (ВСЕ уже отфильтрованы по языку!)
   const allArticles = [
-    ...wpArticles,
+    ...wpFiltered,     // <- ИСПРАВЛЕНО: используем отфильтрованные WordPress статьи
     ...localFiltered,
     ...translatedForLocale
   ];
@@ -221,7 +222,7 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
     }));
 }
 
-// Локальные категории как fallback с учетом языка
+// Локальные категории только для английского и польского языков
 const getLocalCategories = (locale: string): Category[] => {
   switch (locale) {
     case 'en':
@@ -242,19 +243,21 @@ const getLocalCategories = (locale: string): Category[] => {
         { name: "Digital", slug: "digital" },
         { name: "Wiadomości", slug: "news-2" }
       ];
-    default: // ru
+    default:
+      // Для неподдерживаемых языков возвращаем английские категории
+      console.warn(`Unsupported locale: ${locale}. Returning English categories.`);
       return [
-        { name: "Искусственный интеллект", slug: "ai" },
+        { name: "Artificial Intelligence", slug: "ai" },
         { name: "Apple", slug: "apple" },
-        { name: "Технологии", slug: "tech" },
-        { name: "Игры", slug: "games" },
+        { name: "Technology", slug: "tech" },
+        { name: "Games", slug: "games" },
         { name: "Digital", slug: "digital" },
-        { name: "Новости", slug: "news-2" }
+        { name: "News", slug: "news-2" }
       ];
   }
 };
 
-export async function getCategories(locale: string = 'ru'): Promise<Category[]> {
+export async function getCategories(locale: string = 'en'): Promise<Category[]> {
   try {
     // Пробуем получить категории из WordPress
     const q = `query{ categories(first:100){ nodes{ name slug } } }`;
@@ -281,11 +284,11 @@ export async function getCategories(locale: string = 'ru'): Promise<Category[]> 
 }
 
 export async function getCategorySlugs(): Promise<string[]> {
-  const cats = await getCategories('ru'); // Default to Russian for slugs
+  const cats = await getCategories('en'); // Default to English for slugs
   return cats.map(c => c.slug);
 }
 
-export async function getCategoryBySlug(slug: string, locale: string = 'ru'): Promise<Category|null> {
+export async function getCategoryBySlug(slug: string, locale: string = 'en'): Promise<Category|null> {
   const cats = await getCategories(locale);
   return cats.find(c => c.slug === slug) || null;
 }

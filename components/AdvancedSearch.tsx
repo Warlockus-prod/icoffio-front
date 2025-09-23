@@ -235,7 +235,7 @@ export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearc
   // Форматирование даты
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(
-      locale === 'en' ? 'en-US' : 'ru-RU', 
+      locale === 'en' ? 'en-US' : 'pl-PL', 
       { day: 'numeric', month: 'short', year: 'numeric' }
     );
   };

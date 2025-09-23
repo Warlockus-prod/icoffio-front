@@ -46,7 +46,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString(locale === 'en' ? 'en-US' : 'ru-RU', {
+    return date.toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
       day: 'numeric',
       month: 'short',
       year: 'numeric'

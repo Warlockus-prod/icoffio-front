@@ -97,3 +97,4 @@ export default function EditorialPage({ params }: { params: { locale: string } }
     </Container>
   );
 }
+

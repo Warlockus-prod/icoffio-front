@@ -87,7 +87,7 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
                   </span>
                   {post.publishedAt && (
                     <time>
-                      {new Date(post.publishedAt).toLocaleDateString(locale === 'en' ? 'en-US' : locale === 'pl' ? 'pl-PL' : locale === 'de' ? 'de-DE' : locale === 'ro' ? 'ro-RO' : 'cs-CZ', {
+                      {new Date(post.publishedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric'

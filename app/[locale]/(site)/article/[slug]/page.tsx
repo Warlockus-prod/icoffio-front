@@ -550,7 +550,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                   dateTime={post.publishedAt || post.date} 
                   className="text-sm text-neutral-500 dark:text-neutral-400"
                 >
-                  {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(params.locale === 'en' ? 'en-US' : 'ru-RU', {
+                  {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(params.locale === 'en' ? 'en-US' : 'pl-PL', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'

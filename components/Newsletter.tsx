@@ -89,7 +89,7 @@ export function Newsletter({ locale }: NewsletterProps) {
     // Check if email is empty
     if (!trimmedEmail) {
       setStatus('error');
-      setMessage(locale === 'ru' ? 'Поле email не может быть пустым' : 'Email field cannot be empty');
+      setMessage(locale === 'pl' ? 'Pole e-mail nie może być puste' : 'Email field cannot be empty');
       return;
     }
     
@@ -132,7 +132,7 @@ export function Newsletter({ locale }: NewsletterProps) {
       
     } catch (error) {
       setStatus('error');
-      setMessage(locale === 'ru' ? 'Что-то пошло не так. Попробуйте еще раз.' : 'Something went wrong. Please try again.');
+      setMessage(locale === 'pl' ? 'Coś poszło nie tak. Spróbuj ponownie.' : 'Something went wrong. Please try again.');
       
       // Reset error status after 5 seconds
       setTimeout(() => {

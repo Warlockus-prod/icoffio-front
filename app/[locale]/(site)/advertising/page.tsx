@@ -197,3 +197,4 @@ export default function AdvertisingPage({ params }: { params: { locale: string }
     </Container>
   );
 }
+

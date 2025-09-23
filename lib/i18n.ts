@@ -1,59 +1,12 @@
-export const locales = ['ru', 'en', 'pl', 'de', 'ro', 'cs'] as const;
+export const locales = ['en', 'pl'] as const;
 export type Locale = typeof locales[number];
 
 export const localeNames = {
-  ru: 'Русский',
   en: 'English',
-  pl: 'Polski', 
-  de: 'Deutsch',
-  ro: 'Română',
-  cs: 'Čeština'
+  pl: 'Polski'
 };
 
 export const translations = {
-  ru: {
-    // Site Meta
-    siteTitle: "icoffio — гаджеты, технологии и многое другое",
-    siteDescription: "Рассказываем о важных событиях в мире технологий. Новости, обзоры и статьи о Apple, ИИ, играх и новых технологиях.",
-    
-    // Navigation
-    home: "Главная",
-    articles: "Статьи",
-    reviews: "Обзоры",
-    news: "Новости",
-    
-    // Categories  
-    ai: "ИИ",
-    apple: "Apple",
-    games: "Игры",
-    tech: "Технологии",
-    
-    // Common
-    readMore: "Читать далее",
-    showMore: "Показать больше",
-    readingTime: "мин чтения",
-    relatedArticles: "Похожие статьи",
-    latestNews: "Последние новости",
-    mostActualEvents: "Самые актуальные события из мира технологий",
-    goBack: "Назад",
-    
-    // Footer
-    about: "О нас",
-    aboutProject: "О проекте",
-    editorial: "Редакция",
-    advertising: "Реклама", 
-    applications: "Приложения",
-    followUs: "Подписаться",
-    allRightsReserved: "Все права защищены",
-    allRightsReservedFull: "© 2025 icoffio. Все права защищены.",
-    coveringTechEvents: "Освещаем самые важные события в мире технологий",
-    
-    // Dates
-    hoursAgo: "часов назад",
-    dayAgo: "день назад",
-    daysAgo: "дней назад"
-  },
-  
   en: {
     // Site Meta
     siteTitle: "icoffio — gadgets, technology and more",
@@ -84,7 +37,13 @@ export const translations = {
     about: "About",
     aboutProject: "About Project",
     editorial: "Editorial",
-    advertising: "Advertising", 
+    editorialContent: "The icoffio editorial team brings together experienced journalists, analysts and experts in the field of technology. We follow the latest trends in the world of high technology, artificial intelligence, mobile devices and digital innovation.",
+    editorialContact: "Our mission is to provide readers with current, reliable and useful information about technological innovations that shape our future.",
+    editorialPageDescription: "Editorial team and experts",
+    advertising: "Advertising",
+    advertisingContent: "icoffio is a leading technology publication that brings together an active and solvent audience of IT specialists, technology enthusiasts and decision makers in the field of high technology.",
+    advertisingContact: "Ready to start an advertising campaign or want to get a detailed media kit? Contact our sales department at advertising@icoffio.com",
+    advertisingPageDescription: "Your path to a technology audience",
     applications: "Applications",
     followUs: "Follow Us",
     allRightsReserved: "All rights reserved",
@@ -123,11 +82,17 @@ export const translations = {
     mostActualEvents: "Najaktualniejsze wydarzenia ze świata technologii",
     goBack: "Wróć",
     
-        // Footer
+    // Footer
     about: "O nas",
     aboutProject: "O Projekcie",
     editorial: "Redakcja",
-    advertising: "Reklama", 
+    editorialContent: "Redakcja icoffio łączy doświadczonych dziennikarzy, analityków i ekspertów w dziedzinie technologii. Śledzimy najnowsze trendy w świecie wysokich technologii, sztucznej inteligencji, urządzeń mobilnych i innowacji cyfrowych.",
+    editorialContact: "Naszą misją jest dostarczanie czytelnikom aktualnych, wiarygodnych i przydatnych informacji o innowacjach technologicznych, które kształtują naszą przyszłość.",
+    editorialPageDescription: "Zespół redakcyjny i eksperci",
+    advertising: "Reklama",
+    advertisingContent: "icoffio to wiodące wydawnictwo technologiczne, które łączy aktywną i zamożną publiczność specjalistów IT, entuzjastów technologii i decydentów w dziedzinie wysokich technologii.",
+    advertisingContact: "Gotowy do rozpoczęcia kampanii reklamowej lub chcesz otrzymać szczegółowy zestaw mediów? Skontaktuj się z naszym działem sprzedaży pod adresem advertising@icoffio.com",
+    advertisingPageDescription: "Twoja ścieżka do publiczności technologicznej",
     applications: "Aplikacje",
     followUs: "Śledź nas",
     allRightsReserved: "Wszystkie prawa zastrzeżone",
@@ -138,135 +103,6 @@ export const translations = {
     hoursAgo: "godzin temu",
     dayAgo: "dzień temu", 
     daysAgo: "dni temu"
-  },
-  
-  de: {
-    // Site Meta
-    siteTitle: "icoffio — Gadgets, Technologie und mehr",
-    siteDescription: "Wir berichten über wichtige Ereignisse in der Welt der Technologie. Nachrichten, Bewertungen und Artikel über Apple, KI, Spiele und neue Technologien.",
-    
-    // Navigation
-    home: "Startseite",
-    articles: "Artikel",
-    reviews: "Bewertungen",
-    news: "Nachrichten",
-    
-    // Categories
-    ai: "KI",
-    apple: "Apple", 
-    games: "Spiele",
-    tech: "Technik",
-    
-    // Common
-    readMore: "Mehr lesen",
-    showMore: "Mehr anzeigen",
-    readingTime: "Min Lesezeit",
-    relatedArticles: "Ähnliche Artikel", 
-    latestNews: "Neueste Nachrichten",
-    mostActualEvents: "Die aktuellsten Ereignisse aus der Welt der Technologie",
-    goBack: "Zurück",
-    
-    // Footer
-    about: "Über",
-    aboutProject: "Über das Projekt",
-    editorial: "Redaktion",
-    advertising: "Werbung",
-    applications: "Anwendungen",
-    followUs: "Folge uns",
-    allRightsReserved: "Alle Rechte vorbehalten", 
-    allRightsReservedFull: "© 2025 icoffio. Alle Rechte vorbehalten.",
-    coveringTechEvents: "Wir berichten über die wichtigsten Ereignisse in der Welt der Technologie",
-    
-    // Dates
-    hoursAgo: "Stunden her",
-    dayAgo: "Tag her",
-    daysAgo: "Tage her"
-  },
-  
-  ro: {
-    // Site Meta
-    siteTitle: "icoffio — gadgeturi, tehnologie și mai mult",
-    siteDescription: "Povestim despre evenimente importante din lumea tehnologiei. Știri, recenzii și articole despre Apple, AI, jocuri și tehnologii noi.",
-    
-    // Navigation
-    home: "Acasă",
-    articles: "Articole",
-    reviews: "Recenzii", 
-    news: "Știri",
-    
-    // Categories
-    ai: "AI",
-    apple: "Apple",
-    games: "Jocuri",
-    tech: "Tehnologie",
-    
-    // Common
-    readMore: "Citește mai mult",
-    showMore: "Arată mai mult",
-    readingTime: "min de citit",
-    relatedArticles: "Articole similare",
-    latestNews: "Ultimele știri", 
-    mostActualEvents: "Evenimentele cele mai actuale din lumea tehnologiei",
-    goBack: "Înapoi",
-    
-    // Footer
-    about: "Despre",
-    aboutProject: "Despre Proiect",
-    editorial: "Echipa editorială",
-    advertising: "Publicitate",
-    applications: "Aplicații",
-    followUs: "Urmărește-ne",
-    allRightsReserved: "Toate drepturile rezervate",
-    allRightsReservedFull: "© 2025 icoffio. Toate drepturile rezervate.",
-    coveringTechEvents: "Acoperim cele mai importante evenimente din lumea tehnologiei",
-    
-    // Dates
-    hoursAgo: "ore în urmă",
-    dayAgo: "zi în urmă",
-    daysAgo: "zile în urmă"
-  },
-  
-  cs: {
-    // Site Meta
-    siteTitle: "icoffio — gadgety, technologie a více",
-    siteDescription: "Vyprávíme o důležitých událostech ve světě technologií. Zprávy, recenze a články o Apple, AI, hrách a nových technologiích.",
-    
-    // Navigation
-    home: "Domů",
-    articles: "Články",
-    reviews: "Recenze",
-    news: "Zprávy",
-    
-    // Categories  
-    ai: "AI",
-    apple: "Apple",
-    games: "Hry",
-    tech: "Technologie",
-    
-    // Common
-    readMore: "Číst více",
-    showMore: "Zobrazit více",
-    readingTime: "min čtení", 
-    relatedArticles: "Související články",
-    latestNews: "Nejnovější zprávy",
-    mostActualEvents: "Nejaktuálnější události ze světa technologií",
-    goBack: "Zpět",
-    
-    // Footer
-    about: "O nás",
-    aboutProject: "O Projektu", 
-    editorial: "Redakce",
-    advertising: "Reklama",
-    applications: "Aplikace",
-    followUs: "Sleduj nás",
-    allRightsReserved: "Všechna práva vyhrazena",
-    allRightsReservedFull: "© 2025 icoffio. Všechna práva vyhrazena.",
-    coveringTechEvents: "Pokrýváme nejdůležitější události ze světa technologií",
-    
-    // Dates
-    hoursAgo: "hodin zpět",
-    dayAgo: "den zpět", 
-    daysAgo: "dní zpět"
   }
 };
 

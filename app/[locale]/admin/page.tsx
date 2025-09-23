@@ -209,7 +209,11 @@ export default function AdminTranslatePage() {
             <div>
               <div className="text-gray-500 dark:text-gray-400">Обновлено</div>
               <div className="font-medium text-gray-900 dark:text-white">
-                {new Date().toLocaleDateString()}
+                {new Date().toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })}
               </div>
             </div>
           </div>

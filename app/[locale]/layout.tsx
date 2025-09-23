@@ -213,16 +213,35 @@ export default function LocaleLayout({
                   }
                   
                   // Проверяем доступность VOX API
-                  if (!window._tx || !window._tx.integrateInImage) {
+                  if (!window._tx || !window._tx.integrateInImage || !window._tx.init) {
                       return;
                   }
                   
+                  console.log('VOX: Инициализация для статьи:', currentUrl);
+                  
+                  // 1. In-image реклама (поверх изображений статей)
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       selector: 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img',
                       setDisplayBlock: true
                   });
+                  
+                  // 2. Display форматы - инициализируем все PlaceID
+                  const displayPlacements = [
+                      '63da9b577bc72f39bc3bfc68', // 728x90 Leaderboard
+                      '63da9e2a4d506e16acfd2a36', // 300x250 Medium Rectangle  
+                      '63daa3c24d506e16acfd2a38', // 970x250 Large Leaderboard
+                      '63daa2ea7bc72f39bc3bfc72'  // 300x600 Large Skyscraper
+                  ];
+                  
+                  displayPlacements.forEach(placeId => {
+                      console.log('VOX: Инициализация display формата:', placeId);
+                      window._tx.init(placeId);
+                  });
+                  
+                  // 3. Общая инициализация VOX системы
                   window._tx.init();
+                  console.log('VOX: Полная инициализация завершена');
               }
               
               // Переменная для отслеживания последнего URL

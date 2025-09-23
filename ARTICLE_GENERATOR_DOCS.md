@@ -247,3 +247,4 @@ curl "https://app.icoffio.com/api/generate-article"
 ---
 
 *Система готова к использованию на app.icoffio.com после деплоя! 🎉*
+

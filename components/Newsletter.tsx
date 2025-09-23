@@ -18,6 +18,16 @@ const translations = {
     error: "Please enter a valid email address",
     privacy: "We respect your privacy and won't spam you"
   },
+  ru: {
+    title: "Подпишитесь на обновления",
+    description: "Получайте последние технологические новости и аналитику на свою почту",
+    placeholder: "Введите ваш email адрес",
+    button: "Подписаться",
+    subscribing: "Подписываемся...",
+    success: "Спасибо за подписку!",
+    error: "Введите корректный email адрес",
+    privacy: "Мы уважаем вашу приватность и не будем спамить"
+  },
   pl: {
     title: "Bądź na bieżąco",
     description: "Otrzymuj najnowsze wiadomości technologiczne i spostrzeżenia na swoją skrzynkę",
@@ -70,9 +80,22 @@ export function Newsletter({ locale }: NewsletterProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Clear previous messages
+    setMessage('');
+    
+    // Trim whitespace
+    const trimmedEmail = email.trim();
+    
+    // Check if email is empty
+    if (!trimmedEmail) {
+      setStatus('error');
+      setMessage(locale === 'ru' ? 'Поле email не может быть пустым' : 'Email field cannot be empty');
+      return;
+    }
+    
+    // Enhanced email validation
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    if (!emailRegex.test(trimmedEmail)) {
       setStatus('error');
       setMessage(t.error);
       return;
@@ -83,24 +106,39 @@ export function Newsletter({ locale }: NewsletterProps) {
 
     try {
       // Simulate newsletter signup (replace with real API call)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve, reject) => {
+        setTimeout(() => {
+          // Simulate random success/failure for demo
+          if (Math.random() > 0.9) {
+            reject(new Error('Network error'));
+          } else {
+            resolve(true);
+          }
+        }, 1000);
+      });
       
       // Track the signup
-      trackNewsletterSignup(email);
+      trackNewsletterSignup(trimmedEmail);
       
       setStatus('success');
       setMessage(t.success);
       setEmail('');
       
-      // Reset status after 3 seconds
+      // Reset status after 5 seconds (increased for better UX)
       setTimeout(() => {
         setStatus('idle');
         setMessage('');
-      }, 3000);
+      }, 5000);
       
     } catch (error) {
       setStatus('error');
-      setMessage('Something went wrong. Please try again.');
+      setMessage(locale === 'ru' ? 'Что-то пошло не так. Попробуйте еще раз.' : 'Something went wrong. Please try again.');
+      
+      // Reset error status after 5 seconds
+      setTimeout(() => {
+        setStatus('idle');
+        setMessage('');
+      }, 5000);
     }
   };
 
@@ -118,12 +156,29 @@ export function Newsletter({ locale }: NewsletterProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t.placeholder}
               disabled={status === 'loading'}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent disabled:opacity-50"
+              className={`w-full px-4 py-3 rounded-lg backdrop-blur-sm text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 transition-colors ${
+                status === 'error' 
+                  ? 'bg-red-500/20 border border-red-300 focus:ring-red-300' 
+                  : status === 'success'
+                  ? 'bg-green-500/20 border border-green-300 focus:ring-green-300'
+                  : 'bg-white/10 border border-white/20 focus:ring-white/50'
+              }`}
             />
+            
+            {/* Success icon */}
             {status === 'success' && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <svg className="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            )}
+            
+            {/* Error icon */}
+            {status === 'error' && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <svg className="w-5 h-5 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
             )}
@@ -170,6 +225,7 @@ export function Newsletter({ locale }: NewsletterProps) {
     </div>
   );
 }
+
 
 
 

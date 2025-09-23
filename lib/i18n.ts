@@ -1,7 +1,8 @@
-export const locales = ['en', 'pl', 'de', 'ro', 'cs'] as const;
+export const locales = ['ru', 'en', 'pl', 'de', 'ro', 'cs'] as const;
 export type Locale = typeof locales[number];
 
 export const localeNames = {
+  ru: 'Русский',
   en: 'English',
   pl: 'Polski', 
   de: 'Deutsch',
@@ -10,6 +11,49 @@ export const localeNames = {
 };
 
 export const translations = {
+  ru: {
+    // Site Meta
+    siteTitle: "icoffio — гаджеты, технологии и многое другое",
+    siteDescription: "Рассказываем о важных событиях в мире технологий. Новости, обзоры и статьи о Apple, ИИ, играх и новых технологиях.",
+    
+    // Navigation
+    home: "Главная",
+    articles: "Статьи",
+    reviews: "Обзоры",
+    news: "Новости",
+    
+    // Categories  
+    ai: "ИИ",
+    apple: "Apple",
+    games: "Игры",
+    tech: "Технологии",
+    
+    // Common
+    readMore: "Читать далее",
+    showMore: "Показать больше",
+    readingTime: "мин чтения",
+    relatedArticles: "Похожие статьи",
+    latestNews: "Последние новости",
+    mostActualEvents: "Самые актуальные события из мира технологий",
+    goBack: "Назад",
+    
+    // Footer
+    about: "О нас",
+    aboutProject: "О проекте",
+    editorial: "Редакция",
+    advertising: "Реклама", 
+    applications: "Приложения",
+    followUs: "Подписаться",
+    allRightsReserved: "Все права защищены",
+    allRightsReservedFull: "© 2025 icoffio. Все права защищены.",
+    coveringTechEvents: "Освещаем самые важные события в мире технологий",
+    
+    // Dates
+    hoursAgo: "часов назад",
+    dayAgo: "день назад",
+    daysAgo: "дней назад"
+  },
+  
   en: {
     // Site Meta
     siteTitle: "icoffio — gadgets, technology and more",

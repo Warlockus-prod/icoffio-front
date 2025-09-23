@@ -16,6 +16,7 @@ export function SearchModalWrapper({ posts, locale }: SearchModalWrapperProps) {
     <AdvancedSearch
       isOpen={isSearchOpen}
       onClose={closeSearch}
+      posts={posts}
       locale={locale}
     />
   );

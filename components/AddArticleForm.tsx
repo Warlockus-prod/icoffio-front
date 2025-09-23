@@ -56,14 +56,19 @@ export default function AddArticleForm() {
       }, 1000);
 
       const payload = formData.mode === 'url' 
-        ? { url: formData.url }
+        ? { 
+            action: 'create-from-url',
+            url: formData.url,
+            category: formData.category
+          }
         : { 
+            action: 'create-from-text',
             title: formData.title, 
             content: formData.content, 
             category: formData.category 
           };
 
-      const response = await fetch('/api/generate-article', {
+      const response = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -264,8 +269,39 @@ export default function AddArticleForm() {
                 <p><strong>Языков:</strong> {result.languages}</p>
                 <p><strong>URL:</strong> <code>/article/{result.slug}</code></p>
               </div>
+              
+              {/* Дополнительная информация о процессе */}
+              <div className="mt-4 p-3 bg-green-100 rounded-lg">
+                <h4 className="text-sm font-semibold text-green-900 mb-2">
+                  📊 Детали обработки:
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs text-green-800">
+                  <div>🤖 Контент улучшен</div>
+                  <div>🖼️ Изображение создано</div>
+                  <div>🌍 Переводы готовы</div>
+                  <div>💾 Локально сохранено</div>
+                </div>
+              </div>
+              
+              {/* Ссылки на языковые версии */}
+              <div className="mt-3">
+                <p className="text-xs text-green-700 mb-2">
+                  🔗 Доступно на языках:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {['ru', 'en', 'pl', 'de', 'ro', 'cs'].slice(0, result.languages).map(lang => (
+                    <span
+                      key={lang}
+                      className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs font-medium"
+                    >
+                      {lang.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
               <p className="text-xs text-green-600 mt-3">
-                ✅ Статья опубликована и доступна на всех языковых версиях сайта
+                ✅ Статья сохранена локально и готова к просмотру
               </p>
             </div>
           </div>

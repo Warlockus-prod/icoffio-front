@@ -183,3 +183,4 @@ if (require.main === module) {
 }
 
 module.exports = { main, parseArguments, validateInput };
+

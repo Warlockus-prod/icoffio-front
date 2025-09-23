@@ -9,6 +9,7 @@ import { OptimizedImage } from './OptimizedImage';
 interface AdvancedSearchProps {
   isOpen: boolean;
   onClose: () => void;
+  posts?: Post[];
   locale: string;
 }
 
@@ -23,7 +24,7 @@ interface SearchResult extends Post {
   score?: number;
 }
 
-export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps) {
+export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearchProps) {
   const router = useRouter();
   const t = getTranslation(locale);
   
@@ -38,7 +39,7 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Моковые данные для демонстрации (в реальном проекте будет API)
+  // Моковые данные как fallback если posts не переданы
   const mockPosts: Post[] = useMemo(() => [
     {
       slug: 'ai-breakthrough-gpt5',
@@ -90,10 +91,26 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
     { name: 'News', slug: 'news-2' }
   ], []);
 
+  // Определяем какие данные использовать - переданные posts или моковые
+  const availablePosts = useMemo(() => {
+    return posts && posts.length > 0 ? posts : mockPosts;
+  }, [posts, mockPosts]);
+
+  // Извлекаем уникальные категории из доступных статей
+  const availableCategories = useMemo(() => {
+    if (posts && posts.length > 0) {
+      const uniqueCategories = Array.from(
+        new Map(posts.map(post => [post.category.slug, post.category])).values()
+      );
+      return uniqueCategories;
+    }
+    return mockCategories;
+  }, [posts, mockCategories]);
+
   // Загрузка категорий
   useEffect(() => {
-    setCategories(mockCategories);
-  }, [mockCategories]);
+    setCategories(availableCategories);
+  }, [availableCategories]);
 
   // Функция поиска с фильтрами
   const performSearch = useCallback(async () => {
@@ -104,10 +121,12 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
 
     setIsLoading(true);
     
-    // Имитация API запроса
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Имитация API запроса (убираем для реальных данных если они есть)
+    if (!posts || posts.length === 0) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     
-    let filteredResults = [...mockPosts];
+    let filteredResults = [...availablePosts];
 
     // Фильтр по поисковому запросу
     if (filters.query) {
@@ -165,7 +184,7 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
 
     setResults(filteredResults);
     setIsLoading(false);
-  }, [filters, mockPosts]);
+  }, [filters, availablePosts, posts]);
 
   // Функция расчета релевантности
   const calculateRelevanceScore = (post: Post, query: string): number => {
@@ -239,6 +258,9 @@ export function AdvancedSearch({ isOpen, onClose, locale }: AdvancedSearchProps)
           <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
             <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">
               🔍 Advanced Search
+              <span className="ml-2 text-sm text-neutral-500 dark:text-neutral-400 font-normal">
+                ({availablePosts.length} articles available)
+              </span>
             </h2>
             <button
               onClick={onClose}

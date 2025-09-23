@@ -49,6 +49,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     alternates: {
       canonical: process.env.NEXT_PUBLIC_SITE_URL,
       languages: {
+        'ru': '/ru',
         'en': '/en',
         'pl': '/pl', 
         'de': '/de',

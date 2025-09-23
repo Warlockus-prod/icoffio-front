@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const locales = ['en', 'pl', 'de', 'ro', 'cs']
-const defaultLocale = 'en'
+const locales = ['ru', 'en', 'pl', 'de', 'ro', 'cs']  
+const defaultLocale = 'ru'
 
 function getLocale(request: NextRequest): string {
   // 1. Проверяем URL на наличие локали

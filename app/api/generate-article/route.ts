@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { articleGenerator } from '@/lib/article-generator';
+import { unifiedArticleService } from '@/lib/unified-article-service';
 
 // POST /api/generate-article
 export async function POST(request: NextRequest) {
@@ -49,20 +49,55 @@ export async function POST(request: NextRequest) {
 
     console.log(`🚀 Генерируем статью: ${articleInput.title || articleInput.url}`);
 
-    // Генерация статьи на всех языках
-    const posts = await articleGenerator.processArticle(articleInput);
-    
-    // Добавление в локальную систему
-    await articleGenerator.addArticleToSystem(posts);
+    // Генерация статьи через новый unified service
+    const result = await unifiedArticleService.processArticle(articleInput);
 
-    // Статистика
+    if (!result.success) {
+      throw new Error(result.errors?.[0] || 'Ошибка обработки статьи');
+    }
+
+    // Статистика для совместимости со старым API
     const stats = {
-      title: posts.ru?.title || posts.en?.title || 'Без названия',
-      category: posts.ru?.category || posts.en?.category,
-      languages: Object.keys(posts).length,
-      slug: posts.ru?.slug || posts.en?.slug,
-      excerpt: posts.ru?.excerpt || posts.en?.excerpt
+      title: result.article!.title,
+      category: result.article!.category,
+      languages: result.stats.languagesProcessed,
+      slug: result.article!.slug,
+      excerpt: result.article!.excerpt
     };
+
+    // Форматируем posts для совместимости со старым API
+    const posts = result.article ? {
+      [result.article.language]: {
+        slug: result.article.slug,
+        title: result.article.title,
+        excerpt: result.article.excerpt,
+        publishedAt: result.article.publishedAt,
+        image: result.article.image,
+        category: {
+          name: result.article.category || 'tech',
+          slug: result.article.category || 'tech'
+        },
+        content: result.article.content,
+        contentHtml: result.article.content
+      }
+    } : {};
+
+    // Добавляем переводы
+    for (const [lang, translation] of Object.entries(result.article?.translations || {})) {
+      posts[lang] = {
+        slug: translation.slug,
+        title: translation.title,
+        excerpt: translation.excerpt,
+        publishedAt: result.article?.publishedAt,
+        image: result.article?.image,
+        category: {
+          name: result.article?.category || 'tech',
+          slug: result.article?.category || 'tech'
+        },
+        content: translation.content,
+        contentHtml: translation.content
+      };
+    }
 
     return NextResponse.json({
       success: true,

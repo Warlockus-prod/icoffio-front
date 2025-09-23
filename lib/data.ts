@@ -222,11 +222,38 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
     }));
 }
 
+// Локальные категории как fallback
+const LOCAL_CATEGORIES: Category[] = [
+  { name: "Искусственный интеллект", slug: "ai" },
+  { name: "Apple", slug: "apple" },
+  { name: "Технологии", slug: "tech" },
+  { name: "Игры", slug: "games" },
+  { name: "Digital", slug: "digital" },
+  { name: "Новости", slug: "news-2" }
+];
+
 export async function getCategories(): Promise<Category[]> {
-  // Получаем категории только из WordPress (локальные временно отключены)
-  const q = `query{ categories(first:100){ nodes{ name slug } } }`;
-  const d = await gql<{categories:{nodes:Category[]}}>(q);
-  return d.categories.nodes;
+  try {
+    // Пробуем получить категории из WordPress
+    const q = `query{ categories(first:100){ nodes{ name slug } } }`;
+    const d = await gql<{categories:{nodes:Category[]}}>(q);
+    
+    // Объединяем локальные и WordPress категории
+    const wpCategories = d.categories.nodes || [];
+    const allCategories = [...LOCAL_CATEGORIES];
+    
+    // Добавляем уникальные категории из WordPress
+    for (const wpCat of wpCategories) {
+      if (!allCategories.find(cat => cat.slug === wpCat.slug)) {
+        allCategories.push(wpCat);
+      }
+    }
+    
+    return allCategories;
+  } catch (error) {
+    console.warn('WordPress категории недоступны, используем локальные:', error);
+    return LOCAL_CATEGORIES;
+  }
 }
 
 export async function getCategorySlugs(): Promise<string[]> {

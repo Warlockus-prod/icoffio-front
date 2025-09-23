@@ -15,7 +15,7 @@ import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
-const locales = ['en', 'pl', 'de', 'ro', 'cs'];
+const locales = ['ru', 'en', 'pl', 'de', 'ro', 'cs'];
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   if (!locales.includes(params.locale)) {

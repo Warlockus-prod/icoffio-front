@@ -3,7 +3,7 @@ import { getAllPosts } from '@/lib/data'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
-  const locales = ['en', 'pl', 'de', 'ro', 'cs'];
+  const locales = ['ru', 'en', 'pl', 'de', 'ro', 'cs'];
   const categories = ['ai', 'apple', 'digital', 'tech', 'news-2'];
   
   const routes: MetadataRoute.Sitemap = [];

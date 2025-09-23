@@ -226,17 +226,22 @@ export default function LocaleLayout({
                       setDisplayBlock: true
                   });
                   
-                  // 2. Display форматы - инициализируем все PlaceID
+                  // 2. Display форматы - используем правильный VOX API
                   const displayPlacements = [
-                      '63da9b577bc72f39bc3bfc68', // 728x90 Leaderboard
-                      '63da9e2a4d506e16acfd2a36', // 300x250 Medium Rectangle  
-                      '63daa3c24d506e16acfd2a38', // 970x250 Large Leaderboard
-                      '63daa2ea7bc72f39bc3bfc72'  // 300x600 Large Skyscraper
+                      { id: '63da9b577bc72f39bc3bfc68', type: '728x90 Leaderboard' },
+                      { id: '63da9e2a4d506e16acfd2a36', type: '300x250 Medium Rectangle' },
+                      { id: '63daa3c24d506e16acfd2a38', type: '970x250 Large Leaderboard' },
+                      { id: '63daa2ea7bc72f39bc3bfc72', type: '300x600 Large Skyscraper' }
                   ];
                   
-                  displayPlacements.forEach(placeId => {
-                      console.log('VOX: Инициализация display формата:', placeId);
-                      window._tx.init(placeId);
+                  // Используем integrateInImage для display форматов тоже
+                  displayPlacements.forEach(placement => {
+                      console.log('VOX: Инициализация display формата:', placement.type, placement.id);
+                      window._tx.integrateInImage({
+                          placeId: placement.id,
+                          fetchSelector: true,
+                          setDisplayBlock: true
+                      });
                   });
                   
                   // 3. Общая инициализация VOX системы

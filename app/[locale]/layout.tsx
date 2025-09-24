@@ -219,22 +219,18 @@ export default function LocaleLayout({
                   
                   console.log('VOX: Инициализация для статьи:', currentUrl);
                   
-                  // 1. In-image реклама - ТЕСТ с рабочим PlaceID
-                  console.log('VOX: ТЕСТ in-image с рабочим PlaceID из display:', "63da9b577bc72f39bc3bfc68");
+                  // 1. In-image реклама - ПРАВИЛЬНЫЙ PlaceID из документации
+                  console.log('VOX: Инициализация in-image рекламы с ПРАВИЛЬНЫМ PlaceID:', "63d93bb54d506e95f039e2e3");
                   const inImageSelector = 'article img:not(.group img)';
                   const targetImages = document.querySelectorAll(inImageSelector);
                   console.log('VOX: Найдено изображений для in-image:', targetImages.length, 'селектор:', inImageSelector);
                   
-                  // ТЕСТ: используем рабочий PlaceID и классический init
+                  // Используем ПРАВИЛЬНЫЙ PlaceID из документации
                   window._tx.integrateInImage({
-                      placeId: "63da9b577bc72f39bc3bfc68",
+                      placeId: "63d93bb54d506e95f039e2e3",
                       fetchSelector: true,
                       setDisplayBlock: true
                   });
-                  
-                  // Дополнительно попробуем init 
-                  window._tx.init("63da9b577bc72f39bc3bfc68");
-                  console.log('VOX: Дополнительный init для PlaceID:', "63da9b577bc72f39bc3bfc68");
                   
                   // 2. Display форматы - используем правильный VOX API
                   const displayPlacements = [

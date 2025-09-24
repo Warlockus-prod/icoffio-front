@@ -219,15 +219,16 @@ export default function LocaleLayout({
                   
                   console.log('VOX: Инициализация для статьи:', currentUrl);
                   
-                  // 1. In-image реклама (поверх изображений статей)
+                  // 1. In-image реклама (поверх изображений статей) - ИСПРАВЛЕНО
                   console.log('VOX: Инициализация in-image рекламы с PlaceID:', "63d93bb54d506e95f039e2e3");
                   const inImageSelector = 'article img:not(.group img)';
                   const targetImages = document.querySelectorAll(inImageSelector);
                   console.log('VOX: Найдено изображений для in-image:', targetImages.length, 'селектор:', inImageSelector);
                   
+                  // ИСПРАВЛЕНО: используем fetchSelector вместо selector для in-image
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      selector: inImageSelector,
+                      fetchSelector: true,
                       setDisplayBlock: true
                   });
                   

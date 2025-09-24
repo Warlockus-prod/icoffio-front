@@ -43,8 +43,10 @@ function generateSlugFromTitle(title: string): string {
     .replace(/^-+|-+$/g, ''); // убираем дефисы в начале/конце
 }
 
-// POST /api/n8n-webhook - основной webhook для n8n
+// POST /api/n8n-webhook - DEPRECATED: используйте /api/articles вместо этого
 export async function POST(request: NextRequest) {
+  console.warn('⚠️ DEPRECATED API: /api/n8n-webhook устарел. Используйте /api/articles вместо этого.');
+  
   try {
     const body = await request.json();
     const { action, data } = body;

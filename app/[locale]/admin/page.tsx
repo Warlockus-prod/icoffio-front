@@ -12,9 +12,12 @@ export default function AdminTranslatePage() {
 
   // Проверка аутентификации при загрузке
   useEffect(() => {
-    const savedAuth = localStorage.getItem('icoffio_admin_auth');
-    if (savedAuth === 'authenticated') {
-      setIsAuthenticated(true);
+    // Проверяем что мы в браузере (не SSR)
+    if (typeof window !== 'undefined') {
+      const savedAuth = localStorage.getItem('icoffio_admin_auth');
+      if (savedAuth === 'authenticated') {
+        setIsAuthenticated(true);
+      }
     }
     setIsLoading(false);
   }, []);
@@ -28,7 +31,10 @@ export default function AdminTranslatePage() {
     
     if (password === adminPassword) {
       setIsAuthenticated(true);
-      localStorage.setItem('icoffio_admin_auth', 'authenticated');
+      // Проверяем что мы в браузере перед использованием localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('icoffio_admin_auth', 'authenticated');
+      }
       setError('');
     } else {
       setError('Неверный пароль');
@@ -38,7 +44,10 @@ export default function AdminTranslatePage() {
   // Выход
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('icoffio_admin_auth');
+    // Проверяем что мы в браузере перед использованием localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('icoffio_admin_auth');
+    }
     setPassword('');
   };
 

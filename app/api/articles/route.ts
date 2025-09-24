@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
+import { wordpressService } from '@/lib/wordpress-service';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -13,6 +14,7 @@ type ActionType =
   | 'create-from-text'      // Для админ панели - ручной ввод
   | 'health-check'          // Проверка состояния сервисов
   | 'get-categories'        // Получение доступных категорий
+  | 'wordpress-health'      // Диагностика WordPress подключения
   | 'list-articles'         // Список статей (будущее)
   | 'get-article'           // Получение статьи (будущее)
   | 'update-article'        // Обновление статьи (будущее)
@@ -69,6 +71,9 @@ export async function POST(request: NextRequest) {
         
       case 'get-categories':
         return await handleGetCategories();
+
+      case 'wordpress-health':
+        return await handleWordPressHealth();
         
       default:
         return NextResponse.json(
@@ -79,7 +84,8 @@ export async function POST(request: NextRequest) {
               'create-from-url', 
               'create-from-text',
               'health-check',
-              'get-categories'
+              'get-categories',
+              'wordpress-health'
             ]
           },
           { status: 400 }
@@ -111,6 +117,10 @@ export async function GET(request: NextRequest) {
   
   if (action === 'categories') {
     return await handleGetCategories();
+  }
+  
+  if (action === 'wordpress-health') {
+    return await handleWordPressHealth();
   }
   
   // Документация API
@@ -160,6 +170,7 @@ export async function GET(request: NextRequest) {
       'GET /api/articles': {
         'health-check': '?action=health-check',
         'categories': '?action=categories',
+        'wordpress-health': '?action=wordpress-health',
         'documentation': 'Default - this help'
       }
     },
@@ -415,7 +426,8 @@ async function handleHealthCheck() {
       features: [
         'unified-architecture',
         'telegram-integration', 
-        'url-content-extraction',
+        'intelligent-url-parsing',
+        'real-content-extraction',
         'manual-content-input',
         'content-enhancement',
         'multilingual-translation',
@@ -453,6 +465,52 @@ async function handleGetCategories() {
       { slug: 'tech', name: 'Технологии', icon: '⚡', description: 'Общие технологии, гаджеты, инновации' }
     ]
   });
+}
+
+/**
+ * Расширенная диагностика WordPress подключения
+ */
+async function handleWordPressHealth() {
+  try {
+    const healthStatus = await wordpressService.getHealthStatus();
+    
+    return NextResponse.json({
+      success: true,
+      service: 'WordPress Integration',
+      timestamp: new Date().toISOString(),
+      
+      wordpress: healthStatus,
+      
+      recommendations: [
+        ...(healthStatus.available ? [] : ['Проверьте доступность WordPress REST API']),
+        ...(healthStatus.details.hasCredentials ? [] : ['Добавьте WORDPRESS_USERNAME и WORDPRESS_APP_PASSWORD в переменные окружения']),
+        ...(healthStatus.authenticated ? [] : ['Проверьте правильность учетных данных WordPress']),
+        ...(healthStatus.canCreatePosts ? [] : ['Убедитесь, что пользователь имеет права на создание постов']),
+        ...(healthStatus.categoriesAvailable ? [] : ['Проверьте доступность категорий WordPress'])
+      ],
+      
+      setup: {
+        requiredEnvVars: [
+          'WORDPRESS_API_URL',
+          'WORDPRESS_USERNAME', 
+          'WORDPRESS_APP_PASSWORD'
+        ],
+        instructions: [
+          '1. Войдите в WordPress Admin как администратор',
+          '2. Перейдите в "Пользователи → Ваш профиль"',
+          '3. В разделе "Application Passwords" создайте новый пароль',
+          '4. Скопируйте пароль в WORDPRESS_APP_PASSWORD (не основной пароль!)',
+          '5. Убедитесь, что REST API включен: /wp-json/wp/v2/posts'
+        ]
+      }
+    });
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      error: 'WordPress health check failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
 }
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
@@ -494,7 +552,7 @@ function formatPostsForAdmin(article: any): Record<string, any> {
       slug: article.category
     },
     content: article.content,
-    contentHtml: article.content // TODO: конвертация в HTML
+    contentHtml: formatContentToHtml(article.content)
   };
   
   // Переводы
@@ -510,11 +568,116 @@ function formatPostsForAdmin(article: any): Record<string, any> {
         slug: article.category
       },
       content: (translation as any).content,
-      contentHtml: (translation as any).content // TODO: конвертация в HTML
+      contentHtml: formatContentToHtml((translation as any).content)
     };
   }
   
   return posts;
+}
+
+/**
+ * Форматирование контента в HTML с поддержкой Markdown (дублируется из UnifiedArticleService)
+ */
+function formatContentToHtml(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return '';
+  }
+  
+  return content
+    .split('\n\n')
+    .map(paragraph => paragraph.trim())
+    .filter(paragraph => paragraph.length > 0)
+    .map(paragraph => {
+      // Заголовки H1-H6
+      if (paragraph.startsWith('# ')) {
+        return `<h1>${escapeHtml(paragraph.substring(2))}</h1>`;
+      }
+      if (paragraph.startsWith('## ')) {
+        return `<h2>${escapeHtml(paragraph.substring(3))}</h2>`;
+      }
+      if (paragraph.startsWith('### ')) {
+        return `<h3>${escapeHtml(paragraph.substring(4))}</h3>`;
+      }
+      if (paragraph.startsWith('#### ')) {
+        return `<h4>${escapeHtml(paragraph.substring(5))}</h4>`;
+      }
+      
+      // Списки (маркированные)
+      if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
+        const items = paragraph.split('\n- ').map(item => item.startsWith('- ') ? item.substring(2) : item);
+        const listItems = items.map(item => `<li>${formatInlineElements(item)}</li>`).join('');
+        return `<ul>${listItems}</ul>`;
+      }
+      
+      // Нумерованные списки  
+      if (paragraph.match(/^\d+\.\s/)) {
+        const items = paragraph.split(/\n\d+\.\s/).filter(item => item.trim());
+        const firstItem = paragraph.match(/^\d+\.\s(.*)$/)?.[1];
+        if (firstItem) items.unshift(firstItem);
+        const listItems = items.map(item => `<li>${formatInlineElements(item)}</li>`).join('');
+        return `<ol>${listItems}</ol>`;
+      }
+      
+      // Цитаты
+      if (paragraph.startsWith('> ')) {
+        const quote = paragraph.replace(/^>\s?/gm, '');
+        return `<blockquote><p>${formatInlineElements(quote)}</p></blockquote>`;
+      }
+      
+      // Код блоки
+      if (paragraph.startsWith('```')) {
+        const lines = paragraph.split('\n');
+        const language = lines[0].substring(3).trim();
+        const code = lines.slice(1, -1).join('\n');
+        const langClass = language ? ` class="language-${language}"` : '';
+        return `<pre><code${langClass}>${escapeHtml(code)}</code></pre>`;
+      }
+      
+      // Разделители
+      if (paragraph.trim() === '---' || paragraph.trim() === '***') {
+        return '<hr>';
+      }
+      
+      // Обычные параграфы с inline форматированием
+      return `<p>${formatInlineElements(paragraph)}</p>`;
+    })
+    .join('\n');
+}
+
+/**
+ * Форматирование inline элементов
+ */
+function formatInlineElements(text: string): string {
+  // Сначала экранируем HTML символы
+  let formatted = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+    
+  // Затем применяем markdown форматирование
+  return formatted
+    // Жирный текст **bold**
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Курсив *italic*  
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Inline код `code`
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Ссылки [text](url)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Автоматические ссылки (только если не внутри других тегов)
+    .replace(/(?<!href=")(?<!href=&quot;)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+/**
+ * Экранирование HTML символов
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService } from '@/lib/unified-article-service';
 
-// POST /api/generate-article
+// POST /api/generate-article - DEPRECATED: используйте /api/articles вместо этого  
 export async function POST(request: NextRequest) {
+  console.warn('⚠️ DEPRECATED API: /api/generate-article устарел. Используйте /api/articles вместо этого.');
+  
   try {
     const body = await request.json();
     const { url, title, content, category, action } = body;
@@ -123,11 +125,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/generate-article - информация о сервисе
+// GET /api/generate-article - DEPRECATED: используйте /api/articles вместо этого
 export async function GET() {
+  console.warn('⚠️ DEPRECATED API: /api/generate-article устарел. Используйте /api/articles вместо этого.');
+  
   return NextResponse.json({
-    service: 'Article Generator API',
+    service: 'Article Generator API (DEPRECATED)',
     version: '1.0.0',
+    deprecated: true,
+    newEndpoint: '/api/articles',
     available: Boolean(process.env.OPENAI_API_KEY),
     endpoints: {
       'POST /api/generate-article': {

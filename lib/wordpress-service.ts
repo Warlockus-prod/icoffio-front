@@ -84,6 +84,99 @@ class WordPressService {
   }
 
   /**
+   * 🏥 Расширенная диагностика WordPress подключения
+   */
+  async getHealthStatus(): Promise<{
+    available: boolean;
+    authenticated: boolean;
+    canCreatePosts: boolean;
+    categoriesAvailable: boolean;
+    details: {
+      apiUrl: string;
+      hasCredentials: boolean;
+      lastError?: string;
+    };
+  }> {
+    const result = {
+      available: false,
+      authenticated: false,
+      canCreatePosts: false,
+      categoriesAvailable: false,
+      details: {
+        apiUrl: this.apiBase,
+        hasCredentials: !!(this.credentials.username && this.credentials.applicationPassword),
+        lastError: undefined as string | undefined
+      }
+    };
+
+    try {
+      // 1. Проверка доступности API
+      const apiCheck = await fetch(`${this.apiBase}/posts?per_page=1`);
+      result.available = apiCheck.ok;
+      
+      if (!result.available) {
+        result.details.lastError = `API недоступен: ${apiCheck.status} ${apiCheck.statusText}`;
+        return result;
+      }
+
+      // 2. Проверка авторизации
+      if (result.details.hasCredentials) {
+        result.authenticated = await this.checkAuthentication();
+        
+        if (!result.authenticated) {
+          result.details.lastError = 'Неверные учетные данные WordPress';
+          return result;
+        }
+
+        // 3. Проверка прав на создание постов
+        try {
+          const testResponse = await fetch(`${this.apiBase}/posts`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Basic ${Buffer.from(`${this.credentials.username}:${this.credentials.applicationPassword}`).toString('base64')}`
+            },
+            body: JSON.stringify({
+              title: 'Test Post (Will be deleted)',
+              content: 'Test content',
+              status: 'draft'
+            })
+          });
+          
+          if (testResponse.ok) {
+            result.canCreatePosts = true;
+            // Удаляем тестовый пост
+            const testPost = await testResponse.json();
+            await fetch(`${this.apiBase}/posts/${testPost.id}?force=true`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Basic ${Buffer.from(`${this.credentials.username}:${this.credentials.applicationPassword}`).toString('base64')}`
+              }
+            });
+          } else {
+            result.details.lastError = `Нет прав на создание постов: ${testResponse.status}`;
+          }
+        } catch (error) {
+          result.details.lastError = `Ошибка проверки прав: ${error instanceof Error ? error.message : 'Unknown'}`;
+        }
+      }
+
+      // 4. Проверка категорий
+      try {
+        const categoriesResponse = await fetch(`${this.apiBase}/categories?per_page=10`);
+        result.categoriesAvailable = categoriesResponse.ok;
+      } catch {
+        result.categoriesAvailable = false;
+      }
+
+    } catch (error) {
+      result.details.lastError = `Общая ошибка: ${error instanceof Error ? error.message : 'Unknown'}`;
+    }
+
+    return result;
+  }
+
+  /**
    * Проверяет авторизацию
    */
   async checkAuthentication(): Promise<boolean> {

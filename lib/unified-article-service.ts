@@ -7,6 +7,7 @@ import { translationService } from './translation-service';
 import { copywritingService } from './copywriting-service';
 import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
+import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
 import type { Post } from './types';
 
@@ -249,23 +250,42 @@ class UnifiedArticleService {
    * Извлечение контента из URL
    */
   private async extractContentFromUrl(url: string): Promise<any> {
-    // TODO: Реализовать реальный парсинг URL
-    // Пока заглушка для демонстрации
     console.log(`🌐 Извлекаем контент из URL: ${url}`);
     
     try {
-      // Пробуем получить базовую информацию из URL
-      const domain = new URL(url).hostname;
-      const path = new URL(url).pathname;
+      // Используем новый сервис парсинга URL
+      const extractedContent = await urlParserService.extractContent(url);
       
       return {
-        title: `Статья с ${domain}`,
-        content: `Контент из статьи: ${url}\n\nЗдесь должен быть реальный контент после реализации парсера.\n\nПуть: ${path}`,
-        category: this.categorizeFromDomain(domain),
-        source: domain
+        title: extractedContent.title,
+        content: extractedContent.content,
+        excerpt: extractedContent.excerpt,
+        category: extractedContent.category,
+        author: extractedContent.author || 'Web Content',
+        publishedAt: extractedContent.publishedAt,
+        image: extractedContent.image,
+        source: extractedContent.source,
+        siteName: extractedContent.siteName,
+        language: extractedContent.language || 'ru'
       };
     } catch (error) {
-      throw new Error(`Некорректный URL: ${url}`);
+      console.error('❌ Ошибка извлечения контента из URL:', error);
+      
+      // Fallback - пытаемся создать контент на основе URL
+      try {
+        const domain = new URL(url).hostname;
+        const path = new URL(url).pathname;
+        
+        return {
+          title: `Статья с ${domain}`,
+          content: `Не удалось автоматически извлечь контент с ${url}.\n\nОшибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}\n\nПожалуйста, скопируйте контент статьи вручную или попробуйте другой URL.`,
+          category: this.categorizeFromDomain(domain),
+          author: 'Web Content',
+          source: domain
+        };
+      } catch (fallbackError) {
+        throw new Error(`Некорректный URL: ${url}`);
+      }
     }
   }
   
@@ -521,33 +541,105 @@ class UnifiedArticleService {
   }
   
   /**
-   * Форматирование контента в HTML
+   * Форматирование контента в HTML с поддержкой Markdown
    */
   private formatContentToHtml(content: string): string {
+    if (!content || typeof content !== 'string') {
+      return '';
+    }
+    
     return content
       .split('\n\n')
       .map(paragraph => paragraph.trim())
       .filter(paragraph => paragraph.length > 0)
       .map(paragraph => {
-        // Простые заголовки
+        // Заголовки H1-H6
         if (paragraph.startsWith('# ')) {
-          return `<h2>${paragraph.substring(2)}</h2>`;
+          return `<h1>${this.escapeHtml(paragraph.substring(2))}</h1>`;
         }
         if (paragraph.startsWith('## ')) {
-          return `<h3>${paragraph.substring(3)}</h3>`;
+          return `<h2>${this.escapeHtml(paragraph.substring(3))}</h2>`;
+        }
+        if (paragraph.startsWith('### ')) {
+          return `<h3>${this.escapeHtml(paragraph.substring(4))}</h3>`;
+        }
+        if (paragraph.startsWith('#### ')) {
+          return `<h4>${this.escapeHtml(paragraph.substring(5))}</h4>`;
         }
         
-        // Списки
+        // Списки (маркированные)
         if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
           const items = paragraph.split('\n- ').map(item => item.startsWith('- ') ? item.substring(2) : item);
-          const listItems = items.map(item => `<li>${item}</li>`).join('');
+          const listItems = items.map(item => `<li>${this.formatInlineElements(item)}</li>`).join('');
           return `<ul>${listItems}</ul>`;
         }
         
-        // Обычные параграфы
-        return `<p>${paragraph}</p>`;
+        // Нумерованные списки  
+        if (paragraph.match(/^\d+\.\s/)) {
+          const items = paragraph.split(/\n\d+\.\s/).filter(item => item.trim());
+          const firstItem = paragraph.match(/^\d+\.\s(.*)$/)?.[1];
+          if (firstItem) items.unshift(firstItem);
+          const listItems = items.map(item => `<li>${this.formatInlineElements(item)}</li>`).join('');
+          return `<ol>${listItems}</ol>`;
+        }
+        
+        // Цитаты
+        if (paragraph.startsWith('> ')) {
+          const quote = paragraph.replace(/^>\s?/gm, '');
+          return `<blockquote><p>${this.formatInlineElements(quote)}</p></blockquote>`;
+        }
+        
+        // Код блоки
+        if (paragraph.startsWith('```')) {
+          const lines = paragraph.split('\n');
+          const language = lines[0].substring(3).trim();
+          const code = lines.slice(1, -1).join('\n');
+          const langClass = language ? ` class="language-${language}"` : '';
+          return `<pre><code${langClass}>${this.escapeHtml(code)}</code></pre>`;
+        }
+        
+        // Разделители
+        if (paragraph.trim() === '---' || paragraph.trim() === '***') {
+          return '<hr>';
+        }
+        
+        // Обычные параграфы с inline форматированием
+        return `<p>${this.formatInlineElements(paragraph)}</p>`;
       })
       .join('\n');
+  }
+  
+  /**
+   * Форматирование inline элементов (жирный, курсив, ссылки, код)
+   */
+  private formatInlineElements(text: string): string {
+    return text
+      // Жирный текст **bold**
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Курсив *italic*  
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      // Inline код `code`
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Ссылки [text](url)
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      // Автоматические ссылки
+      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+      // Экранирование HTML в остальном тексте
+      .replace(/&(?![a-zA-Z][a-zA-Z0-9]*;)/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  
+  /**
+   * Экранирование HTML символов
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
   
   /**
@@ -558,6 +650,7 @@ class UnifiedArticleService {
     copywriting: boolean;
     images: boolean;
     wordpress: boolean;
+    urlParser: boolean;
   }> {
     const imageAvailability = imageService.getAvailability();
     const wpAvailable = await wordpressService.isAvailable();
@@ -566,7 +659,8 @@ class UnifiedArticleService {
       translation: translationService.isAvailable(),
       copywriting: copywritingService.isAvailable(),
       images: imageAvailability.anyService,
-      wordpress: wpAvailable
+      wordpress: wpAvailable,
+      urlParser: urlParserService.isAvailable()
     };
   }
 }

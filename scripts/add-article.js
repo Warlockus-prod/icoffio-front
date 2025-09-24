@@ -3,11 +3,16 @@
 /**
  * Скрипт для добавления статей в icoffio
  * 
+ * ⚠️ DEPRECATED: Рекомендуется использовать новый API /api/articles напрямую
+ * 
  * Использование:
  * node scripts/add-article.js --url "https://example.com/article"
  * node scripts/add-article.js --title "Заголовок" --content "Контент статьи" --category "tech"
  * node scripts/add-article.js --file "path/to/article.txt"
  */
+
+console.warn('⚠️ DEPRECATED SCRIPT: Рекомендуется использовать API /api/articles напрямую');
+console.warn('   Пример: curl -X POST "/api/articles" -d \'{"action":"create-from-url","url":"..."}\'');
 
 const fs = require('fs');
 const path = require('path');

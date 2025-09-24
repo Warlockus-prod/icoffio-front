@@ -1,86 +1,68 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react';
-import { Container } from '@/components/Container';
-import { MassTranslation } from '@/components/MassTranslation';
+import { useAdminStore } from '@/lib/stores/admin-store';
+import AdminLayout from '@/components/admin/AdminLayout';
+import Dashboard from '@/components/admin/Dashboard';
 
-export default function AdminTranslatePage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+export default function AdminPage() {
+  const { 
+    isAuthenticated, 
+    isLoading, 
+    activeTab, 
+    authenticate 
+  } = useAdminStore();
+  
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Проверка аутентификации при загрузке
+  // Проверка сохраненной аутентификации при загрузке
   useEffect(() => {
-    // Проверяем что мы в браузере (не SSR)
     if (typeof window !== 'undefined') {
       const savedAuth = localStorage.getItem('icoffio_admin_auth');
       if (savedAuth === 'authenticated') {
-        setIsAuthenticated(true);
+        // Simulate authentication without password check
+        useAdminStore.setState({ isAuthenticated: true });
       }
     }
-    setIsLoading(false);
   }, []);
 
-  // Аутентификация
+  // Обработка аутентификации
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Простая проверка пароля (в продакшене лучше использовать более безопасный метод)
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'icoffio2025';
-    
-    if (password === adminPassword) {
-      setIsAuthenticated(true);
-      // Проверяем что мы в браузере перед использованием localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('icoffio_admin_auth', 'authenticated');
-      }
+    if (authenticate(password)) {
       setError('');
+      setPassword('');
     } else {
       setError('Неверный пароль');
     }
   };
 
-  // Выход
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    // Проверяем что мы в браузере перед использованием localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('icoffio_admin_auth');
-    }
-    setPassword('');
-  };
-
-  if (isLoading) {
-    return (
-      <Container>
-        <div className="py-12 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка админ панели...</p>
-        </div>
-      </Container>
-    );
-  }
-
-  // Форма аутентификации
+  // Форма входа
   if (!isAuthenticated) {
     return (
-      <Container>
-        <div className="min-h-screen flex items-center justify-center py-12">
-          <div className="max-w-md w-full space-y-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                🔐 Админ панель icoffio
-              </h2>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Введите пароль для доступа к панели управления
-              </p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          {/* Logo и заголовок */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl mb-4 shadow-xl">
+              <span className="text-white font-bold text-2xl">iC</span>
             </div>
-            
-            <form className="mt-8 space-y-6" onSubmit={handleAuth}>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Admin Panel
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Управление статьями icoffio
+            </p>
+          </div>
+
+          {/* Форма входа */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
+            <form onSubmit={handleAuth} className="space-y-6">
               <div>
-                <label htmlFor="password" className="sr-only">
-                  Пароль
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Пароль администратора
                 </label>
                 <input
                   id="password"
@@ -89,145 +71,108 @@ export default function AdminTranslatePage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                  placeholder="Введите пароль администратора"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                  placeholder="Введите пароль"
                 />
               </div>
 
               {error && (
-                <div className="text-red-600 text-sm text-center">
-                  {error}
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
 
-              <div>
-                <button
-                  type="submit"
-                  className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  🚀 Войти в админ панель
-                </button>
-              </div>
-              
-              <div className="text-center">
-                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    🔧 Доступные функции:
-                  </p>
-                  <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
-                    <div>📝 Создание статей из URL и текста</div>
-                    <div>🌍 Автоматический перевод на 5 языков</div>
-                    <div>🤖 ИИ улучшение контента</div>
-                    <div>🖼️ Генерация изображений</div>
-                    <div>📊 Мониторинг системы</div>
-                  </div>
-                </div>
-              </div>
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg"
+              >
+                🚀 Войти в админ панель
+              </button>
             </form>
-          </div>
-        </div>
-      </Container>
-    );
-  }
 
-  // Главная админ панель
-  return (
-    <Container>
-      <div className="py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              ⚡ Админ панель icoffio
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Управление статьями и контентом сайта
-            </p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-800"
-          >
-            🚪 Выйти
-          </button>
-        </div>
-
-        {/* Панель быстрых ссылок */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <a
-            href="/ru/admin/add-article"
-            className="block p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-          >
-            <div className="text-2xl mb-2">📝</div>
-            <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-200">
-              Создать статью
-            </h3>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              Из URL или ручного ввода
-            </p>
-          </a>
-          
-          <div className="block p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-            <div className="text-2xl mb-2">🚀</div>
-            <h3 className="text-lg font-semibold text-green-900 dark:text-green-200">
-              N8N Интеграция
-            </h3>
-            <p className="text-sm text-green-700 dark:text-green-300">
-              Telegram бот → Статьи
-            </p>
-          </div>
-          
-          <div className="block p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-            <div className="text-2xl mb-2">📊</div>
-            <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-200">
-              Аналитика
-            </h3>
-            <p className="text-sm text-purple-700 dark:text-purple-300">
-              Статистика и мониторинг
-            </p>
-          </div>
-        </div>
-
-        {/* Массовый перевод */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-            🌍 Массовый перевод статей
-          </h2>
-          <MassTranslation />
-        </div>
-
-        {/* Системная информация */}
-        <div className="mt-8 bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-            🔧 Системная информация
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">Среда</div>
-              <div className="font-medium text-gray-900 dark:text-white">
-                {process.env.NODE_ENV}
-              </div>
-            </div>
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">Версия API</div>
-              <div className="font-medium text-gray-900 dark:text-white">2.0.0</div>
-            </div>
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">Языки</div>
-              <div className="font-medium text-gray-900 dark:text-white">6 языков</div>
-            </div>
-            <div>
-              <div className="text-gray-500 dark:text-gray-400">Обновлено</div>
-              <div className="font-medium text-gray-900 dark:text-white">
-                {new Date().toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })}
+            {/* Функции панели */}
+            <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                🔧 Доступные функции:
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <div className="flex items-center gap-2">
+                  <span>🔗</span>
+                  <span>URL парсинг</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>🌍</span>
+                  <span>Перевод EN/PL</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>🤖</span>
+                  <span>ИИ обработка</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>🖼️</span>
+                  <span>Изображения</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </Container>
+    );
+  }
+
+  // Главная админ панель после аутентификации
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'parser':
+        return (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">🔗</div>
+            <h3 className="text-xl font-semibold mb-2">URL Parser</h3>
+            <p className="text-gray-600">Coming in next update...</p>
+          </div>
+        );
+      case 'editor':
+        return (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">✏️</div>
+            <h3 className="text-xl font-semibold mb-2">Article Editor</h3>
+            <p className="text-gray-600">Coming in next update...</p>
+          </div>
+        );
+      case 'images':
+        return (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">🖼️</div>
+            <h3 className="text-xl font-semibold mb-2">Image Gallery</h3>
+            <p className="text-gray-600">Coming in next update...</p>
+          </div>
+        );
+      case 'queue':
+        return (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">📤</div>
+            <h3 className="text-xl font-semibold mb-2">Publishing Queue</h3>
+            <p className="text-gray-600">Coming in next update...</p>
+          </div>
+        );
+      case 'settings':
+        return (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">⚙️</div>
+            <h3 className="text-xl font-semibold mb-2">Settings</h3>
+            <p className="text-gray-600">Coming in next update...</p>
+          </div>
+        );
+      default:
+        return <Dashboard />;
+    }
+  };
+
+  return (
+    <AdminLayout>
+      {renderActiveTab()}
+    </AdminLayout>
   );
 }

@@ -8,7 +8,7 @@ interface TextInputProps {
 }
 
 export default function TextInput({ onSubmit }: TextInputProps) {
-  const { addTextToQueue, statistics } = useAdminStore();
+  const { addTextToQueue, parsingQueue } = useAdminStore();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
@@ -157,10 +157,10 @@ export default function TextInput({ onSubmit }: TextInputProps) {
             )}
           </button>
 
-          {statistics.parsingQueue > 0 && (
+          {parsingQueue.length > 0 && (
             <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
               <span>📊</span>
-              <span>{statistics.parsingQueue} article{statistics.parsingQueue !== 1 ? 's' : ''} in queue</span>
+              <span>{parsingQueue.length} article{parsingQueue.length !== 1 ? 's' : ''} in queue</span>
             </div>
           )}
         </div>

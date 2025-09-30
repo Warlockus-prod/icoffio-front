@@ -106,31 +106,37 @@ async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promi
 
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
   try {
-    // Получаем WordPress статьи
-    const q = `
-      query($first:Int!){
-        posts(first:$first, where:{orderby:{field:DATE, order:DESC}}){
-          nodes{
-            slug title excerpt date
-            featuredImage{ node{ sourceUrl } }
-            categories(first:1){ nodes{ name slug } }
-          }
-        }
-      }`;
-    const data = await gql<{posts:{nodes:any[]}}>(q, { first: Math.floor(limit / 2) });
-    const wpPosts = data.posts.nodes.map(n => ({
-      slug: n.slug,
-      title: strip(n.title) || "Untitled",
-      excerpt: strip(n.excerpt),
-      date: n.date,
-      publishedAt: n.date,
-      image: n.featuredImage?.node?.sourceUrl || "",
-      category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
-      contentHtml: "",
+    // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
+    const response = await fetch('/api/wordpress-articles', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 120 } // ISR кеширование
+    });
+    
+    if (!response.ok) {
+      throw new Error(`WordPress API failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(`WordPress API error: ${data.error}`);
+    }
+    
+    // Преобразуем данные из WordPress API в формат Post
+    const wpPosts: Post[] = data.articles.map((article: any) => ({
+      slug: article.slug,
+      title: strip(article.title) || "Untitled",
+      excerpt: strip(article.excerpt),
+      date: article.date,
+      publishedAt: article.date,
+      image: article.image || "",
+      category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
+      contentHtml: article.content || "",
     }));
 
     // Комбинируем с локальными статьями
-    return await combineArticles(wpPosts, locale);
+    return await combineArticles(wpPosts.slice(0, Math.floor(limit / 2)), locale);
   } catch (error) {
     console.warn('Ошибка загрузки WordPress статей, используем только локальные:', error);
     
@@ -144,9 +150,36 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
 export async function getTopPosts(limit = 1) { return getAllPosts(limit); }
 
 export async function getAllSlugs(): Promise<string[]> {
-  const q = `query{ posts(first: 1000){ nodes{ slug } } }`;
-  const data = await gql<{posts:{nodes:{slug:string}[]}}>(q);
-  return data.posts.nodes.map(n => n.slug);
+  try {
+    // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
+    const response = await fetch('/api/wordpress-articles', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 120 }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        // Возвращаем все slug'и из WordPress статей
+        const wpSlugs = data.articles.map((article: any) => article.slug);
+        
+        // Добавляем локальные slug'и
+        const localArticles = await getLocalArticles();
+        const localSlugs = localArticles.map(article => article.slug);
+        
+        // Объединяем и убираем дубликаты
+        return [...new Set([...wpSlugs, ...localSlugs])];
+      }
+    }
+  } catch (error) {
+    console.warn('WordPress REST API unavailable for getAllSlugs, using local articles:', error);
+  }
+  
+  // Fallback к только локальным статьям
+  const localArticles = await getLocalArticles();
+  return localArticles.map(article => article.slug);
 }
 
 export async function getPostBySlug(slug: string, locale: string = 'en'): Promise<Post|null> {
@@ -156,70 +189,83 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
     return localArticle;
   }
 
-  // Если не найдено локально, ищем в WordPress
+  // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
   try {
-    const q1 = `query($slug:String!){
-      postBy(slug:$slug){
-        slug title content date
-        featuredImage{ node{ sourceUrl } }
-        categories{ nodes{ name slug } }
-      } }`;
-    const d1 = await gql<{postBy:any}>(q1, { slug });
-    let p = d1.postBy;
-
-    if (!p) {
-      const q2 = `query($slug:ID!){
-        post(id:$slug, idType: SLUG){
-          slug title content date
-          featuredImage{ node{ sourceUrl } }
-          categories{ nodes{ name slug } }
-        } }`;
-      const d2 = await gql<{post:any}>(q2, { slug });
-      p = d2.post;
+    const response = await fetch('/api/wordpress-articles', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 120 }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        // Ищем статью по slug
+        const article = data.articles.find((article: any) => article.slug === slug);
+        
+        if (article) {
+          return {
+            slug: article.slug,
+            title: strip(article.title),
+            excerpt: strip(article.excerpt),
+            date: article.date,
+            publishedAt: article.date,
+            image: article.image || "",
+            category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
+            contentHtml: article.content || "",
+          };
+        }
+      }
     }
-    if (!p) return null;
-
-    return {
-      slug: p.slug,
-      title: strip(p.title),
-      excerpt: "",
-      date: p.date,
-      publishedAt: p.date,
-      image: p.featuredImage?.node?.sourceUrl || "",
-      category: p.categories?.nodes?.[0] || { name: "General", slug: "general" },
-      contentHtml: p.content || "",
-    };
   } catch (error) {
-    console.warn('WordPress not available, using only local articles');
-    return null;
+    console.warn('WordPress REST API unavailable, using only local articles:', error);
   }
+  
+  return null;
 }
 
 export async function getRelated(cat: Category, excludeSlug: string, limit = 4): Promise<Post[]> {
-  const q = `
-    query($first:Int!, $cat:String!){
-      posts(first:$first, where:{categoryName:$cat, orderby:{field:DATE, order:DESC}}){
-        nodes{
-          slug title excerpt date
-          featuredImage{ node{ sourceUrl } }
-          categories{ nodes{ name slug } }
-        }
+  try {
+    // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
+    const response = await fetch('/api/wordpress-articles', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 120 }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        // Фильтруем по категории и исключаем текущую статью
+        return data.articles
+          .filter((article: any) => {
+            const articleCategory = article.categories?.nodes?.[0]?.slug;
+            return articleCategory === cat.slug && article.slug !== excludeSlug;
+          })
+          .slice(0, limit)
+          .map((article: any) => ({
+            slug: article.slug,
+            title: strip(article.title),
+            excerpt: strip(article.excerpt),
+            date: article.date,
+            publishedAt: article.date,
+            image: article.image || "",
+            category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
+            contentHtml: article.content || "",
+          }));
       }
-    }`;
-  const d = await gql<{posts:{nodes:any[]}}>(q, { first: 20, cat: cat.slug });
-  return d.posts.nodes
-    .filter(n => n.slug != excludeSlug)
-    .slice(0, limit)
-    .map(n => ({
-      slug: n.slug,
-      title: strip(n.title),
-      excerpt: strip(n.excerpt),
-      date: n.date,
-      publishedAt: n.date,
-      image: n.featuredImage?.node?.sourceUrl || "",
-      category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
-      contentHtml: "",
-    }));
+    }
+  } catch (error) {
+    console.warn('WordPress REST API unavailable for getRelated:', error);
+  }
+  
+  // Fallback к локальным статьям
+  const localArticles = await getLocalArticles();
+  return localArticles
+    .filter(article => article.category.slug === cat.slug && article.slug !== excludeSlug)
+    .slice(0, limit);
 }
 
 // Локальные категории только для английского и польского языков
@@ -302,35 +348,44 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
     return categoryMatch;
   });
 
-  // Пытаемся получить статьи из WordPress
+  // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
   let wpPosts: Post[] = [];
   try {
-    const q = `
-      query($first:Int!, $slug:String!){
-        posts(first:$first, where:{categoryName:$slug, orderby:{field:DATE, order:DESC}}){
-          nodes{
-            slug title excerpt date
-            featuredImage{ node{ sourceUrl } }
-            categories{ nodes{ name slug } }
-          }
-        }
-      }`;
-    const d = await gql<{posts:{nodes:any[]}}>(q, { first: limit, slug });
-    wpPosts = d.posts.nodes.map(n => ({
-      slug: n.slug,
-      title: strip(n.title),
-      excerpt: strip(n.excerpt),
-      date: n.date,
-      publishedAt: n.date,
-      image: n.featuredImage?.node?.sourceUrl || "",
-      category: n.categories?.nodes?.[0] || { name: "General", slug: "general" },
-      contentHtml: "",
-    }));
+    const response = await fetch('/api/wordpress-articles', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 120 }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        // Фильтруем по категории и преобразуем формат
+        wpPosts = data.articles
+          .filter((article: any) => {
+            // Проверяем что категория совпадает
+            const articleCategory = article.categories?.nodes?.[0]?.slug;
+            return articleCategory === slug;
+          })
+          .map((article: any) => ({
+            slug: article.slug,
+            title: strip(article.title),
+            excerpt: strip(article.excerpt),
+            date: article.date,
+            publishedAt: article.date,
+            image: article.image || "",
+            category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
+            contentHtml: article.content || "",
+          }));
+      }
+    }
   } catch (error) {
     // WordPress API недоступен, используем только локальные статьи
+    console.warn('WordPress API недоступен для категории, используем локальные статьи:', error);
   }
 
-  // WordPress уже отфильтровал по категории, просто объединяем с локальными
+  // Объединяем WordPress и локальные статьи
   const combinedPosts = [...localFiltered, ...wpPosts];
   
   // Сортируем по дате публикации (новые сверху)

@@ -170,7 +170,7 @@ export default function ArticleEditor() {
                   <span className="font-medium">Status:</span> {selectedArticle.publishedAt ? 'Published' : 'Draft'}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  <span className="font-medium">Translations:</span> {Object.keys(selectedArticle.translations).length}/2
+                  <span className="font-medium">Translations:</span> {Object.keys(selectedArticle.translations || {}).length}/2
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium">Category:</span> {selectedArticle.category}

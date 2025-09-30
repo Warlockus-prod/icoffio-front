@@ -261,7 +261,7 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
       <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {Object.keys(article.translations).length}/2 translations completed
+            {Object.keys(article.translations || {}).length}/2 translations completed
           </div>
           
           <div className="flex gap-3">

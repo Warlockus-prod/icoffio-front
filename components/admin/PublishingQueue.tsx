@@ -262,7 +262,7 @@ export default function PublishingQueue() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span>🌍</span>
-                      <span>{Object.keys(article.translations).length + 1} languages</span>
+                      <span>{Object.keys(article.translations || {}).length + 1} languages</span>
                     </div>
                   </div>
 

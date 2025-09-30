@@ -221,8 +221,8 @@ export default function ParsingQueue() {
                   <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>🏷️ {job.article.category}</span>
                     <span>✍️ {job.article.author}</span>
-                    {Object.keys(job.article.translations).length > 0 && (
-                      <span>🌍 +{Object.keys(job.article.translations).length} translations</span>
+                    {Object.keys(job.article.translations || {}).length > 0 && (
+                      <span>🌍 +{Object.keys(job.article.translations || {}).length} translations</span>
                     )}
                   </div>
                 </div>

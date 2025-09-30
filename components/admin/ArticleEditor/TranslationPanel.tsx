@@ -138,7 +138,7 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
       {/* Translation Languages */}
       <div className="space-y-4">
         {LANGUAGES.map((lang) => {
-          const hasTranslation = Boolean(article.translations[lang.code]);
+          const hasTranslation = Boolean(article.translations[lang.code as keyof typeof article.translations]);
           const isGenerating = isTranslating[lang.code];
           const progress = translationProgress[lang.code] || 0;
 
@@ -191,14 +191,14 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
               )}
 
               {/* Translation Preview */}
-              {hasTranslation && article.translations[lang.code] && (
+              {hasTranslation && article.translations[lang.code as keyof typeof article.translations] && (
                 <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="mb-2">
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                       Translated Title:
                     </span>
                     <div className="text-sm font-medium text-gray-900 dark:text-white mt-1">
-                      {article.translations[lang.code]!.title}
+                      {article.translations[lang.code as keyof typeof article.translations]!.title}
                     </div>
                   </div>
                   
@@ -207,7 +207,7 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
                       Excerpt Preview:
                     </span>
                     <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                      {article.translations[lang.code]!.excerpt}
+                      {article.translations[lang.code as keyof typeof article.translations]!.excerpt}
                     </div>
                   </div>
                 </div>
@@ -268,7 +268,7 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
             <button
               onClick={() => {
                 LANGUAGES.forEach(lang => {
-                  if (!article.translations[lang.code]) {
+                  if (!article.translations[lang.code as keyof typeof article.translations]) {
                     generateTranslation(lang.code as 'en' | 'pl');
                   }
                 });
@@ -310,3 +310,4 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
     </div>
   );
 }
+

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+  return new OpenAI({ apiKey });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,6 +74,7 @@ Return the translation in JSON format.`;
 
     console.log(`🌍 Translating article to ${targetLang}...`);
     
+    const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [

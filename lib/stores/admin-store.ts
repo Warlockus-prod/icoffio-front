@@ -34,13 +34,29 @@ export interface UnsplashImage {
   thumbnail: string;
   description: string;
   author: string;
+  authorUrl?: string;
+  width: number;
+  height: number;
+  aspectRatio: string;
+  likes?: number;
+  tags?: string[];
   source: 'unsplash';
 }
 
 export interface GeneratedImage {
   id: string;
   url: string;
+  thumbnail?: string;
+  description: string;
+  author: string;
+  width?: number;
+  height?: number;
+  aspectRatio?: string;
+  likes?: number;
+  tags?: string[];
   prompt: string;
+  style?: string;
+  model?: string;
   source: 'openai';
 }
 
@@ -234,8 +250,10 @@ export const useAdminStore = create<AdminStore>()(
         try {
           set({ searchQuery: query });
           const response = await fetch(`/api/admin/images?q=${encodeURIComponent(query)}`);
-          const images = await response.json();
-          set({ availableImages: images });
+          const result = await response.json();
+          if (result.success) {
+            set({ availableImages: result.images });
+          }
         } catch (error) {
           console.error('Failed to search images:', error);
         }
@@ -248,11 +266,13 @@ export const useAdminStore = create<AdminStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt })
           });
-          const image = await response.json();
+          const result = await response.json();
           
-          set((state) => ({
-            availableImages: [image, ...state.availableImages]
-          }));
+          if (result.success) {
+            set((state) => ({
+              availableImages: [result.image, ...state.availableImages]
+            }));
+          }
         } catch (error) {
           console.error('Failed to generate image:', error);
         }

@@ -15,6 +15,7 @@ type ActionType =
   | 'health-check'          // Проверка состояния сервисов
   | 'get-categories'        // Получение доступных категорий
   | 'wordpress-health'      // Диагностика WordPress подключения
+  | 'publish-article'       // Публикация готовой статьи
   | 'list-articles'         // Список статей (будущее)
   | 'get-article'           // Получение статьи (будущее)
   | 'update-article'        // Обновление статьи (будущее)
@@ -74,6 +75,9 @@ export async function POST(request: NextRequest) {
 
       case 'wordpress-health':
         return await handleWordPressHealth();
+
+      case 'publish-article':
+        return await handleArticlePublication(body, request);
         
       default:
         return NextResponse.json(
@@ -85,7 +89,8 @@ export async function POST(request: NextRequest) {
               'create-from-text',
               'health-check',
               'get-categories',
-              'wordpress-health'
+              'wordpress-health',
+              'publish-article'
             ]
           },
           { status: 400 }
@@ -678,6 +683,70 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ========== ПУБЛИКАЦИЯ СТАТЕЙ ==========
+
+async function handleArticlePublication(body: any, request: NextRequest) {
+  try {
+    const { articleId, article } = body;
+
+    if (!article) {
+      return NextResponse.json(
+        { error: 'Статья не предоставлена' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`📤 Publishing article: ${article.title}`);
+
+    // Публикуем через WordPress Service
+    const publicationResult = await wordpressService.publishMultilingualArticle(
+      {
+        id: article.id || `article-${Date.now()}`,
+        title: article.title,
+        content: article.content,
+        excerpt: article.excerpt,
+        slug: article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
+        category: article.category || 'technology',
+        tags: ['imported', 'ai-processed'],
+        author: article.author || 'Admin',
+        language: 'ru',
+        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+        publishedAt: new Date().toISOString()
+      },
+      article.translations
+    );
+
+    if (publicationResult.success) {
+      return NextResponse.json({
+        success: true,
+        message: `Статья "${article.title}" успешно опубликована`,
+        results: publicationResult.results,
+        summary: publicationResult.summary,
+        url: publicationResult.results.find(r => r.success)?.url
+      });
+    } else {
+      return NextResponse.json(
+        { 
+          error: 'Не удалось опубликовать статью',
+          details: publicationResult
+        },
+        { status: 500 }
+      );
+    }
+
+  } catch (error) {
+    console.error('❌ Publication error:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Ошибка публикации статьи',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
 }
 
 

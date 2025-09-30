@@ -182,11 +182,42 @@ export default function ArticleEditor() {
                   💾 Save Draft
                 </button>
                 
-                <button className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 rounded-lg transition-colors text-sm">
-                  📤 Add to Publishing Queue
+                <button 
+                  onClick={() => useAdminStore.getState().setActiveTab('queue')}
+                  className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 rounded-lg transition-colors text-sm"
+                >
+                  📤 Go to Publishing Queue
                 </button>
                 
-                <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm">
+                <button 
+                  onClick={async () => {
+                    try {
+                      console.log('🚀 Publishing article:', selectedArticle.title);
+                      
+                      const response = await fetch('/api/articles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          action: 'publish-article',
+                          articleId: selectedArticle.id,
+                          article: selectedArticle
+                        })
+                      });
+
+                      const result = await response.json();
+                      
+                      if (result.success) {
+                        alert(`✅ Статья "${selectedArticle.title}" успешно опубликована!`);
+                      } else {
+                        throw new Error(result.error || 'Publication failed');
+                      }
+                    } catch (error) {
+                      console.error('❌ Publication failed:', error);
+                      alert(`❌ Ошибка публикации: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                >
                   🚀 Publish Now
                 </button>
               </div>

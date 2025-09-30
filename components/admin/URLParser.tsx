@@ -148,7 +148,10 @@ export default function URLParser() {
               </p>
             </div>
             
-            <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+            <button 
+              onClick={() => useAdminStore.getState().setActiveTab('queue')}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+            >
               📤 Go to Publishing Queue
             </button>
           </div>

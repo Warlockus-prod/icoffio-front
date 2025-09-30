@@ -7,6 +7,7 @@ import Dashboard from '@/components/admin/Dashboard';
 import URLParser from '@/components/admin/URLParser';
 import ArticleEditor from '@/components/admin/ArticleEditor';
 import ImageSystem from '@/components/admin/ImageSystem';
+import PublishingQueue from '@/components/admin/PublishingQueue';
 
 export default function AdminPage() {
   const { 
@@ -135,13 +136,7 @@ export default function AdminPage() {
       case 'images':
         return <ImageSystem />;
       case 'queue':
-        return (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">📤</div>
-            <h3 className="text-xl font-semibold mb-2">Publishing Queue</h3>
-            <p className="text-gray-600">Coming in next update...</p>
-          </div>
-        );
+        return <PublishingQueue />;
       case 'settings':
         return (
           <div className="text-center py-12">

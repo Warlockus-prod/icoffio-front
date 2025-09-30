@@ -72,6 +72,47 @@ export default function ParsingQueue() {
     }
   };
 
+  // ✅ НОВАЯ ФУНКЦИЯ: Удаление всех failed статей
+  const handleClearFailed = () => {
+    const failedJobs = parsingQueue.filter(job => job.status === 'failed');
+    if (failedJobs.length === 0) return;
+    
+    if (window.confirm(`Удалить все ${failedJobs.length} ошибочных статей из очереди?`)) {
+      failedJobs.forEach(job => removeJobFromQueue(job.id));
+    }
+  };
+
+  // ✅ НОВАЯ ФУНКЦИЯ: Force retry для зависших статей
+  const handleForceRetryStuck = () => {
+    const stuckJobs = parsingQueue.filter(job => 
+      ['parsing', 'ai_processing', 'translating', 'images'].includes(job.status) &&
+      (Date.now() - new Date(job.startTime).getTime()) > 300000 // больше 5 минут
+    );
+    
+    if (stuckJobs.length === 0) return;
+    
+    if (window.confirm(`Перезапустить ${stuckJobs.length} зависших статей?`)) {
+      stuckJobs.forEach(job => {
+        updateJobStatus(job.id, 'failed', 0);
+        setTimeout(() => {
+          const isTextJob = job.url.startsWith('text:');
+          if (isTextJob) {
+            // Для текстовых статей просто помечаем как failed с подробным сообщением
+            updateJobStatus(job.id, 'failed', 0);
+            // Добавляем сообщение об ошибке через activity
+            useAdminStore.getState().addActivity({
+              type: 'parsing_failed',
+              message: `Текстовая статья зависла более 5 минут: ${job.url.replace('text:', '')}`,
+              url: job.url
+            });
+          } else {
+            handleRetry(job.id, job.url);
+          }
+        }, 1000);
+      });
+    }
+  };
+
   if (parsingQueue.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -100,12 +141,43 @@ export default function ParsingQueue() {
           </p>
         </div>
         
-        <div className="text-right">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Active: {parsingQueue.filter(job => ['parsing', 'ai_processing', 'translating', 'images'].includes(job.status)).length}
+        <div className="flex items-center gap-3">
+          {/* Stats */}
+          <div className="text-right mr-4">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Active: {parsingQueue.filter(job => ['parsing', 'ai_processing', 'translating', 'images'].includes(job.status)).length}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Ready: {parsingQueue.filter(job => job.status === 'ready').length}
+            </div>
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Ready: {parsingQueue.filter(job => job.status === 'ready').length}
+          
+          {/* ✅ НОВЫЕ КНОПКИ УПРАВЛЕНИЯ */}
+          <div className="flex items-center gap-2">
+            {/* Clear Failed Button */}
+            {parsingQueue.filter(job => job.status === 'failed').length > 0 && (
+              <button
+                onClick={handleClearFailed}
+                className="px-3 py-2 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg border border-red-200 dark:border-red-800 transition-colors flex items-center gap-1"
+                title={`Удалить все ${parsingQueue.filter(job => job.status === 'failed').length} failed статей`}
+              >
+                🗑️ Clear Failed
+              </button>
+            )}
+            
+            {/* Force Retry Stuck Button */}
+            {parsingQueue.filter(job => 
+              ['parsing', 'ai_processing', 'translating', 'images'].includes(job.status) &&
+              (Date.now() - new Date(job.startTime).getTime()) > 300000
+            ).length > 0 && (
+              <button
+                onClick={handleForceRetryStuck}
+                className="px-3 py-2 text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40 rounded-lg border border-orange-200 dark:border-orange-800 transition-colors flex items-center gap-1"
+                title="Перезапустить зависшие статьи (>5 мин)"
+              >
+                🔄 Fix Stuck
+              </button>
+            )}
           </div>
         </div>
       </div>

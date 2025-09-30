@@ -346,6 +346,12 @@ export const useAdminStore = create<AdminStore>()(
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           
+          // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, 120000); // 120 секунд таймаут
+          
           const response = await fetch('/api/articles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -353,8 +359,11 @@ export const useAdminStore = create<AdminStore>()(
               action: 'create-from-url',
               url,
               category
-            })
+            }),
+            signal: controller.signal
           });
+          
+          clearTimeout(timeoutId);
 
           const result = await response.json();
           
@@ -401,10 +410,34 @@ export const useAdminStore = create<AdminStore>()(
             });
           }
         } catch (error) {
+          // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок с подробными сообщениями
+          let errorMessage = `Ошибка парсинга URL: ${url}`;
+          
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              errorMessage = `Таймаут парсинга URL (120s): ${url}`;
+            } else if (error.message.includes('fetch')) {
+              errorMessage = `Сетевая ошибка при парсинге: ${url}`;
+            } else {
+              errorMessage = `Ошибка парсинга: ${error.message}`;
+            }
+          }
+          
+          // Обновляем статус с подробной ошибкой
           get().updateJobStatus(jobId, 'failed', 0);
+          
+          // Находим job и сохраняем ошибку
+          set((state) => ({
+            parsingQueue: state.parsingQueue.map(job =>
+              job.id === jobId
+                ? { ...job, error: errorMessage }
+                : job
+            )
+          }));
+          
           get().addActivity({
             type: 'parsing_failed',
-            message: `Ошибка парсинга URL: ${url}`,
+            message: errorMessage,
             url
           });
         }
@@ -414,6 +447,12 @@ export const useAdminStore = create<AdminStore>()(
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           
+          // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController (аналогично startParsing)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, 120000); // 120 секунд таймаут
+          
           const response = await fetch('/api/articles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -422,8 +461,11 @@ export const useAdminStore = create<AdminStore>()(
               title,
               content,
               category
-            })
+            }),
+            signal: controller.signal
           });
+          
+          clearTimeout(timeoutId);
 
           const result = await response.json();
           
@@ -470,10 +512,34 @@ export const useAdminStore = create<AdminStore>()(
             });
           }
         } catch (error) {
+          // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок (аналогично startParsing)
+          let errorMessage = `Ошибка обработки текста: ${title}`;
+          
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              errorMessage = `Таймаут обработки текста (120s): ${title}`;
+            } else if (error.message.includes('fetch')) {
+              errorMessage = `Сетевая ошибка при обработке текста: ${title}`;
+            } else {
+              errorMessage = `Ошибка обработки текста: ${error.message}`;
+            }
+          }
+          
+          // Обновляем статус с подробной ошибкой
           get().updateJobStatus(jobId, 'failed', 0);
+          
+          // Находим job и сохраняем ошибку
+          set((state) => ({
+            parsingQueue: state.parsingQueue.map(job =>
+              job.id === jobId
+                ? { ...job, error: errorMessage }
+                : job
+            )
+          }));
+          
           get().addActivity({
             type: 'parsing_failed',
-            message: `Ошибка обработки текста: ${title}`,
+            message: errorMessage,
             url: `text:${title}`
           });
         }

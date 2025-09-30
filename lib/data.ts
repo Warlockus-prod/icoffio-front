@@ -107,7 +107,7 @@ async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promi
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
   try {
     // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-    const response = await fetch('/api/wordpress-articles', {
+    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 } // ISR кеширование
@@ -152,7 +152,7 @@ export async function getTopPosts(limit = 1) { return getAllPosts(limit); }
 export async function getAllSlugs(): Promise<string[]> {
   try {
     // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-    const response = await fetch('/api/wordpress-articles', {
+    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 }
@@ -191,7 +191,7 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
 
   // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
   try {
-    const response = await fetch('/api/wordpress-articles', {
+    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 }
@@ -228,7 +228,7 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
 export async function getRelated(cat: Category, excludeSlug: string, limit = 4): Promise<Post[]> {
   try {
     // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-    const response = await fetch('/api/wordpress-articles', {
+    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 }
@@ -351,7 +351,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
   // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
   let wpPosts: Post[] = [];
   try {
-    const response = await fetch('/api/wordpress-articles', {
+    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 }

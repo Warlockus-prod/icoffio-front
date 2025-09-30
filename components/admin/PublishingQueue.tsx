@@ -35,7 +35,7 @@ export default function PublishingQueue() {
       url: job.url,
       extractedMeta: {
         images: 1,
-        words: job.article!.content.split(' ').length,
+        words: job.article!.content ? job.article!.content.split(' ').length : 0,
         category: job.article!.category || 'tech',
         tags: ['parsed', 'ready']
       }
@@ -320,7 +320,7 @@ export default function PublishingQueue() {
                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   By {previewArticle.author} • {previewArticle.category}
                 </div>
-                <div dangerouslySetInnerHTML={{ __html: previewArticle.content.replace(/\n/g, '<br>') }} />
+                <div dangerouslySetInnerHTML={{ __html: (previewArticle.content || '').replace(/\n/g, '<br>') }} />
               </div>
               
               <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600 flex justify-end gap-3">

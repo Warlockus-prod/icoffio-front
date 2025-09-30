@@ -112,7 +112,7 @@ interface AdminStore {
   
   // Parsing Actions
   addUrlToQueue: (url: string, category: string) => void;
-  updateJobStatus: (jobId: string, status: ParseJob['status'], progress?: number) => void;
+  updateJobStatus: (jobId: string, status: ParseJob['status'], progress?: number, articleData?: Article | null) => void;
   removeJobFromQueue: (jobId: string) => void;
   
   // Article Actions
@@ -201,7 +201,7 @@ export const useAdminStore = create<AdminStore>()(
         (get() as any).startParsing(newJob.id, url, category);
       },
 
-      updateJobStatus: (jobId, status, progress = 0) => {
+      updateJobStatus: (jobId, status, progress = 0, articleData = null) => {
         set((state) => ({
           parsingQueue: state.parsingQueue.map(job =>
             job.id === jobId
@@ -209,6 +209,7 @@ export const useAdminStore = create<AdminStore>()(
                   ...job, 
                   status, 
                   progress,
+                  article: articleData || job.article,
                   endTime: ['ready', 'published', 'failed'].includes(status) ? new Date() : job.endTime
                 }
               : job
@@ -329,10 +330,11 @@ export const useAdminStore = create<AdminStore>()(
           const result = await response.json();
           
           if (result.success) {
-            get().updateJobStatus(jobId, 'ready', 100);
+            // ✅ ИСПРАВЛЕНО: Передаем данные статьи
+            get().updateJobStatus(jobId, 'ready', 100, result.data);
             get().addActivity({
               type: 'parsing_completed',
-              message: `Статья успешно обработана: ${result.data.stats.title}`,
+              message: `Статья успешно обработана: ${result.data.title}`,
               url
             });
           } else {

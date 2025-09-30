@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import URLInput from './URLParser/URLInput';
+import TextInput from './URLParser/TextInput';
 import ParsingQueue from './URLParser/ParsingQueue';
 import { useAdminStore } from '@/lib/stores/admin-store';
 
 export default function URLParser() {
+  const [inputMode, setInputMode] = useState<'url' | 'text'>('url');
   const { parsingQueue, statistics } = useAdminStore();
   
   const activeJobs = parsingQueue.filter(job => 
@@ -83,8 +86,44 @@ export default function URLParser() {
         </div>
       </div>
 
-      {/* URL Input Form */}
-      <URLInput />
+      {/* Mode Switcher */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Article</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Choose how you want to create a new article</p>
+          </div>
+          
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button
+              onClick={() => setInputMode('url')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                inputMode === 'url'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <span>🔗</span>
+              From URL
+            </button>
+            
+            <button
+              onClick={() => setInputMode('text')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                inputMode === 'text'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <span>✏️</span>
+              From Text
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Input Form */}
+      {inputMode === 'url' ? <URLInput /> : <TextInput />}
 
       {/* Processing Info */}
       {activeJobs > 0 && (

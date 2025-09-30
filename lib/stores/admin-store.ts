@@ -112,6 +112,7 @@ interface AdminStore {
   
   // Parsing Actions
   addUrlToQueue: (url: string, category: string) => void;
+  addTextToQueue: (title: string, content: string, category: string) => Promise<void>;
   updateJobStatus: (jobId: string, status: ParseJob['status'], progress?: number, articleData?: Article | null) => void;
   removeJobFromQueue: (jobId: string) => void;
   
@@ -197,9 +198,37 @@ export const useAdminStore = create<AdminStore>()(
           url
         });
 
-        // Trigger parsing via API
-        (get() as any).startParsing(newJob.id, url, category);
-      },
+      // Trigger parsing via API
+      (get() as any).startParsing(newJob.id, url, category);
+    },
+
+    addTextToQueue: async (title, content, category) => {
+      const newJob: ParseJob = {
+        id: Date.now().toString(),
+        url: `text:${title.substring(0, 50)}...`, // Псевдо-URL для отображения
+        status: 'pending',
+        progress: 0,
+        startTime: new Date(),
+      };
+      
+      set((state) => ({
+        parsingQueue: [...state.parsingQueue, newJob]
+      }));
+
+      get().addActivity({
+        type: 'url_added',
+        message: `Текстовая статья добавлена в очередь: ${title}`,
+        url: newJob.url
+      });
+
+      // Trigger text processing via API
+      try {
+        await (get() as any).startTextProcessing(newJob.id, title, content, category);
+      } catch (error) {
+        get().updateJobStatus(newJob.id, 'failed', 0);
+        console.error('Error processing text:', error);
+      }
+    },
 
       updateJobStatus: (jobId, status, progress = 0, articleData = null) => {
         set((state) => ({
@@ -377,6 +406,75 @@ export const useAdminStore = create<AdminStore>()(
             type: 'parsing_failed',
             message: `Ошибка парсинга URL: ${url}`,
             url
+          });
+        }
+      },
+
+      startTextProcessing: async (jobId: string, title: string, content: string, category: string) => {
+        try {
+          get().updateJobStatus(jobId, 'parsing', 10);
+          
+          const response = await fetch('/api/articles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'create-from-text',
+              title,
+              content,
+              category
+            })
+          });
+
+          const result = await response.json();
+          
+          if (result.success) {
+            // Создаем правильную структуру Article из API данных (аналогично startParsing)
+            const { posts, stats } = result.data;
+            const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
+            const primaryPost = posts[primaryLang];
+            
+            // Формируем объект Article в нужном формате
+            const article: Article = {
+              id: `article-${Date.now()}`,
+              title: stats.title,
+              content: primaryPost.content,
+              excerpt: stats.excerpt,
+              category: stats.category,
+              author: primaryPost.author || 'AI Assistant',
+              translations: {
+                en: posts.en ? {
+                  title: posts.en.title,
+                  content: posts.en.content, 
+                  excerpt: posts.en.excerpt
+                } : undefined,
+                pl: posts.pl ? {
+                  title: posts.pl.title,
+                  content: posts.pl.content,
+                  excerpt: posts.pl.excerpt  
+                } : undefined
+              }
+            };
+            
+            get().updateJobStatus(jobId, 'ready', 100, article);
+            get().addActivity({
+              type: 'parsing_completed',
+              message: `Текстовая статья успешно обработана: ${stats.title}`,
+              url: `text:${title}`
+            });
+          } else {
+            get().updateJobStatus(jobId, 'failed', 0);
+            get().addActivity({
+              type: 'parsing_failed', 
+              message: `Ошибка обработки текста: ${title}`,
+              url: `text:${title}`
+            });
+          }
+        } catch (error) {
+          get().updateJobStatus(jobId, 'failed', 0);
+          get().addActivity({
+            type: 'parsing_failed',
+            message: `Ошибка обработки текста: ${title}`,
+            url: `text:${title}`
           });
         }
       }

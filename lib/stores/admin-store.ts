@@ -182,7 +182,7 @@ export const useAdminStore = create<AdminStore>()(
         });
 
         // Trigger parsing via API
-        get().startParsing(newJob.id, url, category);
+        (get() as any).startParsing(newJob.id, url, category);
       },
 
       updateJobStatus: (jobId, status, progress = 0) => {

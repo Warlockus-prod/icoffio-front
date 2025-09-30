@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Dashboard from '@/components/admin/Dashboard';
+import URLParser from '@/components/admin/URLParser';
+import ArticleEditor from '@/components/admin/ArticleEditor';
 
 export default function AdminPage() {
   const { 
@@ -126,21 +128,9 @@ export default function AdminPage() {
       case 'dashboard':
         return <Dashboard />;
       case 'parser':
-        return (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">🔗</div>
-            <h3 className="text-xl font-semibold mb-2">URL Parser</h3>
-            <p className="text-gray-600">Coming in next update...</p>
-          </div>
-        );
+        return <URLParser />;
       case 'editor':
-        return (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">✏️</div>
-            <h3 className="text-xl font-semibold mb-2">Article Editor</h3>
-            <p className="text-gray-600">Coming in next update...</p>
-          </div>
-        );
+        return <ArticleEditor />;
       case 'images':
         return (
           <div className="text-center py-12">

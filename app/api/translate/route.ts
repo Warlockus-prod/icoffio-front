@@ -1,112 +1,135 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { translationService } from '@/lib/translation-service';
+import OpenAI from 'openai';
 
-// POST /api/translate
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { content, targetLanguage, contentType, action } = body;
+    const { content, targetLanguage, sourceLanguage = 'ru' } = await request.json();
 
-    // Валидация входных данных
-    if (!content && action !== 'check-availability') {
+    if (!content || !targetLanguage) {
       return NextResponse.json(
-        { error: 'Контент для перевода не предоставлен' },
+        { error: 'Content and target language are required' },
         { status: 400 }
       );
     }
 
-    // Проверка доступности сервиса
-    if (action === 'check-availability') {
-      return NextResponse.json({
-        available: translationService.isAvailable(),
-        message: translationService.isAvailable() 
-          ? 'Сервис перевода доступен'
-          : 'OpenAI API ключ не настроен'
-      });
-    }
-
-    // Проверка наличия API ключа
-    if (!translationService.isAvailable()) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { 
-          error: 'Сервис перевода недоступен',
-          message: 'OpenAI API ключ не настроен в переменных окружения'
-        },
-        { status: 503 }
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
       );
     }
 
-    // Массовый перевод статьи
-    if (action === 'translate-article') {
-      const { title, excerpt, body, excludeLanguages } = content;
-      
-      if (!title && !excerpt && !body) {
-        return NextResponse.json(
-          { error: 'Нет контента для перевода' },
-          { status: 400 }
-        );
-      }
+    // Language mapping
+    const languageNames = {
+      'ru': 'Russian',
+      'en': 'English', 
+      'pl': 'Polish'
+    };
 
-      const articleContent = { title: title || '', excerpt: excerpt || '', body: body || '' };
-      const translations = await translationService.translateToAllLanguages(
-        articleContent, 
-        excludeLanguages || []
-      );
+    const sourceLang = languageNames[sourceLanguage as keyof typeof languageNames] || 'Russian';
+    const targetLang = languageNames[targetLanguage as keyof typeof languageNames];
 
-      return NextResponse.json({
-        success: true,
-        translations,
-        message: `Статья переведена на ${Object.keys(translations).length} языков`
-      });
-    }
-
-    // Обычный перевод текста
-    if (!targetLanguage) {
+    if (!targetLang) {
       return NextResponse.json(
-        { error: 'Целевой язык не указан' },
+        { error: 'Unsupported target language' },
         { status: 400 }
       );
     }
 
-    const result = await translationService.translateText({
-      content,
-      targetLanguage,
-      contentType: contentType || 'body'
+    // Create translation prompts
+    const systemPrompt = `You are a professional translator and tech journalist specializing in technology, AI, Apple, and digital trends. 
+
+Your task is to translate articles from ${sourceLang} to ${targetLang} while:
+1. Maintaining the original meaning and technical accuracy
+2. Adapting the writing style to be natural in the target language
+3. Preserving technical terms appropriately
+4. Keeping the professional journalistic tone
+5. Ensuring the translation flows naturally for native speakers
+
+Return only the translated content in JSON format with exactly these fields:
+- title: translated title
+- content: translated full content 
+- excerpt: translated excerpt/summary`;
+
+    const userPrompt = `Please translate this article to ${targetLang}:
+
+TITLE:
+${content.title}
+
+EXCERPT: 
+${content.excerpt}
+
+CONTENT:
+${content.content}
+
+Return the translation in JSON format.`;
+
+    console.log(`🌍 Translating article to ${targetLang}...`);
+    
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 4000,
     });
+
+    const translatedContent = completion.choices[0]?.message?.content;
+    
+    if (!translatedContent) {
+      throw new Error('No translation received from OpenAI');
+    }
+
+    // Try to parse JSON response
+    let translation;
+    try {
+      translation = JSON.parse(translatedContent);
+    } catch (parseError) {
+      // If JSON parsing fails, try to extract content manually
+      console.log('JSON parsing failed, attempting manual extraction...');
+      
+      // Fallback: use the entire response as content if JSON parsing fails
+      translation = {
+        title: `[Translation] ${content.title}`,
+        content: translatedContent,
+        excerpt: translatedContent.substring(0, 160) + '...'
+      };
+    }
+
+    // Validate translation structure
+    if (!translation.title || !translation.content || !translation.excerpt) {
+      throw new Error('Invalid translation structure received');
+    }
+
+    console.log(`✅ Successfully translated to ${targetLang}`);
 
     return NextResponse.json({
       success: true,
-      result,
-      message: 'Перевод выполнен успешно'
+      translation,
+      targetLanguage,
+      sourceLanguage,
+      timestamp: new Date().toISOString(),
+      usage: completion.usage
     });
 
   } catch (error) {
-    console.error('Ошибка API перевода:', error);
+    console.error('Translation error:', error);
     
-    return NextResponse.json(
-      { 
-        error: 'Внутренняя ошибка сервера',
-        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// GET /api/translate - проверка статуса
-export async function GET() {
-  return NextResponse.json({
-    service: 'Translation API',
-    version: '1.0.0',
-    available: translationService.isAvailable(),
-    supportedLanguages: ['en', 'pl', 'de', 'ro', 'cs'],
-    endpoints: {
-      'POST /api/translate': {
-        'Single text': 'content: string, targetLanguage: string, contentType?: title|excerpt|body',
-        'Whole article': 'action: translate-article, content: {title, excerpt, body}, excludeLanguages?: string[]',
-        'Check availability': 'action: check-availability'
-      }
+    let errorMessage = 'Translation failed';
+    if (error instanceof Error) {
+      errorMessage = error.message;
     }
-  });
+
+    return NextResponse.json({
+      success: false,
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
 }

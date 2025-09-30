@@ -330,11 +330,37 @@ export const useAdminStore = create<AdminStore>()(
           const result = await response.json();
           
           if (result.success) {
-            // ✅ ИСПРАВЛЕНО: Передаем данные статьи
-            get().updateJobStatus(jobId, 'ready', 100, result.data);
+            // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Создаем правильную структуру Article из API данных
+            const { posts, stats } = result.data;
+            const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
+            const primaryPost = posts[primaryLang];
+            
+            // Формируем объект Article в нужном формате
+            const article: Article = {
+              id: `article-${Date.now()}`,
+              title: stats.title,
+              content: primaryPost.content,
+              excerpt: stats.excerpt,
+              category: stats.category,
+              author: primaryPost.author || 'AI Assistant',
+              translations: {
+                en: posts.en ? {
+                  title: posts.en.title,
+                  content: posts.en.content, 
+                  excerpt: posts.en.excerpt
+                } : undefined,
+                pl: posts.pl ? {
+                  title: posts.pl.title,
+                  content: posts.pl.content,
+                  excerpt: posts.pl.excerpt  
+                } : undefined
+              }
+            };
+            
+            get().updateJobStatus(jobId, 'ready', 100, article);
             get().addActivity({
               type: 'parsing_completed',
-              message: `Статья успешно обработана: ${result.data.title}`,
+              message: `Статья успешно обработана: ${stats.title}`,
               url
             });
           } else {

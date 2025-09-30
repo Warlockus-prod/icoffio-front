@@ -254,7 +254,7 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
         },
         publicationResults: {
           success: result.stats.publishedToWordPress,
-          publishedLanguages: Object.keys(result.article!.translations),
+          publishedLanguages: Object.keys(result.article!.translations || {}),
           summary: {
             published: result.stats.publishedToWordPress ? result.stats.languagesProcessed : 0,
             failed: result.stats.publishedToWordPress ? 0 : result.stats.languagesProcessed,

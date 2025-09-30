@@ -188,7 +188,7 @@ async function main() {
     
     // Статистика
     const successfulTranslations = allTranslations.reduce((sum, article) => 
-      sum + Object.keys(article.translations).length, 0
+      sum + Object.keys(article.translations || {}).length, 0
     );
     
     console.log(`\n📈 Итоговая статистика:`);

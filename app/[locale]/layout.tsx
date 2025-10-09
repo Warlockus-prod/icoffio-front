@@ -188,32 +188,34 @@ export default function LocaleLayout({
         </ThemeProvider>
 
         {/* CSS для контроля размеров VOX рекламы */}
-        <style jsx global>{`
-          .vox-ad-container iframe,
-          .vox-ad-container > div,
-          [data-hyb-ssp-ad-place] iframe,
-          [data-hyb-ssp-ad-place] > div {
-            max-width: 100% !important;
-            max-height: 100% !important;
-            width: 100% !important;
-            height: auto !important;
-            object-fit: contain;
-          }
-          
-          /* Специальные правила для разных форматов */
-          [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe { /* 728x90 */
-            max-height: 90px !important;
-          }
-          [data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] iframe { /* 300x250 */
-            max-height: 250px !important;
-          }
-          [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe { /* 970x250 */
-            max-height: 250px !important;
-          }
-          [data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] iframe { /* 300x600 */
-            max-height: 600px !important;
-          }
-        `}</style>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            .vox-ad-container iframe,
+            .vox-ad-container > div,
+            [data-hyb-ssp-ad-place] iframe,
+            [data-hyb-ssp-ad-place] > div {
+              max-width: 100% !important;
+              max-height: 100% !important;
+              width: 100% !important;
+              height: auto !important;
+              object-fit: contain;
+            }
+            
+            /* Специальные правила для разных форматов */
+            [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe { /* 728x90 */
+              max-height: 90px !important;
+            }
+            [data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] iframe { /* 300x250 */
+              max-height: 250px !important;
+            }
+            [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe { /* 970x250 */
+              max-height: 250px !important;
+            }
+            [data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] iframe { /* 300x600 */
+              max-height: 600px !important;
+            }
+          `
+        }} />
 
         {/* VOX рекламный скрипт - ОБЪЕДИНЕННАЯ ВЕРСИЯ (In-Image + Display) */}
         <script

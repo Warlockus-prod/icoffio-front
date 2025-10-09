@@ -7,6 +7,8 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
+import { InlineAd } from "@/components/InlineAd";
+import { SidebarAd } from "@/components/SidebarAd";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -563,6 +565,8 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
+            {/* Display Ad - 728x90 Leaderboard после заголовка */}
+            <InlineAd placeId="63da9b577bc72f39bc3bfc68" format="728x90" />
 
             <div className="mb-8">
               <img 
@@ -583,11 +587,23 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
+            {/* Display Ad - 970x250 Large Leaderboard после контента */}
+            <InlineAd placeId="63daa3c24d506e16acfd2a38" format="970x250" className="my-8" />
+
           </article>
 
-          {/* Sidebar - пустой для оригинальной версии VOX */}
+          {/* Sidebar с display рекламой */}
           <aside className="lg:sticky lg:top-4 lg:h-fit">
-            {/* В оригинальной версии была только in-image реклама */}
+            <SidebarAd 
+              placeId="63da9e2a4d506e16acfd2a36" 
+              format="300x250" 
+              position="Sidebar Top" 
+            />
+            <SidebarAd 
+              placeId="63daa2ea7bc72f39bc3bfc72" 
+              format="300x600" 
+              position="Sidebar Bottom" 
+            />
           </aside>
         </div>
 

@@ -187,7 +187,7 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* VOX рекламный скрипт - ОРИГИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ */}
+        {/* VOX рекламный скрипт - ОБЪЕДИНЕННАЯ ВЕРСИЯ (In-Image + Display) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -200,12 +200,50 @@ export default function LocaleLayout({
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
-              window._tx.cmds.push(function () {
+              
+              // Функция инициализации VOX
+              function initVOX() {
+                  console.log('VOX: Инициализация начата');
+                  
+                  // 1. In-Image реклама (простая рабочая версия)
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
                       fetchSelector: true,
                   });
+                  console.log('VOX: In-Image инициализирована');
+                  
+                  // 2. Display форматы (если есть контейнеры)
+                  const displayPlacements = [
+                      { id: "63da9b577bc72f39bc3bfc68", format: "728x90" },
+                      { id: "63da9e2a4d506e16acfd2a36", format: "300x250" },
+                      { id: "63daa3c24d506e16acfd2a38", format: "970x250" },
+                      { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600" }
+                  ];
+                  
+                  displayPlacements.forEach(function(placement) {
+                      const container = document.querySelector('[data-hyb-ssp-ad-place="' + placement.id + '"]');
+                      if (container) {
+                          window._tx.integrateInImage({
+                              placeId: placement.id,
+                              fetchSelector: true,
+                          });
+                          console.log('VOX: Display format ' + placement.format + ' инициализирован');
+                      }
+                  });
+                  
+                  // 3. Финальная инициализация
                   window._tx.init();
+                  console.log('VOX: Инициализация завершена');
+              }
+              
+              // Запуск VOX
+              window._tx.cmds.push(function () {
+                  if (document.readyState === 'complete') {
+                      initVOX();
+                  } else {
+                      window.addEventListener('load', initVOX);
+                      setTimeout(initVOX, 2000); // Fallback
+                  }
               });
             `,
           }}

@@ -12,8 +12,8 @@ export function SidebarAd({ placeId, format, position, className = "" }: Sidebar
         className="vox-ad-container"
         data-hyb-ssp-ad-place={placeId}
       style={{
-        width: "300px",
-        maxWidth: "300px",
+        width: "100%",
+        maxWidth: "360px",
         opacity: 0,
         transition: "opacity 0.3s ease-in-out",
         height: "auto"

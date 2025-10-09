@@ -534,7 +534,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
         {/* Main Content Grid: Article + Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 max-w-7xl mx-auto">
           
           {/* Main Article Content */}
           <article className="min-w-0">

@@ -187,25 +187,33 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* CSS для корректного отображения VOX рекламы - восстановлены исходные размеры */}
+        {/* CSS для правильного адаптивного позиционирования VOX рекламы */}
         <style dangerouslySetInnerHTML={{
           __html: `
             .vox-ad-container {
-              display: block;
+              display: flex;
+              justify-content: center;
+              align-items: center;
               overflow: visible;
             }
             
-            /* Убираем все ограничения - полная свобода для VOX */
-            .vox-ad-container,
+            /* VOX iframe получает полную свободу размеров */
             .vox-ad-container iframe,
             .vox-ad-container > div,
-            [data-hyb-ssp-ad-place],
             [data-hyb-ssp-ad-place] iframe,
             [data-hyb-ssp-ad-place] > div {
               max-width: none !important;
               max-height: none !important;
               width: auto !important;
               height: auto !important;
+            }
+            
+            /* Адаптивность для мобильных экранов */
+            @media (max-width: 768px) {
+              .vox-ad-container {
+                max-width: 100vw;
+                padding: 0 16px;
+              }
             }
           `
         }} />

@@ -202,37 +202,39 @@ export default function LocaleLayout({
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
               
-              // Функция инициализации VOX с избирательным показом
+              // Функция инициализации VOX с избирательным показом - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ
               function initVOX() {
                   // Проверяем, что мы на странице статьи
                   const currentUrl = window.location.pathname;
                   const isArticlePage = currentUrl.includes('/article/');
                   
                   if (!isArticlePage) {
+                      console.log('VOX: Не страница статьи, реклама отключена');
                       return; // Не показываем рекламу на не-статьях
                   }
                   
                   // Проверяем доступность VOX API
                   if (!window._tx || !window._tx.integrateInImage || !window._tx.init) {
+                      console.log('VOX: API недоступно, повторная попытка через 500ms');
+                      setTimeout(initVOX, 500);
                       return;
                   }
                   
                   console.log('VOX: Инициализация для статьи:', currentUrl);
                   
-                  // 1. In-image реклама - ПРАВИЛЬНЫЙ PlaceID из документации
-                  console.log('VOX: Инициализация in-image рекламы с ПРАВИЛЬНЫМ PlaceID:', "63d93bb54d506e95f039e2e3");
-                  const inImageSelector = 'article img:not(.group img)';
+                  // 1. In-image реклама - ПРАВИЛЬНЫЙ селектор из документации
+                  const inImageSelector = 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img';
                   const targetImages = document.querySelectorAll(inImageSelector);
                   console.log('VOX: Найдено изображений для in-image:', targetImages.length, 'селектор:', inImageSelector);
                   
-                  // Используем ПРАВИЛЬНЫЙ PlaceID из документации
+                  // КРИТИЧНО: используем selector (НЕ fetchSelector) для in-image
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      fetchSelector: true,
+                      selector: inImageSelector,
                       setDisplayBlock: true
                   });
                   
-                  // 2. Display форматы - используем правильный VOX API
+                  // 2. Display форматы - используем init() для каждого PlaceID
                   const displayPlacements = [
                       { id: '63da9b577bc72f39bc3bfc68', type: '728x90 Leaderboard' },
                       { id: '63da9e2a4d506e16acfd2a36', type: '300x250 Medium Rectangle' },
@@ -240,18 +242,12 @@ export default function LocaleLayout({
                       { id: '63daa2ea7bc72f39bc3bfc72', type: '300x600 Large Skyscraper' }
                   ];
                   
-                  // Используем integrateInImage для display форматов тоже
+                  // Правильная инициализация display форматов через init()
                   displayPlacements.forEach(placement => {
                       console.log('VOX: Инициализация display формата:', placement.type, placement.id);
-                      window._tx.integrateInImage({
-                          placeId: placement.id,
-                          fetchSelector: true,
-                          setDisplayBlock: true
-                      });
+                      window._tx.init(placement.id);
                   });
                   
-                  // 3. Общая инициализация VOX системы
-                  window._tx.init();
                   console.log('VOX: Полная инициализация завершена');
               }
               

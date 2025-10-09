@@ -7,18 +7,18 @@ interface InlineAdProps {
 export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
   return (
     <div 
-      className={`my-6 flex items-center justify-center ${className}`}
+      className={`my-6 ${className} vox-ad-container`}
       data-hyb-ssp-ad-place={placeId}
       style={{
         minHeight: format === "728x90" ? "90px" : format === "970x250" ? "250px" : "90px",
-        border: "1px dashed #e5e7eb",
-        backgroundColor: "#f9fafb",
-        borderRadius: "8px"
+        width: "100%",
+        maxWidth: format === "728x90" ? "728px" : format === "970x250" ? "970px" : "728px",
+        margin: "0 auto",
+        opacity: 0,
+        transition: "opacity 0.3s ease-in-out"
       }}
     >
-      <span className="text-xs text-gray-500">
-        Ad {format} • {placeId.slice(-8)}
-      </span>
+      {/* Контейнер будет заполнен VOX рекламой */}
     </div>
   );
 }

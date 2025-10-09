@@ -242,9 +242,40 @@ export default function LocaleLayout({
                       
                       console.log('VOX: Найдено ' + displayCount + ' display контейнеров');
                       
-                      // 3. Финальная инициализация (только если есть контейнеры)
+                      // 3. Система показа контейнеров после загрузки рекламы
+                      function setupAdVisibilityWatcher() {
+                          const observer = new MutationObserver(function(mutations) {
+                              mutations.forEach(function(mutation) {
+                                  if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                                      const target = mutation.target;
+                                      if (target.hasAttribute && target.hasAttribute('data-hyb-ssp-ad-place')) {
+                                          // VOX добавил содержимое в контейнер - показываем его
+                                          target.style.opacity = '1';
+                                          console.log('VOX: Контейнер показан после загрузки рекламы');
+                                      }
+                                  }
+                              });
+                          });
+                          
+                          // Наблюдаем за всеми ad контейнерами
+                          document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
+                              observer.observe(container, { childList: true, subtree: true });
+                          });
+                          
+                          // Fallback - показываем контейнеры через 3 секунды если ничего не загрузилось
+                          setTimeout(function() {
+                              document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
+                                  if (container.children.length > 0 || container.innerHTML.trim() !== '') {
+                                      container.style.opacity = '1';
+                                  }
+                              });
+                          }, 3000);
+                      }
+                      
+                      // 4. Финальная инициализация (только если есть контейнеры)
                       const totalContainers = document.querySelectorAll('[data-hyb-ssp-ad-place]').length;
                       if (totalContainers > 0 || window.location.href.includes('/article/')) {
+                          setupAdVisibilityWatcher();
                           window._tx.init();
                           console.log('VOX: Инициализация завершена для ' + totalContainers + ' контейнеров');
                       } else {

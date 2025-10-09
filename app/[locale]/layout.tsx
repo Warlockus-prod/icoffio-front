@@ -202,49 +202,111 @@ export default function LocaleLayout({
               window._tx.cmds = window._tx.cmds || [];
               
               // Функция инициализации VOX
+              let voxInitialized = false;
               function initVOX() {
+                  if (voxInitialized) {
+                      console.log('VOX: Уже инициализирован, пропуск');
+                      return;
+                  }
+                  
                   console.log('VOX: Инициализация начата');
+                  voxInitialized = true;
                   
-                  // 1. In-Image реклама (простая рабочая версия)
-                  window._tx.integrateInImage({
-                      placeId: "63d93bb54d506e95f039e2e3",
-                      fetchSelector: true,
-                  });
-                  console.log('VOX: In-Image инициализирована');
-                  
-                  // 2. Display форматы (если есть контейнеры)
-                  const displayPlacements = [
-                      { id: "63da9b577bc72f39bc3bfc68", format: "728x90" },
-                      { id: "63da9e2a4d506e16acfd2a36", format: "300x250" },
-                      { id: "63daa3c24d506e16acfd2a38", format: "970x250" },
-                      { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600" }
-                  ];
-                  
-                  displayPlacements.forEach(function(placement) {
-                      const container = document.querySelector('[data-hyb-ssp-ad-place="' + placement.id + '"]');
-                      if (container) {
-                          window._tx.integrateInImage({
-                              placeId: placement.id,
-                              fetchSelector: true,
-                          });
-                          console.log('VOX: Display format ' + placement.format + ' инициализирован');
-                      }
-                  });
-                  
-                  // 3. Финальная инициализация
-                  window._tx.init();
-                  console.log('VOX: Инициализация завершена');
+                  try {
+                      // 1. In-Image реклама (простая рабочая версия)
+                      window._tx.integrateInImage({
+                          placeId: "63d93bb54d506e95f039e2e3",
+                          fetchSelector: true,
+                      });
+                      console.log('VOX: In-Image инициализирована');
+                      
+                      // 2. Display форматы (если есть контейнеры)
+                      const displayPlacements = [
+                          { id: "63da9b577bc72f39bc3bfc68", format: "728x90" },
+                          { id: "63da9e2a4d506e16acfd2a36", format: "300x250" },
+                          { id: "63daa3c24d506e16acfd2a38", format: "970x250" },
+                          { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600" }
+                      ];
+                      
+                      displayPlacements.forEach(function(placement) {
+                          const container = document.querySelector('[data-hyb-ssp-ad-place="' + placement.id + '"]');
+                          if (container) {
+                              window._tx.integrateInImage({
+                                  placeId: placement.id,
+                                  fetchSelector: true,
+                              });
+                              console.log('VOX: Display format ' + placement.format + ' инициализирован');
+                          }
+                      });
+                      
+                      // 3. Финальная инициализация
+                      window._tx.init();
+                      console.log('VOX: Инициализация завершена успешно');
+                      
+                  } catch (error) {
+                      console.error('VOX: Ошибка инициализации', error);
+                      voxInitialized = false; // Позволить повторную попытку
+                  }
               }
               
-              // Запуск VOX
-              window._tx.cmds.push(function () {
-                  if (document.readyState === 'complete') {
-                      initVOX();
-                  } else {
-                      window.addEventListener('load', initVOX);
-                      setTimeout(initVOX, 2000); // Fallback
+              // Улучшенная система запуска VOX с надежным timing'ом
+              function waitForVOXReady(callback, attempts = 0) {
+                  const maxAttempts = 20; // 10 секунд максимум
+                  
+                  if (attempts >= maxAttempts) {
+                      console.log('VOX: Превышено количество попыток инициализации');
+                      return;
                   }
-              });
+                  
+                  // Проверяем готовность VOX API
+                  const voxReady = typeof window._tx !== 'undefined' && 
+                                   window._tx.integrateInImage && 
+                                   window._tx.init;
+                  
+                  // Проверяем готовность DOM и наличие хотя бы одного ad контейнера
+                  const domReady = document.readyState === 'complete';
+                  const hasAdContainers = document.querySelector('[data-hyb-ssp-ad-place]') !== null;
+                  
+                  if (voxReady && domReady && hasAdContainers) {
+                      console.log('VOX: Все готово к инициализации, попытка ' + (attempts + 1));
+                      callback();
+                  } else {
+                      console.log('VOX: Ожидание готовности, попытка ' + (attempts + 1) + 
+                                ' (VOX:' + voxReady + ', DOM:' + domReady + ', Containers:' + hasAdContainers + ')');
+                      setTimeout(() => waitForVOXReady(callback, attempts + 1), 500);
+                  }
+              }
+              
+              // Запуск VOX с multiple fallback стратегиями
+              function startVOXInitialization() {
+                  console.log('VOX: Запуск инициализации, readyState:', document.readyState);
+                  
+                  // Стратегия 1: Немедленно если все готово
+                  waitForVOXReady(initVOX);
+                  
+                  // Стратегия 2: После полной загрузки страницы
+                  if (document.readyState !== 'complete') {
+                      window.addEventListener('load', () => {
+                          setTimeout(() => waitForVOXReady(initVOX), 1000);
+                      });
+                  }
+                  
+                  // Стратегия 3: Fallback через 3 секунды
+                  setTimeout(() => {
+                      waitForVOXReady(initVOX);
+                  }, 3000);
+                  
+                  // Стратегия 4: Агрессивный fallback через 5 секунд
+                  setTimeout(() => {
+                      if (typeof window._tx !== 'undefined') {
+                          console.log('VOX: Агрессивный fallback запуск');
+                          initVOX();
+                      }
+                  }, 5000);
+              }
+              
+              // Добавляем команду в очередь VOX
+              window._tx.cmds.push(startVOXInitialization);
             `,
           }}
         />

@@ -7,18 +7,15 @@ interface InlineAdProps {
 export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
   return (
     <div 
-      className={`my-6 flex items-center justify-center ${className}`}
+      className={`my-6 ${className}`}
       data-hyb-ssp-ad-place={placeId}
       style={{
         minHeight: format === "728x90" ? "90px" : format === "970x250" ? "250px" : "90px",
-        border: "1px dashed #e5e7eb",
-        backgroundColor: "#f9fafb",
-        borderRadius: "8px"
+        width: "100%",
+        maxWidth: format === "728x90" ? "728px" : format === "970x250" ? "970px" : "728px"
       }}
     >
-      <span className="text-xs text-gray-500">
-        Ad {format} • {placeId.slice(-8)}
-      </span>
+      {/* VOX заменит содержимое этого контейнера */}
     </div>
   );
 }

@@ -222,8 +222,8 @@ export default function LocaleLayout({
                   
                   console.log('VOX: Инициализация для статьи:', currentUrl);
                   
-                  // 1. In-image реклама - ПРАВИЛЬНЫЙ селектор из документации
-                  const inImageSelector = 'article img:not(.group img):not([class*="aspect-[16/9]"] img), .prose img, article > div img';
+                  // 1. In-image реклама - ИСПРАВЛЕННЫЙ селектор (исключаем только миниатюры)
+                  const inImageSelector = 'article img:not(.group img), .prose img';
                   const targetImages = document.querySelectorAll(inImageSelector);
                   console.log('VOX: Найдено изображений для in-image:', targetImages.length, 'селектор:', inImageSelector);
                   

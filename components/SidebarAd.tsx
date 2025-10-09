@@ -6,8 +6,6 @@ interface SidebarAdProps {
 }
 
 export function SidebarAd({ placeId, format, position, className = "" }: SidebarAdProps) {
-  const height = format === "300x600" ? "600px" : format === "300x250" ? "250px" : "250px";
-  
   return (
     <div className={`mb-6 ${className}`}>
       <div 
@@ -16,9 +14,9 @@ export function SidebarAd({ placeId, format, position, className = "" }: Sidebar
       style={{
         width: "300px",
         maxWidth: "300px",
-        minHeight: height,
         opacity: 0,
-        transition: "opacity 0.3s ease-in-out"
+        transition: "opacity 0.3s ease-in-out",
+        height: "auto"
       }}
       >
         {/* Контейнер будет заполнен VOX рекламой */}

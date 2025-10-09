@@ -187,7 +187,7 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* CSS для плавной загрузки VOX рекламы */}
+        {/* CSS для полной свободы размеров VOX рекламы */}
         <style dangerouslySetInnerHTML={{
           __html: `
             .vox-ad-container {
@@ -196,12 +196,16 @@ export default function LocaleLayout({
               align-items: center;
             }
             
+            .vox-ad-container,
             .vox-ad-container iframe,
             .vox-ad-container > div,
+            [data-hyb-ssp-ad-place],
             [data-hyb-ssp-ad-place] iframe,
             [data-hyb-ssp-ad-place] > div {
               max-width: 100%;
-              height: auto;
+              height: auto !important;
+              min-height: unset !important;
+              max-height: unset !important;
             }
           `
         }} />

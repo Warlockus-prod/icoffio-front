@@ -287,14 +287,6 @@ class UnifiedArticleService {
       }`);
     }
   }
-          author: 'Web Content',
-          source: domain
-        };
-      } catch (fallbackError) {
-        throw new Error(`Некорректный URL: ${url}`);
-      }
-    }
-  }
   
   /**
    * Определение категории по домену

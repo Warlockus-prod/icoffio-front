@@ -7,8 +7,6 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
-import { InlineAd } from "@/components/InlineAd";
-import { SidebarAd } from "@/components/SidebarAd";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -565,8 +563,21 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-            {/* Display Ad - 728x90 Leaderboard после заголовка */}
-            <InlineAd placeId="63da9b577bc72f39bc3bfc68" format="728x90" />
+            {/* VOX Display реклама - 728x90 Leaderboard после заголовка */}
+            <div 
+              data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"
+              style={{
+                width: '100%',
+                maxWidth: '728px',
+                minHeight: '90px',
+                margin: '20px auto',
+                opacity: 0,
+                transition: 'opacity 0.3s ease-in-out',
+                textAlign: 'center'
+              }}
+            >
+              {/* 728x90 Leaderboard */}
+            </div>
 
             <div className="mb-8">
               <img 
@@ -587,23 +598,59 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
-            {/* Display Ad - 970x250 Large Leaderboard после контента */}
-            <InlineAd placeId="63daa3c24d506e16acfd2a38" format="970x250" className="my-8" />
+            {/* VOX Display реклама - 970x250 Large Leaderboard после контента */}
+            <div 
+              data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"
+              style={{
+                width: '100%',
+                maxWidth: '970px',
+                minHeight: '250px',
+                margin: '30px auto',
+                opacity: 0,
+                transition: 'opacity 0.3s ease-in-out',
+                textAlign: 'center'
+              }}
+            >
+              {/* 970x250 Large Leaderboard */}
+            </div>
 
           </article>
 
-          {/* Sidebar с display рекламой */}
+          {/* Sidebar с VOX Display рекламой */}
           <aside className="lg:sticky lg:top-4 lg:h-fit">
-            <SidebarAd 
-              placeId="63da9e2a4d506e16acfd2a36" 
-              format="300x250" 
-              position="Sidebar Top" 
-            />
-            <SidebarAd 
-              placeId="63daa2ea7bc72f39bc3bfc72" 
-              format="300x600" 
-              position="Sidebar Bottom" 
-            />
+            
+            {/* VOX Display реклама - 300x250 Medium Rectangle сверху */}
+            <div 
+              data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"
+              style={{
+                width: '100%',
+                maxWidth: '300px',
+                minHeight: '250px',
+                margin: '0 auto 24px auto',
+                opacity: 0,
+                transition: 'opacity 0.3s ease-in-out',
+                textAlign: 'center'
+              }}
+            >
+              {/* 300x250 Medium Rectangle */}
+            </div>
+
+            {/* VOX Display реклама - 300x600 Large Skyscraper снизу */}
+            <div 
+              data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"
+              style={{
+                width: '100%',
+                maxWidth: '300px',
+                minHeight: '600px',
+                margin: '0 auto',
+                opacity: 0,
+                transition: 'opacity 0.3s ease-in-out',
+                textAlign: 'center'
+              }}
+            >
+              {/* 300x600 Large Skyscraper */}
+            </div>
+            
           </aside>
         </div>
 

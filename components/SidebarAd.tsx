@@ -17,11 +17,8 @@ export function SidebarAd({ placeId, format, position, className = "" }: Sidebar
         width: "300px",
         maxWidth: "300px",
         minHeight: height,
-        maxHeight: height,
         opacity: 0,
-        transition: "opacity 0.3s ease-in-out",
-        overflow: "hidden",
-        position: "relative"
+        transition: "opacity 0.3s ease-in-out"
       }}
       >
         {/* Контейнер будет заполнен VOX рекламой */}

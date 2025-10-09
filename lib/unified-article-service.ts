@@ -219,11 +219,11 @@ class UnifiedArticleService {
         content = extracted.content || content;
         category = extracted.category || category;
       } catch (error) {
-        console.warn('⚠️ Не удалось извлечь контент из URL:', error);
-        // Используем заголовок как содержимое, если URL не удалось обработать
-        if (!content && title) {
-          content = `Статья на тему: ${title}`;
-        }
+        console.error('❌ Критическая ошибка извлечения контента из URL:', error);
+        
+        // ✅ ИСПРАВЛЕНИЕ: Выбрасываем ошибку вместо создания fallback контента
+        // Это предотвратит дальнейшую обработку и публикацию статьи с ошибками
+        throw new Error(`Не удалось обработать URL: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
       }
     }
     
@@ -266,20 +266,27 @@ class UnifiedArticleService {
         image: extractedContent.image,
         source: extractedContent.source,
         siteName: extractedContent.siteName,
-        language: extractedContent.language || 'ru'
+        language: extractedContent.language || 'ru',
+        hasError: false // ✅ Успешное извлечение
       };
     } catch (error) {
       console.error('❌ Ошибка извлечения контента из URL:', error);
       
-      // Fallback - пытаемся создать контент на основе URL
-      try {
-        const domain = new URL(url).hostname;
-        const path = new URL(url).pathname;
-        
-        return {
-          title: `Статья с ${domain}`,
-          content: `Не удалось автоматически извлечь контент с ${url}.\n\nОшибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}\n\nПожалуйста, скопируйте контент статьи вручную или попробуйте другой URL.`,
-          category: this.categorizeFromDomain(domain),
+      // ✅ ИСПРАВЛЕНИЕ: НЕ создаем fallback контент, а выбрасываем ошибку
+      // Это предотвратит публикацию статей с ошибками извлечения контента
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      
+      // Определяем тип ошибки для более точной обработки
+      const isHttpError = errorMessage.includes('403') || errorMessage.includes('404') || errorMessage.includes('HTTP');
+      const isNetworkError = errorMessage.includes('fetch') || errorMessage.includes('ENOTFOUND');
+      
+      throw new Error(`Не удалось извлечь контент с ${url}: ${errorMessage}${
+        isHttpError ? ' (Сайт блокирует автоматическое извлечение контента)' :
+        isNetworkError ? ' (Проблемы с сетью или URL недоступен)' :
+        ' (Ошибка парсинга контента)'
+      }`);
+    }
+  }
           author: 'Web Content',
           source: domain
         };

@@ -187,7 +187,7 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* VOX рекламный скрипт - полная версия с исправлениями */}
+        {/* VOX рекламный скрипт - ОРИГИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -195,100 +195,17 @@ export default function LocaleLayout({
                   var s = document.createElement("script");
                   s.type = "text/javascript";
                   s.async = true;
-                  // Агрессивный cache buster для исправления кэша
-                  s.src = "https://st.hbrd.io/ssp.js?t=" + new Date().getTime() + "&r=" + Math.random();
+                  s.src = "https://st.hbrd.io/ssp.js?t=" + new Date().getTime();
                   (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
               }
               window._tx = window._tx || {};
               window._tx.cmds = window._tx.cmds || [];
-              
-              // Функция инициализации VOX с избирательным показом - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ
-              function initVOX() {
-                  // Проверяем, что мы на странице статьи
-                  const currentUrl = window.location.pathname;
-                  const isArticlePage = currentUrl.includes('/article/');
-                  
-                  if (!isArticlePage) {
-                      console.log('VOX: Не страница статьи, реклама отключена');
-                      return; // Не показываем рекламу на не-статьях
-                  }
-                  
-                  // Проверяем доступность VOX API
-                  if (!window._tx || !window._tx.integrateInImage || !window._tx.init) {
-                      console.log('VOX: API недоступно, повторная попытка через 500ms');
-                      setTimeout(initVOX, 500);
-                      return;
-                  }
-                  
-                  console.log('VOX: Инициализация для статьи:', currentUrl);
-                  
-                  // 1. In-image реклама - ИСПРАВЛЕННЫЙ селектор (исключаем только миниатюры)
-                  const inImageSelector = 'article img:not(.group img), .prose img';
-                  const targetImages = document.querySelectorAll(inImageSelector);
-                  console.log('VOX: Найдено изображений для in-image:', targetImages.length, 'селектор:', inImageSelector);
-                  
-                  // КРИТИЧНО: используем selector (НЕ fetchSelector) для in-image
+              window._tx.cmds.push(function () {
                   window._tx.integrateInImage({
                       placeId: "63d93bb54d506e95f039e2e3",
-                      selector: inImageSelector,
-                      setDisplayBlock: true
+                      fetchSelector: true,
                   });
-                  
-                  // 2. Display форматы - используем init() для каждого PlaceID
-                  const displayPlacements = [
-                      { id: '63da9b577bc72f39bc3bfc68', type: '728x90 Leaderboard' },
-                      { id: '63da9e2a4d506e16acfd2a36', type: '300x250 Medium Rectangle' },
-                      { id: '63daa3c24d506e16acfd2a38', type: '970x250 Large Leaderboard' },
-                      { id: '63daa2ea7bc72f39bc3bfc72', type: '300x600 Large Skyscraper' }
-                  ];
-                  
-                  // Правильная инициализация display форматов через init()
-                  displayPlacements.forEach(placement => {
-                      console.log('VOX: Инициализация display формата:', placement.type, placement.id);
-                      window._tx.init(placement.id);
-                  });
-                  
-                  console.log('VOX: Полная инициализация завершена');
-              }
-              
-              // Переменная для отслеживания последнего URL
-              window._voxLastUrl = window._voxLastUrl || '';
-              
-              // Функция для проверки и перезапуска VOX при изменении страницы
-              function checkAndInitVOX() {
-                  const currentUrl = window.location.href;
-                  
-                  // Если URL изменился или это первый запуск
-                  if (window._voxLastUrl !== currentUrl || window._voxLastUrl === '') {
-                      window._voxLastUrl = currentUrl;
-                      
-                      // Небольшая задержка для загрузки контента
-                      setTimeout(function() {
-                          initVOX();
-                      }, 1000);
-                  }
-              }
-              
-              window._tx.cmds.push(function () {
-                  // Первоначальная инициализация с проверкой готовности DOM
-                  if (document.readyState === 'complete') {
-                      checkAndInitVOX();
-                  } else {
-                      window.addEventListener('load', checkAndInitVOX);
-                      setTimeout(checkAndInitVOX, 2000);
-                  }
-                  
-                  // Отслеживание изменений URL для Next.js client-side navigation
-                  const checkUrlInterval = setInterval(function() {
-                      checkAndInitVOX();
-                  }, 1500);
-                  
-                  // Очистка интервала при необходимости (для производительности)
-                  window.addEventListener('beforeunload', function() {
-                      if (typeof checkUrlInterval !== 'undefined') {
-                          clearInterval(checkUrlInterval);
-                      }
-                  });
+                  window._tx.init();
               });
             `,
           }}

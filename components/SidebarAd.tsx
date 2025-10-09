@@ -13,13 +13,16 @@ export function SidebarAd({ placeId, format, position, className = "" }: Sidebar
       <div 
         className="vox-ad-container"
         data-hyb-ssp-ad-place={placeId}
-        style={{
-          width: "300px",
-          minHeight: height,
-          maxWidth: "100%",
-          opacity: 0,
-          transition: "opacity 0.3s ease-in-out"
-        }}
+      style={{
+        width: "300px",
+        maxWidth: "300px",
+        minHeight: height,
+        maxHeight: height,
+        opacity: 0,
+        transition: "opacity 0.3s ease-in-out",
+        overflow: "hidden",
+        position: "relative"
+      }}
       >
         {/* Контейнер будет заполнен VOX рекламой */}
       </div>

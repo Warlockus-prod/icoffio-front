@@ -187,6 +187,34 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
+        {/* CSS для контроля размеров VOX рекламы */}
+        <style jsx global>{`
+          .vox-ad-container iframe,
+          .vox-ad-container > div,
+          [data-hyb-ssp-ad-place] iframe,
+          [data-hyb-ssp-ad-place] > div {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: 100% !important;
+            height: auto !important;
+            object-fit: contain;
+          }
+          
+          /* Специальные правила для разных форматов */
+          [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe { /* 728x90 */
+            max-height: 90px !important;
+          }
+          [data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] iframe { /* 300x250 */
+            max-height: 250px !important;
+          }
+          [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe { /* 970x250 */
+            max-height: 250px !important;
+          }
+          [data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] iframe { /* 300x600 */
+            max-height: 600px !important;
+          }
+        `}</style>
+
         {/* VOX рекламный скрипт - ОБЪЕДИНЕННАЯ ВЕРСИЯ (In-Image + Display) */}
         <script
           dangerouslySetInnerHTML={{
@@ -195,7 +223,10 @@ export default function LocaleLayout({
                   var s = document.createElement("script");
                   s.type = "text/javascript";
                   s.async = true;
-                  s.src = "https://st.hbrd.io/ssp.js?t=" + new Date().getTime();
+                  // Кеширование VOX скрипта - убрали timestamp для браузерного кеша
+                  s.src = "https://st.hbrd.io/ssp.js";
+                  // Форсируем загрузку с высоким приоритетом
+                  s.setAttribute('fetchpriority', 'high');
                   (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
               }
               window._tx = window._tx || {};
@@ -262,14 +293,14 @@ export default function LocaleLayout({
                               observer.observe(container, { childList: true, subtree: true });
                           });
                           
-                          // Fallback - показываем контейнеры через 3 секунды если ничего не загрузилось
+                          // Fallback - показываем контейнеры через 2 секунды если ничего не загрузилось  
                           setTimeout(function() {
                               document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
                                   if (container.children.length > 0 || container.innerHTML.trim() !== '') {
                                       container.style.opacity = '1';
                                   }
                               });
-                          }, 3000);
+                          }, 2000); // Оптимизировано - уменьшен с 3000 до 2000ms
                       }
                       
                       // 4. Финальная инициализация (только если есть контейнеры)
@@ -308,12 +339,12 @@ export default function LocaleLayout({
                       if (isNewArticle || wasArticle) {
                           console.log('VOX: Переинициализация - переход между статьями');
                           
-                          // Даем время DOM обновиться после Next.js navigation
+                          // Минимальная задержка для обновления DOM после Next.js navigation
                           setTimeout(function() {
                               if (typeof window._tx !== 'undefined' && window._tx.integrateInImage) {
                                   initVOX();
                               }
-                          }, 800); // Увеличил задержку для надежности
+                          }, 300); // Оптимизировано - уменьшена задержка
                       } else {
                           console.log('VOX: Переход не требует переинициализации');
                       }
@@ -338,7 +369,7 @@ export default function LocaleLayout({
                       firstInit();
                   } else {
                       window.addEventListener('load', firstInit);
-                      setTimeout(firstInit, 2000); // Fallback
+                      setTimeout(firstInit, 1000); // Оптимизировано - уменьшен fallback с 2000 до 1000ms
                   }
               });
             `,

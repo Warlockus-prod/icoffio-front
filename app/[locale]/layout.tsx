@@ -187,31 +187,21 @@ export default function LocaleLayout({
           </SearchProvider>
         </ThemeProvider>
 
-        {/* CSS для VOX Display рекламы - ПОЛНАЯ СВОБОДА БЕЗ ОГРАНИЧЕНИЙ */}
+        {/* CSS для VOX Display рекламы - правильные размеры согласно документации */}
         <style dangerouslySetInnerHTML={{
           __html: `
-            /* VOX контейнеры - полная свобода для рекламы */
+            /* VOX контейнеры - overflow visible для полного показа */
             [data-hyb-ssp-ad-place] {
-              display: block !important;
-              text-align: center !important;
               overflow: visible !important;
-              max-width: none !important;
-              max-height: none !important;
-              width: auto !important;
-              height: auto !important;
-              min-width: unset !important;
-              min-height: unset !important;
+              position: relative !important;
             }
             
+            /* Iframe и дочерние элементы - полная свобода размеров */
             [data-hyb-ssp-ad-place] iframe,
-            [data-hyb-ssp-ad-place] > div,
-            [data-hyb-ssp-ad-place] * {
-              max-width: none !important;
-              max-height: none !important;
-              width: auto !important;
+            [data-hyb-ssp-ad-place] > div {
+              max-width: 100% !important;
+              width: 100% !important;
               height: auto !important;
-              min-width: unset !important;
-              min-height: unset !important;
               overflow: visible !important;
             }
           `

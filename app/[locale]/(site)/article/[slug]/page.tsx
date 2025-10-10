@@ -8,7 +8,6 @@ import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { InlineAd } from "@/components/InlineAd";
-import { SidebarAd } from "@/components/SidebarAd";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -534,7 +533,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
         {/* Main Content Grid: Article + Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 max-w-7xl mx-auto">
           
           {/* Main Article Content */}
           <article className="min-w-0">
@@ -604,15 +603,25 @@ export default async function Article({ params }: { params: { locale: string; sl
           <aside className="lg:sticky lg:top-4 lg:h-fit">
             
             {/* VOX Display реклама - 300x250 Medium Rectangle сверху */}
-            <SidebarAd 
-              placeId="63da9e2a4d506e16acfd2a36" 
-              format="300x250"
+            <div 
+              data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"
+              style={{
+                width: '300px',
+                height: '250px',
+                margin: '0 auto 24px auto',
+                display: 'block'
+              }}
             />
 
             {/* VOX Display реклама - 300x600 Large Skyscraper снизу */}
-            <SidebarAd 
-              placeId="63daa2ea7bc72f39bc3bfc72" 
-              format="300x600"
+            <div 
+              data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"
+              style={{
+                width: '300px',
+                height: '600px',
+                margin: '0 auto',
+                display: 'block'
+              }}
             />
             
           </aside>

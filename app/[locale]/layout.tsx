@@ -190,29 +190,33 @@ export default function LocaleLayout({
         {/* CSS для VOX Display рекламы - правильные размеры согласно документации */}
         <style dangerouslySetInnerHTML={{
           __html: `
-            /* VOX контейнеры - overflow visible для полного показа */
+            /* VOX контейнеры базовые настройки */
             [data-hyb-ssp-ad-place] {
-              overflow: visible !important;
               position: relative !important;
+              display: block !important;
             }
             
-            /* Iframe и дочерние элементы - полная свобода размеров */
-            [data-hyb-ssp-ad-place] iframe,
-            [data-hyb-ssp-ad-place] > div {
-              max-width: none !important;
-              width: auto !important;
-              height: auto !important;
+            /* Контейнеры для статьи - адаптивные */
+            article [data-hyb-ssp-ad-place] {
               overflow: visible !important;
             }
             
-            /* Sidebar баннеры - дополнительная свобода */
-            aside [data-hyb-ssp-ad-place] {
+            article [data-hyb-ssp-ad-place] iframe,
+            article [data-hyb-ssp-ad-place] > div {
+              max-width: 100% !important;
               width: 100% !important;
+              height: auto !important;
             }
             
-            aside [data-hyb-ssp-ad-place] iframe,
-            aside [data-hyb-ssp-ad-place] > div {
-              max-width: none !important;
+            /* Sidebar баннеры - фиксированные размеры согласно документации */
+            aside [data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
+              width: 300px !important;
+              height: 250px !important;
+            }
+            
+            aside [data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
+              width: 300px !important;
+              height: 600px !important;
             }
           `
         }} />

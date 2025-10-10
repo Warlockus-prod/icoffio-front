@@ -1,14 +1,27 @@
 interface InlineAdProps {
   placeId: string;
-  format: string;
+  format: '728x90' | '300x250' | '300x600' | '970x250';
   className?: string;
 }
 
 export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
   // Определяем размеры контейнера по формату
-  const dimensions = format === '728x90' 
-    ? { width: '728px', height: '90px' } 
-    : { width: '970px', height: '250px' };
+  const getDimensions = (format: string) => {
+    switch (format) {
+      case '728x90':
+        return { width: '728px', height: '90px' };
+      case '300x250':
+        return { width: '300px', height: '250px' };
+      case '300x600':
+        return { width: '300px', height: '600px' };
+      case '970x250':
+        return { width: '970px', height: '250px' };
+      default:
+        return { width: '728px', height: '90px' };
+    }
+  };
+
+  const dimensions = getDimensions(format);
   
   return (
     <div 
@@ -19,8 +32,9 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
         maxWidth: dimensions.width,
         minHeight: dimensions.height,
         margin: '20px auto',
-        opacity: 0,
-        transition: 'opacity 0.3s ease-in-out',
+        display: 'block',
+        backgroundColor: 'transparent',
+        border: 'none',
         textAlign: 'center' as const,
         overflow: 'visible'
       }}

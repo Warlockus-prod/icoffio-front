@@ -199,10 +199,20 @@ export default function LocaleLayout({
             /* Iframe и дочерние элементы - полная свобода размеров */
             [data-hyb-ssp-ad-place] iframe,
             [data-hyb-ssp-ad-place] > div {
-              max-width: 100% !important;
-              width: 100% !important;
+              max-width: none !important;
+              width: auto !important;
               height: auto !important;
               overflow: visible !important;
+            }
+            
+            /* Sidebar баннеры - дополнительная свобода */
+            aside [data-hyb-ssp-ad-place] {
+              width: 100% !important;
+            }
+            
+            aside [data-hyb-ssp-ad-place] iframe,
+            aside [data-hyb-ssp-ad-place] > div {
+              max-width: none !important;
             }
           `
         }} />

@@ -16,7 +16,6 @@ export function SidebarAd({ placeId, format, className = "" }: SidebarAdProps) {
       className={`vox-ad-container ${className}`}
       style={{
         width: '100%',
-        maxWidth: dimensions.width,
         minHeight: dimensions.height,
         margin: '0 auto 24px auto',
         opacity: 0,

@@ -264,12 +264,12 @@ export default function LocaleLayout({
                       displayPlacements.forEach(function(placement) {
                           const container = document.querySelector('[data-hyb-ssp-ad-place="' + placement.id + '"]');
                           if (container) {
-                              // Правильная инициализация display баннеров
-                              window._tx.cmds.push({
+                              // ✅ ПРАВИЛЬНАЯ инициализация display баннеров (как было пару дней назад)
+                              window._tx.integrateInImage({
                                   placeId: placement.id,
                                   setDisplayBlock: true
                               });
-                              console.log('VOX: Display format ' + placement.format + ' инициализирован правильно');
+                              console.log('VOX: Display format ' + placement.format + ' восстановлен правильно');
                               displayCount++;
                           }
                       });

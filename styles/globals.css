@@ -12,6 +12,7 @@ html {
 /* Dark mode support */
 .prose { --tw-prose-headings: theme(colors.neutral.900); }
 
+/* Светлая тема по умолчанию */
 :root {
   --foreground-rgb: 17, 24, 39;
   --background-rgb: 255, 255, 255;
@@ -22,8 +23,20 @@ html {
   --neutral-900: 17, 24, 39;
 }
 
+/* Темная тема через класс .dark (приоритет для ручного переключения) */
+.dark {
+  --foreground-rgb: 249, 250, 251;
+  --background-rgb: 17, 24, 39;
+  --neutral-50: 31, 41, 55;
+  --neutral-100: 55, 65, 81;
+  --neutral-200: 75, 85, 99;
+  --neutral-600: 156, 163, 175;
+  --neutral-900: 249, 250, 251;
+}
+
+/* Системная темная тема (fallback для браузеров без JS) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --foreground-rgb: 249, 250, 251;
     --background-rgb: 17, 24, 39;
     --neutral-50: 31, 41, 55;
@@ -49,12 +62,22 @@ body {
   display: none;
 }
 
+/* Изображения в темной теме через класс .dark */
+.dark .light-mode-img {
+  display: none;
+}
+
+.dark .dark-mode-img {
+  display: block;
+}
+
+/* Системная темная тема для изображений (fallback) */
 @media (prefers-color-scheme: dark) {
-  .light-mode-img {
+  :root:not(.light) .light-mode-img {
     display: none;
   }
   
-  .dark-mode-img {
+  :root:not(.light) .dark-mode-img {
     display: block;
   }
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { adminLogger, createApiTimer } from '../admin-logger';
+import { localArticleStorage } from '../local-article-storage';
 
 // Types
 export interface ParseJob {
@@ -386,6 +387,10 @@ export const useAdminStore = create<AdminStore>()(
               languages: result.data.stats.languages 
             });
             
+            // ✅ СОХРАНЯЕМ СТАТЬЮ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ
+            const storedArticle = localArticleStorage.convertApiResponseToArticle(result, 'url', url);
+            localArticleStorage.saveArticle(storedArticle);
+            
             // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Создаем правильную структуру Article из API данных
             const { posts, stats } = result.data;
             const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
@@ -393,7 +398,7 @@ export const useAdminStore = create<AdminStore>()(
             
             // Формируем объект Article в нужном формате
             const article: Article = {
-              id: `article-${Date.now()}`,
+              id: storedArticle.id,
               title: stats.title,
               content: primaryPost.content,
               excerpt: stats.excerpt,
@@ -497,35 +502,39 @@ export const useAdminStore = create<AdminStore>()(
 
           const result = await response.json();
           
-          if (result.success) {
-            // Создаем правильную структуру Article из API данных (аналогично startParsing)
-            const { posts, stats } = result.data;
-            const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
-            const primaryPost = posts[primaryLang];
-            
-            // Формируем объект Article в нужном формате
-            const article: Article = {
-              id: `article-${Date.now()}`,
-              title: stats.title,
-              content: primaryPost.content,
-              excerpt: stats.excerpt,
-              category: stats.category,
-              author: primaryPost.author || 'AI Assistant',
-              translations: {
-                en: posts.en ? {
-                  title: posts.en.title,
-                  content: posts.en.content, 
-                  excerpt: posts.en.excerpt
-                } : undefined,
-                pl: posts.pl ? {
-                  title: posts.pl.title,
-                  content: posts.pl.content,
-                  excerpt: posts.pl.excerpt  
-                } : undefined
-              }
-            };
-            
-            get().updateJobStatus(jobId, 'ready', 100, article);
+        if (result.success) {
+          // ✅ СОХРАНЯЕМ СТАТЬЮ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ
+          const storedArticle = localArticleStorage.convertApiResponseToArticle(result, 'text');
+          localArticleStorage.saveArticle(storedArticle);
+          
+          // Создаем правильную структуру Article из API данных (аналогично startParsing)
+          const { posts, stats } = result.data;
+          const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
+          const primaryPost = posts[primaryLang];
+          
+          // Формируем объект Article в нужном формате
+          const article: Article = {
+            id: storedArticle.id,
+            title: stats.title,
+            content: primaryPost.content,
+            excerpt: stats.excerpt,
+            category: stats.category,
+            author: primaryPost.author || 'AI Assistant',
+            translations: {
+              en: posts.en ? {
+                title: posts.en.title,
+                content: posts.en.content, 
+                excerpt: posts.en.excerpt
+              } : undefined,
+              pl: posts.pl ? {
+                title: posts.pl.title,
+                content: posts.pl.content,
+                excerpt: posts.pl.excerpt  
+              } : undefined
+            }
+          };
+          
+          get().updateJobStatus(jobId, 'ready', 100, article);
             get().addActivity({
               type: 'parsing_completed',
               message: `Текстовая статья успешно обработана: ${stats.title}`,

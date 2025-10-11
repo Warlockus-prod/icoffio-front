@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
+import { localArticleStorage } from '@/lib/local-article-storage';
 import ArticlePreview from './ArticleEditor/ArticlePreview';
 import TranslationPanel from './ArticleEditor/TranslationPanel';
 import ContentEditor from './ArticleEditor/ContentEditor';
@@ -14,10 +15,56 @@ export default function ArticleEditor() {
   // Get articles ready for editing (from queue + local storage)
   const readyArticles = parsingQueue.filter(job => job.status === 'ready' && job.article);
   
-  // TODO: Add articles from local storage as well
-  const [localArticles] = useState(() => {
+  // Получаем статьи из локального хранилища
+  const [localArticles, setLocalArticles] = useState(() => {
+    const stored = localArticleStorage.getArticlesByStatus('ready');
+    return stored.map(article => ({
+      id: article.id,
+      url: article.source.originalUrl || `local:${article.title}`,
+      status: 'ready' as const,
+      progress: 100,
+      startTime: new Date(article.createdAt),
+      article: {
+        id: article.id,
+        title: article.title,
+        content: article.content,
+        excerpt: article.excerpt,
+        category: article.category,
+        author: article.author,
+        translations: article.translations
+      }
+    }));
+  });
+
+  // Автообновление локальных статей
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const stored = localArticleStorage.getArticlesByStatus('ready');
+      setLocalArticles(stored.map(article => ({
+        id: article.id,
+        url: article.source.originalUrl || `local:${article.title}`,
+        status: 'ready' as const,
+        progress: 100,
+        startTime: new Date(article.createdAt),
+        article: {
+          id: article.id,
+          title: article.title,
+          content: article.content,
+          excerpt: article.excerpt,
+          category: article.category,
+          author: article.author,
+          translations: article.translations
+        }
+      })));
+    }, 5000); // Проверяем каждые 5 секунд
+
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Fallback demo articles если все пусто
+  const [demoArticles] = useState(() => {
     // Mock articles for testing when queue is empty
-    if (readyArticles.length === 0) {
+    if (readyArticles.length === 0 && localArticles.length === 0) {
       return [{
         id: 'mock-1',
         url: 'local:demo-article',
@@ -62,7 +109,7 @@ export default function ArticleEditor() {
     return [];
   });
   
-  const allArticles = [...readyArticles, ...localArticles];
+  const allArticles = [...readyArticles, ...localArticles, ...demoArticles];
 
   // Auto-select first article if none selected
   useEffect(() => {

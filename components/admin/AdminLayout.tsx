@@ -16,6 +16,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'editor', label: 'Article Editor', icon: '✏️', description: 'Редактирование' },
     { id: 'images', label: 'Images', icon: '🖼️', description: 'Галерея изображений' },
     { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Очередь публикации' },
+    { id: 'logs', label: 'System Logs', icon: '📋', description: 'Логи и диагностика' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Настройки' }
   ] as const;
 

@@ -8,6 +8,7 @@ import URLParser from '@/components/admin/URLParser';
 import ArticleEditor from '@/components/admin/ArticleEditor';
 import ImageSystem from '@/components/admin/ImageSystem';
 import PublishingQueue from '@/components/admin/PublishingQueue';
+import LogsViewer from '@/components/admin/LogsViewer';
 
 export default function AdminPage() {
   const { 
@@ -137,6 +138,8 @@ export default function AdminPage() {
         return <ImageSystem />;
       case 'queue':
         return <PublishingQueue />;
+      case 'logs':
+        return <LogsViewer />;
       case 'settings':
         return (
           <div className="space-y-6">

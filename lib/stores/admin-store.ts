@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { adminLogger, createApiTimer } from '../admin-logger';
 
 // Types
 export interface ParseJob {
@@ -89,7 +90,7 @@ interface AdminStore {
   isLoading: boolean;
   
   // Current View
-  activeTab: 'dashboard' | 'parser' | 'editor' | 'images' | 'queue' | 'settings';
+  activeTab: 'dashboard' | 'parser' | 'editor' | 'images' | 'queue' | 'settings' | 'logs';
   
   // Parsing Queue
   parsingQueue: ParseJob[];
@@ -160,11 +161,14 @@ export const useAdminStore = create<AdminStore>()(
       authenticate: (password: string) => {
         const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'icoffio2025';
         if (password === adminPassword) {
+          adminLogger.info('user', 'login_success', 'User successfully authenticated');
           set({ isAuthenticated: true });
           if (typeof window !== 'undefined') {
             localStorage.setItem('icoffio_admin_auth', 'authenticated');
           }
           return true;
+        } else {
+          adminLogger.warn('user', 'login_failed', 'Failed authentication attempt', { password: '***' });
         }
         return false;
       },
@@ -180,6 +184,8 @@ export const useAdminStore = create<AdminStore>()(
 
       // Parsing Actions
       addUrlToQueue: (url, category) => {
+        adminLogger.info('user', 'add_url', 'User added URL to parsing queue', { url, category });
+        
         const newJob: ParseJob = {
           id: Date.now().toString(),
           url,
@@ -343,12 +349,16 @@ export const useAdminStore = create<AdminStore>()(
 
       // Private method for starting parsing
       startParsing: async (jobId: string, url: string, category: string) => {
+        const timer = createApiTimer('parse_url');
+        adminLogger.info('parsing', 'parse_start', `Starting URL parsing: ${url}`, { jobId, url, category });
+        
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           
           // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
+            adminLogger.warn('parsing', 'parse_timeout', 'URL parsing timeout (60s)', { jobId, url });
             console.warn('⏰ Admin Store: Aborting URL parsing due to timeout (60s)');
             controller.abort();
           }, 60000); // 60 секунд таймаут (уменьшено с 120)
@@ -369,6 +379,13 @@ export const useAdminStore = create<AdminStore>()(
           const result = await response.json();
           
           if (result.success) {
+            adminLogger.info('parsing', 'parse_success', `URL parsing completed successfully: ${url}`, { 
+              jobId, 
+              url, 
+              title: result.data.stats.title,
+              languages: result.data.stats.languages 
+            });
+            
             // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Создаем правильную структуру Article из API данных
             const { posts, stats } = result.data;
             const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
@@ -402,13 +419,21 @@ export const useAdminStore = create<AdminStore>()(
               message: `Статья успешно обработана: ${stats.title}`,
               url
             });
+            timer(); // End timer
           } else {
+            adminLogger.error('parsing', 'parse_failed', `URL parsing failed: ${url}`, { 
+              jobId, 
+              url, 
+              errors: result.errors 
+            });
+            
             get().updateJobStatus(jobId, 'failed', 0);
             get().addActivity({
               type: 'parsing_failed', 
               message: `Ошибка парсинга URL: ${url}`,
               url
             });
+            timer(); // End timer
           }
         } catch (error) {
           // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок с подробными сообщениями

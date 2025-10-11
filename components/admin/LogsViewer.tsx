@@ -10,6 +10,7 @@ export default function LogsViewer() {
   const [stats, setStats] = useState<any>(null);
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Загрузка логов
   const loadLogs = () => {
@@ -18,6 +19,7 @@ export default function LogsViewer() {
       const filteredLogs = adminLogger.getLogs(filter);
       setLogs(filteredLogs.slice(0, 200)); // Показываем только последние 200
       setStats(adminLogger.getStats());
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('Failed to load logs:', error);
     } finally {
@@ -72,25 +74,33 @@ export default function LogsViewer() {
 
   // Экспорт логов
   const handleExport = () => {
-    const exported = adminLogger.exportLogs(filter);
-    const blob = new Blob([exported], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `icoffio_admin_logs_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    adminLogger.userAction('logs_exported', { filter });
+    try {
+      const exported = adminLogger.exportLogs(filter);
+      const blob = new Blob([exported], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const filename = `icoffio_admin_logs_${new Date().toISOString().split('T')[0]}.json`;
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      adminLogger.userAction('logs_exported', { filter, filename, logsCount: logs.length });
+      alert(`📥 Логи успешно экспортированы!\n\nФайл: ${filename}\nКоличество логов: ${logs.length}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('❌ Ошибка экспорта логов. Попробуйте еще раз.');
+    }
   };
 
   // Очистка логов
   const handleClear = () => {
-    if (confirm('Вы уверены, что хотите очистить все логи? Это действие нельзя отменить.')) {
+    if (window.confirm('⚠️ Вы действительно хотите очистить ВСЕ логи?\n\nВнимание: Это действие НЕЛЬЗЯ отменить!\nВсе данные диагностики будут удалены безвозвратно.\n\nПродолжить?')) {
       adminLogger.clearLogs();
       loadLogs();
+      alert('✅ Все логи успешно очищены!');
     }
   };
 
@@ -104,15 +114,20 @@ export default function LogsViewer() {
               📊 Admin Logs & Diagnostics
             </h3>
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={autoRefresh}
-                  onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="rounded"
-                />
-                Auto-refresh
-              </label>
+              <div className="flex flex-col items-end gap-1">
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="rounded"
+                  />
+                  Auto-refresh (10s)
+                </label>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Last: {lastRefresh.toLocaleTimeString('ru-RU')}
+                </div>
+              </div>
               <button
                 onClick={loadLogs}
                 disabled={isLoading}
@@ -164,6 +179,20 @@ export default function LogsViewer() {
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               🗑️ Clear All
+            </button>
+            <button
+              onClick={() => {
+                // Генерируем тестовые логи для всех уровней и категорий
+                adminLogger.warn('ui', 'test_warning', 'Test warning log for UI category', { test: true });
+                adminLogger.info('translation', 'test_translation', 'Test translation log', { from: 'en', to: 'pl' });
+                adminLogger.error('system', 'test_error', 'Test system error', { critical: true }, new Error('Test error'));
+                adminLogger.debug('ui', 'test_debug', 'Test debug UI log', { component: 'LogsViewer' });
+                loadLogs();
+                alert('🧪 Тестовые логи созданы!\n\nДобавлены логи для:\n- Warning UI\n- Translation Info\n- System Error\n- UI Debug');
+              }}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              🧪 Generate Test Logs
             </button>
           </div>
         </div>
@@ -261,8 +290,12 @@ export default function LogsViewer() {
               {logs.map((log) => (
                 <tr
                   key={log.id}
-                  onClick={() => setSelectedLog(log)}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                  onClick={() => {
+                    console.log('Row clicked:', log.id);
+                    setSelectedLog(log);
+                  }}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                  title="Click to view details"
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
                     {formatTime(log.timestamp)}

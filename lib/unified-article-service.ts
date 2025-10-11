@@ -117,7 +117,7 @@ class UnifiedArticleService {
       if (false && input.enhanceContent !== false) {
         try {
           articleData = await this.enhanceArticleContent(articleData);
-        } catch (error) {
+        } catch (error: any) {
           warnings.push(`Не удалось улучшить контент: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
@@ -127,7 +127,7 @@ class UnifiedArticleService {
         try {
           // Используем простой placeholder вместо API вызовов
           articleData.image = `https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200&h=630&fit=crop`;
-        } catch (error) {
+        } catch (error: any) {
           warnings.push(`Не удалось сгенерировать изображение: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
@@ -151,7 +151,7 @@ class UnifiedArticleService {
               slug: articleData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
             }
           };
-        } catch (error) {
+        } catch (error: any) {
           warnings.push(`Не удалось выполнить переводы: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
@@ -175,7 +175,7 @@ class UnifiedArticleService {
           if (!publishResult.success) {
             warnings.push(`Не удалось опубликовать в WordPress: ${publishResult.error}`);
           }
-        } catch (error) {
+        } catch (error: any) {
           warnings.push(`Ошибка публикации в WordPress: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }

@@ -10,6 +10,7 @@ import ImageSystem from '@/components/admin/ImageSystem';
 import PublishingQueue from '@/components/admin/PublishingQueue';
 import LogsViewer from '@/components/admin/LogsViewer';
 import CleanupTool from '@/components/admin/CleanupTool';
+import ArticlesManager from '@/components/admin/ArticlesManager';
 
 export default function AdminPage() {
   const { 
@@ -133,6 +134,8 @@ export default function AdminPage() {
         return <Dashboard />;
       case 'parser':
         return <URLParser />;
+      case 'articles':
+        return <ArticlesManager />;
       case 'editor':
         return <ArticleEditor />;
       case 'images':

@@ -217,11 +217,19 @@ export default function Dashboard() {
           </button>
           
           <button 
+            onClick={() => useAdminStore.getState().setActiveTab('articles')}
+            className="p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors text-left">
+            <div className="text-xl mb-2">📚</div>
+            <div className="font-medium text-gray-900 dark:text-white">All Articles</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">View and manage all content</div>
+          </button>
+
+          <button 
             onClick={() => useAdminStore.getState().setActiveTab('editor')}
             className="p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">📝</div>
             <div className="font-medium text-gray-900 dark:text-white">Edit Articles</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Manage existing content</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Edit specific content</div>
           </button>
           
           <button 

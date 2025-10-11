@@ -11,13 +11,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { activeTab, setActiveTab, logout } = useAdminStore();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', description: 'Статистика и обзор' },
-    { id: 'parser', label: 'URL Parser', icon: '🔗', description: 'Парсинг статей' },
-    { id: 'editor', label: 'Article Editor', icon: '✏️', description: 'Редактирование' },
-    { id: 'images', label: 'Images', icon: '🖼️', description: 'Галерея изображений' },
-    { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Очередь публикации' },
-    { id: 'logs', label: 'System Logs', icon: '📋', description: 'Логи и диагностика' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Настройки' }
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', description: 'Statistics and overview' },
+    { id: 'parser', label: 'Create Articles', icon: '🔗', description: 'URL/Text/AI creation' },
+    { id: 'articles', label: 'All Articles', icon: '📚', description: 'Manage all articles' },
+    { id: 'editor', label: 'Article Editor', icon: '✏️', description: 'Edit content' },
+    { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Publication queue' },
+    { id: 'images', label: 'Images', icon: '🖼️', description: 'Image gallery' },
+    { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics' },
+    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings' }
   ] as const;
 
   return (

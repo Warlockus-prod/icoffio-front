@@ -91,7 +91,7 @@ interface AdminStore {
   isLoading: boolean;
   
   // Current View
-  activeTab: 'dashboard' | 'parser' | 'editor' | 'images' | 'queue' | 'settings' | 'logs';
+  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs';
   
   // Parsing Queue
   parsingQueue: ParseJob[];

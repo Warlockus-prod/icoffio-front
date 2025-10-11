@@ -61,10 +61,10 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Добро пожаловать в Admin Panel! 👋
+              Welcome to Admin Panel! 👋
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Управление статьями icoffio с интеллектуальным парсингом и переводом
+              Manage icoffio articles with intelligent parsing and translation
             </p>
           </div>
           <div className="text-4xl">🚀</div>

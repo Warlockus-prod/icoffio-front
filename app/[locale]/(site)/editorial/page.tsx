@@ -58,7 +58,7 @@ export default function EditorialPage({ params }: { params: { locale: string } }
               <li><strong>Достоверность:</strong> Мы проверяем каждый факт и источник информации</li>
               <li><strong>Актуальность:</strong> Освещаем самые свежие новости технологического мира</li>
               <li><strong>Экспертность:</strong> Привлекаем признанных специалистов для анализа</li>
-              <li><strong>Доступность:</strong> Объясняем сложные технологии простым языком</li>
+              <li><strong>Accessibility:</strong> We explain complex technologies in simple language</li>
               <li><strong>Независимость:</strong> Высказываем объективные мнения и оценки</li>
             </ul>
           </section>

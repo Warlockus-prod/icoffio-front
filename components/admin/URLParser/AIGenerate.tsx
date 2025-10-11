@@ -90,7 +90,7 @@ ${topic} - это важная тема в современном мире те�
           Generate Article with AI
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Опишите тему, и ИИ создаст полную статью с автоматическим переводом на все языки
+          Describe the topic, and AI will create a complete article with automatic translation to all languages
         </p>
       </div>
 
@@ -234,11 +234,11 @@ ${topic} - это важная тема в современном мире те�
           AI Generation Tips
         </h4>
         <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-          <li>• <strong>Будьте конкретны:</strong> "iPhone 15 Pro camera features" лучше чем "phone cameras"</li>
-          <li>• <strong>Используйте ключевые слова:</strong> Включайте важные термины для SEO</li>
-          <li>• <strong>ИИ улучшения:</strong> Контент автоматически оптимизируется для читабельности</li>
-          <li>• <strong>Мультиязычность:</strong> Статья переводится на 6 языков (EN, PL, DE, RO, CS)</li>
-          <li>• <strong>Изображения:</strong> Автоматически подбираются релевантные изображения</li>
+          <li>• <strong>Be specific:</strong> "iPhone 15 Pro camera features" is better than "phone cameras"</li>
+          <li>• <strong>Use keywords:</strong> Include important terms for SEO</li>
+          <li>• <strong>AI improvements:</strong> Content is automatically optimized for readability</li>
+          <li>• <strong>Multi-language:</strong> Article is translated to 2 languages (EN, PL)</li>
+          <li>• <strong>Images:</strong> Relevant images are automatically selected</li>
         </ul>
       </div>
     </div>

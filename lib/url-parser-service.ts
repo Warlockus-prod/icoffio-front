@@ -399,7 +399,7 @@ class UrlParserService {
       return ogLocale.split('_')[0].toLowerCase();
     }
 
-    return 'ru'; // По умолчанию русский для icoffio
+    return 'en'; // Default English for icoffio
   }
 
   /**

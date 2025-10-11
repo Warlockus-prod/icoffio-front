@@ -54,7 +54,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
           Create Article from Text
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Введите заголовок и содержимое статьи для автоматической обработки и перевода
+          Enter article title and content for automatic processing and translation
         </p>
       </div>
 
@@ -74,7 +74,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                        focus:ring-2 focus:ring-blue-500 focus:border-transparent
                        placeholder:text-gray-500 dark:placeholder:text-gray-400"
-              placeholder="Введите заголовок статьи..."
+              placeholder="Enter article title..."
               disabled={isSubmitting}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -99,7 +99,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
                        focus:ring-2 focus:ring-blue-500 focus:border-transparent
                        placeholder:text-gray-500 dark:placeholder:text-gray-400
                        resize-y min-h-[200px]"
-              placeholder="Введите содержимое статьи. ИИ улучшит текст, создаст переводы и подберет изображения..."
+              placeholder="Enter article content. AI will enhance text, create translations, and select images..."
               disabled={isSubmitting}
             />
             <div className="absolute bottom-3 right-3 text-xs text-gray-400">
@@ -173,11 +173,11 @@ export default function TextInput({ onSubmit }: TextInputProps) {
           Writing Tips
         </h4>
         <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-          <li>• <strong>Заголовок:</strong> Делайте его кратким и информативным (до 70 символов)</li>
-          <li>• <strong>Содержимое:</strong> Пишите структурированно с абзацами для лучшего восприятия</li>
-          <li>• <strong>ИИ улучшения:</strong> Система автоматически улучшит стиль и добавит SEO оптимизацию</li>
-          <li>• <strong>Переводы:</strong> Автоматически создадутся версии на английском и польском языках</li>
-          <li>• <strong>Изображения:</strong> ИИ подберет релевантные изображения из Unsplash или создаст новые</li>
+          <li>• <strong>Title:</strong> Keep it concise and informative (up to 70 characters)</li>
+          <li>• <strong>Content:</strong> Write structured content with paragraphs for better readability</li>
+          <li>• <strong>AI improvements:</strong> System will automatically enhance style and add SEO optimization</li>
+          <li>• <strong>Translations:</strong> English and Polish versions will be automatically created</li>
+          <li>• <strong>Images:</strong> AI will select relevant images from Unsplash or create new ones</li>
         </ul>
       </div>
     </div>

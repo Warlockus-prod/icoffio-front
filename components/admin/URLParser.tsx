@@ -151,7 +151,7 @@ export default function URLParser() {
           </div>
           
           <p className="text-blue-700 dark:text-blue-300 text-sm mb-4">
-            {activeJobs} статей обрабатываются в данный момент. Среднее время обработки: ~{statistics.averageProcessingTime || 60}с
+            {activeJobs} articles are currently being processed. Average processing time: ~{statistics.averageProcessingTime || 60}s
           </p>
           
           <div className="flex flex-wrap gap-2">
@@ -164,10 +164,10 @@ export default function URLParser() {
                     {new URL(job.url).hostname}
                   </div>
                   <div className="text-xs text-blue-600 dark:text-blue-400">
-                    {job.status === 'parsing' && '🔍 Извлечение контента'}
-                    {job.status === 'ai_processing' && '🤖 ИИ обработка'}
-                    {job.status === 'translating' && '🌍 Перевод EN/PL'}
-                    {job.status === 'images' && '🖼️ Подбор изображений'}
+                    {job.status === 'parsing' && '🔍 Extracting content'}
+                    {job.status === 'ai_processing' && '🤖 AI processing'}
+                    {job.status === 'translating' && '🌍 Translation EN/PL'}
+                    {job.status === 'images' && '🖼️ Image selection'}
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 mt-2">
                     <div 
@@ -198,7 +198,7 @@ export default function URLParser() {
                 🎉 Articles Ready!
               </h4>
               <p className="text-green-700 dark:text-green-300 text-sm">
-                {readyJobs} статей успешно обработаны и готовы к публикации
+                {readyJobs} articles successfully processed and ready for publication
               </p>
             </div>
             
@@ -226,24 +226,24 @@ export default function URLParser() {
             <div className="flex items-start gap-3">
               <span className="text-lg">🎯</span>
               <div>
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
-                  Выбирайте правильную категорию
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Это поможет ИИ лучше обработать контент
-                </div>
+                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                    Choose the right category
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    This will help AI process content better
+                  </div>
               </div>
             </div>
             
             <div className="flex items-start gap-3">
               <span className="text-lg">⚡</span>
               <div>
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
-                  Используйте прямые ссылки
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Избегайте redirect ссылок и shortened URLs
-                </div>
+                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                    Use direct links
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Avoid redirect links and shortened URLs
+                  </div>
               </div>
             </div>
           </div>
@@ -252,24 +252,24 @@ export default function URLParser() {
             <div className="flex items-start gap-3">
               <span className="text-lg">🔍</span>
               <div>
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
-                  Проверьте доступность
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Убедитесь что статья открывается без регистрации
-                </div>
+                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                    Check accessibility
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Ensure article opens without registration
+                  </div>
               </div>
             </div>
             
             <div className="flex items-start gap-3">
               <span className="text-lg">🚀</span>
               <div>
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
-                  Обрабатывайте пачками
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Добавляйте до 5 URL одновременно для оптимальной скорости
-                </div>
+                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                    Process in batches
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Add up to 5 URLs simultaneously for optimal speed
+                  </div>
               </div>
             </div>
           </div>

@@ -132,7 +132,7 @@ class CopywritingService {
 Теги должны быть:
 - Релевантными содержанию
 - Популярными в поиске
-- На русском языке
+- In English language
 - Одно-два слова
 
 Верни только массив тегов через запятую.
@@ -326,7 +326,7 @@ ${enhancedContent.substring(0, 1000)}...
         messages: [
           {
             role: 'system',
-            content: 'Ты профессиональный копирайтер и SEO-специалист технологического медиа icoffio. Всегда отвечай на русском языке, если не указано иначе.'
+            content: 'You are a professional copywriter and SEO specialist for icoffio technology media. Always respond in English unless otherwise specified.'
           },
           {
             role: 'user',

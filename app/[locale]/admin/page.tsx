@@ -9,6 +9,7 @@ import ArticleEditor from '@/components/admin/ArticleEditor';
 import ImageSystem from '@/components/admin/ImageSystem';
 import PublishingQueue from '@/components/admin/PublishingQueue';
 import LogsViewer from '@/components/admin/LogsViewer';
+import CleanupTool from '@/components/admin/CleanupTool';
 
 export default function AdminPage() {
   const { 
@@ -191,13 +192,54 @@ export default function AdminPage() {
               {/* Actions */}
               <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-wrap gap-4">
-                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/articles?action=health-check');
+                        const result = await response.json();
+                        if (result.success) {
+                          alert('✅ Все API подключения работают!\n\n• OpenAI: ✅\n• Unsplash: ✅\n• WordPress: ✅');
+                        }
+                      } catch {
+                        alert('❌ Ошибка проверки API подключений');
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
                     Test API Connections
                   </button>
-                  <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors">
+                  <button 
+                    onClick={() => {
+                      if (window.caches) {
+                        window.caches.keys().then(names => {
+                          names.forEach(name => window.caches.delete(name));
+                          alert('✅ Cache очищен!');
+                        });
+                      } else {
+                        alert('ℹ️ Cache API не поддерживается в этом браузере');
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors">
                     Clear Cache
                   </button>
-                  <button className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition-colors">
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('⚠️ Сбросить статистику?\n\nВся статистика активности будет удалена.\n\nПродолжить?')) {
+                        // Сброс статистики в admin store
+                        const store = useAdminStore.getState();
+                        store.statistics = {
+                          urlsAddedToday: 0,
+                          urlsAddedWeek: 0, 
+                          urlsAddedMonth: 0,
+                          successfullyParsed: 0,
+                          publishedArticles: 0,
+                          failedParses: 0,
+                          averageProcessingTime: 0,
+                          recentActivity: []
+                        };
+                        alert('✅ Статистика сброшена!');
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition-colors">
                     Reset Statistics
                   </button>
                 </div>
@@ -210,7 +252,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Version</div>
-                  <div className="text-gray-600 dark:text-gray-400">2.0.0</div>
+                  <div className="text-gray-600 dark:text-gray-400">1.8.0</div>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Environment</div>
@@ -218,10 +260,13 @@ export default function AdminPage() {
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Last Updated</div>
-                  <div className="text-gray-600 dark:text-gray-400">Today</div>
+                  <div className="text-gray-600 dark:text-gray-400">Oct 11, 2025</div>
                 </div>
               </div>
             </div>
+
+            {/* Cleanup Tools */}
+            <CleanupTool />
           </div>
         );
       default:

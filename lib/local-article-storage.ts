@@ -131,42 +131,63 @@ class LocalArticleStorage {
   }
 
   /**
-   * Конвертировать API ответ в StoredArticle
+   * Конвертировать API ответ в StoredArticle (СОЗДАЕТ ОТДЕЛЬНЫЕ СТАТЬИ ДЛЯ КАЖДОГО ЯЗЫКА)
    */
-  convertApiResponseToArticle(apiResponse: any, sourceType: 'url' | 'text' | 'ai', originalUrl?: string): StoredArticle {
+  convertApiResponseToArticle(apiResponse: any, sourceType: 'url' | 'text' | 'ai', originalUrl?: string): StoredArticle[] {
     const { posts, stats } = apiResponse.data;
-    const ruPost = posts.ru;
+    const articles: StoredArticle[] = [];
+    const baseId = Date.now();
     
-    return {
-      id: `article_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      title: stats.title,
-      content: ruPost.content,
-      excerpt: stats.excerpt,
-      slug: stats.slug,
-      category: stats.category,
-      author: ruPost.author || 'AI Assistant',
-      createdAt: new Date().toISOString(),
-      image: ruPost.image,
-      status: 'ready',
-      translations: {
-        en: posts.en ? {
-          title: posts.en.title,
-          content: posts.en.content,
-          excerpt: posts.en.excerpt,
-          slug: posts.en.slug
-        } : {} as any,
-        pl: posts.pl ? {
-          title: posts.pl.title,
-          content: posts.pl.content,
-          excerpt: posts.pl.excerpt,
-          slug: posts.pl.slug
-        } : {} as any
-      },
-      source: {
-        type: sourceType,
-        originalUrl
-      }
-    };
+    // Создаем отдельную статью для каждого языка
+    Object.keys(posts).forEach((lang, index) => {
+      const post = posts[lang];
+      
+      articles.push({
+        id: `article_${baseId + index}_${Math.random().toString(36).substr(2, 6)}`,
+        title: post.title,
+        content: post.content,
+        excerpt: post.excerpt,
+        slug: post.slug, // Уже содержит языковой суффикс
+        category: stats.category,
+        author: post.author || 'AI Assistant',
+        createdAt: new Date().toISOString(),
+        image: post.image,
+        status: 'ready',
+        translations: {}, // Отдельные статьи не нуждаются в переводах внутри
+        source: {
+          type: sourceType,
+          originalUrl
+        }
+      });
+    });
+    
+    return articles;
+  }
+
+  /**
+   * Сохранить массив статей
+   */
+  saveArticles(articles: StoredArticle[]): boolean {
+    try {
+      if (typeof window === 'undefined') return false;
+      
+      const existing = this.getAllArticles();
+      const updated = [...articles, ...existing];
+      
+      // Убираем дубликаты по slug
+      const unique = updated.filter((article, index, self) => 
+        index === self.findIndex(a => a.slug === article.slug)
+      );
+      
+      // Ограничиваем количество статей
+      const limited = unique.slice(0, 100);
+      
+      localStorage.setItem(this.storageKey, JSON.stringify(limited));
+      return true;
+    } catch (error) {
+      console.error('Error saving articles to storage:', error);
+      return false;
+    }
   }
 
   /**

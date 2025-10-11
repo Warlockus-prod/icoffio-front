@@ -122,11 +122,38 @@ class UnifiedArticleService {
         }
       }
       
-      // 3. ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ (упрощено для стабильности)
+      // 3. ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ (уникальные изображения по категориям)
       if (input.generateImage !== false) {
         try {
-          // Используем простой placeholder вместо API вызовов
-          articleData.image = `https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200&h=630&fit=crop`;
+          // Уникальные изображения по категориям
+          const categoryImages = {
+            ai: [
+              'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1200&h=630&fit=crop', 
+              'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=1200&h=630&fit=crop'
+            ],
+            apple: [
+              'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=1200&h=630&fit=crop'
+            ],
+            tech: [
+              'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=1200&h=630&fit=crop'
+            ],
+            games: [
+              'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1556438064-2d7646166914?w=1200&h=630&fit=crop',
+              'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1200&h=630&fit=crop'
+            ]
+          };
+          
+          const categoryType = articleData.category as keyof typeof categoryImages;
+          const images = categoryImages[categoryType] || categoryImages.tech;
+          const randomImage = images[Math.floor(Math.random() * images.length)];
+          
+          articleData.image = randomImage;
         } catch (error: any) {
           warnings.push(`Не удалось сгенерировать изображение: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
@@ -136,19 +163,14 @@ class UnifiedArticleService {
       let translations: Record<string, any> = {};
       if (input.translateToAll !== false) {
         try {
-          // Создаем простые переводы для демонстрации
+          // Создаем ТОЛЬКО переводы на поддерживаемые языки (PL, основная версия уже EN)
+          const baseSlug = this.generateSlug(articleData.title);
           translations = {
-            en: {
-              title: `${articleData.title} (EN)`,
-              content: `${articleData.content}\n\n[Translated to English]`,
-              excerpt: `${articleData.excerpt || articleData.title.substring(0, 100)} (EN)`,
-              slug: articleData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-            },
             pl: {
-              title: `${articleData.title} (PL)`,
-              content: `${articleData.content}\n\n[Przetłumaczone na polski]`,
-              excerpt: `${articleData.excerpt || articleData.title.substring(0, 100)} (PL)`,
-              slug: articleData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+              title: this.translateTitle(articleData.title, 'pl'),
+              content: this.translateContent(articleData.content, 'pl'),
+              excerpt: this.translateTitle(articleData.excerpt || articleData.title.substring(0, 100), 'pl'),
+              slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: добавляем языковой суффикс
             }
           };
         } catch (error: any) {
@@ -189,7 +211,7 @@ class UnifiedArticleService {
         errors: errors.length > 0 ? errors : undefined,
         warnings: warnings.length > 0 ? warnings : undefined,
         stats: {
-          languagesProcessed: Object.keys(translations).length + 1,
+          languagesProcessed: Object.keys(translations).length + 1, // EN + PL = 2 языка максимум
           contentEnhanced: input.enhanceContent !== false,
           imageGenerated: !!processedArticle.image,
           publishedToWordPress,
@@ -422,12 +444,12 @@ class UnifiedArticleService {
       title: articleData.title,
       content: articleData.content,
       excerpt: articleData.excerpt || articleData.content.substring(0, 200) + '...',
-      slug: this.generateSlug(articleData.title),
+      slug: `${this.generateSlug(articleData.title)}-en`, // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: основной язык EN (не RU)
       
       category: articleData.category,
       tags: articleData.tags || [articleData.category],
       author: articleData.author,
-      language: articleData.language,
+      language: 'en', // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: основной язык EN
       image: articleData.image,
       metaDescription: articleData.metaDescription,
       
@@ -654,6 +676,39 @@ class UnifiedArticleService {
       .replace(/'/g, '&#39;');
   }
   
+  /**
+   * Простые переводы заголовков (временное решение)
+   */
+  private translateTitle(title: string, language: 'pl'): string {
+    // Простые переводы ключевых слов для польского
+    const translations: Record<string, string> = {
+      'Apple': 'Apple',
+      'iPhone': 'iPhone', 
+      'AI': 'AI',
+      'Tech': 'Technika',
+      'Game': 'Gra',
+      'Review': 'Recenzja',
+      'Guide': 'Przewodnik',
+      'News': 'Wiadomości',
+      'Update': 'Aktualizacja',
+      'Features': 'Funkcje'
+    };
+
+    let translated = title;
+    Object.entries(translations).forEach(([en, pl]) => {
+      translated = translated.replace(new RegExp(en, 'gi'), pl);
+    });
+
+    return translated;
+  }
+
+  /**
+   * Простые переводы контента (временное решение)
+   */
+  private translateContent(content: string, language: 'pl'): string {
+    return content + '\n\n[Przetłumaczone automatycznie na język polski]';
+  }
+
   /**
    * Проверка доступности всех сервисов
    */

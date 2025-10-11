@@ -545,8 +545,8 @@ async function checkAuthentication(request: NextRequest): Promise<{success: bool
 function formatPostsForAdmin(article: any): Record<string, any> {
   const posts: Record<string, any> = {};
   
-  // Основная статья
-  posts[article.language] = {
+  // Основная статья (всегда EN теперь)
+  posts.en = {
     slug: article.slug,
     title: article.title,
     excerpt: article.excerpt,
@@ -560,21 +560,23 @@ function formatPostsForAdmin(article: any): Record<string, any> {
     contentHtml: formatContentToHtml(article.content)
   };
   
-  // Переводы
+  // Переводы (только PL поддерживается)
   for (const [lang, translation] of Object.entries(article.translations)) {
-    posts[lang] = {
-      slug: (translation as any).slug,
-      title: (translation as any).title,
-      excerpt: (translation as any).excerpt,
-      publishedAt: article.publishedAt,
-      image: article.image,
-      category: {
-        name: article.category,
-        slug: article.category
-      },
-      content: (translation as any).content,
-      contentHtml: formatContentToHtml((translation as any).content)
-    };
+    if (lang === 'pl') { // Только польский
+      posts[lang] = {
+        slug: (translation as any).slug,
+        title: (translation as any).title,
+        excerpt: (translation as any).excerpt,
+        publishedAt: article.publishedAt,
+        image: article.image,
+        category: {
+          name: article.category,
+          slug: article.category
+        },
+        content: (translation as any).content,
+        contentHtml: formatContentToHtml((translation as any).content)
+      };
+    }
   }
   
   return posts;

@@ -387,18 +387,19 @@ export const useAdminStore = create<AdminStore>()(
               languages: result.data.stats.languages 
             });
             
-            // ✅ СОХРАНЯЕМ СТАТЬЮ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ
-            const storedArticle = localArticleStorage.convertApiResponseToArticle(result, 'url', url);
-            localArticleStorage.saveArticle(storedArticle);
+            // ✅ СОХРАНЯЕМ СТАТЬИ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ (отдельно для каждого языка)
+            const storedArticles = localArticleStorage.convertApiResponseToArticle(result, 'url', url);
+            localArticleStorage.saveArticles(storedArticles);
             
             // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Создаем правильную структуру Article из API данных
             const { posts, stats } = result.data;
             const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
             const primaryPost = posts[primaryLang];
             
-            // Формируем объект Article в нужном формате
+            // Формируем объект Article в нужном формате (используем первую сохраненную статью)
+            const firstStoredArticle = storedArticles[0];
             const article: Article = {
-              id: storedArticle.id,
+              id: firstStoredArticle.id,
               title: stats.title,
               content: primaryPost.content,
               excerpt: stats.excerpt,
@@ -503,18 +504,19 @@ export const useAdminStore = create<AdminStore>()(
           const result = await response.json();
           
         if (result.success) {
-          // ✅ СОХРАНЯЕМ СТАТЬЮ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ
-          const storedArticle = localArticleStorage.convertApiResponseToArticle(result, 'text');
-          localArticleStorage.saveArticle(storedArticle);
+          // ✅ СОХРАНЯЕМ СТАТЬИ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ (отдельно для каждого языка)
+          const storedArticles = localArticleStorage.convertApiResponseToArticle(result, 'text');
+          localArticleStorage.saveArticles(storedArticles);
           
           // Создаем правильную структуру Article из API данных (аналогично startParsing)
           const { posts, stats } = result.data;
           const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
           const primaryPost = posts[primaryLang];
           
-          // Формируем объект Article в нужном формате
+          // Формируем объект Article в нужном формате (используем первую сохраненную статью)
+          const firstStoredArticle = storedArticles[0];
           const article: Article = {
-            id: storedArticle.id,
+            id: firstStoredArticle.id,
             title: stats.title,
             content: primaryPost.content,
             excerpt: stats.excerpt,

@@ -48,18 +48,26 @@ async function getTranslatedArticles(): Promise<Record<string, any>> {
   return [];
 }
 
-// Строгая фильтрация статей по языку (только английский и польский)
+// Строгая фильтрация статей по языку (поддерживаем все языки)
 function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
-  // Показываем ТОЛЬКО статьи с соответствующим языковым суффиксом
-  // Поддерживаемые языки: en, pl
-  if (locale === 'en' || locale === 'pl') {
-    return articles.filter(article => 
-      article.slug.endsWith(`-${locale}`)
-    );
+  console.log(`🌍 Filtering ${articles.length} articles for locale: ${locale}`);
+  
+  // Поддерживаемые языки: en, pl (сайт НЕ поддерживает русский)
+  if (['en', 'pl'].includes(locale)) {
+    const filtered = articles.filter(article => {
+      const hasLanguageSuffix = article.slug.endsWith(`-${locale}`);
+      if (hasLanguageSuffix) {
+        console.log(`✅ Article matched for ${locale}: ${article.slug}`);
+      }
+      return hasLanguageSuffix;
+    });
+    
+    console.log(`📊 Filtered ${filtered.length}/${articles.length} articles for ${locale}`);
+    return filtered;
   }
   
   // Для неподдерживаемых языков возвращаем пустой массив
-  console.warn(`Unsupported locale: ${locale}. Only 'en' and 'pl' are supported.`);
+  console.warn(`Unsupported locale: ${locale}. Supported: 'en', 'pl' only.`);
   return [];
 }
 

@@ -11,15 +11,65 @@ export default function ArticleEditor() {
   const [activeTab, setActiveTab] = useState<'preview' | 'editor' | 'translations'>('preview');
   const [selectedLanguage, setSelectedLanguage] = useState<'ru' | 'en' | 'pl'>('ru');
   
-  // Get articles ready for editing
+  // Get articles ready for editing (from queue + local storage)
   const readyArticles = parsingQueue.filter(job => job.status === 'ready' && job.article);
+  
+  // TODO: Add articles from local storage as well
+  const [localArticles] = useState(() => {
+    // Mock articles for testing when queue is empty
+    if (readyArticles.length === 0) {
+      return [{
+        id: 'mock-1',
+        url: 'local:demo-article',
+        status: 'ready' as const,
+        progress: 100,
+        startTime: new Date(),
+        article: {
+          id: 'demo-article-1',
+          title: 'Demo Article for Testing',
+          content: `# Тестовая статья для редактора
 
-  // Auto-select first ready article if none selected
-  useEffect(() => {
-    if (!selectedArticle && readyArticles.length > 0) {
-      selectArticle(readyArticles[0].article!);
+Это демонстрационная статья для тестирования функций редактора.
+
+## Основные возможности
+
+- Редактирование заголовка и содержания
+- Выбор категории
+- Управление изображениями
+- Переводы на другие языки
+
+## Заключение
+
+После редактирования статья готова к публикации.`,
+          excerpt: 'Демонстрационная статья для тестирования редактора админ панели',
+          category: 'tech',
+          author: 'Admin Demo',
+          translations: {
+            en: {
+              title: 'Demo Article for Testing (EN)',
+              content: '# Test Article for Editor\n\nThis is a demonstration article for testing editor functions.\n\n## Main Features\n\n- Title and content editing\n- Category selection\n- Image management\n- Translations to other languages\n\n## Conclusion\n\nAfter editing, the article is ready for publication.',
+              excerpt: 'Demo article for testing admin panel editor'
+            },
+            pl: {
+              title: 'Artykuł demonstracyjny do testowania (PL)',
+              content: '# Artykuł testowy dla edytora\n\nTo jest artykuł demonstracyjny do testowania funkcji edytora.\n\n## Główne funkcje\n\n- Edycja tytułu i treści\n- Wybór kategorii\n- Zarządzanie obrazami\n- Tłumaczenia na inne języki\n\n## Wniosek\n\nPo edycji artykuł jest gotowy do publikacji.',
+              excerpt: 'Artykuł demonstracyjny do testowania edytora panelu administracyjnego'
+            }
+          }
+        }
+      }];
     }
-  }, [readyArticles, selectedArticle, selectArticle]);
+    return [];
+  });
+  
+  const allArticles = [...readyArticles, ...localArticles];
+
+  // Auto-select first article if none selected
+  useEffect(() => {
+    if (!selectedArticle && allArticles.length > 0) {
+      selectArticle(allArticles[0].article!);
+    }
+  }, [allArticles, selectedArticle, selectArticle]);
 
   const tabs = [
     { id: 'preview', label: 'Preview', icon: '👁️', description: 'View article in all languages' },
@@ -36,7 +86,7 @@ export default function ArticleEditor() {
   return (
     <div className="space-y-6">
       {/* Article Selector */}
-      {readyArticles.length > 0 && (
+      {allArticles.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -44,7 +94,7 @@ export default function ArticleEditor() {
                 📚 Select Article to Edit
               </h4>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {readyArticles.length} articles ready for editing
+                {allArticles.length} articles ready for editing
               </p>
             </div>
             
@@ -67,7 +117,7 @@ export default function ArticleEditor() {
       )}
 
       {/* No Articles Available */}
-      {readyArticles.length === 0 && (
+      {allArticles.length === 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <div className="text-4xl mb-4">📝</div>

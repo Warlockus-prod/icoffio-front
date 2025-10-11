@@ -171,7 +171,7 @@ export default function AdminPage() {
                   <div className="space-y-3">
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">URL Parsing Timeout</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">15 seconds</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">60 seconds (Admin), 15 seconds (Parser)</div>
                     </div>
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">Max Content Length</div>

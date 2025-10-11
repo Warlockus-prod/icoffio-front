@@ -199,20 +199,34 @@ export default function Dashboard() {
           ⚡ Quick Actions
         </h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors text-left">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button 
+            onClick={() => useAdminStore.getState().setActiveTab('parser')}
+            className="p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">🔗</div>
             <div className="font-medium text-gray-900 dark:text-white">Parse URL</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Add new article from URL</div>
           </button>
           
-          <button className="p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors text-left">
+          <button 
+            onClick={() => useAdminStore.getState().setActiveTab('parser')}
+            className="p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">✏️</div>
+            <div className="font-medium text-gray-900 dark:text-white">Create Article</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Write article from text</div>
+          </button>
+          
+          <button 
+            onClick={() => useAdminStore.getState().setActiveTab('editor')}
+            className="p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors text-left">
+            <div className="text-xl mb-2">📝</div>
             <div className="font-medium text-gray-900 dark:text-white">Edit Articles</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Manage existing content</div>
           </button>
           
-          <button className="p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors text-left">
+          <button 
+            onClick={() => useAdminStore.getState().setActiveTab('queue')}
+            className="p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">📤</div>
             <div className="font-medium text-gray-900 dark:text-white">Publish Queue</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Manage publishing queue</div>

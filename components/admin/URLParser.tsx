@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import URLInput from './URLParser/URLInput';
 import TextInput from './URLParser/TextInput';
+import AIGenerate from './URLParser/AIGenerate';
 import ParsingQueue from './URLParser/ParsingQueue';
 import { useAdminStore } from '@/lib/stores/admin-store';
 
 export default function URLParser() {
-  const [inputMode, setInputMode] = useState<'url' | 'text'>('url');
+  const [inputMode, setInputMode] = useState<'url' | 'text' | 'ai'>('url');
   const { parsingQueue, statistics } = useAdminStore();
   
   const activeJobs = parsingQueue.filter(job => 
@@ -97,7 +98,7 @@ export default function URLParser() {
           <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
             <button
               onClick={() => setInputMode('url')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
                 inputMode === 'url'
                   ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -109,7 +110,7 @@ export default function URLParser() {
             
             <button
               onClick={() => setInputMode('text')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
                 inputMode === 'text'
                   ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -118,12 +119,26 @@ export default function URLParser() {
               <span>✏️</span>
               From Text
             </button>
+
+            <button
+              onClick={() => setInputMode('ai')}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                inputMode === 'ai'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <span>🤖</span>
+              AI Generate
+            </button>
           </div>
         </div>
       </div>
 
       {/* Input Form */}
-      {inputMode === 'url' ? <URLInput /> : <TextInput />}
+      {inputMode === 'url' && <URLInput />}
+      {inputMode === 'text' && <TextInput />}
+      {inputMode === 'ai' && <AIGenerate />}
 
       {/* Processing Info */}
       {activeJobs > 0 && (

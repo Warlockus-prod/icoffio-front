@@ -199,29 +199,21 @@ export default function Dashboard() {
           ⚡ Quick Actions
         </h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <button 
             onClick={() => useAdminStore.getState().setActiveTab('parser')}
             className="p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">🔗</div>
-            <div className="font-medium text-gray-900 dark:text-white">Parse URL</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Add new article from URL</div>
+            <div className="font-medium text-gray-900 dark:text-white">Create Articles</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">URL/Text/AI creation</div>
           </button>
-          
-          <button 
-            onClick={() => useAdminStore.getState().setActiveTab('parser')}
-            className="p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors text-left">
-            <div className="text-xl mb-2">✏️</div>
-            <div className="font-medium text-gray-900 dark:text-white">Create Article</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Write article from text</div>
-          </button>
-          
+
           <button 
             onClick={() => useAdminStore.getState().setActiveTab('articles')}
             className="p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">📚</div>
             <div className="font-medium text-gray-900 dark:text-white">All Articles</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">View and manage all content</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Manage all content</div>
           </button>
 
           <button 
@@ -234,10 +226,54 @@ export default function Dashboard() {
           
           <button 
             onClick={() => useAdminStore.getState().setActiveTab('queue')}
-            className="p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors text-left">
+            className="p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors text-left">
             <div className="text-xl mb-2">📤</div>
             <div className="font-medium text-gray-900 dark:text-white">Publish Queue</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Manage publishing queue</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Publication management</div>
+          </button>
+
+          <button 
+            onClick={async () => {
+              if (!window.confirm('🗑️ CLEAN ALL TEST ARTICLES?\n\nThis will delete articles with:\n- Russian titles ("Статья с сайта")\n- Test keywords (test, demo, emergency)\n- Domain names (techcrunch.com, example.com)\n\nContinue?')) {
+                return;
+              }
+              
+              try {
+                const response = await fetch('/api/admin/cleanup', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'clean_test_articles',
+                    password: 'icoffio2025'
+                  })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.cleanup_code) {
+                  const cleanup = new Function('return ' + result.cleanup_code)();
+                  const cleanupResult = cleanup();
+                  
+                  if (cleanupResult.success) {
+                    alert(`✅ Test articles cleanup completed!\n\nDeleted: ${cleanupResult.deleted} test articles\nRemaining: ${cleanupResult.remaining} clean articles\n\nThe site will show cleaner content now.`);
+                    
+                    // Refresh the page to show updated data
+                    window.location.reload();
+                  } else {
+                    alert('❌ Cleanup failed: ' + (cleanupResult.error || 'Unknown error'));
+                  }
+                } else {
+                  alert('❌ Cleanup API failed: ' + (result.error || 'Unknown error'));
+                }
+              } catch (error) {
+                console.error('Cleanup error:', error);
+                alert('❌ Cleanup failed. Check console for details.');
+              }
+            }}
+            className="p-4 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors text-left">
+            <div className="text-xl mb-2">🧹</div>
+            <div className="font-medium text-gray-900 dark:text-white">Clean Test Data</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Remove test articles</div>
           </button>
         </div>
       </div>

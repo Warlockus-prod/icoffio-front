@@ -27,7 +27,7 @@ export interface ParsingOptions {
 
 class UrlParserService {
   private defaultOptions: ParsingOptions = {
-    timeout: 10000, // 10 секунд
+    timeout: 15000, // 15 секунд (увеличено с 10)
     maxContentLength: 50000, // 50KB текста
     includeImages: true,
     userAgent: 'Mozilla/5.0 (compatible; IcoffioBot/1.0; +https://icoffio.com)'
@@ -127,7 +127,9 @@ class UrlParserService {
       
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Превышено время ожидания загрузки страницы');
+        throw new Error(`Таймаут загрузки URL после ${options.timeout}ms`);
+      } else if (error instanceof Error && error.message.includes('fetch')) {
+        throw new Error(`Ошибка загрузки URL: ${error.message}`);
       }
       throw error;
     } finally {

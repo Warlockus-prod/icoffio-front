@@ -349,8 +349,9 @@ export const useAdminStore = create<AdminStore>()(
           // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
+            console.warn('⏰ Admin Store: Aborting URL parsing due to timeout (60s)');
             controller.abort();
-          }, 120000); // 120 секунд таймаут
+          }, 60000); // 60 секунд таймаут (уменьшено с 120)
           
           const response = await fetch('/api/articles', {
             method: 'POST',
@@ -411,11 +412,12 @@ export const useAdminStore = create<AdminStore>()(
           }
         } catch (error) {
           // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок с подробными сообщениями
+          console.error('❌ Admin Store: URL parsing failed:', error);
           let errorMessage = `Ошибка парсинга URL: ${url}`;
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              errorMessage = `Таймаут парсинга URL (120s): ${url}`;
+              errorMessage = `Таймаут парсинга URL (60s): ${url}`;
             } else if (error.message.includes('fetch')) {
               errorMessage = `Сетевая ошибка при парсинге: ${url}`;
             } else {
@@ -450,8 +452,9 @@ export const useAdminStore = create<AdminStore>()(
           // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController (аналогично startParsing)
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
+            console.warn('⏰ Admin Store: Aborting text processing due to timeout (60s)');
             controller.abort();
-          }, 120000); // 120 секунд таймаут
+          }, 60000); // 60 секунд таймаут (уменьшено с 120)
           
           const response = await fetch('/api/articles', {
             method: 'POST',
@@ -517,7 +520,7 @@ export const useAdminStore = create<AdminStore>()(
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              errorMessage = `Таймаут обработки текста (120s): ${title}`;
+              errorMessage = `Таймаут обработки текста (60s): ${title}`;
             } else if (error.message.includes('fetch')) {
               errorMessage = `Сетевая ошибка при обработке текста: ${title}`;
             } else {

@@ -118,7 +118,7 @@ class UnifiedArticleService {
         try {
           articleData = await this.enhanceArticleContent(articleData);
         } catch (error: any) {
-          warnings.push(`Не удалось улучшить контент: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          warnings.push(`Failed to enhance content: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       
@@ -155,7 +155,7 @@ class UnifiedArticleService {
           
           articleData.image = randomImage;
         } catch (error: any) {
-          warnings.push(`Не удалось сгенерировать изображение: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          warnings.push(`Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       
@@ -174,7 +174,7 @@ class UnifiedArticleService {
             }
           };
         } catch (error: any) {
-          warnings.push(`Не удалось выполнить переводы: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          warnings.push(`Failed to create translations: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       
@@ -195,10 +195,10 @@ class UnifiedArticleService {
           urls = publishResult.urls || {};
           
           if (!publishResult.success) {
-            warnings.push(`Не удалось опубликовать в WordPress: ${publishResult.error}`);
+            warnings.push(`Failed to publish to WordPress: ${publishResult.error}`);
           }
         } catch (error: any) {
-          warnings.push(`Ошибка публикации в WordPress: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          warnings.push(`WordPress publication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       
@@ -221,11 +221,11 @@ class UnifiedArticleService {
       };
       
     } catch (error) {
-      console.error('❌ Критическая ошибка обработки статьи:', error);
+      console.error('❌ Critical article processing error:', error);
       
       return {
         success: false,
-        errors: [error instanceof Error ? error.message : 'Неизвестная ошибка'],
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
         warnings,
         stats: {
           languagesProcessed: 0,
@@ -253,18 +253,18 @@ class UnifiedArticleService {
       try {
         // ВРЕМЕННОЕ РЕШЕНИЕ: создаем контент из URL без парсинга
         const urlObj = new URL(input.url);
-        title = title || `Статья с сайта ${urlObj.hostname}`;
-        content = content || `Контент извлечен с ${input.url}\n\nЭто автоматически созданная статья для тестирования админ панели.\n\nИсходный URL: ${input.url}`;
+        title = title || `Article from ${urlObj.hostname}`;
+        content = content || `Content extracted from ${input.url}\n\nThis is an automatically created article for admin panel testing.\n\nOriginal URL: ${input.url}`;
         category = this.categorizeFromDomain(urlObj.hostname);
       } catch (error) {
-        console.error('❌ Критическая ошибка извлечения контента из URL:', error);
-        throw new Error(`Некорректный URL: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        console.error('❌ Critical error extracting content from URL:', error);
+        throw new Error(`Invalid URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
     
-    // Проверяем наличие минимальных данных
+    // Check for minimum required data
     if (!title && !content) {
-      throw new Error('Отсутствует заголовок и содержимое статьи');
+      throw new Error('Missing article title and content');
     }
     
     // Если нет заголовка, создаем его из первой строки контента

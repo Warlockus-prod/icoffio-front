@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Russian Test Articles</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .code { 
+            background: #2a2a2a; 
+            padding: 15px; 
+            border-radius: 8px; 
+            font-family: monospace; 
+            overflow-x: auto; 
+            margin: 15px 0;
+        }
+        .button { 
+            background: #e74c3c; 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            margin: 10px 0;
+        }
+        .button:hover { 
+            background: #c0392b; 
+        }
+        .success { 
+            background: #27ae60; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+        }
+        .error { 
+            background: #e74c3c; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Delete Russian Test Articles from icoffio</h1>
+        
+        <p><strong>Problem:</strong> Article "Статья с сайта techcrunch.com (EN)" is showing on the English site.</p>
+        
+        <h2>🚀 Quick Solution - Click This Button:</h2>
+        
+        <button class="button" onclick="executeCleanup()">
+            🗑️ DELETE ALL RUSSIAN ARTICLES NOW
+        </button>
+        
+        <div id="result"></div>
+        
+        <h2>📋 Manual WordPress Method:</h2>
+        <ol>
+            <li>Go to: <a href="https://icoffio.com/wp-admin" target="_blank">WordPress Admin</a></li>
+            <li><strong>Posts</strong> → <strong>All Posts</strong></li>  
+            <li>Search: <strong>"Статья с сайта"</strong></li>
+            <li>Select ALL found articles</li>
+            <li><strong>Bulk Actions</strong> → <strong>Move to Trash</strong></li>
+            <li>Go to <strong>Trash</strong> → <strong>Delete Permanently</strong></li>
+        </ol>
+
+        <h2>🧹 Cleanup Script (Advanced):</h2>
+        <p>Copy and paste this code in browser console on <strong>app.icoffio.com/en/admin</strong>:</p>
+        
+        <div class="code" id="cleanupCode">
+// FORCE DELETE ALL RUSSIAN ARTICLES
+(function() {
+    console.log('🧹 Starting cleanup of Russian articles...');
+    
+    try {
+        const storage = localStorage.getItem('icoffio_admin_articles');
+        if (!storage) {
+            console.log('📭 No admin articles in localStorage');
+            return;
+        }
+        
+        const articles = JSON.parse(storage);
+        console.log('📊 Found', articles.length, 'articles in localStorage');
+        
+        const russianPatterns = [
+            /статья с сайта/i,
+            /контент извлечен/i,
+            /это автоматически созданная/i,
+            /для тестирования/i,
+            /исходный url/i,
+            /article from techcrunch/i,
+            /article from wylsa/i,
+            /article from example/i,
+            /test.*article/i,
+            /debug/i,
+            /emergency/i,
+            /verification/i,
+            /language.*fix/i,
+            /integration.*test/i,
+            /post.*deploy/i,
+            /restoration/i,
+            /audit.*test/i
+        ];
+        
+        let deletedCount = 0;
+        const cleanArticles = articles.filter(article => {
+            const isRussian = russianPatterns.some(pattern => 
+                pattern.test(article.title) || 
+                pattern.test(article.content || '') || 
+                pattern.test(article.excerpt || '') ||
+                pattern.test(article.slug)
+            );
+            
+            if (isRussian) {
+                console.log('🗑️ DELETING:', article.title);
+                deletedCount++;
+                return false;
+            }
+            
+            console.log('✅ KEEPING:', article.title);
+            return true;
+        });
+        
+        localStorage.setItem('icoffio_admin_articles', JSON.stringify(cleanArticles));
+        
+        console.log('✅ Cleanup completed!');
+        console.log(`📊 Deleted: ${deletedCount}, Remaining: ${cleanArticles.length}`);
+        
+        alert(`🗑️ CLEANUP COMPLETED!
+
+📊 Results:
+• Deleted Russian/test articles: ${deletedCount}
+• Remaining clean articles: ${cleanArticles.length}
+
+The localStorage has been cleaned. 
+Please refresh the page and check the website!`);
+        
+    } catch (error) {
+        console.error('❌ Cleanup failed:', error);
+        alert('❌ Cleanup failed: ' + error.message);
+    }
+})();
+        </div>
+        
+        <button class="button" onclick="copyCode()">📋 Copy Cleanup Script</button>
+        
+        <h2>⚠️ Important Notes:</h2>
+        <ul>
+            <li>The Russian article is in <strong>WordPress database</strong>, not admin localStorage</li>
+            <li>Our cleanup script handles localStorage only</li>
+            <li><strong>WordPress Admin deletion is required</strong> for database articles</li>
+            <li>After deletion, clear WordPress cache and refresh pages</li>
+        </ul>
+    </div>
+
+    <script>
+        function copyCode() {
+            const code = document.getElementById('cleanupCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ Cleanup script copied to clipboard!\n\nNow:\n1. Go to app.icoffio.com/en/admin\n2. Press F12 → Console\n3. Paste and press Enter');
+            });
+        }
+        
+        function executeCleanup() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<div class="error">⚠️ Automatic WordPress deletion requires admin access. Please use WordPress Admin method above.</div>';
+            
+            // But we can still clean localStorage
+            try {
+                const storage = localStorage.getItem('icoffio_admin_articles');
+                if (storage) {
+                    const articles = JSON.parse(storage);
+                    const cleaned = articles.filter(a => !(/статья с сайта|article from|test/i.test(a.title)));
+                    localStorage.setItem('icoffio_admin_articles', JSON.stringify(cleaned));
+                    result.innerHTML += '<div class="success">✅ localStorage cleaned! Use WordPress Admin for database articles.</div>';
+                } else {
+                    result.innerHTML += '<div class="success">✅ No localStorage articles found.</div>';
+                }
+            } catch (error) {
+                result.innerHTML += '<div class="error">❌ Error: ' + error.message + '</div>';
+            }
+        }
+    </script>
+</body>
+</html>

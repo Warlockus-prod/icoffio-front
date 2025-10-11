@@ -5,7 +5,7 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 
 interface ContentEditorProps {
   article?: Article | null;
-  language?: 'ru' | 'en' | 'pl';
+  language?: 'en' | 'pl';
 }
 
 const CATEGORIES = [
@@ -15,7 +15,7 @@ const CATEGORIES = [
   { id: 'digital', label: 'Digital & Trends', icon: '📱' }
 ];
 
-export default function ContentEditor({ article, language = 'ru' }: ContentEditorProps) {
+export default function ContentEditor({ article, language = 'en' }: ContentEditorProps) {
   const [editedContent, setEditedContent] = useState({
     title: '',
     content: '',
@@ -34,7 +34,7 @@ export default function ContentEditor({ article, language = 'ru' }: ContentEdito
   // Load content when article changes
   useEffect(() => {
     if (article) {
-      if (language === 'ru') {
+      if (language === 'en') {
         setEditedContent({
           title: article.title,
           content: article.content,
@@ -80,7 +80,7 @@ export default function ContentEditor({ article, language = 'ru' }: ContentEdito
     setIsSaving(true);
     
     try {
-      if (language === 'ru') {
+      if (language === 'en') {
         // Update original content
         updateArticle({
           title: editedContent.title,
@@ -141,7 +141,7 @@ export default function ContentEditor({ article, language = 'ru' }: ContentEdito
               ✏️ Content Editor
             </h3>
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-              <span>Language: {language === 'ru' ? '🇷🇺 Russian' : language === 'en' ? '🇺🇸 English' : '🇵🇱 Polish'}</span>
+              <span>Language: {language === 'en' ? '🇺🇸 English' : '🇵🇱 Polish'}</span>
               <span>•</span>
               <span>
                 {isDirty ? (
@@ -243,8 +243,8 @@ export default function ContentEditor({ article, language = 'ru' }: ContentEdito
               </div>
             </div>
 
-            {/* Category and Author (only for Russian/original) */}
-            {language === 'ru' && (
+            {/* Category and Author (only for English/original) */}
+            {language === 'en' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -331,7 +331,7 @@ export default function ContentEditor({ article, language = 'ru' }: ContentEdito
       <div className="p-6 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-750">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {language === 'ru' ? 'Editing original content' : `Editing ${language.toUpperCase()} translation`}
+            {language === 'en' ? 'Editing original content' : `Editing ${language.toUpperCase()} translation`}
           </div>
           
           <div className="flex gap-3">

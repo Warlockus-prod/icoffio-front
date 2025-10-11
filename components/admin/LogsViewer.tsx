@@ -39,7 +39,7 @@ export default function LogsViewer() {
 
   // Форматирование времени
   const formatTime = (timestamp: Date) => {
-    return new Intl.DateTimeFormat('ru-RU', {
+    return new Intl.DateTimeFormat('en-US', {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',

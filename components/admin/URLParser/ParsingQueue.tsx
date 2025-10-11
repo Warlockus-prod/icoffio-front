@@ -2,7 +2,7 @@
 
 import { useAdminStore } from '@/lib/stores/admin-store';
 import { formatDistanceToNow } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 
 const STATUS_CONFIG = {
   pending: {
@@ -187,7 +187,7 @@ export default function ParsingQueue() {
           const statusConfig = STATUS_CONFIG[job.status];
           const timeAgo = formatDistanceToNow(new Date(job.startTime), { 
             addSuffix: true, 
-            locale: ru 
+            locale: enUS 
           });
 
           return (

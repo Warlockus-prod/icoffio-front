@@ -10,7 +10,7 @@ import ContentEditor from './ArticleEditor/ContentEditor';
 export default function ArticleEditor() {
   const { selectedArticle, parsingQueue, selectArticle } = useAdminStore();
   const [activeTab, setActiveTab] = useState<'preview' | 'editor' | 'translations'>('preview');
-  const [selectedLanguage, setSelectedLanguage] = useState<'ru' | 'en' | 'pl'>('ru');
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pl'>('en');
   
   // Get articles ready for editing (from queue + local storage)
   const readyArticles = parsingQueue.filter(job => job.status === 'ready' && job.article);
@@ -125,7 +125,6 @@ export default function ArticleEditor() {
   ];
 
   const languages = [
-    { code: 'ru', label: 'Russian', flag: '🇷🇺' },
     { code: 'en', label: 'English', flag: '🇺🇸' },
     { code: 'pl', label: 'Polish', flag: '🇵🇱' }
   ];
@@ -234,7 +233,7 @@ export default function ArticleEditor() {
                     </button>
                   ))}
                   
-                  {selectedLanguage !== 'ru' && !selectedArticle.translations[selectedLanguage] && (
+                  {selectedLanguage !== 'en' && !selectedArticle.translations[selectedLanguage] && (
                     <span className="text-xs text-yellow-600 dark:text-yellow-400 ml-2">
                       ⚠️ Translation not available
                     </span>

@@ -42,7 +42,7 @@ export default function TranslationPanel({ article }: TranslationPanelProps) {
             excerpt: article.excerpt
           },
           targetLanguage: languageCode,
-          sourceLanguage: 'ru'
+          sourceLanguage: 'en'
         })
       });
 

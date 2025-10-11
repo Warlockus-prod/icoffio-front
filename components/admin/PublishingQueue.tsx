@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { formatDistanceToNow } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 
 interface ReadyArticle extends Article {
   parsedAt: Date;
@@ -244,7 +244,7 @@ export default function PublishingQueue() {
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
                     <div className="flex items-center gap-1">
                       <span>📅</span>
-                      <span>Parsed {formatDistanceToNow(article.parsedAt, { addSuffix: true, locale: ru })}</span>
+                      <span>Parsed {formatDistanceToNow(article.parsedAt, { addSuffix: true, locale: enUS })}</span>
                     </div>
                     {article.processingTime && (
                       <div className="flex items-center gap-1">

@@ -4,9 +4,8 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { useState } from 'react';
 
 const LANGUAGES = [
-  { code: 'ru', label: 'Russian', flag: '🇷🇺', color: 'blue' },
-  { code: 'en', label: 'English', flag: '🇺🇸', color: 'green' },
-  { code: 'pl', label: 'Polish', flag: '🇵🇱', color: 'red' }
+  { code: 'en', label: 'English', flag: '🇺🇸', color: 'blue' },
+  { code: 'pl', label: 'Polish', flag: '🇵🇱', color: 'green' }
 ];
 
 interface ArticlePreviewProps {
@@ -15,7 +14,7 @@ interface ArticlePreviewProps {
 
 export default function ArticlePreview({ article }: ArticlePreviewProps) {
   const [activeView, setActiveView] = useState<'split' | 'single'>('split');
-  const [selectedLanguage, setSelectedLanguage] = useState<'ru' | 'en' | 'pl'>('ru');
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pl'>('en');
   
   if (!article) {
     return (
@@ -54,10 +53,10 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
     return colors[langConfig?.color as keyof typeof colors] || colors.blue;
   };
 
-  const renderLanguageColumn = (lang: 'ru' | 'en' | 'pl') => {
+  const renderLanguageColumn = (lang: 'en' | 'pl') => {
     const langConfig = LANGUAGES.find(l => l.code === lang);
     const content = getArticleContent(lang);
-    const hasTranslation = lang === 'ru' || Boolean(content);
+    const hasTranslation = lang === 'en' || Boolean(content);
 
     return (
       <div className={`flex-1 min-w-0 ${activeView === 'single' && selectedLanguage !== lang ? 'hidden' : ''}`}>
@@ -151,16 +150,16 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
           ) : (
             <div className="text-center py-8">
               <div className="text-3xl mb-3">
-                {lang === 'ru' ? '📝' : '🔄'}
+                {lang === 'en' ? '📝' : '🔄'}
               </div>
               <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                {lang === 'ru' 
+                {lang === 'en' 
                   ? 'Original content will appear here'
                   : `${langConfig?.label} translation needed`
                 }
               </p>
               
-              {lang !== 'ru' && (
+              {lang !== 'en' && (
                 <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
                   🤖 Generate Translation
                 </button>
@@ -214,7 +213,7 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
           {activeView === 'single' && (
             <select
               value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value as 'ru' | 'en' | 'pl')}
+              onChange={(e) => setSelectedLanguage(e.target.value as 'en' | 'pl')}
               className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               {LANGUAGES.map(lang => (
@@ -235,7 +234,7 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
       }`}>
         {LANGUAGES.map(lang => (
           <div key={lang.code}>
-            {renderLanguageColumn(lang.code as 'ru' | 'en' | 'pl')}
+            {renderLanguageColumn(lang.code as 'en' | 'pl')}
           </div>
         ))}
       </div>

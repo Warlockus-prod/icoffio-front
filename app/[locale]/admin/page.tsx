@@ -42,7 +42,7 @@ export default function AdminPage() {
       setError('');
       setPassword('');
     } else {
-      setError('Неверный пароль');
+      setError('Invalid password');
     }
   };
 
@@ -60,7 +60,7 @@ export default function AdminPage() {
               Admin Panel
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Управление статьями icoffio
+              icoffio Admin Panel
             </p>
           </div>
 
@@ -69,7 +69,7 @@ export default function AdminPage() {
             <form onSubmit={handleAuth} className="space-y-6">
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Пароль администратора
+                  Administrator Password
                 </label>
                 <input
                   id="password"
@@ -79,13 +79,15 @@ export default function AdminPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Введите пароль"
+                  placeholder="Enter password"
                 />
               </div>
 
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {error === 'Неверный пароль' ? 'Invalid password' : error}
+                  </p>
                 </div>
               )}
 
@@ -93,31 +95,31 @@ export default function AdminPage() {
                 type="submit"
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg"
               >
-                🚀 Войти в админ панель
+                🚀 Login to Admin Panel
               </button>
             </form>
 
             {/* Функции панели */}
             <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                🔧 Доступные функции:
+                🔧 Available Features:
               </h3>
               <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                 <div className="flex items-center gap-2">
                   <span>🔗</span>
-                  <span>URL парсинг</span>
+                  <span>URL Parsing</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span>🌍</span>
-                  <span>Перевод EN/PL</span>
+                  <span>EN/PL Translation</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span>🤖</span>
-                  <span>ИИ обработка</span>
+                  <span>AI Processing</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span>🖼️</span>
-                  <span>Изображения</span>
+                  <span>Image Selection</span>
                 </div>
               </div>
             </div>

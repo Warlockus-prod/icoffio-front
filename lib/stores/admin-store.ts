@@ -175,6 +175,7 @@ export const useAdminStore = create<AdminStore>()(
       },
 
       logout: () => {
+        adminLogger.info('user', 'logout', 'User logged out from admin panel');
         set({ isAuthenticated: false });
         if (typeof window !== 'undefined') {
           localStorage.removeItem('icoffio_admin_auth');

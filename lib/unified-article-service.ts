@@ -181,7 +181,7 @@ class UnifiedArticleService {
       // 5. СОЗДАНИЕ ФИНАЛЬНОГО ОБЪЕКТА СТАТЬИ
       const processedArticle = this.createProcessedArticle(articleData, input, translations);
       
-      // 6. СОХРАНЕНИЕ В ЛОКАЛЬНУЮ СИСТЕМУ
+      // 6. СОХРАНЕНИЕ В ЛОКАЛЬНУЮ СИСТЕМУ (включая рантайм для сайта)
       await this.saveArticleLocally(processedArticle);
       
       // 7. ПУБЛИКАЦИЯ В WORDPRESS (если включено)

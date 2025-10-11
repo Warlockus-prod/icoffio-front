@@ -311,7 +311,15 @@ export function addRuntimeArticle(article: Post): void {
 // Функция для получения статьи по slug
 export async function getLocalArticleBySlug(slug: string): Promise<Post | null> {
   const articles = await getLocalArticles();
-  return articles.find(article => article.slug === slug) || null;
+  const found = articles.find(article => article.slug === slug);
+  
+  if (found) {
+    console.log(`✅ Found article by slug: ${slug}`);
+  } else {
+    console.log(`❌ Article not found: ${slug}`);
+  }
+  
+  return found || null;
 }
 
 // Заглушка для переведенных статей (пока не используется)

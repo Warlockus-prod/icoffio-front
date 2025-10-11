@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <div className="w-64 bg-white dark:bg-gray-800 shadow-lg">
+      <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -61,15 +61,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           ))}
         </nav>
 
-        {/* Bottom Actions */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="space-y-2">
-            <div className="text-xs text-gray-500 dark:text-gray-400 px-4">
-              🟢 API Status: Online
+        {/* Bottom Actions - Fixed positioning */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="space-y-3">
+            <div className="text-xs text-gray-500 dark:text-gray-400 px-2 flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span>API Status: Online</span>
             </div>
             <button
               onClick={logout}
-              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center justify-center gap-2 border border-red-200 dark:border-red-800"
             >
               🚪 Logout
             </button>

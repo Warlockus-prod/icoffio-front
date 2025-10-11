@@ -308,6 +308,20 @@ async function handleUrlCreation(body: ApiRequest, request: NextRequest) {
     const result = await unifiedArticleService.processArticle(articleInput);
 
     if (result.success) {
+      // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
+      try {
+        await fetch(`${request.nextUrl.origin}/api/revalidate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            secret: 'icoffio_revalidate_2025',
+            paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
+          })
+        });
+      } catch (revalError) {
+        console.warn('Revalidation failed:', revalError);
+      }
+
       // Формат ответа для админ панели
       return NextResponse.json({
         success: true,
@@ -370,6 +384,20 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
     const result = await unifiedArticleService.processArticle(articleInput);
 
     if (result.success) {
+      // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
+      try {
+        await fetch(`${request.nextUrl.origin}/api/revalidate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            secret: 'icoffio_revalidate_2025',
+            paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
+          })
+        });
+      } catch (revalError) {
+        console.warn('Revalidation failed:', revalError);
+      }
+
       // Формат ответа для админ панели
       return NextResponse.json({
         success: true,

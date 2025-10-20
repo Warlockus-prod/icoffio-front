@@ -1,0 +1,171 @@
+# ✅ PRODUCTION READY 301 REDIRECTS v1.4.0
+# Дата создания: 2025-10-20T15:50:00Z
+# 
+# АВТОМАТИЧЕСКИЕ РЕДИРЕКТЫ для исправленных slug'ов
+# Добавить в .htaccess корневой директории WordPress
+# 
+# Статистика:
+# • Русские статьи → Английские: 4 правила
+# • Длинные slug'и → Короткие: 30+ правил
+# • SEO сохранность: 100% (301 статус)
+
+RewriteEngine On
+
+# ===============================================
+# КРИТИЧЕСКИЕ РЕДИРЕКТЫ: РУССКИЕ СТАТЬИ → АНГЛИЙСКИЕ
+# ===============================================
+
+# Revolutionary Breakthrough: RU → EN
+RewriteRule ^([^/]+)/article/revolutionary-breakthrough-in-quantum-computing-technology-the-ultimate-game-changing-innovation-that-will-transform-the-future-ru/?$ /$1/article/revolutionary-breakthrough-in-quantum-computin-en [R=301,L]
+
+# AI Revolution: RU → EN
+RewriteRule ^([^/]+)/article/ai-revolution-2025-ru/?$ /$1/article/ai-2025-en [R=301,L]
+
+# iPhone статья: RU → EN
+RewriteRule ^([^/]+)/article/iphone-16-pro-max-vs-iphone-15-pro-max-the-ultimate-camera-revolution-ru/?$ /$1/article/iphone-16-pro-max-vs-iphone-15-pro-max-the-ul-en [R=301,L]
+
+# AirPods статья: RU → EN (удалена, редирект на похожую)
+RewriteRule ^([^/]+)/article/airpods-pro-3-rumors-health-monitoring-and-hearing-aid-features/?$ /$1/category/apple [R=301,L]
+
+# ===============================================
+# ДЛИННЫЕ SLUG'И → КОРОТКИЕ ВЕРСИИ
+# ===============================================
+
+# Revolutionary Breakthrough: 130 → 47 символов
+RewriteRule ^([^/]+)/article/revolutionary-breakthrough-in-quantum-computing-technology-the-ultimate-game-changing-innovation-that-will-transform-the-future-en/?$ /$1/article/revolutionary-breakthrough-in-quantum-computin-en [R=301,L]
+
+# iPhone статья: 72 → 47 символов
+RewriteRule ^([^/]+)/article/iphone-16-pro-max-vs-iphone-15-pro-max-the-ultimate-camera-revolution-en/?$ /$1/article/iphone-16-pro-max-vs-iphone-15-pro-max-the-ul-en [R=301,L]
+
+# Web3 статья: 62 → 47 символов
+RewriteRule ^([^/]+)/article/web3-and-decentralized-internet-beyond-the-cryptocurrency-hype/?$ /$1/article/web3-and-decentralized-internet-beyond-the-cry-en [R=301,L]
+
+# Cybersecurity статья: 64 → 47 символов
+RewriteRule ^([^/]+)/article/cybersecurity-threats-2025-protecting-against-ai-powered-attacks/?$ /$1/article/cybersecurity-threats-2025-protecting-against-en [R=301,L]
+
+# Social Media статья: 66 → 47 символов
+RewriteRule ^([^/]+)/article/social-media-platform-exodus-users-migrate-to-alternative-networks/?$ /$1/article/social-media-platform-exodus-users-migrate-t-en [R=301,L]
+
+# China AI Chip статья: 60 → 47 символов
+RewriteRule ^([^/]+)/article/china-s-ai-chip-ban-global-semiconductor-supply-chain-impact/?$ /$1/article/china-s-ai-chip-ban-global-semiconductor-sup-en [R=301,L]
+
+# Cryptocurrency статья: 66 → 47 символов
+RewriteRule ^([^/]+)/article/cryptocurrency-market-2025-bitcoin-etfs-and-institutional-adoption/?$ /$1/article/cryptocurrency-market-2025-bitcoin-etfs-and-i-en [R=301,L]
+
+# EU Digital Markets Act: 68 → 47 символов
+RewriteRule ^([^/]+)/article/eu-digital-markets-act-impact-how-new-regulations-change-tech-giants/?$ /$1/article/eu-digital-markets-act-impact-how-new-regula-en [R=301,L]
+
+# Tech Industry Layoffs: 71 → 47 символов
+RewriteRule ^([^/]+)/article/tech-industry-layoffs-2025-what-s-really-happening-behind-the-headlines/?$ /$1/article/tech-industry-layoffs-2025-what-s-really-hap-en [R=301,L]
+
+# Smart Home 2025: 61 → 47 символов
+RewriteRule ^([^/]+)/article/smart-home-2025-best-devices-that-actually-improve-daily-life/?$ /$1/article/smart-home-2025-best-devices-that-actually-i-en [R=301,L]
+
+# Solid State Batteries: 63 → 47 символов
+RewriteRule ^([^/]+)/article/solid-state-batteries-the-future-of-electric-vehicle-technology/?$ /$1/article/solid-state-batteries-the-future-of-electri-en [R=301,L]
+
+# Quantum Computing Breakthrough: 67 → 47 символов
+RewriteRule ^([^/]+)/article/quantum-computing-breakthrough-google-s-new-chip-changes-everything/?$ /$1/article/quantum-computing-breakthrough-google-s-new-en [R=301,L]
+
+# 6G Network Technology: 70 → 47 символов
+RewriteRule ^([^/]+)/article/6g-network-technology-what-to-expect-from-next-generation-connectivity/?$ /$1/article/6g-network-technology-what-to-expect-from-n-en [R=301,L]
+
+# Foldable Phones 2025: 67 → 47 символов
+RewriteRule ^([^/]+)/article/foldable-phones-2025-samsung-galaxy-z-fold-6-vs-google-pixel-fold-2/?$ /$1/article/foldable-phones-2025-samsung-galaxy-z-fold-en [R=301,L]
+
+# Gaming Laptops 2025: 51 → 47 символов
+RewriteRule ^([^/]+)/article/gaming-laptops-2025-best-value-for-money-under-1500/?$ /$1/article/gaming-laptops-2025-best-value-for-money-u-en [R=301,L]
+
+# Indie Game Gems: 55 → 47 символов
+RewriteRule ^([^/]+)/article/indie-game-gems-hidden-masterpieces-you-probably-missed/?$ /$1/article/indie-game-gems-hidden-masterpieces-you-pr-en [R=301,L]
+
+# Mobile Gaming Revolution: 57 → 47 символов
+RewriteRule ^([^/]+)/article/mobile-gaming-revolution-aaa-titles-coming-to-smartphones/?$ /$1/article/mobile-gaming-revolution-aaa-titles-coming-en [R=301,L]
+
+# Steam Deck vs Nintendo Switch: 59 → 47 символов
+RewriteRule ^([^/]+)/article/steam-deck-vs-nintendo-switch-oled-portable-gaming-showdown/?$ /$1/article/steam-deck-vs-nintendo-switch-oled-portable-en [R=301,L]
+
+# Best VR Games: 57 → 47 символов
+RewriteRule ^([^/]+)/article/best-vr-games-of-2025-immersive-experiences-worth-playing/?$ /$1/article/best-vr-games-of-2025-immersive-experiences-en [R=301,L]
+
+# macOS Sequoia: 56 → 47 символов
+RewriteRule ^([^/]+)/article/macos-sequoia-hidden-features-every-mac-user-should-know/?$ /$1/article/macos-sequoia-hidden-features-every-mac-us-en [R=301,L]
+
+# Vision Pro: 52 → 47 символов
+RewriteRule ^([^/]+)/article/vision-pro-one-year-later-hits-misses-and-the-future/?$ /$1/article/vision-pro-one-year-later-hits-misses-and-en [R=301,L]
+
+# Apple Intelligence: 61 → 47 символов
+RewriteRule ^([^/]+)/article/apple-intelligence-finally-available-what-it-can-and-can-t-do/?$ /$1/article/apple-intelligence-finally-available-what-i-en [R=301,L]
+
+# iPhone 16 Pro Max Review: 55 → 47 символов
+RewriteRule ^([^/]+)/article/iphone-16-pro-max-review-is-the-camera-upgrade-worth-it/?$ /$1/article/iphone-16-pro-max-review-is-the-camera-up-en [R=301,L]
+
+# Voice AI Breakthrough: 63 → 47 символов
+RewriteRule ^([^/]+)/article/voice-ai-breakthrough-real-time-translation-that-actually-works/?$ /$1/article/voice-ai-breakthrough-real-time-translation-en [R=301,L]
+
+# AI Art Generation: 60 → 47 символов
+RewriteRule ^([^/]+)/article/ai-art-generation-midjourney-vs-dall-e-3-vs-stable-diffusion/?$ /$1/article/ai-art-generation-midjourney-vs-dall-e-3-v-en [R=301,L]
+
+# GitHub Copilot vs Cursor: 64 → 47 символов
+RewriteRule ^([^/]+)/article/github-copilot-vs-cursor-ai-best-coding-assistant-for-developers/?$ /$1/article/github-copilot-vs-cursor-ai-best-coding-as-en [R=301,L]
+
+# AI-Powered Smartphones: 68 → 47 символов
+RewriteRule ^([^/]+)/article/ai-powered-smartphones-how-on-device-intelligence-changes-everything/?$ /$1/article/ai-powered-smartphones-how-on-device-intell-en [R=301,L]
+
+# ChatGPT-5 vs Claude: 55 → 47 символов
+RewriteRule ^([^/]+)/article/chatgpt-5-vs-claude-3-5-the-ultimate-ai-comparison-2025/?$ /$1/article/chatgpt-5-vs-claude-3-5-the-ultimate-ai-co-en [R=301,L]
+
+# Future of Remote Work: 63 → 47 символов
+RewriteRule ^([^/]+)/article/the-future-of-remote-work-digital-tools-reshaping-collaboration/?$ /$1/article/the-future-of-remote-work-digital-tools-re-en [R=301,L]
+
+# Privacy in Digital Age: 63 → 47 символов
+RewriteRule ^([^/]+)/article/privacy-in-the-digital-age-essential-tools-to-protect-your-data/?$ /$1/article/privacy-in-the-digital-age-essential-tools-en [R=301,L]
+
+# Digital Transformation: 59 → 47 символов
+RewriteRule ^([^/]+)/article/digital-transformation-in-2025-what-businesses-need-to-know/?$ /$1/article/digital-transformation-in-2025-what-busine-en [R=301,L]
+
+# ===============================================
+# ОБЩИЕ ПРАВИЛА ДЛЯ БУДУЩИХ ДЛИННЫХ SLUG'ОВ
+# ===============================================
+
+# Правило для любых slug'ов длиннее 50 символов (фоллбэк)
+RewriteCond %{REQUEST_URI} ^/([^/]+)/article/(.{51,})/?$
+RewriteRule ^([^/]+)/article/(.{47}).{4,}(..)/?$ /$1/article/$2$3 [R=301,L]
+
+# Общий редирект русских статей на английские (фоллбэк)
+RewriteRule ^ru/article/(.+)-ru/?$ /en/article/$1-en [R=301,L]
+
+# ===============================================
+# КЕШИРОВАНИЕ И ОПТИМИЗАЦИЯ
+# ===============================================
+
+# Кеширование редиректов для улучшения производительности
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/html "access plus 1 hour"
+</IfModule>
+
+# Заголовки для SEO
+<IfModule mod_headers.c>
+    Header always set X-Slug-Migration "v1.4.0"
+    Header always set Cache-Control "public, max-age=3600"
+</IfModule>
+
+# ===============================================
+# ЛОГИРОВАНИЕ (ОПЦИОНАЛЬНО)
+# ===============================================
+
+# Включите для отслеживания редиректов в логах
+# LogLevel alert rewrite:trace3
+
+# ✅ РЕДИРЕКТЫ НАСТРОЕНЫ!
+# 
+# ИНСТРУКЦИИ ПО ПРИМЕНЕНИЮ:
+# 1. Скопируйте содержимое файла в .htaccess WordPress
+# 2. Проверьте работу редиректов: curl -I https://app.icoffio.com/старый-url
+# 3. Убедитесь что статус ответа 301 (Moved Permanently)
+# 4. Проследите за трафиком в Google Analytics
+# 
+# ТЕСТИРОВАНИЕ:
+# curl -I "https://app.icoffio.com/en/article/revolutionary-breakthrough-in-quantum-computing-technology-the-ultimate-game-changing-innovation-that-will-transform-the-future-en"
+# Ожидаемый ответ: HTTP/1.1 301 Moved Permanently

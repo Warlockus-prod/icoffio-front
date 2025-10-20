@@ -9,6 +9,7 @@ import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
 import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
+import { generateSafeSlug, addLanguageSuffix, sanitizeHtml } from './slug-utils';
 import type { Post } from './types';
 
 // ========== ИНТЕРФЕЙСЫ ==========
@@ -170,7 +171,7 @@ class UnifiedArticleService {
               title: this.translateTitle(articleData.title, 'pl'),
               content: this.translateContent(articleData.content, 'pl'),
               excerpt: this.translateTitle(articleData.excerpt || articleData.title.substring(0, 100), 'pl'),
-              slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: добавляем языковой суффикс
+              slug: addLanguageSuffix(baseSlug, 'pl') // ✅ ИСПРАВЛЕНО: безопасное добавление языкового суффикса
             }
           };
         } catch (error: any) {
@@ -444,7 +445,7 @@ class UnifiedArticleService {
       title: articleData.title,
       content: articleData.content,
       excerpt: articleData.excerpt || articleData.content.substring(0, 200) + '...',
-      slug: `${this.generateSlug(articleData.title)}-en`, // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: основной язык EN (не RU)
+      slug: addLanguageSuffix(this.generateSlug(articleData.title), 'en'), // ✅ ИСПРАВЛЕНО: безопасная генерация slug с языковым суффиксом
       
       category: articleData.category,
       tags: articleData.tags || [articleData.category],
@@ -562,16 +563,10 @@ class UnifiedArticleService {
   
   /**
    * Генерация slug из заголовка
+   * ✅ ИСПРАВЛЕНО: использует безопасную утилиту генерации slug'ов
    */
   private generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[^\w\s\u0400-\u04FF]/g, '') // Убираем спецсимволы, оставляем кириллицу
-      .replace(/\s+/g, '-')     // Пробелы в дефисы
-      .replace(/-+/g, '-')      // Множественные дефисы в одинарные
-      .trim()                   // Убираем пробелы по краям
-      .replace(/^-+|-+$/g, '')  // Убираем дефисы в начале/конце
-      .substring(0, 50);
+    return generateSafeSlug(title, 45); // Оставляем место для языкового суффикса
   }
   
   /**

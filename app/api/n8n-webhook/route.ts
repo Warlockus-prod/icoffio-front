@@ -40,7 +40,8 @@ function generateSlugFromTitle(title: string): string {
     .replace(/\s+/g, '-')     // пробелы в дефисы
     .replace(/-+/g, '-')      // множественные дефисы в одинарные
     .trim()                   // убираем пробелы по краям
-    .replace(/^-+|-+$/g, ''); // убираем дефисы в начале/конце
+    .replace(/^-+|-+$/g, '')  // убираем дефисы в начале/конце
+    .substring(0, 50);        // ✅ ИСПРАВЛЕНИЕ: ограничиваем длину до 50 символов
 }
 
 // POST /api/n8n-webhook - DEPRECATED: используйте /api/articles вместо этого

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
 import { wordpressService } from '@/lib/wordpress-service';
+import { validateArticleData, generateSlugQualityReport } from '@/lib/api-validators';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -185,7 +186,7 @@ export async function GET(request: NextRequest) {
       'generate-article': 'POST /api/articles with action: create-from-url or create-from-text'
     },
     
-    supportedLanguages: ['ru', 'en', 'pl', 'de', 'ro', 'cs'],
+    supportedLanguages: ['en', 'pl', 'de', 'ro', 'cs'],
     supportedCategories: ['ai', 'apple', 'games', 'tech'],
     
     features: [
@@ -215,12 +216,30 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
       );
     }
 
+    // ✅ ВАЛИДАЦИЯ ДАННЫХ СТАТЬИ (v1.4.0)
+    const validation = validateArticleData(data);
+    if (!validation.isValid) {
+      console.warn('❌ Валидация не прошла:', validation.errors);
+      return NextResponse.json(
+        { 
+          error: 'Ошибки валидации статьи',
+          details: validation.errors,
+          warnings: validation.warnings
+        },
+        { status: 400 }
+      );
+    }
+
+    if (validation.warnings.length > 0) {
+      console.warn('⚠️ Предупреждения валидации:', validation.warnings);
+    }
+
     const articleInput: ArticleInput = {
       title: data.title,
       content: data.content,
       category: data.category || 'tech',
       author: data.author || 'AI Assistant',
-      language: data.language || 'ru',
+      language: data.language || 'en',
       chatId: data.chatId,
       messageId: data.messageId,
       
@@ -369,6 +388,21 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
       );
     }
 
+    // ✅ ВАЛИДАЦИЯ ДАННЫХ СТАТЬИ (v1.4.0)
+    const validation = validateArticleData({ title, content, ...body.data });
+    if (!validation.isValid) {
+      console.warn('❌ Валидация текстовой статьи не прошла:', validation.errors);
+      return NextResponse.json(
+        { 
+          error: 'Ошибки валидации статьи',
+          details: validation.errors,
+          warnings: validation.warnings,
+          correctedSlug: validation.correctedSlug
+        },
+        { status: 400 }
+      );
+    }
+
     const articleInput: ArticleInput = {
       title,
       content,
@@ -453,7 +487,7 @@ async function handleHealthCheck() {
         webhookSecret: !!process.env.N8N_WEBHOOK_SECRET
       },
       
-      supportedLanguages: ['ru', 'en', 'pl', 'de', 'ro', 'cs'],
+      supportedLanguages: ['en', 'pl', 'de', 'ro', 'cs'],
       supportedCategories: ['ai', 'apple', 'games', 'tech'],
       
       features: [
@@ -741,7 +775,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         category: article.category || 'technology',
         tags: ['imported', 'ai-processed'],
         author: article.author || 'Admin',
-        language: 'ru',
+        language: 'en',
         image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
         publishedAt: new Date().toISOString()
       },

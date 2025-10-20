@@ -9,6 +9,7 @@ import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { InlineAd } from "@/components/InlineAd";
 import { SidebarAd } from "@/components/SidebarAd";
+import { sanitizeHtml } from "@/lib/slug-utils";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";

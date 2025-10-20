@@ -1,0 +1,12 @@
+# ✅ АВТОМАТИЧЕСКИЕ 301 РЕДИРЕКТЫ ДЛЯ ДЛИННЫХ SLUG'ОВ
+# Добавить в .htaccess WordPress сайта
+
+# Редиректы для длинных iPhone статей
+RewriteRule ^([^/]+)/article/iphone-16-pro-max-vs-iphone-15-pro-max-the-ultimate-camera-revolution-(.+)$ /$1/article/iphone-16-pro-max-vs-iphone-15-pro-max-the-ul-$2 [R=301,L]
+
+# Редиректы русских статей на английские
+RewriteRule ^ru/article/(.+)-ru/?$ /en/article/$1-en [R=301,L]
+
+# Общий редирект для статей длиннее 50 символов
+RewriteCond %{REQUEST_URI} ^/([^/]+)/article/([^/]{51,})/?$
+RewriteRule ^([^/]+)/article/(.{47}).{4,}(..)/?$ /$1/article/$2$3 [R=301,L]

@@ -9,6 +9,7 @@ import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { InlineAd } from "@/components/InlineAd";
 import { SidebarAd } from "@/components/SidebarAd";
+import { UniversalAd } from "@/components/UniversalAd";
 import { sanitizeHtml } from "@/lib/slug-utils";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -591,6 +592,13 @@ export default async function Article({ params }: { params: { locale: string; sl
                 <p className="text-neutral-600 dark:text-neutral-300">Content not available.</p>
               )}
             </div>
+
+            {/* VOX Display реклама - новое универсальное место после контента */}
+            <UniversalAd 
+              placeId="68f63437810d98e1a08f26de" 
+              format="universal" 
+              className="mt-6"
+            />
 
             {/* VOX Display реклама - 970x250 Large Leaderboard после контента */}
             <InlineAd 

@@ -53,6 +53,40 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Smart Ad System - умное управление рекламными блоками */
+.smart-ad-container {
+  position: relative;
+}
+
+.smart-ad-placeholder {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: loading 2s infinite;
+  border-radius: 8px;
+}
+
+.dark .smart-ad-placeholder {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
+.smart-ad-container.ad-loaded {
+  opacity: 1;
+}
+
+.smart-ad-container.ad-empty .fallback-content {
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Dark mode image support */
 .light-mode-img {
   display: block;

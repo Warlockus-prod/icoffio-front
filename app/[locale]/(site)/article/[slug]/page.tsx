@@ -10,6 +10,7 @@ import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { InlineAd } from "@/components/InlineAd";
 import { SidebarAd } from "@/components/SidebarAd";
 import { UniversalAd } from "@/components/UniversalAd";
+import { SmartAd, AdFallbacks } from "@/components/SmartAd";
 import { sanitizeHtml } from "@/lib/slug-utils";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -574,12 +575,13 @@ export default async function Article({ params }: { params: { locale: string; sl
               className="mb-6"
             />
 
-            {/* VOX Display реклама - 320x50 Mobile Banner после заголовка (только мобильные) */}
+            {/* VOX Display реклама - 320x50 Mobile Banner с fallback (новый PlaceID) */}
             <div className="block lg:hidden">
-              <UniversalAd 
+              <SmartAd 
                 placeId="68f644dc70e7b26b58596f34" 
-                format="320x50" 
-                className="mb-4"
+                format="320x50"
+                fallbackContent={AdFallbacks.newsletter}
+                hideOnEmpty={true}
               />
             </div>
 
@@ -602,20 +604,22 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
-            {/* VOX Display реклама - 320x100 Large Mobile Banner в середине (только мобильные) */}
+            {/* VOX Display реклама - 320x100 Large Mobile Banner с fallback (новый PlaceID) */}
             <div className="block lg:hidden">
-              <UniversalAd 
+              <SmartAd 
                 placeId="68f645bf810d98e1a08f272f" 
-                format="320x100" 
-                className="my-6"
+                format="320x100"
+                fallbackContent={AdFallbacks.quickLinks}
+                hideOnEmpty={true}
               />
             </div>
 
-            {/* VOX Display реклама - мобильный формат 320x480 после контента */}
-            <UniversalAd 
+            {/* VOX Display реклама - 320x480 Mobile Large с fallback (новый PlaceID) */}
+            <SmartAd 
               placeId="68f63437810d98e1a08f26de" 
-              format="320x480" 
-              className="mt-6"
+              format="320x480"
+              fallbackContent={AdFallbacks.socialConnect}
+              hideOnEmpty={true}
             />
 
             {/* VOX Display реклама - 970x250 Large Leaderboard после контента */}
@@ -627,25 +631,26 @@ export default async function Article({ params }: { params: { locale: string; sl
 
           </article>
 
-          {/* Sidebar с VOX Display рекламой */}
-          <aside className="lg:sticky lg:top-4 lg:h-fit">
+          {/* Smart Sidebar с динамическим управлением рекламой */}
+          <aside className="lg:sticky lg:top-4 lg:h-fit space-y-6">
             
-            {/* VOX Display реклама - 300x250 Medium Rectangle сверху */}
+            {/* VOX Display реклама - 300x250 Medium Rectangle сверху (стабильный) */}
             <SidebarAd 
               placeId="63da9e2a4d506e16acfd2a36" 
               format="300x250" 
             />
 
-            {/* VOX Display реклама - 160x600 Wide Skyscraper в середине */}
+            {/* VOX Display реклама - 160x600 Wide Skyscraper с fallback (новый PlaceID) */}
             <div className="hidden lg:block">
-              <UniversalAd 
+              <SmartAd 
                 placeId="68f6451d810d98e1a08f2725" 
-                format="160x600" 
-                className="my-6"
+                format="160x600"
+                fallbackContent={AdFallbacks.relatedTopics}
+                hideOnEmpty={true}
               />
             </div>
 
-            {/* VOX Display реклама - 300x600 Large Skyscraper снизу */}
+            {/* VOX Display реклама - 300x600 Large Skyscraper снизу (стабильный) */}
             <SidebarAd 
               placeId="63daa2ea7bc72f39bc3bfc72" 
               format="300x600" 

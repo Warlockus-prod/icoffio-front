@@ -131,16 +131,24 @@ add_action('wp_footer', 'add_advertising_scripts');
 - **Размещение:** Только в статьях, компоненты `InlineAd.tsx` и `SidebarAd.tsx`
 
 #### **Форматы и PlaceID:**
+
+**Desktop форматы:**
 - **728x90 (Leaderboard)** `63da9b577bc72f39bc3bfc68` - после заголовка (InlineAd)
 - **300x250 (Medium Rectangle)** `63da9e2a4d506e16acfd2a36` - в сайдбаре сверху (SidebarAd)  
 - **970x250 (Large Leaderboard)** `63daa3c24d506e16acfd2a38` - в конце статьи (InlineAd)
 - **300x600 (Large Skyscraper)** `63daa2ea7bc72f39bc3bfc72` - в сайдбаре снизу (SidebarAd)
-- **320x480 (Mobile Large)** `68f63437810d98e1a08f26de` - после контента статьи (MobileAd)
+- **160x600 (Wide Skyscraper)** `68f6451d810d98e1a08f2725` - в сайдбаре средний (UniversalAd)
+
+**Mobile форматы:**
+- **320x50 (Mobile Banner)** `68f644dc70e7b26b58596f34` - после заголовка мобильный (UniversalAd)
+- **320x100 (Large Mobile Banner)** `68f645bf810d98e1a08f272f` - в середине контента (UniversalAd)
+- **320x480 (Mobile Large)** `68f63437810d98e1a08f26de` - после контента статьи (UniversalAd)
 
 #### **Компоненты:**
-- ✅ **InlineAd** - для баннеров в контенте (728x90, 970x250)
-- ✅ **SidebarAd** - для баннеров в сайдбаре (300x250, 300x600)
-- ✅ **MobileAd/UniversalAd** - для мобильных форматов (320x480, адаптивный)
+- ✅ **InlineAd** - для desktop баннеров в контенте (728x90, 970x250)
+- ✅ **SidebarAd** - для desktop баннеров в сайдбаре (300x250, 300x600)
+- ✅ **UniversalAd** - универсальный компонент для всех остальных форматов (320x50, 320x100, 320x480, 160x600)
+- ✅ **Адаптивное размещение** - разные форматы для desktop/mobile через CSS классы
 - ✅ Строгая типизация форматов
 - ✅ Правильные размеры без обрезания
 
@@ -221,30 +229,44 @@ import { SidebarAd } from "@/components/SidebarAd";
 />
 ```
 
-#### MobileAd/UniversalAd - для мобильных форматов
+#### UniversalAd - универсальный компонент
 
 ```jsx
-import { UniversalAd, MobileAd } from "@/components/UniversalAd";
+import { UniversalAd } from "@/components/UniversalAd";
 
-// Мобильный формат 320x480
+// Mobile Banner (только на мобильных)
+<div className="block lg:hidden">
+  <UniversalAd 
+    placeId="68f644dc70e7b26b58596f34" 
+    format="320x50" 
+    className="mb-4"
+  />
+</div>
+
+// Large Mobile Banner (только на мобильных)
+<div className="block lg:hidden">
+  <UniversalAd 
+    placeId="68f645bf810d98e1a08f272f" 
+    format="320x100" 
+    className="my-6"
+  />
+</div>
+
+// Mobile Large Format
 <UniversalAd 
   placeId="68f63437810d98e1a08f26de" 
   format="320x480" 
   className="mt-6"
 />
 
-// Альтернативное использование MobileAd
-<MobileAd 
-  placeId="68f63437810d98e1a08f26de" 
-  format="mobile" 
-/>
-
-// С кастомными стилями для адаптивности
-<UniversalAd 
-  placeId="68f63437810d98e1a08f26de" 
-  format="320x480" 
-  style={{ maxWidth: '100%', margin: '20px auto' }}
-/>
+// Wide Skyscraper (только на desktop)
+<div className="hidden lg:block">
+  <UniversalAd 
+    placeId="68f6451d810d98e1a08f2725" 
+    format="160x600" 
+    className="my-6"
+  />
+</div>
 ```
 
 ### Новый блок в WordPress Ad Inserter
@@ -609,6 +631,18 @@ function initVOX() {
 - ✅ **АДАПТИВНОСТЬ** - сохранена поддержка maxWidth: 100% для узких экранов
 - ✅ **АЛИАС** - добавлен MobileAd как псевдоним UniversalAd
 - ✅ **ПАТЧ 1.4.1** - минорное исправление размеров компонента
+
+### 2025-01-13 - РЕЛИЗ v1.5.0: МАКСИМАЛЬНАЯ МОНЕТИЗАЦИЯ
+- ✅ **3 НОВЫХ PlaceID** - добавлены форматы для полной монетизации
+- ✅ **320x50 Mobile Banner** - `68f644dc70e7b26b58596f34` после заголовка (мобильные)
+- ✅ **320x100 Large Mobile** - `68f645bf810d98e1a08f272f` в середине контента (мобильные)
+- ✅ **160x600 Wide Skyscraper** - `68f6451d810d98e1a08f2725` в сайдбаре (desktop)
+- ✅ **УНИВЕРСАЛЬНЫЙ КОМПОНЕНТ** - полная поддержка всех форматов в UniversalAd
+- ✅ **АДАПТИВНОЕ РАЗМЕЩЕНИЕ** - разные блоки для desktop/mobile через CSS классы
+- ✅ **8 РЕКЛАМНЫХ МЕСТ** - максимальная монетизация без ущерба UX
+- ✅ **СТРОГАЯ ТИПИЗАЦИЯ** - поддержка всех форматов с TypeScript
+- ✅ **RESPONSIVE ДИЗАЙН** - адаптация под все размеры экранов
+- ✅ **ВЕРСИЯ 1.5.0** - значительное расширение рекламной системы
 
 ### [Дата]
 - [Изменения]

@@ -1,22 +1,35 @@
-interface MobileAdProps {
+interface UniversalAdProps {
   placeId: string;
-  format?: '320x480' | 'mobile';
+  format?: '320x50' | '320x100' | '320x480' | '160x600' | 'mobile';
   className?: string;
   style?: React.CSSProperties;
 }
 
-export function UniversalAd({ placeId, format = "320x480", className = "", style = {} }: MobileAdProps) {
-  // Определяем размеры для мобильного формата 320x480
-  const dimensions = {
-    width: '320px',
-    height: '480px',
-    maxWidth: '100%' // Адаптивность для узких экранов
+export function UniversalAd({ placeId, format = "320x480", className = "", style = {} }: UniversalAdProps) {
+  // Определяем размеры для разных форматов
+  const getDimensions = (format: string) => {
+    switch (format) {
+      case '320x50':
+        return { width: '320px', height: '50px', maxWidth: '100%' };
+      case '320x100':
+        return { width: '320px', height: '100px', maxWidth: '100%' };
+      case '320x480':
+        return { width: '320px', height: '480px', maxWidth: '100%' };
+      case '160x600':
+        return { width: '160px', height: '600px', maxWidth: '160px' };
+      case 'mobile':
+      default:
+        return { width: '320px', height: '50px', maxWidth: '100%' };
+    }
   };
+
+  const dimensions = getDimensions(format);
+  const isMobile = ['320x50', '320x100', '320x480', 'mobile'].includes(format);
 
   return (
     <div 
       data-hyb-ssp-ad-place={placeId}
-      className={`vox-mobile-ad ${className}`}
+      className={`vox-universal-ad ${isMobile ? 'vox-mobile-ad' : 'vox-desktop-ad'} vox-${format} ${className}`}
       style={{
         width: dimensions.width,
         height: dimensions.height,
@@ -30,7 +43,7 @@ export function UniversalAd({ placeId, format = "320x480", className = "", style
         ...style
       }}
     >
-      {/* 320x480 Mobile Ad Container - VOX заполнит контентом */}
+      {/* {format} Ad Container - VOX заполнит контентом */}
     </div>
   );
 }

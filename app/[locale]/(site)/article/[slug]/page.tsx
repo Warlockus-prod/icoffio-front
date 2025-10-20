@@ -593,10 +593,10 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
-            {/* VOX Display реклама - новое универсальное место после контента */}
+            {/* VOX Display реклама - мобильный формат 320x480 после контента */}
             <UniversalAd 
               placeId="68f63437810d98e1a08f26de" 
-              format="universal" 
+              format="320x480" 
               className="mt-6"
             />
 

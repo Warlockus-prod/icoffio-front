@@ -574,7 +574,8 @@ export default async function Article({ params }: { params: { locale: string; sl
               className="mb-6"
             />
 
-            {/* VOX Display реклама - 320x50 Mobile Banner после заголовка (только мобильные) */}
+            {/* VOX Display реклама - 320x50 Mobile Banner (ОТКЛЮЧЕН - не активирован провайдером) */}
+            {/* 
             <div className="block lg:hidden">
               <UniversalAd 
                 placeId="68f644dc70e7b26b58596f34" 
@@ -582,6 +583,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 className="mb-4"
               />
             </div>
+            */}
 
             <div className="mb-8">
               <img 
@@ -602,7 +604,8 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
-            {/* VOX Display реклама - 320x100 Large Mobile Banner в середине (только мобильные) */}
+            {/* VOX Display реклама - 320x100 Large Mobile Banner (ОТКЛЮЧЕН - не активирован провайдером) */}
+            {/* 
             <div className="block lg:hidden">
               <UniversalAd 
                 placeId="68f645bf810d98e1a08f272f" 
@@ -610,13 +613,16 @@ export default async function Article({ params }: { params: { locale: string; sl
                 className="my-6"
               />
             </div>
+            */}
 
-            {/* VOX Display реклама - мобильный формат 320x480 после контента */}
+            {/* VOX Display реклама - 320x480 Mobile Large (ОТКЛЮЧЕН - не активирован провайдером) */}
+            {/* 
             <UniversalAd 
               placeId="68f63437810d98e1a08f26de" 
               format="320x480" 
               className="mt-6"
             />
+            */}
 
             {/* VOX Display реклама - 970x250 Large Leaderboard после контента */}
             <InlineAd 
@@ -636,7 +642,8 @@ export default async function Article({ params }: { params: { locale: string; sl
               format="300x250" 
             />
 
-            {/* VOX Display реклама - 160x600 Wide Skyscraper в середине */}
+            {/* VOX Display реклама - 160x600 Wide Skyscraper (ОТКЛЮЧЕН - не заполняется провайдером) */}
+            {/* 
             <div className="hidden lg:block">
               <UniversalAd 
                 placeId="68f6451d810d98e1a08f2725" 
@@ -644,6 +651,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 className="my-6"
               />
             </div>
+            */}
 
             {/* VOX Display реклама - 300x600 Large Skyscraper снизу */}
             <SidebarAd 

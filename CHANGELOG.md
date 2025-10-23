@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+### Planned
+- Настройка Vercel monitoring
+- Добавление environment variables
+
+---
+
+## [4.7.1] - 2025-10-23 - CRITICAL FIX ✅
+
 ### Added
 - ✅ Fallback система для страниц категорий
 - ✅ Mock данные (9 качественных статей) для graceful degradation
@@ -17,10 +25,15 @@
 ### Fixed
 - ✅ 500 ошибка на страницах категорий (/en/category/*)
 - ✅ TypeScript типизация в CategoryPage
+- ✅ Graceful degradation при недоступности WordPress GraphQL
 
-### Planned
-- Настройка Vercel monitoring
-- Добавление environment variables
+### Technical
+- Build: успешный ✅
+- TypeScript: 0 errors ✅
+- Category pages: теперь 200 OK ✅
+- Fallback система: работает ✅
+
+**Следует:** DEVELOPMENT_RULES.md - правильный Git Flow использован
 
 ---
 

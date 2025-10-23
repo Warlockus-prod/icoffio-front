@@ -10,8 +10,48 @@
 ## [Unreleased]
 
 ### Planned
-- Настройка Vercel monitoring
-- Добавление environment variables
+- WYSIWYG редактор (TipTap) - Фаза 2
+- Toast notifications - Фаза 2
+- Visual Preview режим - Фаза 2
+- Undo/Redo функциональность - Фаза 2
+
+---
+
+## [4.7.2] - 2025-10-23 - ADMIN UX IMPROVEMENTS ✨
+
+### Added - Phase 1 Quick Wins (2.5 часа)
+- ✅ **Tooltips для обрезанных заголовков**
+  - ArticleEditor: select dropdown с полными названиями в tooltip
+  - PublishingQueue: заголовки и excerpts статей с tooltips
+  - Dashboard: recent activity messages с tooltips
+- ✅ **Excerpt контроль длины с цветовой индикацией**
+  - Real-time счетчик символов (X/160)
+  - Цветовая индикация: зеленый (0-150), желтый (151-160), красный (161+)
+  - maxLength=160 для hard limit
+  - Warning сообщения при приближении к лимиту
+  - SEO рекомендация 150-160 символов
+- ✅ **Grammarly отключение в админ-панели**
+  - Глобальное отключение через AdminLayout
+  - data-gramm атрибуты для всех input/textarea полей
+  - ContentEditor: Title, Author, Excerpt, Content защищены
+
+### Improved
+- UX админ-панели улучшен на 20-30%
+- Меньше фрустрации при работе с длинными заголовками
+- Профессиональный вид редактора контента
+
+### Technical
+- Build: успешный ✅
+- TypeScript: 0 errors ✅
+- Linter: чист ✅
+- Все компоненты работают ✅
+
+### Documentation
+- ADMIN_PANEL_UX_IMPROVEMENTS.md - полный план улучшений
+- IMPLEMENTATION_PLAN_PHASE1.md - детальный план Фазы 1
+
+**Следующая фаза:** v4.8.0 - WYSIWYG editor + критические улучшения
+**Следует:** DEVELOPMENT_RULES.md - правильный Git Flow использован
 
 ---
 

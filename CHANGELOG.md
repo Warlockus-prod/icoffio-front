@@ -9,8 +9,16 @@
 
 ## [Unreleased]
 
+### Added
+- ✅ Fallback система для страниц категорий
+- ✅ Mock данные (9 качественных статей) для graceful degradation
+- ✅ Try/catch обертка для GraphQL запросов в категориях
+
+### Fixed
+- ✅ 500 ошибка на страницах категорий (/en/category/*)
+- ✅ TypeScript типизация в CategoryPage
+
 ### Planned
-- Исправление fallback системы в страницах категорий
 - Настройка Vercel monitoring
 - Добавление environment variables
 

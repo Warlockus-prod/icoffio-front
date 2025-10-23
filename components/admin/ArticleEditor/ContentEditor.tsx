@@ -237,6 +237,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                 onChange={(e) => handleChange('title', e.target.value)}
                 className="w-full px-4 py-3 text-lg font-semibold border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 placeholder="Enter article title..."
+                data-gramm="false"
+                data-gramm_editor="false"
+                data-enable-grammarly="false"
               />
               <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {editedContent.title.length} characters
@@ -273,6 +276,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                     onChange={(e) => handleChange('author', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="Author name"
+                    data-gramm="false"
+                    data-gramm_editor="false"
+                    data-enable-grammarly="false"
                   />
                 </div>
               </div>
@@ -282,16 +288,41 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Excerpt
+                <span className={`ml-2 text-xs font-normal ${
+                  editedContent.excerpt.length <= 150 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : editedContent.excerpt.length <= 160 
+                    ? 'text-yellow-600 dark:text-yellow-400' 
+                    : 'text-red-600 dark:text-red-400'
+                }`}>
+                  ({editedContent.excerpt.length}/160)
+                </span>
               </label>
               <textarea
                 value={editedContent.excerpt}
                 onChange={(e) => handleChange('excerpt', e.target.value)}
+                maxLength={160}
                 rows={3}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white resize-vertical"
                 placeholder="Brief summary of the article..."
+                data-gramm="false"
+                data-gramm_editor="false"
+                data-enable-grammarly="false"
               />
-              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {editedContent.excerpt.length} characters • Ideal length: 150-160 characters
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-gray-500 dark:text-gray-400">
+                  Ideal length: 150-160 characters for SEO
+                </span>
+                {editedContent.excerpt.length > 150 && editedContent.excerpt.length <= 160 && (
+                  <span className="text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                    ⚠️ Close to limit
+                  </span>
+                )}
+                {editedContent.excerpt.length === 160 && (
+                  <span className="text-red-600 dark:text-red-400 flex items-center gap-1">
+                    🚫 Maximum reached
+                  </span>
+                )}
               </div>
             </div>
 
@@ -306,6 +337,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                 rows={20}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm resize-vertical"
                 placeholder="Write your article content here..."
+                data-gramm="false"
+                data-gramm_editor="false"
+                data-enable-grammarly="false"
               />
               
               {/* Content Stats */}

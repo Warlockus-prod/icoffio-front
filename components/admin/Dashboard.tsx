@@ -122,7 +122,10 @@ export default function Dashboard() {
                     {activity.type === 'parsing_failed' && '❌'}
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm text-gray-900 dark:text-white">
+                    <div 
+                      className="text-sm text-gray-900 dark:text-white truncate"
+                      title={activity.message}
+                    >
                       {activity.message}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">

@@ -226,10 +226,16 @@ export default function PublishingQueue() {
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      <h4 
+                        className="text-lg font-semibold text-gray-900 dark:text-white mb-1 truncate"
+                        title={article.title}
+                      >
                         {article.title}
                       </h4>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-2">
+                      <p 
+                        className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-2"
+                        title={article.excerpt}
+                      >
                         {article.excerpt}
                       </p>
                     </div>

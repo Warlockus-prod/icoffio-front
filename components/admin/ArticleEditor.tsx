@@ -151,10 +151,15 @@ export default function ArticleEditor() {
                 if (article) selectArticle(article);
               }}
               className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[200px]"
+              title={selectedArticle?.title || 'Select an article'}
             >
               {readyArticles.map((job) => (
-                <option key={job.article!.id} value={job.article!.id}>
-                  {job.article!.title.substring(0, 50)}...
+                <option 
+                  key={job.article!.id} 
+                  value={job.article!.id}
+                  title={job.article!.title}
+                >
+                  {job.article!.title.substring(0, 50)}{job.article!.title.length > 50 ? '...' : ''}
                 </option>
               ))}
             </select>

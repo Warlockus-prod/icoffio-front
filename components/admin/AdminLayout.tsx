@@ -22,7 +22,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ] as const;
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div 
+      className="flex h-screen bg-gray-50 dark:bg-gray-900"
+      data-gramm="false"
+      data-gramm_editor="false"
+      data-enable-grammarly="false"
+    >
       {/* Sidebar */}
       <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
         {/* Header */}

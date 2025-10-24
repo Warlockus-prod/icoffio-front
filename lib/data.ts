@@ -48,27 +48,74 @@ async function getTranslatedArticles(): Promise<Record<string, any>> {
   return [];
 }
 
-// Строгая фильтрация статей по языку (поддерживаем все языки)
+// Детектирование кириллицы в тексте
+function hasCyrillic(text: string): boolean {
+  return /[\u0400-\u04FF]/.test(text);
+}
+
+// Детектирование польского языка
+function hasPolish(text: string): boolean {
+  // Специфичные польские символы
+  return /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text);
+}
+
+// Улучшенная фильтрация статей по языку с детектированием контента
 function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
   console.log(`🌍 Filtering ${articles.length} articles for locale: ${locale}`);
   
   // Поддерживаемые языки: en, pl (сайт НЕ поддерживает русский)
-  if (['en', 'pl'].includes(locale)) {
-    const filtered = articles.filter(article => {
-      const hasLanguageSuffix = article.slug.endsWith(`-${locale}`);
-      if (hasLanguageSuffix) {
-        console.log(`✅ Article matched for ${locale}: ${article.slug}`);
-      }
-      return hasLanguageSuffix;
-    });
-    
-    console.log(`📊 Filtered ${filtered.length}/${articles.length} articles for ${locale}`);
-    return filtered;
+  if (!['en', 'pl'].includes(locale)) {
+    console.warn(`Unsupported locale: ${locale}. Supported: 'en', 'pl' only.`);
+    return [];
   }
   
-  // Для неподдерживаемых языков возвращаем пустой массив
-  console.warn(`Unsupported locale: ${locale}. Supported: 'en', 'pl' only.`);
-  return [];
+  const filtered = articles.filter(article => {
+    // 1. Проверяем slug на наличие суффикса языка (основная проверка)
+    const slugContainsLocale = article.slug.includes(`-${locale}`);
+    
+    // 2. Проверяем контент статьи (title, excerpt, content) на соответствие языку
+    const contentToCheck = `${article.title} ${article.excerpt || ''} ${article.content || ''}`;
+    
+    if (locale === 'en') {
+      // Для английской версии: исключаем статьи с кириллицей или польскими символами
+      const hasUnwantedChars = hasCyrillic(contentToCheck) || hasPolish(contentToCheck);
+      
+      if (hasUnwantedChars) {
+        console.log(`🚫 Excluded from EN: ${article.slug} (contains non-English characters)`);
+        return false;
+      }
+      
+      // Разрешаем статьи с -en в slug ИЛИ без специфичных языковых маркеров
+      const isEnglish = slugContainsLocale || (!hasCyrillic(contentToCheck) && !hasPolish(contentToCheck));
+      
+      if (isEnglish) {
+        console.log(`✅ Article matched for EN: ${article.slug}`);
+      }
+      return isEnglish;
+    }
+    
+    if (locale === 'pl') {
+      // Для польской версии: требуем -pl в slug И исключаем кириллицу
+      const hasRussian = hasCyrillic(contentToCheck);
+      
+      if (hasRussian) {
+        console.log(`🚫 Excluded from PL: ${article.slug} (contains Cyrillic)`);
+        return false;
+      }
+      
+      const isPolish = slugContainsLocale && !hasRussian;
+      
+      if (isPolish) {
+        console.log(`✅ Article matched for PL: ${article.slug}`);
+      }
+      return isPolish;
+    }
+    
+    return false;
+  });
+  
+  console.log(`📊 Filtered ${filtered.length}/${articles.length} articles for ${locale}`);
+  return filtered;
 }
 
 // Комбинирование WordPress и локальных статей
@@ -132,13 +179,14 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
     }
     
     // Преобразуем данные из WordPress API в формат Post
+    // Пустые строки для image заменяем на undefined для корректной работы fallback
     const wpPosts: Post[] = data.articles.map((article: any) => ({
       slug: article.slug,
       title: strip(article.title) || "Untitled",
       excerpt: strip(article.excerpt),
       date: article.date,
       publishedAt: article.date,
-      image: article.image || "",
+      image: article.image && article.image.trim() !== '' ? article.image : '',
       category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
       contentHtml: article.content || "",
     }));

@@ -603,7 +603,10 @@ class UnifiedArticleService {
         
         // Списки (маркированные)
         if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
-          const items = paragraph.split('\n- ').map(item => item.startsWith('- ') ? item.substring(2) : item);
+          // Убираем начальный "- " если есть
+          let listText = paragraph.startsWith('- ') ? paragraph.substring(2) : paragraph;
+          // Разбиваем по "\n- " и очищаем каждый элемент
+          const items = listText.split('\n- ').map(item => item.trim()).filter(item => item.length > 0);
           const listItems = items.map(item => `<li>${this.formatInlineElements(item)}</li>`).join('');
           return `<ul>${listItems}</ul>`;
         }
@@ -647,7 +650,11 @@ class UnifiedArticleService {
    * Форматирование inline элементов (жирный, курсив, ссылки, код)
    */
   private formatInlineElements(text: string): string {
-    return text
+    // Сначала экранируем HTML (только в plain тексте, не в markdown синтаксисе)
+    let result = text;
+    
+    // Применяем markdown форматирование
+    result = result
       // Жирный текст **bold**
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       // Курсив *italic*  
@@ -656,12 +663,10 @@ class UnifiedArticleService {
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       // Ссылки [text](url)
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-      // Автоматические ссылки
-      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-      // Экранирование HTML в остальном тексте
-      .replace(/&(?![a-zA-Z][a-zA-Z0-9]*;)/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      // Автоматические ссылки (только если не внутри тегов)
+      .replace(/(?<!href=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    return result;
   }
   
   /**

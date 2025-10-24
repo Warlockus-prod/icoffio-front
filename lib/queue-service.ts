@@ -189,7 +189,7 @@ class QueueService {
         category: category || 'Technology',
         language: language || 'en',
         author: 'Telegram Bot',
-        tags: ['telegram', 'parsed-url'],
+        // tags removed - WordPress REST API requires tag IDs (integers), not strings
         source: 'telegram-bot-url'
       }),
     });
@@ -269,7 +269,7 @@ class QueueService {
         category: category || 'Technology',
         language: language || 'en',
         author: 'Telegram Bot',
-        tags: ['telegram', 'ai-generated'],
+        // tags removed - WordPress REST API requires tag IDs (integers), not strings
         source: 'telegram-bot'
       }),
     });

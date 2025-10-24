@@ -1,154 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { getArticleImage, type ImageSource } from '@/lib/image-generation-service';
 
-function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured');
-  }
-  return new OpenAI({ apiKey });
-}
-
+/**
+ * API endpoint для генерации изображений статей
+ * Поддерживает DALL-E 3, Unsplash и custom URLs
+ */
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, article, style = 'realistic', size = '1024x1024' } = await request.json();
+    const {
+      source = 'unsplash',
+      title,
+      excerpt,
+      category,
+      customUrl,
+      quality = 'hd',
+      style = 'natural',
+      size = '1792x1024',
+    } = await request.json();
 
-    if (!prompt) {
+    // Валидация
+    if (!title) {
       return NextResponse.json(
-        { error: 'Prompt is required' },
+        { success: false, error: 'Article title is required' },
         { status: 400 }
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!['dalle', 'unsplash', 'custom'].includes(source)) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { success: false, error: 'Invalid image source' },
+        { status: 400 }
+      );
+    }
+
+    if (source === 'custom' && !customUrl) {
+      return NextResponse.json(
+        { success: false, error: 'Custom URL is required when using custom source' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`🎨 Generating image from ${source} for article: "${title}"`);
+
+    // Генерируем изображение через unified service
+    const result = await getArticleImage(
+      source as ImageSource,
+      {
+        title,
+        excerpt,
+        category,
+        quality: quality as 'standard' | 'hd',
+        style: style as 'natural' | 'vivid',
+        size: size as '1024x1024' | '1792x1024' | '1024x1792',
+      },
+      customUrl
+    );
+
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, error: result.error },
         { status: 500 }
       );
     }
 
-    // Enhance prompt based on article context and style
-    const enhancedPrompt = enhancePrompt(prompt, article, style);
-    
-    console.log(`🎨 Generating image with DALL-E: "${enhancedPrompt}"`);
-
-    const openai = getOpenAIClient();
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: enhancedPrompt,
-      n: 1,
-      size: size as "1024x1024" | "1792x1024" | "1024x1792",
-      quality: "standard",
-      style: style === 'natural' ? 'natural' : 'vivid'
-    });
-
-    const imageUrl = response.data?.[0]?.url;
-    
-    if (!imageUrl) {
-      throw new Error('No image generated');
+    console.log(`✅ Image generated successfully from ${source}`);
+    if (result.cost && result.cost > 0) {
+      console.log(`💰 Cost: $${result.cost.toFixed(2)}`);
     }
-
-    // Create image object compatible with our system
-    const generatedImage = {
-      id: `dalle-${Date.now()}`,
-      url: imageUrl,
-      thumbnail: imageUrl, // DALL-E doesn't provide thumbnails, use full size
-      fullSize: imageUrl,
-      description: `AI generated image: ${prompt}`,
-      author: 'DALL-E 3',
-      authorUrl: 'https://openai.com/dall-e',
-      width: parseInt(size.split('x')[0]),
-      height: parseInt(size.split('x')[1]),
-      aspectRatio: (parseInt(size.split('x')[0]) / parseInt(size.split('x')[1])).toFixed(2),
-      downloadUrl: imageUrl,
-      source: 'openai',
-      tags: extractTagsFromPrompt(prompt),
-      color: '#000000', // Default color
-      likes: 0,
-      createdAt: new Date().toISOString(),
-      prompt: enhancedPrompt,
-      originalPrompt: prompt,
-      style,
-      model: 'dall-e-3'
-    };
-
-    console.log(`✅ Successfully generated image with DALL-E`);
 
     return NextResponse.json({
       success: true,
-      image: generatedImage,
-      usage: {
-        prompt_tokens: enhancedPrompt.length,
-        model: 'dall-e-3'
-      }
+      url: result.url,
+      cost: result.cost,
+      revisedPrompt: result.revisedPrompt,
+      source,
     });
 
   } catch (error) {
-    console.error('DALL-E generation error:', error);
-    
-    let errorMessage = 'Image generation failed';
+    console.error('Image generation API error:', error);
+
+    let errorMessage = 'Failed to generate image';
     if (error instanceof Error) {
       errorMessage = error.message;
     }
 
-    return NextResponse.json({
-      success: false,
-      error: errorMessage
-    }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: errorMessage },
+      { status: 500 }
+    );
   }
 }
-
-// Helper function to enhance prompts based on article context
-function enhancePrompt(prompt: string, article: any, style: string): string {
-  let enhancedPrompt = prompt;
-
-  // Add style modifiers
-  const styleModifiers = {
-    realistic: 'photorealistic, high quality, professional',
-    artistic: 'artistic, creative, stylized',
-    minimal: 'minimal, clean, simple design',
-    vibrant: 'vibrant colors, energetic, dynamic',
-    tech: 'modern, technological, futuristic, sleek'
-  };
-
-  const modifier = styleModifiers[style as keyof typeof styleModifiers] || styleModifiers.realistic;
-  
-  // Add context from article if provided
-  if (article) {
-    const category = article.category;
-    const categoryContexts = {
-      'ai': 'artificial intelligence, machine learning, technology',
-      'apple': 'Apple products, iOS, modern design, premium',
-      'tech': 'technology, innovation, modern, digital',
-      'digital': 'digital transformation, modern, clean'
-    };
-    
-    const context = categoryContexts[category as keyof typeof categoryContexts] || 'technology';
-    enhancedPrompt = `${prompt}, ${context}, ${modifier}`;
-  } else {
-    enhancedPrompt = `${prompt}, ${modifier}`;
-  }
-
-  // Ensure prompt is not too long (DALL-E has limits)
-  if (enhancedPrompt.length > 1000) {
-    enhancedPrompt = enhancedPrompt.substring(0, 997) + '...';
-  }
-
-  return enhancedPrompt;
-}
-
-// Helper function to extract tags from prompt
-function extractTagsFromPrompt(prompt: string): string[] {
-  // Simple tag extraction based on common words
-  const commonTags = [
-    'technology', 'ai', 'artificial intelligence', 'machine learning',
-    'apple', 'ios', 'iphone', 'ipad', 'mac',
-    'digital', 'innovation', 'modern', 'futuristic',
-    'business', 'startup', 'development', 'programming',
-    'design', 'ui', 'ux', 'interface'
-  ];
-
-  const promptLower = prompt.toLowerCase();
-  return commonTags.filter(tag => promptLower.includes(tag));
-}
-

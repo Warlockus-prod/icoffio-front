@@ -22,6 +22,7 @@ export interface Article {
   excerpt: string;
   category: string;
   author: string;
+  image?: string; // Article image URL (from DALL-E, Unsplash, or custom)
   translations: {
     en?: { title: string; content: string; excerpt: string };
     pl?: { title: string; content: string; excerpt: string };

@@ -13,6 +13,141 @@
 - Image upload в WYSIWYG - будущее улучшение (Phase 5)
 - Collaborative editing - будущее улучшение
 - AI-powered content suggestions - будущее улучшение
+- Multiple images generation для inline контента статей
+
+---
+
+## [5.1.0] - 2025-10-24 - DALL-E 3 IMAGE GENERATION 🎨
+
+**MINOR RELEASE** - Интеграция DALL-E 3 для генерации уникальных изображений статей
+
+### Added - Phase 2: AI Image Generation
+- 🎨 **DALL-E 3 Integration**
+  - Генерация уникальных, контекст-aware изображений для статей
+  - Поддержка HD quality (1792x1024 landscape format)
+  - Умный prompt generation на основе title, excerpt и category
+  - Стили: natural / vivid
+  - Автоматический расчет стоимости (~$0.08/image HD)
+
+- 📸 **Unified Image Service** (`lib/image-generation-service.ts`)
+  - `generateArticleImage()` - DALL-E 3 генерация
+  - `getUnsplashImage()` - Unsplash альтернатива (free)
+  - `getArticleImage()` - универсальный метод с auto-routing
+  - `generateMultipleImages()` - batch generation (future use)
+  - Smart prompt optimization по категориям:
+    - AI: futuristic, neural networks, digital
+    - Apple: minimalist, sleek, modern design
+    - Tech: cutting-edge, innovation
+    - Games: immersive, dynamic
+    - Digital: transformation, connectivity
+
+- 🖼️ **ImageSourceSelector Component**
+  - Radio buttons для выбора источника (DALL-E / Unsplash / Custom URL)
+  - Real-time preview сгенерированного изображения
+  - Cost indicator для DALL-E (~$0.08/image)
+  - Error handling с user-friendly messages
+  - Tooltips с описаниями каждого источника
+  - Touch-friendly responsive design (mobile/desktop)
+
+- ✨ **ContentEditor Integration**
+  - Новое поле `imageUrl` в article editor
+  - Auto-save изображения при изменении
+  - Toast notifications для успешной генерации
+  - Доступно только для English/original articles
+  - Image preview в интерфейсе
+
+- 🔌 **API Endpoint** (`/api/admin/generate-image`)
+  - POST endpoint для генерации изображений
+  - Валидация параметров
+  - Error handling с детальными сообщениями
+  - Logging для debugging
+  - Cost tracking
+
+### Technical Details
+- **Configuration:**
+  - `OPENAI_API_KEY` environment variable required
+  - DALL-E 3 model для высокого качества
+  - Default: HD quality, natural style, 1792x1024 size
+  - Fallback к Unsplash при отсутствии API key
+
+- **Image Sources:**
+  1. **DALL-E 3** (⭐ Premium)
+     - Cost: ~$0.08/image (HD quality)
+     - Unique, context-aware images
+     - Perfect for professional articles
+  
+  2. **Unsplash** (📸 Free)
+     - Cost: $0.00 (free)
+     - High-quality stock photos
+     - Fast generation
+     - Perfect для quick publishing
+  
+  3. **Custom URL** (🔗 Manual)
+     - Cost: $0.00
+     - Manual image URL input
+     - External sources support
+
+### Features
+- ✅ **Context-Aware Generation:**
+  - Анализирует title, excerpt, category
+  - Создает оптимизированные prompts
+  - Адаптируется к стилю категории
+
+- ✅ **Smart Fallback:**
+  - Если DALL-E недоступен → Unsplash
+  - Если Unsplash недоступен → Custom URL
+  - Graceful degradation
+
+- ✅ **Cost Control:**
+  - Отображение стоимости перед генерацией
+  - Transparent pricing ($0.08/HD image)
+  - Free альтернативы всегда доступны
+
+- ✅ **User Experience:**
+  - Простой radio button interface
+  - Real-time preview
+  - Loading states
+  - Error messages
+  - Success notifications
+
+### Future Enhancements
+- Multiple images для inline content
+- Image caching system
+- Image variants (different sizes)
+- Batch image generation
+- Image editing/filters
+
+---
+
+## [5.0.1] - 2025-10-24 - MARKDOWN PARSER BUGFIX 🐛
+
+**PATCH RELEASE** - Критическое исправление отображения контента статей
+
+### Fixed - Content Rendering
+- 🐛 **CRITICAL:** Исправлено отображение RAW markdown в статьях
+  - Статьи из WordPress GraphQL API теперь корректно парсятся из markdown в HTML
+  - Добавлена библиотека `marked@^14.1.2` для парсинга markdown
+  - Создан `lib/markdown.ts` с утилитами:
+    - `parseMarkdown()` - конвертация markdown → HTML
+    - `isMarkdown()` - определение формата контента
+    - `renderContent()` - интеллектуальный рендеринг (auto-detect format)
+  - Обновлен `/app/[locale]/(site)/article/[slug]/page.tsx`
+  - Теперь пользователи видят форматированный контент вместо `# заголовки`, `**bold**`, `![image](url)`
+
+### Technical Details
+- **Dependencies Added:**
+  - `marked@^14.1.2` - Markdown parser
+  - `@types/marked@^6.0.0` (dev) - TypeScript types
+- **Configuration:**
+  - GitHub Flavored Markdown (GFM) enabled
+  - Line breaks support enabled
+  - Header IDs generation enabled
+- **Fallback:** При ошибке парсинга возвращается `<pre>` с исходным текстом
+
+### Impact
+- ✅ Все статьи теперь читабельны и профессионально отформатированы
+- ✅ Поддержка заголовков, списков, ссылок, изображений, цитат
+- ✅ Совместимость с существующим HTML контентом (auto-detect)
 
 ---
 

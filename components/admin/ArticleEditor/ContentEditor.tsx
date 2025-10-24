@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import toast from 'react-hot-toast';
 import RichTextEditor from '../RichTextEditor';
+import ImageSourceSelector from '../ImageSourceSelector';
+import type { ImageSource } from '@/lib/image-generation-service';
 
 interface ContentEditorProps {
   article?: Article | null;
@@ -23,7 +25,8 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
     content: '',
     excerpt: '',
     category: 'tech',
-    author: 'icoffio Editorial Team'
+    author: 'icoffio Editorial Team',
+    imageUrl: ''
   });
   
   const [isDirty, setIsDirty] = useState(false);
@@ -43,7 +46,8 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
           content: article.content,
           excerpt: article.excerpt,
           category: article.category,
-          author: article.author
+          author: article.author,
+          imageUrl: article.image || ''
         });
       } else {
         const translation = article.translations[language];
@@ -53,7 +57,8 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
             content: translation.content,
             excerpt: translation.excerpt,
             category: article.category,
-            author: article.author
+            author: article.author,
+            imageUrl: article.image || ''
           });
         }
       }
@@ -75,6 +80,12 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
   const handleChange = (field: keyof typeof editedContent, value: string) => {
     setEditedContent(prev => ({ ...prev, [field]: value }));
     setIsDirty(true);
+  };
+
+  const handleImageGenerated = (url: string, source: ImageSource) => {
+    setEditedContent(prev => ({ ...prev, imageUrl: url }));
+    setIsDirty(true);
+    toast.success(`✅ Image from ${source} applied successfully!`);
   };
 
   const saveContent = async () => {
@@ -341,6 +352,17 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                 )}
               </div>
             </div>
+
+            {/* Image Source Selector (only for English/original) */}
+            {language === 'en' && (
+              <ImageSourceSelector
+                onImageGenerated={handleImageGenerated}
+                articleTitle={editedContent.title}
+                articleExcerpt={editedContent.excerpt}
+                articleCategory={editedContent.category}
+                currentImageUrl={editedContent.imageUrl}
+              />
+            )}
 
             {/* Content */}
             <div>

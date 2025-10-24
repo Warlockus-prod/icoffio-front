@@ -9,6 +9,7 @@ import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { InlineAd } from "@/components/InlineAd";
 import { SidebarAd } from "@/components/SidebarAd";
+import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -583,7 +584,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             {/* Article Content */}
             <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
               {post.content ? (
-                <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                <div dangerouslySetInnerHTML={{ __html: renderContent(post.content) }} />
               ) : post.contentHtml ? (
                 <Prose html={post.contentHtml} />
               ) : (

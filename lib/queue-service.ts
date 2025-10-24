@@ -87,15 +87,17 @@ class QueueService {
       this.currentlyProcessing.add(job.id);
 
       console.log(`[Queue] Processing job: ${job.id} (${this.queue.length - 1} remaining)`);
+      console.log(`[Queue] Job type: ${job.type}, data:`, JSON.stringify(job.data));
 
       try {
+        console.log(`[Queue] Starting processJob for: ${job.id}`);
         const result = await this.processJob(job);
         
         job.status = 'completed';
         job.completedAt = new Date();
         job.result = result;
         
-        console.log(`[Queue] Job completed: ${job.id}`);
+        console.log(`[Queue] Job completed: ${job.id}`, JSON.stringify(result));
         
       } catch (error: any) {
         console.error(`[Queue] Job failed: ${job.id}`, error);
@@ -219,6 +221,8 @@ class QueueService {
 
     // Step 1: Generate article content with AI
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.icoffio.com';
+    console.log(`[Queue] Calling AI generation: ${baseUrl}/api/admin/generate-article-content`);
+    
     const generateResponse = await fetch(`${baseUrl}/api/admin/generate-article-content`, {
       method: 'POST',
       headers: {
@@ -234,14 +238,23 @@ class QueueService {
       }),
     });
 
+    console.log(`[Queue] AI generation response status: ${generateResponse.status}`);
+
     if (!generateResponse.ok) {
       const error = await generateResponse.text();
+      console.error(`[Queue] AI generation failed:`, error);
       throw new Error(`Text generation failed: ${error}`);
     }
 
     const generatedContent = await generateResponse.json();
+    console.log(`[Queue] AI generated article:`, {
+      title: generatedContent.title,
+      wordCount: generatedContent.wordCount
+    });
 
     // Step 2: Publish article to WordPress
+    console.log(`[Queue] Publishing to WordPress: ${baseUrl}/api/admin/publish-article`);
+    
     const publishResponse = await fetch(`${baseUrl}/api/admin/publish-article`, {
       method: 'POST',
       headers: {
@@ -259,12 +272,19 @@ class QueueService {
       }),
     });
 
+    console.log(`[Queue] Publish response status: ${publishResponse.status}`);
+
     if (!publishResponse.ok) {
       const error = await publishResponse.text();
+      console.error(`[Queue] Publication failed:`, error);
       throw new Error(`Publication failed: ${error}`);
     }
 
     const publishResult = await publishResponse.json();
+    console.log(`[Queue] Article published:`, {
+      postId: publishResult.postId,
+      url: publishResult.url
+    });
 
     return {
       ...generatedContent,

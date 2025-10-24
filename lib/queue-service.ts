@@ -159,7 +159,8 @@ class QueueService {
     }
 
     // Step 1: Parse URL content
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.icoffio.com';
+    // IMPORTANT: Use app.icoffio.com for API calls (not icoffio.com which is WordPress)
+    const baseUrl = 'https://app.icoffio.com';
     const parseResponse = await fetch(`${baseUrl}/api/admin/parse-url`, {
       method: 'POST',
       headers: {
@@ -220,7 +221,8 @@ class QueueService {
     }
 
     // Step 1: Generate article content with AI
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.icoffio.com';
+    // IMPORTANT: Use app.icoffio.com for API calls (not icoffio.com which is WordPress)
+    const baseUrl = 'https://app.icoffio.com';
     console.log(`[Queue] Calling AI generation: ${baseUrl}/api/admin/generate-article-content`);
     
     const generateResponse = await fetch(`${baseUrl}/api/admin/generate-article-content`, {

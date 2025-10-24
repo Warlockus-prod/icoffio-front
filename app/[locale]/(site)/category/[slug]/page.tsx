@@ -114,6 +114,118 @@ const mockPosts = [
     category: { name: "Games", slug: "games" },
     publishedAt: "2025-01-09T09:15:00Z",
     content: ""
+  },
+  // Additional AI articles for better diversity
+  {
+    id: "10",
+    slug: "machine-learning-healthcare-2024",
+    title: "Machine Learning Revolutionizes Healthcare Diagnostics",
+    excerpt: "AI-powered diagnostic tools achieve 95% accuracy in early disease detection.",
+    image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-09T09:15:00Z",
+    content: ""
+  },
+  {
+    id: "11",
+    slug: "autonomous-vehicles-ai-2024",
+    title: "Autonomous Vehicles: AI Reaches Level 4 Automation",
+    excerpt: "Self-driving cars achieve remarkable safety milestones with advanced AI systems.",
+    image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-08T15:30:00Z",
+    content: ""
+  },
+  {
+    id: "12",
+    slug: "natural-language-processing-breakthroughs",
+    title: "Natural Language Processing: Understanding Context Like Never Before",
+    excerpt: "Latest NLP models demonstrate human-level language comprehension across 100+ languages.",
+    image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-08T11:20:00Z",
+    content: ""
+  },
+  {
+    id: "13",
+    slug: "ai-creative-industries-2024",
+    title: "AI in Creative Industries: Augmenting Human Creativity",
+    excerpt: "Artists and designers leverage AI tools to push creative boundaries in unprecedented ways.",
+    image: "https://images.unsplash.com/photo-1547954575-855750c57bd3?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-07T14:45:00Z",
+    content: ""
+  },
+  {
+    id: "14",
+    slug: "computer-vision-object-recognition",
+    title: "Computer Vision: Real-Time Object Recognition Perfected",
+    excerpt: "Advanced computer vision systems identify and track objects with near-perfect accuracy.",
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-07T10:15:00Z",
+    content: ""
+  },
+  {
+    id: "15",
+    slug: "ai-climate-change-solutions",
+    title: "AI Tackles Climate Change: Predictive Models Save Resources",
+    excerpt: "Machine learning algorithms optimize energy consumption and predict environmental patterns.",
+    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-06T16:30:00Z",
+    content: ""
+  },
+  {
+    id: "16",
+    slug: "robotics-ai-integration-2024",
+    title: "Robotics and AI: The Perfect Partnership",
+    excerpt: "Intelligent robots perform complex tasks with human-like dexterity and decision-making.",
+    image: "https://images.unsplash.com/photo-1561144257-e32e8efc6c4f?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-06T13:00:00Z",
+    content: ""
+  },
+  {
+    id: "17",
+    slug: "ai-education-personalized-learning",
+    title: "AI in Education: Personalized Learning Paths for Every Student",
+    excerpt: "Adaptive learning systems tailor educational content to individual student needs and pace.",
+    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200",
+    category: { name: "AI", slug: "ai" },
+    publishedAt: "2025-01-05T09:45:00Z",
+    content: ""
+  },
+  // Additional articles for other categories
+  {
+    id: "18",
+    slug: "apple-silicon-m4-performance",
+    title: "Apple Silicon M4: Redefining Performance Standards",
+    excerpt: "Next-generation Apple chips deliver unprecedented performance per watt efficiency.",
+    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=1200",
+    category: { name: "Apple", slug: "apple" },
+    publishedAt: "2025-01-05T08:30:00Z",
+    content: ""
+  },
+  {
+    id: "19",
+    slug: "cloud-gaming-revolution-2024",
+    title: "Cloud Gaming Revolution: Play AAA Titles Anywhere",
+    excerpt: "5G networks enable lag-free cloud gaming on mobile devices with console-quality graphics.",
+    image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1200",
+    category: { name: "Games", slug: "games" },
+    publishedAt: "2025-01-04T15:20:00Z",
+    content: ""
+  },
+  {
+    id: "20",
+    slug: "5g-networks-global-rollout",
+    title: "5G Networks: Global Rollout Accelerates",
+    excerpt: "Ultra-fast 5G connectivity transforms how we work, play, and communicate worldwide.",
+    image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1200",
+    category: { name: "Tech", slug: "tech" },
+    publishedAt: "2025-01-04T11:10:00Z",
+    content: ""
   }
 ];
 

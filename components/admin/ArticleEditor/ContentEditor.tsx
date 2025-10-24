@@ -397,8 +397,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
       </div>
 
       {/* Sticky Footer Actions */}
-      <div className="sticky bottom-0 p-6 border-t border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
-        <div className="flex items-center justify-between">
+      {/* Touch-friendly footer */}
+      <div className="sticky bottom-0 p-4 md:p-6 border-t border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           {/* Status Info */}
           <div className="space-y-1">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -422,11 +423,11 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
           </div>
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            {/* Optional: AI Improve (future feature) */}
+          <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
+            {/* Optional: AI Improve - hidden on mobile */}
             <button 
               disabled
-              className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed flex items-center gap-2"
+              className="hidden md:flex px-4 py-2.5 min-h-[44px] bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed items-center gap-2"
               title="AI Improve (Coming soon)"
             >
               <span>🤖</span>
@@ -434,11 +435,11 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
               <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">Soon</span>
             </button>
             
-            {/* Save Draft */}
+            {/* Save */}
             <button
               onClick={saveContent}
               disabled={!isDirty || isSaving}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+              className="flex-1 md:flex-none px-4 md:px-5 py-3 md:py-2.5 min-h-[48px] md:min-h-[44px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2 touch-none"
             >
               {isSaving ? (
                 <>
@@ -448,7 +449,7 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
               ) : (
                 <>
                   <span>💾</span>
-                  <span>Save Changes</span>
+                  <span>Save</span>
                 </>
               )}
             </button>
@@ -456,14 +457,15 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
             {/* Preview */}
             <button
               onClick={() => setIsPreview(!isPreview)}
-              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              className={`flex-1 md:flex-none px-4 md:px-5 py-3 md:py-2.5 min-h-[48px] md:min-h-[44px] rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 touch-none ${
                 isPreview
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  ? 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500'
               }`}
             >
               <span>{isPreview ? '✏️' : '👁️'}</span>
-              <span>{isPreview ? 'Back to Edit' : 'Preview'}</span>
+              <span className="hidden sm:inline">{isPreview ? 'Edit' : 'Preview'}</span>
+              <span className="sm:hidden">{isPreview ? 'Edit' : 'Preview'}</span>
             </button>
           </div>
         </div>

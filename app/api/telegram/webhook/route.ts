@@ -160,8 +160,12 @@ export async function POST(request: NextRequest) {
         `⏳ Ожидайте обработки...`
       );
 
-      // Start monitoring job
-      monitorJob(jobId, chatId);
+      // Start async processing (fire-and-forget)
+      fetch('https://app.icoffio.com/api/telegram/process-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, chatId }),
+      }).catch(err => console.error('[Webhook] Failed to trigger processing:', err));
 
     } else {
       // Text generation job
@@ -190,8 +194,12 @@ export async function POST(request: NextRequest) {
         `⏳ Ожидайте (~30 секунд)`
       );
 
-      // Start monitoring job
-      monitorJob(jobId, chatId);
+      // Start async processing (fire-and-forget)
+      fetch('https://app.icoffio.com/api/telegram/process-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, chatId }),
+      }).catch(err => console.error('[Webhook] Failed to trigger processing:', err));
     }
 
     return NextResponse.json({ ok: true });

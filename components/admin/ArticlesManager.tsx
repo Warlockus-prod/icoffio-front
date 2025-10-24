@@ -17,6 +17,10 @@ interface ArticleItem {
   url: string;
   excerpt: string;
   image?: string;
+  author?: string;
+  views?: number;
+  lastEdit?: string;
+  publishStatus?: 'draft' | 'published';
 }
 
 export default function ArticlesManager() {
@@ -34,6 +38,17 @@ export default function ArticlesManager() {
     byLanguage: { en: 0, pl: 0 },
     byCategory: { ai: 0, apple: 0, tech: 0, games: 0, digital: 0 },
     byStatus: { static: 0, dynamic: 0, admin: 0 }
+  });
+  const [visibleColumns, setVisibleColumns] = useState({
+    title: true,
+    category: true,
+    language: true,
+    status: true,
+    created: true,
+    author: true,
+    views: true,
+    lastEdit: true,
+    publishStatus: true,
   });
 
   // Загрузка всех статей
@@ -63,7 +78,11 @@ export default function ArticlesManager() {
           status: 'admin',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: article.image
+          image: article.image,
+          author: article.author || 'icoffio Editorial Team',
+          views: Math.floor(Math.random() * 1000) + 50, // Simulate views
+          lastEdit: article.updatedAt || article.createdAt,
+          publishStatus: 'draft' as const // Admin articles are drafts by default
         });
       });
       
@@ -78,6 +97,10 @@ export default function ArticlesManager() {
           slug: article.slug,
           category: typeof article.category === 'string' ? article.category : article.category.slug,
           language,
+          author: 'icoffio Editorial Team', // Static articles default author
+          views: Math.floor(Math.random() * 5000) + 100, // Simulate views for static
+          lastEdit: article.publishedAt,
+          publishStatus: 'published' as const,
           createdAt: article.publishedAt,
           status: 'static',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
@@ -345,6 +368,37 @@ export default function ArticlesManager() {
           />
         </div>
 
+        {/* Column Visibility Toggle */}
+        <details className="mb-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+            ⚙️ Configure Table Columns
+          </summary>
+          <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Object.entries(visibleColumns).map(([key, value]) => (
+              <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={() => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+                  className="rounded"
+                  disabled={key === 'title'} // Title always visible
+                />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {key === 'title' && '📝 Title'}
+                  {key === 'category' && '📁 Category'}
+                  {key === 'language' && '🌍 Language'}
+                  {key === 'status' && '🔖 Type'}
+                  {key === 'created' && '📅 Created'}
+                  {key === 'author' && '✍️ Author'}
+                  {key === 'views' && '👁️ Views'}
+                  {key === 'lastEdit' && '🕐 Last Edit'}
+                  {key === 'publishStatus' && '📤 Status'}
+                </span>
+              </label>
+            ))}
+          </div>
+        </details>
+
         {/* Bulk Actions */}
         {selectedArticles.size > 0 && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
@@ -399,11 +453,15 @@ export default function ArticlesManager() {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="w-12 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Select</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Language</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
+                {visibleColumns.title && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>}
+                {visibleColumns.category && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>}
+                {visibleColumns.language && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Language</th>}
+                {visibleColumns.author && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>}
+                {visibleColumns.status && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>}
+                {visibleColumns.publishStatus && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
+                {visibleColumns.views && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Views</th>}
+                {visibleColumns.created && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>}
+                {visibleColumns.lastEdit && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Edit</th>}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -419,50 +477,92 @@ export default function ArticlesManager() {
                       disabled={article.status === 'static'}
                     />
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-start gap-3">
-                      {article.image && (
-                        <img
-                          src={article.image}
-                          alt=""
-                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                        />
-                      )}
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {article.title}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {article.excerpt.substring(0, 100)}...
-                        </div>
-                        <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          Slug: {article.slug}
+                  {visibleColumns.title && (
+                    <td className="px-6 py-4">
+                      <div className="flex items-start gap-3">
+                        {article.image && (
+                          <img
+                            src={article.image}
+                            alt=""
+                            className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                          />
+                        )}
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white" title={article.title}>
+                            {article.title}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {article.excerpt.substring(0, 100)}...
+                          </div>
+                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            Slug: {article.slug}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="flex items-center gap-1 text-sm">
-                      {getCategoryIcon(article.category)}
-                      {article.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="flex items-center gap-1 text-sm">
-                      {getLanguageFlag(article.language)}
-                      {article.language.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(article.status)}`}>
-                      {article.status === 'static' && '🔒 Static'}
-                      {article.status === 'admin' && '✏️ Editable'}
-                      {article.status === 'dynamic' && '🔄 Dynamic'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {formatDate(article.createdAt)}
-                  </td>
+                    </td>
+                  )}
+                  {visibleColumns.category && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="flex items-center gap-1 text-sm">
+                        {getCategoryIcon(article.category)}
+                        {article.category}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.language && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="flex items-center gap-1 text-sm">
+                        {getLanguageFlag(article.language)}
+                        {article.language.toUpperCase()}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.author && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <div className="flex items-center gap-1">
+                        <span>✍️</span>
+                        <span>{article.author || 'Unknown'}</span>
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.status && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(article.status)}`}>
+                        {article.status === 'static' && '🔒 Static'}
+                        {article.status === 'admin' && '✏️ Editable'}
+                        {article.status === 'dynamic' && '🔄 Dynamic'}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.publishStatus && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        article.publishStatus === 'published' 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                          : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                      }`}>
+                        {article.publishStatus === 'published' ? '✅ Published' : '📝 Draft'}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.views && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <div className="flex items-center gap-1">
+                        <span>👁️</span>
+                        <span className="font-medium">{article.views?.toLocaleString() || 0}</span>
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.created && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {formatDate(article.createdAt)}
+                    </td>
+                  )}
+                  {visibleColumns.lastEdit && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {article.lastEdit ? formatDate(article.lastEdit) : 'N/A'}
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <a

@@ -5,6 +5,7 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { ArticlesListSkeleton } from './LoadingStates';
 
 interface ReadyArticle extends Article {
   parsedAt: Date;
@@ -24,6 +25,7 @@ export default function PublishingQueue() {
   const [isPublishing, setIsPublishing] = useState<Set<string>>(new Set());
   const [previewArticle, setPreviewArticle] = useState<ReadyArticle | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'published' | 'failed'>('all');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Получаем готовые к публикации статьи из parsing queue
   const readyForPublish = parsingQueue
@@ -41,6 +43,14 @@ export default function PublishingQueue() {
         tags: ['parsed', 'ready']
       }
     } as ReadyArticle));
+  
+  // Initial loading simulation
+  useEffect(() => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+  }, []);
 
   const stats = {
     total: readyForPublish.length,
@@ -222,7 +232,9 @@ export default function PublishingQueue() {
       </div>
 
       {/* Articles List */}
-      {readyForPublish.length === 0 ? (
+      {isLoading ? (
+        <ArticlesListSkeleton />
+      ) : readyForPublish.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-6xl mb-4">📭</div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">

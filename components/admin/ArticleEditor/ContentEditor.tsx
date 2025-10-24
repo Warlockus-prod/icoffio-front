@@ -167,14 +167,23 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Auto-save indicator */}
+            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-xs">
+              {isDirty ? (
+                <span className="text-orange-600 dark:text-orange-400">● Auto-saving in 2s...</span>
+              ) : (
+                <span className="text-green-600 dark:text-green-400">✓ All changes saved</span>
+              )}
+            </div>
+            
             {/* Editor Mode Toggle (только в Edit режиме) */}
             {!isPreview && (
               <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
                   onClick={() => setEditorMode('wysiwyg')}
-                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
                     editorMode === 'wysiwyg'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -182,9 +191,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                 </button>
                 <button
                   onClick={() => setEditorMode('markdown')}
-                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
                     editorMode === 'markdown'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -192,36 +201,6 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                 </button>
               </div>
             )}
-            
-            {/* Save Button */}
-            <button
-              onClick={saveContent}
-              disabled={!isDirty || isSaving}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  💾 Save
-                </>
-              )}
-            </button>
-
-            {/* Preview Toggle */}
-            <button
-              onClick={() => setIsPreview(!isPreview)}
-              className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                isPreview
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {isPreview ? '✏️ Edit' : '👁️ Preview'}
-            </button>
           </div>
         </div>
       </div>
@@ -417,28 +396,74 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
         )}
       </div>
 
-      {/* Footer Actions */}
-      <div className="p-6 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-750">
+      {/* Sticky Footer Actions */}
+      <div className="sticky bottom-0 p-6 border-t border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {language === 'en' ? 'Editing original content' : `Editing ${language.toUpperCase()} translation`}
+          {/* Status Info */}
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {language === 'en' ? '🇺🇸 Editing Original Content' : `${language === 'pl' ? '🇵🇱' : '🌍'} Editing ${language.toUpperCase()} Translation`}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3">
+              {isDirty ? (
+                <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
+                  <span className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></span>
+                  Unsaved changes
+                </span>
+              ) : lastSaved ? (
+                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <span className="w-2 h-2 bg-green-600 rounded-full"></span>
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </span>
+              ) : (
+                <span className="text-gray-500 dark:text-gray-400">No changes</span>
+              )}
+            </div>
           </div>
           
-          <div className="flex gap-3">
-            <button className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 rounded-lg transition-colors text-sm">
-              🤖 AI Improve
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Optional: AI Improve (future feature) */}
+            <button 
+              disabled
+              className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed flex items-center gap-2"
+              title="AI Improve (Coming soon)"
+            >
+              <span>🤖</span>
+              <span>AI Improve</span>
+              <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">Soon</span>
             </button>
             
+            {/* Save Draft */}
             <button
               onClick={saveContent}
               disabled={!isDirty || isSaving}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
             >
-              💾 Save Changes
+              {isSaving ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  <span>Save Changes</span>
+                </>
+              )}
             </button>
             
-            <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm">
-              ✅ Approve & Continue
+            {/* Preview */}
+            <button
+              onClick={() => setIsPreview(!isPreview)}
+              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                isPreview
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              <span>{isPreview ? '✏️' : '👁️'}</span>
+              <span>{isPreview ? 'Back to Edit' : 'Preview'}</span>
             </button>
           </div>
         </div>

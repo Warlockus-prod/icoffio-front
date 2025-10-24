@@ -5,6 +5,7 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import toast from 'react-hot-toast';
 import RichTextEditor from '../RichTextEditor';
 import ImageSourceSelector from '../ImageSourceSelector';
+import AICopywriter from '../AICopywriter';
 import type { ImageSource } from '@/lib/image-generation-service';
 
 interface ContentEditorProps {
@@ -86,6 +87,22 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
     setEditedContent(prev => ({ ...prev, imageUrl: url }));
     setIsDirty(true);
     toast.success(`✅ Image from ${source} applied successfully!`);
+  };
+
+  const handleAIContentGenerated = (aiContent: {
+    title: string;
+    excerpt: string;
+    content: string;
+  }) => {
+    setEditedContent(prev => ({
+      ...prev,
+      title: aiContent.title,
+      excerpt: aiContent.excerpt,
+      content: aiContent.content
+    }));
+    setIsDirty(true);
+    setEditorMode('wysiwyg'); // Switch to WYSIWYG to show generated content
+    toast.success('✅ AI-generated content applied! Review and edit as needed.');
   };
 
   const saveContent = async () => {
@@ -363,6 +380,15 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
                 currentImageUrl={editedContent.imageUrl}
               />
             )}
+
+            {/* AI Copywriter (for both languages) */}
+            <AICopywriter
+              onContentGenerated={handleAIContentGenerated}
+              initialPrompt=""
+              initialTitle={editedContent.title}
+              category={editedContent.category}
+              language={language}
+            />
 
             {/* Content */}
             <div>

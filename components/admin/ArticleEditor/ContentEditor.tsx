@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
+import toast from 'react-hot-toast';
+import RichTextEditor from '../RichTextEditor';
 
 interface ContentEditorProps {
   article?: Article | null;
@@ -28,6 +30,7 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isPreview, setIsPreview] = useState(false);
+  const [editorMode, setEditorMode] = useState<'markdown' | 'wysiwyg'>('wysiwyg'); // Default to WYSIWYG
   
   const { updateArticle } = useAdminStore();
 
@@ -79,6 +82,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
 
     setIsSaving(true);
     
+    // Show loading toast
+    const toastId = toast.loading('💾 Saving changes...');
+    
     try {
       if (language === 'en') {
         // Update original content
@@ -104,8 +110,13 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
       
       setLastSaved(new Date());
       setIsDirty(false);
+      
+      // Success toast
+      toast.success('✅ Changes saved successfully!', { id: toastId });
     } catch (error) {
       console.error('Save failed:', error);
+      // Error toast
+      toast.error('❌ Failed to save changes', { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -156,6 +167,32 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Editor Mode Toggle (только в Edit режиме) */}
+            {!isPreview && (
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                  onClick={() => setEditorMode('wysiwyg')}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                    editorMode === 'wysiwyg'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  ✨ WYSIWYG
+                </button>
+                <button
+                  onClick={() => setEditorMode('markdown')}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                    editorMode === 'markdown'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  📝 Markdown
+                </button>
+              </div>
+            )}
+            
             {/* Save Button */}
             <button
               onClick={saveContent}
@@ -328,32 +365,51 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
 
             {/* Content */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Content
-              </label>
-              <textarea
-                value={editedContent.content}
-                onChange={(e) => handleChange('content', e.target.value)}
-                rows={20}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm resize-vertical"
-                placeholder="Write your article content here..."
-                data-gramm="false"
-                data-gramm_editor="false"
-                data-enable-grammarly="false"
-              />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Content {editorMode === 'wysiwyg' ? '(WYSIWYG Editor)' : '(Markdown)'}
+                </label>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {editorMode === 'wysiwyg' ? 'Rich text editing with formatting' : 'Plain text / Markdown'}
+                </span>
+              </div>
+              
+              {editorMode === 'wysiwyg' ? (
+                <RichTextEditor
+                  content={editedContent.content}
+                  onChange={(content) => handleChange('content', content)}
+                  placeholder="Write your article content here..."
+                  className="min-h-[400px]"
+                />
+              ) : (
+                <textarea
+                  value={editedContent.content}
+                  onChange={(e) => handleChange('content', e.target.value)}
+                  rows={20}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm resize-vertical"
+                  placeholder="Write your article content here..."
+                  data-gramm="false"
+                  data-gramm_editor="false"
+                  data-enable-grammarly="false"
+                />
+              )}
               
               {/* Content Stats */}
               <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <div className="flex items-center gap-4">
-                  <span>Words: {getWordCount(editedContent.content)}</span>
+                  <span>Words: {getWordCount(editedContent.content.replace(/<[^>]*>/g, ''))}</span>
                   <span>Characters: {getCharCount(editedContent.content)}</span>
-                  <span>Reading time: ~{getReadingTime(editedContent.content)} min</span>
+                  <span>Reading time: ~{getReadingTime(editedContent.content.replace(/<[^>]*>/g, ''))} min</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <button className="hover:text-gray-700 dark:hover:text-gray-300">
-                    📝 Formatting Help
-                  </button>
+                  {editorMode === 'wysiwyg' ? (
+                    <span className="text-green-600 dark:text-green-400">✨ Visual editor active</span>
+                  ) : (
+                    <button className="hover:text-gray-700 dark:hover:text-gray-300">
+                      📝 Formatting Help
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

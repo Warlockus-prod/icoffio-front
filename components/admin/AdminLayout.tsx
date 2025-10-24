@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
+import Toast from './Toast';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -22,13 +23,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ] as const;
 
   return (
-    <div 
-      className="flex h-screen bg-gray-50 dark:bg-gray-900"
-      data-gramm="false"
-      data-gramm_editor="false"
-      data-enable-grammarly="false"
-    >
-      {/* Sidebar */}
+    <>
+      {/* Toast Notifications */}
+      <Toast />
+      
+      <div 
+        className="flex h-screen bg-gray-50 dark:bg-gray-900"
+        data-gramm="false"
+        data-gramm_editor="false"
+        data-enable-grammarly="false"
+      >
+        {/* Sidebar */}
       <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -131,6 +136,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

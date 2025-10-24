@@ -63,7 +63,7 @@ class WordPressService {
 
   constructor() {
     this.credentials = {
-      url: process.env.WORDPRESS_API_URL || 'https://admin.icoffio.com',
+      url: process.env.WORDPRESS_API_URL || 'https://icoffio.com',
       username: process.env.WORDPRESS_USERNAME || '',
       applicationPassword: process.env.WORDPRESS_APP_PASSWORD || ''
     };

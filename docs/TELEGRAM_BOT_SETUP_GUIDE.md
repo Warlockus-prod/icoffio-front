@@ -180,8 +180,8 @@ Article Created → Notification to User
 # Required
 TELEGRAM_BOT_TOKEN=<bot_token_from_botfather>
 
-# WordPress (IMPORTANT: admin subdomain!)
-WORDPRESS_API_URL=https://admin.icoffio.com
+# WordPress (IMPORTANT: Main domain with /wp-admin/)
+WORDPRESS_API_URL=https://icoffio.com
 WORDPRESS_USERNAME=<your_wp_username>
 WORDPRESS_APP_PASSWORD=<your_wp_app_password>
 

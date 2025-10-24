@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // WordPress credentials
-    const wpUrl = process.env.WORDPRESS_API_URL || 'https://admin.icoffio.com';
+    const wpUrl = process.env.WORDPRESS_API_URL || 'https://icoffio.com';
     const wpUsername = process.env.WORDPRESS_USERNAME;
     const wpPassword = process.env.WORDPRESS_APP_PASSWORD;
 
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
 
     const publishedPost = await createResponse.json();
 
-    // Generate URL for frontend (not WordPress admin URL)
-    const frontendUrl = 'https://icoffio.com';
+    // Generate URL for frontend (app.icoffio.com)
+    const frontendUrl = 'https://app.icoffio.com';
     const postUrl = `${frontendUrl}/${language || 'en'}/article/${slug}`;
 
     return NextResponse.json({
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
 
 // Health check
 export async function GET() {
-  const wpUrl = process.env.WORDPRESS_API_URL || 'https://admin.icoffio.com';
+  const wpUrl = process.env.WORDPRESS_API_URL || 'https://icoffio.com';
   const wpUsername = process.env.WORDPRESS_USERNAME;
   const wpPassword = process.env.WORDPRESS_APP_PASSWORD;
 

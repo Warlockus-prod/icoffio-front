@@ -24,7 +24,7 @@ export default async function ArticlesPage({ params }: { params: { locale: strin
   let hasError = false;
 
   try {
-    // Пробуем загрузить данные из GraphQL
+    // Try to load data from GraphQL
     const [graphqlPosts, graphqlCats] = await Promise.all([
       getAllPosts(48, params.locale),
       getCategories(params.locale)
@@ -36,26 +36,26 @@ export default async function ArticlesPage({ params }: { params: { locale: strin
     console.error('Error loading from GraphQL, using fallback:', error);
     hasError = true;
     
-    // Fallback: используем локальные статьи и категории
+    // Fallback: use local articles and categories
     try {
       const [localPosts, localCats] = await Promise.all([
-        getAllPosts(48, params.locale), // Эта функция уже включает fallback к локальным статьям
-        getCategories(params.locale) // Эта функция тоже теперь включает локальные категории
+        getAllPosts(48, params.locale), // This function includes fallback to local articles
+        getCategories(params.locale) // This function also includes local categories
       ]);
       
       allPosts = localPosts;
       cats = localCats;
     } catch (fallbackError) {
       console.error('Error loading fallback data:', fallbackError);
-      // Используем моки как последний вариант
+      // Use mocks as last resort
       allPosts = [];
       cats = [
-        { name: "Искусственный интеллект", slug: "ai" },
+        { name: "Artificial Intelligence", slug: "ai" },
         { name: "Apple", slug: "apple" },
-        { name: "Технологии", slug: "tech" },
-        { name: "Игры", slug: "games" },
+        { name: "Technology", slug: "tech" },
+        { name: "Games", slug: "games" },
         { name: "Digital", slug: "digital" },
-        { name: "Новости", slug: "news-2" }
+        { name: "News", slug: "news-2" }
       ];
     }
   }
@@ -68,13 +68,13 @@ export default async function ArticlesPage({ params }: { params: { locale: strin
     <Container>
       <Breadcrumbs items={breadcrumbs} locale={params.locale} />
       
-      {/* Показываем предупреждение если есть проблемы с основным источником */}
+      {/* Show warning if there are issues with the main source */}
       {hasError && allPosts.length > 0 && (
         <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
           <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
             <div className="text-lg">⚠️</div>
             <p className="text-sm">
-              Используется локальная версия статей. Некоторые статьи могут быть недоступны.
+              Using local version of articles. Some articles may be unavailable.
             </p>
           </div>
         </div>
@@ -102,26 +102,26 @@ export default async function ArticlesPage({ params }: { params: { locale: strin
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📝</div>
             <h3 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-              {hasError ? "Проблема с загрузкой статей" : "Статей пока нет"}
+              {hasError ? "Problem loading articles" : "No articles yet"}
             </h3>
             <p className="text-neutral-500 dark:text-neutral-400">
-              {hasError ? "Попробуйте обновить страницу или вернуться позже" : "Скоро здесь появятся интересные материалы"}
+              {hasError ? "Try refreshing the page or come back later" : "Interesting content coming soon"}
             </p>
             {hasError && (
               <button 
                 onClick={() => window.location.reload()}
                 className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Обновить страницу
+                Refresh Page
               </button>
             )}
           </div>
         )}
 
-        {/* Показываем количество загруженных статей */}
+        {/* Show number of loaded articles */}
         {allPosts.length > 0 && (
           <div className="mt-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
-            Показано {allPosts.length} {allPosts.length === 1 ? 'статья' : allPosts.length < 5 ? 'статьи' : 'статей'}
+            Showing {allPosts.length} {allPosts.length === 1 ? 'article' : 'articles'}
           </div>
         )}
       </section>

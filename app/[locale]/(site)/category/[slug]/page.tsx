@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 
 export const revalidate = 120;
 
-// ВРЕМЕННО ОТКЛЮЧЕНО пока DNS не стабилизируется
+// TEMPORARILY DISABLED until DNS stabilizes
 // export async function generateStaticParams() {
 //   const slugs = await getCategorySlugs();
 //   const locales = ['en', 'pl', 'de', 'ro', 'cs'];
@@ -15,7 +15,7 @@ export const revalidate = 120;
 //   );
 // }
 
-// ✅ КАЧЕСТВЕННЫЙ MOCK КОНТЕНТ (Fallback система)
+// ✅ HIGH-QUALITY MOCK CONTENT (Fallback system)
 const mockCategories = [
   { name: "AI", slug: "ai" },
   { name: "Apple", slug: "apple" },
@@ -118,16 +118,16 @@ const mockPosts = [
 ];
 
 export default async function CategoryPage({ params }: { params: { locale: string; slug: string } }) {
-  // ✅ FALLBACK СИСТЕМА: Начинаем с качественных mock данных
+  // ✅ FALLBACK SYSTEM: Start with high-quality mock data
   let category: any = mockCategories.find(c => c.slug === params.slug);
   let posts: any[] = mockPosts.filter(p => p.category.slug === params.slug);
 
-  // ✅ ПЫТАЕМСЯ ПОЛУЧИТЬ РЕАЛЬНЫЕ ДАННЫЕ из WordPress GraphQL
+  // ✅ TRY TO GET REAL DATA from WordPress GraphQL
   try {
     const graphqlCategory = await getCategoryBySlug(params.slug, params.locale);
     const graphqlPosts = await getPostsByCategory(params.slug, 24, params.locale);
     
-    // Используем реальные данные если они успешно получены
+    // Use real data if successfully retrieved
     if (graphqlCategory) {
       category = graphqlCategory;
     }
@@ -135,12 +135,12 @@ export default async function CategoryPage({ params }: { params: { locale: strin
       posts = graphqlPosts;
     }
   } catch (error) {
-    // ✅ GRACEFUL DEGRADATION: Если GraphQL не работает, используем fallback
+    // ✅ GRACEFUL DEGRADATION: If GraphQL doesn't work, use fallback
     console.error(`GraphQL Error for category ${params.slug} (using fallback content):`, error);
-    // Продолжаем с mock данными - сайт работает!
+    // Continue with mock data - site works!
   }
 
-  // Если категория не найдена даже в mock данных - 404
+  // If category not found even in mock data - 404
   if (!category) {
     return notFound();
   }

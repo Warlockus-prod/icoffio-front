@@ -16,17 +16,9 @@ const translations = {
     subscribing: "Subscribing...",
     success: "Thanks for subscribing!",
     error: "Please enter a valid email address",
-    privacy: "We respect your privacy and won't spam you"
-  },
-  ru: {
-    title: "Подпишитесь на обновления",
-    description: "Получайте последние технологические новости и аналитику на свою почту",
-    placeholder: "Введите ваш email адрес",
-    button: "Подписаться",
-    subscribing: "Подписываемся...",
-    success: "Спасибо за подписку!",
-    error: "Введите корректный email адрес",
-    privacy: "Мы уважаем вашу приватность и не будем спамить"
+    privacy: "We respect your privacy and won't spam you",
+    emptyField: "Email field cannot be empty",
+    networkError: "Something went wrong. Please try again."
   },
   pl: {
     title: "Bądź na bieżąco",
@@ -36,37 +28,9 @@ const translations = {
     subscribing: "Subskrybowanie...",
     success: "Dziękujemy za subskrypcję!",
     error: "Wprowadź prawidłowy adres email",
-    privacy: "Szanujemy Twoją prywatność i nie będziemy spamować"
-  },
-  de: {
-    title: "Bleiben Sie informiert",
-    description: "Erhalten Sie die neuesten Tech-News und Insights in Ihr Postfach",
-    placeholder: "E-Mail-Adresse eingeben",
-    button: "Abonnieren",
-    subscribing: "Abonniere...",
-    success: "Danke für das Abonnement!",
-    error: "Bitte geben Sie eine gültige E-Mail-Adresse ein",
-    privacy: "Wir respektieren Ihre Privatsphäre und werden Sie nicht spammen"
-  },
-  ro: {
-    title: "Rămâneți la curent",
-    description: "Primiți cele mai recente știri tehnologice și perspective în căsuța poștală",
-    placeholder: "Introduceți adresa de email",
-    button: "Abonare",
-    subscribing: "Se abonează...",
-    success: "Mulțumim pentru abonare!",
-    error: "Introduceți o adresă de email validă",
-    privacy: "Respectăm confidențialitatea dvs. și nu vă vom trimite spam"
-  },
-  cs: {
-    title: "Zůstaňte v obraze",
-    description: "Dostávejte nejnovější technologické zprávy a poznatky do vaší schránky",
-    placeholder: "Zadejte svou emailovou adresu",
-    button: "Odebírat",
-    subscribing: "Přihlašování...",
-    success: "Děkujeme za přihlášení!",
-    error: "Zadejte platnou emailovou adresu",
-    privacy: "Respektujeme vaše soukromí a nebudeme vám spamovat"
+    privacy: "Szanujemy Twoją prywatność i nie będziemy spamować",
+    emptyField: "Pole e-mail nie może być puste",
+    networkError: "Coś poszło nie tak. Spróbuj ponownie."
   }
 };
 
@@ -89,7 +53,7 @@ export function Newsletter({ locale }: NewsletterProps) {
     // Check if email is empty
     if (!trimmedEmail) {
       setStatus('error');
-      setMessage(locale === 'pl' ? 'Pole e-mail nie może być puste' : 'Email field cannot be empty');
+      setMessage(t.emptyField);
       return;
     }
     
@@ -132,7 +96,7 @@ export function Newsletter({ locale }: NewsletterProps) {
       
     } catch (error) {
       setStatus('error');
-      setMessage(locale === 'pl' ? 'Coś poszło nie tak. Spróbuj ponownie.' : 'Something went wrong. Please try again.');
+      setMessage(t.networkError);
       
       // Reset error status after 5 seconds
       setTimeout(() => {

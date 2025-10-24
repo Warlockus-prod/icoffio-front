@@ -1,6 +1,6 @@
 /**
- * Сервис для интеграции с WordPress
- * Публикация статей на всех языках через REST API
+ * WordPress Integration Service
+ * Publishing articles in all languages via REST API
  */
 
 import { locales } from './i18n';
@@ -71,7 +71,7 @@ class WordPressService {
   }
 
   /**
-   * Проверяет доступность WordPress API
+   * Checks WordPress API availability
    */
   async isAvailable(): Promise<boolean> {
     try {
@@ -84,7 +84,7 @@ class WordPressService {
   }
 
   /**
-   * 🏥 Расширенная диагностика WordPress подключения
+   * 🏥 Extended WordPress connection diagnostics
    */
   async getHealthStatus(): Promise<{
     available: boolean;
@@ -110,25 +110,25 @@ class WordPressService {
     };
 
     try {
-      // 1. Проверка доступности API
+      // 1. API availability check
       const apiCheck = await fetch(`${this.apiBase}/posts?per_page=1`);
       result.available = apiCheck.ok;
       
       if (!result.available) {
-        result.details.lastError = `API недоступен: ${apiCheck.status} ${apiCheck.statusText}`;
+        result.details.lastError = `API unavailable: ${apiCheck.status} ${apiCheck.statusText}`;
         return result;
       }
 
-      // 2. Проверка авторизации
+      // 2. Authentication check
       if (result.details.hasCredentials) {
         result.authenticated = await this.checkAuthentication();
         
         if (!result.authenticated) {
-          result.details.lastError = 'Неверные учетные данные WordPress';
+          result.details.lastError = 'Invalid WordPress credentials';
           return result;
         }
 
-        // 3. Проверка прав на создание постов
+        // 3. Post creation permission check
         try {
           const testResponse = await fetch(`${this.apiBase}/posts`, {
             method: 'POST',
@@ -145,7 +145,7 @@ class WordPressService {
           
           if (testResponse.ok) {
             result.canCreatePosts = true;
-            // Удаляем тестовый пост
+            // Delete test post
             const testPost = await testResponse.json();
             await fetch(`${this.apiBase}/posts/${testPost.id}?force=true`, {
               method: 'DELETE',
@@ -154,14 +154,14 @@ class WordPressService {
               }
             });
           } else {
-            result.details.lastError = `Нет прав на создание постов: ${testResponse.status}`;
+            result.details.lastError = `No permission to create posts: ${testResponse.status}`;
           }
         } catch (error) {
-          result.details.lastError = `Ошибка проверки прав: ${error instanceof Error ? error.message : 'Unknown'}`;
+          result.details.lastError = `Permission check error: ${error instanceof Error ? error.message : 'Unknown'}`;
         }
       }
 
-      // 4. Проверка категорий
+      // 4. Categories check
       try {
         const categoriesResponse = await fetch(`${this.apiBase}/categories?per_page=10`);
         result.categoriesAvailable = categoriesResponse.ok;
@@ -170,14 +170,14 @@ class WordPressService {
       }
 
     } catch (error) {
-      result.details.lastError = `Общая ошибка: ${error instanceof Error ? error.message : 'Unknown'}`;
+      result.details.lastError = `General error: ${error instanceof Error ? error.message : 'Unknown'}`;
     }
 
     return result;
   }
 
   /**
-   * Проверяет авторизацию
+   * Checks authentication
    */
   async checkAuthentication(): Promise<boolean> {
     if (!this.credentials.username || !this.credentials.applicationPassword) {
@@ -194,7 +194,7 @@ class WordPressService {
   }
 
   /**
-   * Публикует статью на всех языках
+   * Publishes article in all languages
    */
   async publishMultilingualArticle(article: WordPressArticle, translations: Record<string, any>): Promise<{
     success: boolean;
@@ -208,17 +208,17 @@ class WordPressService {
     const results: PublicationResult[] = [];
     
     try {
-      // Публикуем оригинальную статью (русскую)
+      // Publish original article (English)
       const originalResult = await this.publishSingleArticle({
         ...article,
-        language: 'ru',
-        slug: `${article.slug}-ru`
+        language: 'en',
+        slug: `${article.slug}-en`
       });
       results.push(originalResult);
 
-      // Публикуем переводы
+      // Publish translations
       for (const locale of locales) {
-        if (locale === 'en' && translations[locale]) {
+        if (locale === 'pl' && translations[locale]) {
           const translatedArticle = this.buildTranslatedArticle(article, translations[locale], locale);
           const result = await this.publishSingleArticle(translatedArticle);
           results.push(result);
@@ -253,18 +253,18 @@ class WordPressService {
   }
 
   /**
-   * Публикует одну статью
+   * Publishes a single article
    */
   async publishSingleArticle(article: WordPressArticle): Promise<PublicationResult> {
     try {
-      // 1. Загружаем изображение как медиафайл
+      // 1. Upload image as media file
       const mediaId = await this.uploadMedia(article.image, article.title);
 
-      // 2. Получаем/создаем категории и теги
+      // 2. Get/create categories and tags
       const categoryId = await this.ensureCategory(article.category, article.language);
       const tagIds = await this.ensureTags(article.tags, article.language);
 
-      // 3. Подготавливаем данные поста
+      // 3. Prepare post data
       const postData: WordPressPost = {
         title: { rendered: article.title, raw: article.title },
         content: { rendered: this.formatContent(article.content), raw: this.formatContent(article.content) },
@@ -278,7 +278,7 @@ class WordPressService {
         date: article.publishedAt
       };
 
-      // 4. Публикуем пост
+      // 4. Publish post
       const response = await this.makeRequest('/posts', 'POST', postData);
       
       if (!response.ok) {
@@ -306,7 +306,7 @@ class WordPressService {
   }
 
   /**
-   * Обновляет существующую статью
+   * Updates existing article
    */
   async updateArticle(postId: number, article: Partial<WordPressArticle>): Promise<PublicationResult> {
     try {
@@ -344,7 +344,7 @@ class WordPressService {
   }
 
   /**
-   * Удаляет статью
+   * Deletes article
    */
   async deleteArticle(postId: number): Promise<{ success: boolean; error?: string }> {
     try {
@@ -367,7 +367,7 @@ class WordPressService {
   }
 
   /**
-   * Получает список статей
+   * Gets list of articles
    */
   async getArticles(params: {
     per_page?: number;
@@ -424,7 +424,7 @@ class WordPressService {
     }
   }
 
-  // Приватные методы
+  // Private methods
 
   private async makeRequest(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', data?: any): Promise<Response> {
     const url = `${this.apiBase}${endpoint}`;
@@ -432,7 +432,7 @@ class WordPressService {
       'Content-Type': 'application/json',
     };
 
-    // Добавляем авторизацию для методов, требующих её
+    // Add authorization for methods that require it
     if (method !== 'GET') {
       if (!this.credentials.username || !this.credentials.applicationPassword) {
         throw new Error('WordPress credentials not configured');
@@ -457,7 +457,7 @@ class WordPressService {
 
   private async uploadMedia(imageUrl: string, title: string): Promise<number> {
     try {
-      // Скачиваем изображение
+      // Download image
       const imageResponse = await fetch(imageUrl);
       if (!imageResponse.ok) {
         throw new Error(`Failed to fetch image: ${imageResponse.status}`);
@@ -466,7 +466,7 @@ class WordPressService {
       const imageBlob = await imageResponse.blob();
       const fileName = `${this.generateSlug(title)}.jpg`;
 
-      // Загружаем в WordPress
+      // Upload to WordPress
       const formData = new FormData();
       formData.append('file', imageBlob, fileName);
       formData.append('title', title);
@@ -490,14 +490,14 @@ class WordPressService {
 
     } catch (error) {
       console.error('Media upload error:', error);
-      // Возвращаем 0 если загрузка не удалась
+      // Return 0 if upload failed
       return 0;
     }
   }
 
   private async ensureCategory(categoryName: string, language: string): Promise<number> {
     try {
-      // Ищем существующую категорию
+      // Search for existing category
       const searchResponse = await this.makeRequest(`/categories?search=${encodeURIComponent(categoryName)}`, 'GET');
       const categories = await searchResponse.json();
 
@@ -505,7 +505,7 @@ class WordPressService {
         return categories[0].id;
       }
 
-      // Создаем новую категорию
+      // Create new category
       const createResponse = await this.makeRequest('/categories', 'POST', {
         name: categoryName,
         slug: this.generateSlug(categoryName),
@@ -521,7 +521,7 @@ class WordPressService {
 
     } catch (error) {
       console.error('Category ensure error:', error);
-      return 1; // Возвращаем ID категории по умолчанию
+      return 1; // Return default category ID
     }
   }
 
@@ -530,7 +530,7 @@ class WordPressService {
 
     for (const tagName of tagNames) {
       try {
-        // Ищем существующий тег
+        // Search for existing tag
         const searchResponse = await this.makeRequest(`/tags?search=${encodeURIComponent(tagName)}`, 'GET');
         const tags = await searchResponse.json();
 
@@ -539,7 +539,7 @@ class WordPressService {
           continue;
         }
 
-        // Создаем новый тег
+        // Create new tag
         const createResponse = await this.makeRequest('/tags', 'POST', {
           name: tagName,
           slug: this.generateSlug(tagName),
@@ -571,13 +571,13 @@ class WordPressService {
   }
 
   private formatContent(content: string): string {
-    // Конвертируем простой текст в HTML с базовой разметкой
+    // Convert plain text to HTML with basic markup
     return content
       .split('\n\n')
       .map(paragraph => paragraph.trim())
       .filter(paragraph => paragraph.length > 0)
       .map(paragraph => {
-        // Простые заголовки (строки, начинающиеся с #)
+        // Simple headings (lines starting with #)
         if (paragraph.startsWith('# ')) {
           return `<h2>${paragraph.substring(2)}</h2>`;
         }
@@ -585,14 +585,14 @@ class WordPressService {
           return `<h3>${paragraph.substring(3)}</h3>`;
         }
         
-        // Списки
+        // Lists
         if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
           const items = paragraph.split('\n- ').map(item => item.startsWith('- ') ? item.substring(2) : item);
           const listItems = items.map(item => `<li>${item}</li>`).join('');
           return `<ul>${listItems}</ul>`;
         }
 
-        // Обычные параграфы
+        // Regular paragraphs
         return `<p>${paragraph}</p>`;
       })
       .join('\n');
@@ -620,7 +620,7 @@ class WordPressService {
   }
 }
 
-// Экспортируем синглтон сервиса
+// Export service singleton
 export const wordpressService = new WordPressService();
 
 

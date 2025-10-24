@@ -23,7 +23,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Проверка сохраненной аутентификации при загрузке
+  // Check saved authentication on load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedAuth = localStorage.getItem('icoffio_admin_auth');
@@ -34,7 +34,7 @@ export default function AdminPage() {
     }
   }, []);
 
-  // Обработка аутентификации
+  // Handle authentication
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -46,12 +46,12 @@ export default function AdminPage() {
     }
   };
 
-  // Форма входа
+  // Login form
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-          {/* Logo и заголовок */}
+          {/* Logo and header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl mb-4 shadow-xl">
               <span className="text-white font-bold text-2xl">iC</span>
@@ -64,7 +64,7 @@ export default function AdminPage() {
             </p>
           </div>
 
-          {/* Форма входа */}
+          {/* Login form */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
             <form onSubmit={handleAuth} className="space-y-6">
               <div>
@@ -86,7 +86,7 @@ export default function AdminPage() {
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <p className="text-sm text-red-600 dark:text-red-400">
-                    {error === 'Неверный пароль' ? 'Invalid password' : error}
+                    {error}
                   </p>
                 </div>
               )}
@@ -99,7 +99,7 @@ export default function AdminPage() {
               </button>
             </form>
 
-            {/* Функции панели */}
+            {/* Panel features */}
             <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                 🔧 Available Features:
@@ -129,7 +129,7 @@ export default function AdminPage() {
     );
   }
 
-  // Главная админ панель после аутентификации
+  // Main admin panel after authentication
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -203,10 +203,10 @@ export default function AdminPage() {
                         const response = await fetch('/api/articles?action=health-check');
                         const result = await response.json();
                         if (result.success) {
-                          alert('✅ Все API подключения работают!\n\n• OpenAI: ✅\n• Unsplash: ✅\n• WordPress: ✅');
+                          alert('✅ All API connections working!\n\n• OpenAI: ✅\n• Unsplash: ✅\n• WordPress: ✅');
                         }
                       } catch {
-                        alert('❌ Ошибка проверки API подключений');
+                        alert('❌ API connection check error');
                       }
                     }}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
@@ -217,10 +217,10 @@ export default function AdminPage() {
                       if (window.caches) {
                         window.caches.keys().then(names => {
                           names.forEach(name => window.caches.delete(name));
-                          alert('✅ Cache очищен!');
+                          alert('✅ Cache cleared!');
                         });
                       } else {
-                        alert('ℹ️ Cache API не поддерживается в этом браузере');
+                        alert('ℹ️ Cache API not supported in this browser');
                       }
                     }}
                     className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors">
@@ -228,8 +228,8 @@ export default function AdminPage() {
                   </button>
                   <button 
                     onClick={() => {
-                      if (window.confirm('⚠️ Сбросить статистику?\n\nВся статистика активности будет удалена.\n\nПродолжить?')) {
-                        // Сброс статистики в admin store
+                      if (window.confirm('⚠️ Reset statistics?\n\nAll activity statistics will be deleted.\n\nContinue?')) {
+                        // Reset statistics in admin store
                         const store = useAdminStore.getState();
                         store.statistics = {
                           urlsAddedToday: 0,
@@ -241,7 +241,7 @@ export default function AdminPage() {
                           averageProcessingTime: 0,
                           recentActivity: []
                         };
-                        alert('✅ Статистика сброшена!');
+                        alert('✅ Statistics reset!');
                       }
                     }}
                     className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition-colors">

@@ -92,3 +92,4 @@ echo -e "- Проверка перед push: ${BLUE}./scripts/pre-deploy.sh${NC}
 echo -e "- Создание backup: ${BLUE}./scripts/create-backup.sh${NC}"
 echo -e "- Переключение в main: ${BLUE}git checkout main${NC}"
 
+

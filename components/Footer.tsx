@@ -49,10 +49,10 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
           <div>
             <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">📬 {t.followUs}</h3>
             <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-3">
-              Подпишитесь на нашу рассылку, чтобы получать самые актуальные новости технологий
+              {t.newsletterSubscribe}
             </p>
             <div className="text-neutral-500 dark:text-neutral-500 text-xs">
-              Социальные сети появятся в ближайшее время
+              {t.socialMediaComingSoon}
             </div>
           </div>
         </div>

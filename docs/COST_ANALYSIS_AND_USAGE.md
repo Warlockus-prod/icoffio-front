@@ -514,3 +514,4 @@ Adjustment: Monthly
 **Version:** 1.0  
 **Next Review:** 24 ноября 2025 (через 30 дней)
 
+

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
+import toast from 'react-hot-toast';
 
 interface ContentEditorProps {
   article?: Article | null;
@@ -79,6 +80,9 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
 
     setIsSaving(true);
     
+    // Show loading toast
+    const toastId = toast.loading('💾 Saving changes...');
+    
     try {
       if (language === 'en') {
         // Update original content
@@ -104,8 +108,13 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
       
       setLastSaved(new Date());
       setIsDirty(false);
+      
+      // Success toast
+      toast.success('✅ Changes saved successfully!', { id: toastId });
     } catch (error) {
       console.error('Save failed:', error);
+      // Error toast
+      toast.error('❌ Failed to save changes', { id: toastId });
     } finally {
       setIsSaving(false);
     }

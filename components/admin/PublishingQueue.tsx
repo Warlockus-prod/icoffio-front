@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
+import toast from 'react-hot-toast';
 
 interface ReadyArticle extends Article {
   parsedAt: Date;
@@ -68,6 +69,11 @@ export default function PublishingQueue() {
   const handlePublishSingle = async (article: ReadyArticle) => {
     setIsPublishing(prev => new Set([...prev, article.id]));
     
+    // Show loading toast
+    const toastId = toast.loading(`📤 Publishing "${article.title.substring(0, 40)}..."`, {
+      duration: Infinity, // Keep until we manually dismiss
+    });
+    
     try {
       console.log('🚀 Publishing article:', article.title);
       
@@ -95,16 +101,28 @@ export default function PublishingQueue() {
         });
 
         console.log('✅ Article published successfully');
+        
+        // Success toast
+        toast.success(`✅ "${article.title.substring(0, 40)}..." published successfully!`, {
+          id: toastId,
+          duration: 4000,
+        });
       } else {
         throw new Error(result.error || 'Publication failed');
       }
     } catch (error) {
       console.error('❌ Publication failed:', error);
-        addActivity({
-          type: 'parsing_failed',
-          message: `Ошибка публикации: ${article.title}`,
-          url: article.url
-        });
+      addActivity({
+        type: 'parsing_failed',
+        message: `Ошибка публикации: ${article.title}`,
+        url: article.url
+      });
+      
+      // Error toast
+      toast.error(`❌ Failed to publish "${article.title.substring(0, 30)}...": ${error instanceof Error ? error.message : 'Unknown error'}`, {
+        id: toastId,
+        duration: 5000,
+      });
     } finally {
       setIsPublishing(prev => {
         const newSet = new Set(prev);
@@ -117,6 +135,12 @@ export default function PublishingQueue() {
   const handlePublishSelected = async () => {
     const articlesToPublish = readyForPublish.filter(article => selectedArticles.has(article.id));
     
+    // Show info toast
+    toast(`📤 Publishing ${articlesToPublish.length} articles...`, {
+      icon: '📊',
+      duration: 3000,
+    });
+    
     for (const article of articlesToPublish) {
       await handlePublishSingle(article);
       // Небольшая задержка между публикациями
@@ -124,6 +148,11 @@ export default function PublishingQueue() {
     }
     
     setSelectedArticles(new Set());
+    
+    // Final success toast
+    toast.success(`🎉 Successfully published ${articlesToPublish.length} articles!`, {
+      duration: 5000,
+    });
   };
 
   const handlePreview = (article: ReadyArticle) => {

@@ -1,0 +1,222 @@
+diff --git a/app/[locale]/(site)/article/[slug]/page.tsx b/app/[locale]/(site)/article/[slug]/page.tsx
+index 2cdcb8d..4232aea 100644
+--- a/app/[locale]/(site)/article/[slug]/page.tsx
++++ b/app/[locale]/(site)/article/[slug]/page.tsx
+@@ -630,7 +630,7 @@ export default async function Article({ params }: { params: { locale: string; sl
+         </div>
+       </Container>
+ 
+-      <SearchModalWrapper posts={mockPosts} locale={params.locale} />
++      {/* SearchModalWrapper рендерится глобально в layout.tsx - не дублируем */}
+     </>
+   );
+ }
+\ No newline at end of file
+diff --git a/app/[locale]/(site)/page.tsx b/app/[locale]/(site)/page.tsx
+index 8391e5e..ca2ab32 100644
+--- a/app/[locale]/(site)/page.tsx
++++ b/app/[locale]/(site)/page.tsx
+@@ -234,7 +234,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
+         </section>
+       </div>
+ 
+-      <SearchModalWrapper posts={posts} locale={params.locale} />
++      {/* SearchModalWrapper рендерится глобально в layout.tsx - не дублируем */}
+     </>
+   );
+ }
+\ No newline at end of file
+diff --git a/components/SearchModalWrapper.tsx b/components/SearchModalWrapper.tsx
+index ad3a9c7..426236f 100644
+--- a/components/SearchModalWrapper.tsx
++++ b/components/SearchModalWrapper.tsx
+@@ -3,14 +3,33 @@
+ import { useSearch } from './SearchProvider';
+ import { AdvancedSearch } from './AdvancedSearch';
+ import type { Post } from '@/lib/types';
++import { useState, useEffect } from 'react';
+ 
+ interface SearchModalWrapperProps {
+   posts: Post[];
+   locale: string;
+ }
+ 
+-export function SearchModalWrapper({ posts, locale }: SearchModalWrapperProps) {
++export function SearchModalWrapper({ posts: initialPosts, locale }: SearchModalWrapperProps) {
+   const { isSearchOpen, closeSearch } = useSearch();
++  const [posts, setPosts] = useState<Post[]>(initialPosts);
++  const [isLoading, setIsLoading] = useState(false);
++
++  // Загружаем посты client-side если их нет
++  useEffect(() => {
++    if (initialPosts.length === 0 && !isLoading) {
++      setIsLoading(true);
++      fetch(`/api/articles?locale=${locale}&limit=50`)
++        .then(res => res.json())
++        .then(data => {
++          if (data.success && data.articles) {
++            setPosts(data.articles);
++          }
++        })
++        .catch(err => console.error('Failed to load articles for search:', err))
++        .finally(() => setIsLoading(false));
++    }
++  }, [initialPosts.length, locale, isLoading]);
+ 
+   return (
+     <AdvancedSearch
+diff --git a/lib/data.ts b/lib/data.ts
+index 5b1a0be..27368eb 100644
+--- a/lib/data.ts
++++ b/lib/data.ts
+@@ -48,27 +48,74 @@ async function getTranslatedArticles(): Promise<Record<string, any>> {
+   return [];
+ }
+ 
+-// Строгая фильтрация статей по языку (поддерживаем все языки)
++// Детектирование кириллицы в тексте
++function hasCyrillic(text: string): boolean {
++  return /[\u0400-\u04FF]/.test(text);
++}
++
++// Детектирование польского языка
++function hasPolish(text: string): boolean {
++  // Специфичные польские символы
++  return /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text);
++}
++
++// Улучшенная фильтрация статей по языку с детектированием контента
+ function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
+   console.log(`🌍 Filtering ${articles.length} articles for locale: ${locale}`);
+   
+   // Поддерживаемые языки: en, pl (сайт НЕ поддерживает русский)
+-  if (['en', 'pl'].includes(locale)) {
+-    const filtered = articles.filter(article => {
+-      const hasLanguageSuffix = article.slug.endsWith(`-${locale}`);
+-      if (hasLanguageSuffix) {
+-        console.log(`✅ Article matched for ${locale}: ${article.slug}`);
++  if (!['en', 'pl'].includes(locale)) {
++    console.warn(`Unsupported locale: ${locale}. Supported: 'en', 'pl' only.`);
++    return [];
++  }
++  
++  const filtered = articles.filter(article => {
++    // 1. Проверяем slug на наличие суффикса языка (основная проверка)
++    const slugContainsLocale = article.slug.includes(`-${locale}`);
++    
++    // 2. Проверяем контент статьи (title, excerpt, content) на соответствие языку
++    const contentToCheck = `${article.title} ${article.excerpt || ''} ${article.content || ''}`;
++    
++    if (locale === 'en') {
++      // Для английской версии: исключаем статьи с кириллицей или польскими символами
++      const hasUnwantedChars = hasCyrillic(contentToCheck) || hasPolish(contentToCheck);
++      
++      if (hasUnwantedChars) {
++        console.log(`🚫 Excluded from EN: ${article.slug} (contains non-English characters)`);
++        return false;
+       }
+-      return hasLanguageSuffix;
+-    });
++      
++      // Разрешаем статьи с -en в slug ИЛИ без специфичных языковых маркеров
++      const isEnglish = slugContainsLocale || (!hasCyrillic(contentToCheck) && !hasPolish(contentToCheck));
++      
++      if (isEnglish) {
++        console.log(`✅ Article matched for EN: ${article.slug}`);
++      }
++      return isEnglish;
++    }
+     
+-    console.log(`📊 Filtered ${filtered.length}/${articles.length} articles for ${locale}`);
+-    return filtered;
+-  }
++    if (locale === 'pl') {
++      // Для польской версии: требуем -pl в slug И исключаем кириллицу
++      const hasRussian = hasCyrillic(contentToCheck);
++      
++      if (hasRussian) {
++        console.log(`🚫 Excluded from PL: ${article.slug} (contains Cyrillic)`);
++        return false;
++      }
++      
++      const isPolish = slugContainsLocale && !hasRussian;
++      
++      if (isPolish) {
++        console.log(`✅ Article matched for PL: ${article.slug}`);
++      }
++      return isPolish;
++    }
++    
++    return false;
++  });
+   
+-  // Для неподдерживаемых языков возвращаем пустой массив
+-  console.warn(`Unsupported locale: ${locale}. Supported: 'en', 'pl' only.`);
+-  return [];
++  console.log(`📊 Filtered ${filtered.length}/${articles.length} articles for ${locale}`);
++  return filtered;
+ }
+ 
+ // Комбинирование WordPress и локальных статей
+@@ -132,13 +179,14 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
+     }
+     
+     // Преобразуем данные из WordPress API в формат Post
++    // Пустые строки для image заменяем на undefined для корректной работы fallback
+     const wpPosts: Post[] = data.articles.map((article: any) => ({
+       slug: article.slug,
+       title: strip(article.title) || "Untitled",
+       excerpt: strip(article.excerpt),
+       date: article.date,
+       publishedAt: article.date,
+-      image: article.image || "",
++      image: article.image && article.image.trim() !== '' ? article.image : '',
+       category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
+       contentHtml: article.content || "",
+     }));
+diff --git a/lib/unified-article-service.ts b/lib/unified-article-service.ts
+index 40b3e85..911ab01 100644
+--- a/lib/unified-article-service.ts
++++ b/lib/unified-article-service.ts
+@@ -603,7 +603,10 @@ class UnifiedArticleService {
+         
+         // Списки (маркированные)
+         if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
+-          const items = paragraph.split('\n- ').map(item => item.startsWith('- ') ? item.substring(2) : item);
++          // Убираем начальный "- " если есть
++          let listText = paragraph.startsWith('- ') ? paragraph.substring(2) : paragraph;
++          // Разбиваем по "\n- " и очищаем каждый элемент
++          const items = listText.split('\n- ').map(item => item.trim()).filter(item => item.length > 0);
+           const listItems = items.map(item => `<li>${this.formatInlineElements(item)}</li>`).join('');
+           return `<ul>${listItems}</ul>`;
+         }
+@@ -647,7 +650,11 @@ class UnifiedArticleService {
+    * Форматирование inline элементов (жирный, курсив, ссылки, код)
+    */
+   private formatInlineElements(text: string): string {
+-    return text
++    // Сначала экранируем HTML (только в plain тексте, не в markdown синтаксисе)
++    let result = text;
++    
++    // Применяем markdown форматирование
++    result = result
+       // Жирный текст **bold**
+       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+       // Курсив *italic*  
+@@ -656,12 +663,10 @@ class UnifiedArticleService {
+       .replace(/`([^`]+)`/g, '<code>$1</code>')
+       // Ссылки [text](url)
+       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+-      // Автоматические ссылки
+-      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+-      // Экранирование HTML в остальном тексте
+-      .replace(/&(?![a-zA-Z][a-zA-Z0-9]*;)/g, '&amp;')
+-      .replace(/</g, '&lt;')
+-      .replace(/>/g, '&gt;');
++      // Автоматические ссылки (только если не внутри тегов)
++      .replace(/(?<!href=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
++    
++    return result;
+   }
+   
+   /**

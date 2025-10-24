@@ -234,7 +234,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
         </section>
       </div>
 
-      <SearchModalWrapper posts={posts} locale={params.locale} />
+      {/* SearchModalWrapper рендерится глобально в layout.tsx - не дублируем */}
     </>
   );
 }

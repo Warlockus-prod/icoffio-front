@@ -630,7 +630,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         </div>
       </Container>
 
-      <SearchModalWrapper posts={mockPosts} locale={params.locale} />
+      {/* SearchModalWrapper рендерится глобально в layout.tsx - не дублируем */}
     </>
   );
 }

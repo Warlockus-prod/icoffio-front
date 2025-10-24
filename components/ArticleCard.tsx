@@ -70,20 +70,20 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
       </Link>
       
       <div className="p-4 space-y-3">
-        <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-          <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-medium">
+        <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-300">
+          <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-200 font-medium">
             {post.category.name}
           </span>
           <time>{formatDate(post.publishedAt)}</time>
         </div>
         
         <Link href={`/${locale}/article/${post.slug}`}>
-          <h3 className="text-[18px] font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-neutral-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+          <h3 className="text-[18px] font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
             {post.title}
           </h3>
         </Link>
         
-        <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3 leading-relaxed">
+        <p className="text-sm text-neutral-600 dark:text-neutral-200 line-clamp-3 leading-relaxed">
           {post.excerpt}
         </p>
         

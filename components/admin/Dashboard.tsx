@@ -1,17 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
+import { DashboardSkeleton } from './LoadingStates';
 
 export default function Dashboard() {
   const { statistics, updateStatistics } = useAdminStore();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Simulate initial data loading
+    setIsLoading(true);
     updateStatistics();
+    
+    // Show skeleton for at least 500ms for smooth UX
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+    
     // Update every 30 seconds
     const interval = setInterval(updateStatistics, 30000);
     return () => clearInterval(interval);
   }, []);
+  
+  // Show skeleton during initial load
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   const statsCards = [
     {

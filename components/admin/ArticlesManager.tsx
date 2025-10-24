@@ -5,6 +5,8 @@ import { localArticleStorage, type StoredArticle } from '@/lib/local-article-sto
 import { getLocalArticles } from '@/lib/local-articles';
 import { adminLogger } from '@/lib/admin-logger';
 import type { Post } from '@/lib/types';
+import MobileArticleCard from './MobileArticleCard';
+import AdvancedSearchPanel, { type SearchFilters } from './AdvancedSearchPanel';
 
 interface ArticleItem {
   id: string;
@@ -27,11 +29,16 @@ export default function ArticlesManager() {
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const [filter, setFilter] = useState({
-    language: 'all',
+  const [filters, setFilters] = useState<SearchFilters>({
+    search: '',
     category: 'all',
     status: 'all',
-    search: ''
+    language: 'all',
+    dateFrom: '',
+    dateTo: '',
+    author: '',
+    viewsMin: '',
+    viewsMax: ''
   });
   const [stats, setStats] = useState({
     total: 0,
@@ -151,12 +158,52 @@ export default function ArticlesManager() {
     setStats(stats);
   };
 
-  // Фильтрация статей
+  // Расширенная фильтрация статей
   const filteredArticles = articles.filter(article => {
-    if (filter.language !== 'all' && article.language !== filter.language) return false;
-    if (filter.category !== 'all' && article.category !== filter.category) return false;
-    if (filter.status !== 'all' && article.status !== filter.status) return false;
-    if (filter.search && !article.title.toLowerCase().includes(filter.search.toLowerCase())) return false;
+    // Language filter
+    if (filters.language !== 'all' && article.language !== filters.language) return false;
+    
+    // Category filter
+    if (filters.category !== 'all' && article.category !== filters.category) return false;
+    
+    // Status filter
+    if (filters.status !== 'all' && article.status !== filters.status) return false;
+    
+    // Search filter (title, content, author)
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      const matchesTitle = article.title.toLowerCase().includes(searchLower);
+      const matchesExcerpt = article.excerpt.toLowerCase().includes(searchLower);
+      const matchesAuthor = article.author?.toLowerCase().includes(searchLower);
+      if (!matchesTitle && !matchesExcerpt && !matchesAuthor) return false;
+    }
+    
+    // Date range filter
+    if (filters.dateFrom) {
+      const articleDate = new Date(article.createdAt);
+      const fromDate = new Date(filters.dateFrom);
+      if (articleDate < fromDate) return false;
+    }
+    if (filters.dateTo) {
+      const articleDate = new Date(article.createdAt);
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59); // End of day
+      if (articleDate > toDate) return false;
+    }
+    
+    // Author filter
+    if (filters.author) {
+      if (!article.author?.toLowerCase().includes(filters.author.toLowerCase())) return false;
+    }
+    
+    // Views range filter
+    if (filters.viewsMin && article.views !== undefined) {
+      if (article.views < parseInt(filters.viewsMin)) return false;
+    }
+    if (filters.viewsMax && article.views !== undefined) {
+      if (article.views > parseInt(filters.viewsMax)) return false;
+    }
+    
     return true;
   });
 
@@ -272,6 +319,25 @@ export default function ArticlesManager() {
 
   return (
     <div className="space-y-6">
+      {/* Advanced Search */}
+      <AdvancedSearchPanel
+        filters={filters}
+        onFiltersChange={setFilters}
+        onReset={() => setFilters({
+          search: '',
+          category: 'all',
+          status: 'all',
+          language: 'all',
+          dateFrom: '',
+          dateTo: '',
+          author: '',
+          viewsMin: '',
+          viewsMax: ''
+        })}
+        totalResults={articles.length}
+        filteredResults={filteredArticles.length}
+      />
+
       {/* Header with Stats */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-6">
@@ -324,49 +390,6 @@ export default function ArticlesManager() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <select
-            value={filter.language}
-            onChange={(e) => setFilter(prev => ({ ...prev, language: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="all">All Languages</option>
-            <option value="en">🇺🇸 English</option>
-            <option value="pl">🇵🇱 Polish</option>
-          </select>
-
-          <select
-            value={filter.category}
-            onChange={(e) => setFilter(prev => ({ ...prev, category: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="all">All Categories</option>
-            <option value="ai">🤖 AI</option>
-            <option value="apple">🍎 Apple</option>
-            <option value="tech">⚙️ Tech</option>
-            <option value="games">🎮 Games</option>
-            <option value="digital">📱 Digital</option>
-          </select>
-
-          <select
-            value={filter.status}
-            onChange={(e) => setFilter(prev => ({ ...prev, status: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="all">All Types</option>
-            <option value="admin">✏️ Admin Created</option>
-            <option value="static">🔒 Static Articles</option>
-          </select>
-
-          <input
-            type="text"
-            value={filter.search}
-            onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-            placeholder="Search articles..."
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
-        </div>
 
         {/* Column Visibility Toggle */}
         <details className="mb-4">
@@ -448,7 +471,8 @@ export default function ArticlesManager() {
           </h4>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -593,20 +617,47 @@ export default function ArticlesManager() {
               ))}
             </tbody>
           </table>
-
-          {filteredArticles.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-4">📭</div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No articles found</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                {filter.search || filter.language !== 'all' || filter.category !== 'all' 
-                  ? 'Try adjusting your filters to see more articles.'
-                  : 'Create your first article using the URL Parser or Text Input.'
-                }
-              </p>
-            </div>
-          )}
         </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden p-4 space-y-4">
+          {filteredArticles.map((article) => (
+            <MobileArticleCard
+              key={article.id}
+              article={article}
+              isSelected={selectedArticles.has(article.id)}
+              onSelect={handleSelectArticle}
+              onEdit={(article) => {
+                // In future, navigate to editor with article data
+                alert(`Edit feature coming soon!\nArticle: ${article.title}`);
+              }}
+              onDelete={(id) => {
+                if (article.status === 'admin') {
+                  localArticleStorage.deleteArticle(id);
+                  loadArticles();
+                  adminLogger.info('user', 'delete_single_article', `Deleted article: ${article.title}`);
+                } else {
+                  alert('Only admin-created articles can be deleted.');
+                }
+              }}
+              onView={(url) => window.open(url, '_blank')}
+            />
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredArticles.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">📭</div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No articles found</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              {filters.search || filters.language !== 'all' || filters.category !== 'all' 
+                ? 'Try adjusting your filters to see more articles.'
+                : 'Create your first article using the URL Parser or Text Input.'
+              }
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Info Panel */}

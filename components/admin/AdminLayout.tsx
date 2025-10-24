@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import Toast from './Toast';
+import MobileNav from './MobileNav';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -33,8 +34,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         data-gramm_editor="false"
         data-enable-grammarly="false"
       >
-        {/* Sidebar */}
-      <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
+        {/* Sidebar - скрыт на мобильных */}
+      <div className="hidden md:flex w-64 bg-white dark:bg-gray-800 shadow-lg flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
@@ -93,13 +94,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Top Bar */}
         <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {menuItems.find(item => item.id === activeTab)?.label}
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {menuItems.find(item => item.id === activeTab)?.description}
-              </p>
+            <div className="flex items-center gap-3">
+              {/* Mobile Menu Button */}
+              <MobileNav
+                menuItems={menuItems}
+                activeTab={activeTab}
+                onTabChange={(tab) => setActiveTab(tab as any)}
+                onLogout={logout}
+              />
+              
+              {/* Page Title */}
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
+                  {menuItems.find(item => item.id === activeTab)?.label}
+                </h2>
+                <p className="hidden sm:block text-sm text-gray-500 dark:text-gray-400">
+                  {menuItems.find(item => item.id === activeTab)?.description}
+                </p>
+              </div>
             </div>
             
             <div className="flex items-center gap-4">

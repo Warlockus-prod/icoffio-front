@@ -92,14 +92,14 @@ export default function RichTextEditor({
 
   return (
     <div className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden ${className}`}>
-      {/* Toolbar */}
-      <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 p-2 flex flex-wrap gap-1">
+      {/* Toolbar - Sticky на мобильных */}
+      <div className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 p-2 md:p-2 flex flex-wrap gap-1">
         {/* Text Formatting */}
         <div className="flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
             disabled={!editor.can().chain().focus().toggleBold().run()}
-            className={`px-3 py-1.5 text-sm font-semibold rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm font-semibold rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors touch-none ${
               editor.isActive('bold') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Bold (Ctrl+B)"
@@ -109,7 +109,7 @@ export default function RichTextEditor({
           <button
             onClick={() => editor.chain().focus().toggleItalic().run()}
             disabled={!editor.can().chain().focus().toggleItalic().run()}
-            className={`px-3 py-1.5 text-sm italic rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm italic rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors touch-none ${
               editor.isActive('italic') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Italic (Ctrl+I)"
@@ -119,7 +119,7 @@ export default function RichTextEditor({
           <button
             onClick={() => editor.chain().focus().toggleStrike().run()}
             disabled={!editor.can().chain().focus().toggleStrike().run()}
-            className={`px-3 py-1.5 text-sm line-through rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`hidden md:inline-flex px-3 py-1.5 min-h-[36px] text-sm line-through rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
               editor.isActive('strike') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Strikethrough"
@@ -129,7 +129,7 @@ export default function RichTextEditor({
           <button
             onClick={() => editor.chain().focus().toggleCode().run()}
             disabled={!editor.can().chain().focus().toggleCode().run()}
-            className={`px-3 py-1.5 text-xs font-mono rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`hidden md:inline-flex px-3 py-1.5 min-h-[36px] text-xs font-mono rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
               editor.isActive('code') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Inline Code"
@@ -142,7 +142,7 @@ export default function RichTextEditor({
         <div className="flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={`px-3 py-1.5 text-sm font-bold rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm font-bold rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors touch-none ${
               editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Heading 1"
@@ -151,7 +151,7 @@ export default function RichTextEditor({
           </button>
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`px-3 py-1.5 text-sm font-bold rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm font-bold rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors touch-none ${
               editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Heading 2"
@@ -160,7 +160,7 @@ export default function RichTextEditor({
           </button>
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={`px-3 py-1.5 text-sm font-bold rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`hidden sm:inline-flex px-3 py-1.5 min-h-[36px] text-sm font-bold rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
               editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Heading 3"
@@ -173,16 +173,16 @@ export default function RichTextEditor({
         <div className="flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
           <button
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`px-3 py-1.5 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors touch-none ${
               editor.isActive('bulletList') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Bullet List"
           >
-            • List
+            <span className="hidden sm:inline">•</span> List
           </button>
           <button
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`px-3 py-1.5 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`hidden sm:inline-flex px-3 py-1.5 min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
               editor.isActive('orderedList') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Numbered List"
@@ -191,11 +191,11 @@ export default function RichTextEditor({
           </button>
         </div>
 
-        {/* Blocks */}
-        <div className="flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
+        {/* Blocks - hidden on mobile */}
+        <div className="hidden md:flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
           <button
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`px-3 py-1.5 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-3 py-1.5 min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
               editor.isActive('blockquote') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Blockquote"
@@ -204,7 +204,7 @@ export default function RichTextEditor({
           </button>
           <button
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            className={`px-3 py-1.5 text-xs font-mono rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-3 py-1.5 min-h-[36px] text-xs font-mono rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
               editor.isActive('codeBlock') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Code Block"
@@ -217,17 +217,17 @@ export default function RichTextEditor({
         <div className="flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
           <button
             onClick={setLink}
-            className={`px-3 py-1.5 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            className={`px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors touch-none ${
               editor.isActive('link') ? 'bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
             }`}
             title="Add Link"
           >
-            🔗 Link
+            🔗 <span className="hidden sm:inline">Link</span>
           </button>
           {editor.isActive('link') && (
             <button
               onClick={() => editor.chain().focus().unsetLink().run()}
-              className="px-3 py-1.5 text-sm rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+              className="px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors touch-none"
               title="Remove Link"
             >
               ✕
@@ -240,18 +240,18 @@ export default function RichTextEditor({
           <button
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().chain().focus().undo().run()}
-            className="px-3 py-1.5 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed touch-none"
             title="Undo (Ctrl+Z)"
           >
-            ↶ Undo
+            ↶<span className="hidden sm:inline"> Undo</span>
           </button>
           <button
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().chain().focus().redo().run()}
-            className="px-3 py-1.5 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed touch-none"
             title="Redo (Ctrl+Y)"
           >
-            ↷ Redo
+            ↷<span className="hidden sm:inline"> Redo</span>
           </button>
         </div>
       </div>

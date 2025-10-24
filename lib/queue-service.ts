@@ -157,7 +157,8 @@ class QueueService {
     }
 
     // Step 1: Parse URL content
-    const parseResponse = await fetch('/api/admin/parse-url', {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.icoffio.com';
+    const parseResponse = await fetch(`${baseUrl}/api/admin/parse-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -173,7 +174,7 @@ class QueueService {
     const parsedContent = await parseResponse.json();
 
     // Step 2: Publish article to WordPress
-    const publishResponse = await fetch('/api/admin/publish-article', {
+    const publishResponse = await fetch(`${baseUrl}/api/admin/publish-article`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -217,7 +218,8 @@ class QueueService {
     }
 
     // Step 1: Generate article content with AI
-    const generateResponse = await fetch('/api/admin/generate-article-content', {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.icoffio.com';
+    const generateResponse = await fetch(`${baseUrl}/api/admin/generate-article-content`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -240,7 +242,7 @@ class QueueService {
     const generatedContent = await generateResponse.json();
 
     // Step 2: Publish article to WordPress
-    const publishResponse = await fetch('/api/admin/publish-article', {
+    const publishResponse = await fetch(`${baseUrl}/api/admin/publish-article`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

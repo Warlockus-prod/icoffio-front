@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-10-24T19:54:10.799Z",
+  "stats": {
+    "totalArticles": 6,
+    "articlesWithImages": 6,
+    "articlesWithoutImages": 0,
+    "totalImages": 6,
+    "uniqueImages": 6,
+    "duplicates": 0,
+    "diversityScore": 100
+  },
+  "duplicates": [],
+  "articlesWithoutImages": [],
+  "recommendations": {
+    "imagesToGenerate": 0,
+    "estimatedCostDallE": 0,
+    "estimatedCostUnsplash": 0,
+    "recommendedMixCost": 0
+  }
+}

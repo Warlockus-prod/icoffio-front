@@ -958,7 +958,7 @@ Urządzenie rzeczywiście imponuje swoimi możliwościami, ale wysoka cena spraw
     title: "Trendy w grach 2024: Co się zmieni w branży",
     excerpt: "Gry w chmurze, gry VR i treści generowane przez AI - analizujemy główne trendy w branży gier.",
     publishedAt: "2024-01-08T09:15:00Z",
-    image: "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=800&h=400&fit=crop",
+    image: "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=800&h=400&fit=crop",
     category: { name: "Gry", slug: "games" },
     content: `
 # Trendy w grach 2024

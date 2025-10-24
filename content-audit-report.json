@@ -1,0 +1,430 @@
+{
+  "timestamp": "2025-10-24T20:20:03.071Z",
+  "summary": {
+    "totalArticles": 12,
+    "avgWords": 604,
+    "avgStructure": 6.1,
+    "qualityScore": 73.3,
+    "totalIssues": 16
+  },
+  "issues": {
+    "shortContent": [
+      {
+        "slug": "apple-vision-pro-review-pl",
+        "words": 62
+      },
+      {
+        "slug": "gaming-trends-2024-pl",
+        "words": 68
+      },
+      {
+        "slug": "tech-innovations-2024-pl",
+        "words": 58
+      },
+      {
+        "slug": "digital-transformation-guide-pl",
+        "words": 52
+      },
+      {
+        "slug": "tech-news-weekly-january-pl",
+        "words": 50
+      }
+    ],
+    "longExcerpts": [],
+    "poorStructure": [
+      {
+        "slug": "apple-vision-pro-review-pl",
+        "score": 3
+      },
+      {
+        "slug": "gaming-trends-2024-pl",
+        "score": 3
+      },
+      {
+        "slug": "tech-innovations-2024-pl",
+        "score": 3
+      },
+      {
+        "slug": "digital-transformation-guide-pl",
+        "score": 3
+      },
+      {
+        "slug": "tech-news-weekly-january-pl",
+        "score": 3
+      }
+    ],
+    "missingElements": [
+      {
+        "slug": "tech-news-weekly-january-en",
+        "missing": [
+          "conclusion"
+        ]
+      },
+      {
+        "slug": "apple-vision-pro-review-pl",
+        "missing": [
+          "conclusion"
+        ]
+      },
+      {
+        "slug": "gaming-trends-2024-pl",
+        "missing": [
+          "conclusion"
+        ]
+      },
+      {
+        "slug": "tech-innovations-2024-pl",
+        "missing": [
+          "conclusion"
+        ]
+      },
+      {
+        "slug": "digital-transformation-guide-pl",
+        "missing": [
+          "conclusion"
+        ]
+      },
+      {
+        "slug": "tech-news-weekly-january-pl",
+        "missing": [
+          "conclusion"
+        ]
+      }
+    ],
+    "seoIssues": []
+  },
+  "articles": [
+    {
+      "slug": "ai-revolution-2024-en",
+      "title": "AI Revolution 2024: Transformative Breakthroughs Reshaping Technology",
+      "excerpt": "Explore 2024's transformative AI breakthroughs, from multimodal models to autonomous systems reshaping technology and business.",
+      "analysis": {
+        "words": 1227,
+        "chars": 9366,
+        "excerptLength": 127,
+        "headings": 24,
+        "h1Count": 1,
+        "h2Count": 7,
+        "h3Count": 16,
+        "paragraphs": 31,
+        "lists": 93,
+        "links": 1,
+        "images": 1,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": true,
+        "titleLength": 69,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "excellent",
+        "structureScore": 10
+      }
+    },
+    {
+      "slug": "apple-vision-pro-review-en",
+      "title": "Apple Vision Pro: 6-Month Real-World Review",
+      "excerpt": "Apple Vision Pro after 6 months: performance, apps, ROI analysis. Is the $3,499 investment worth it? Comprehensive review.",
+      "analysis": {
+        "words": 1697,
+        "chars": 12880,
+        "excerptLength": 122,
+        "headings": 32,
+        "h1Count": 1,
+        "h2Count": 11,
+        "h3Count": 20,
+        "paragraphs": 44,
+        "lists": 144,
+        "links": 1,
+        "images": 1,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": true,
+        "titleLength": 43,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "excellent",
+        "structureScore": 10
+      }
+    },
+    {
+      "slug": "gaming-trends-2024-en",
+      "title": "Gaming Trends 2024: What Will Change in the Industry",
+      "excerpt": "Cloud gaming, VR games, and AI-generated content - analyzing the main trends in the gaming industry.",
+      "analysis": {
+        "words": 686,
+        "chars": 5115,
+        "excerptLength": 100,
+        "headings": 7,
+        "h1Count": 1,
+        "h2Count": 6,
+        "h3Count": 0,
+        "paragraphs": 17,
+        "lists": 21,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": true,
+        "titleLength": 52,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "good",
+        "structureScore": 7
+      }
+    },
+    {
+      "slug": "tech-innovations-2024-en",
+      "title": "Tech Innovations 2024: Breakthroughs Overview",
+      "excerpt": "From quantum computers to biotechnology - examining the most significant technological achievements of the year.",
+      "analysis": {
+        "words": 818,
+        "chars": 6525,
+        "excerptLength": 112,
+        "headings": 7,
+        "h1Count": 1,
+        "h2Count": 6,
+        "h3Count": 0,
+        "paragraphs": 20,
+        "lists": 20,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": true,
+        "titleLength": 45,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "good",
+        "structureScore": 7
+      }
+    },
+    {
+      "slug": "digital-transformation-guide-en",
+      "title": "Digital Transformation Guide for Business: Complete 2024 Strategy",
+      "excerpt": "Complete 2024 guide: implement digital transformation with proven strategies, tools, case studies, and actionable roadmap.",
+      "analysis": {
+        "words": 1203,
+        "chars": 9316,
+        "excerptLength": 122,
+        "headings": 32,
+        "h1Count": 1,
+        "h2Count": 11,
+        "h3Count": 20,
+        "paragraphs": 32,
+        "lists": 97,
+        "links": 1,
+        "images": 1,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": true,
+        "titleLength": 65,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "excellent",
+        "structureScore": 10
+      }
+    },
+    {
+      "slug": "tech-news-weekly-january-en",
+      "title": "Tech News Weekly: January 2024",
+      "excerpt": "The most important technology news and announcements from the past week in the world of high technology.",
+      "analysis": {
+        "words": 661,
+        "chars": 4736,
+        "excerptLength": 104,
+        "headings": 10,
+        "h1Count": 1,
+        "h2Count": 9,
+        "h3Count": 0,
+        "paragraphs": 17,
+        "lists": 12,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": false,
+        "titleLength": 30,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "good",
+        "structureScore": 7
+      }
+    },
+    {
+      "slug": "ai-revolution-2024-pl",
+      "title": "Rewolucja AI w 2024: Co nas czeka",
+      "excerpt": "Sztuczna inteligencja nadal rozwija się w szybkim tempie. Analizujemy główne trendy i przełomy tego roku.",
+      "analysis": {
+        "words": 660,
+        "chars": 5109,
+        "excerptLength": 105,
+        "headings": 7,
+        "h1Count": 1,
+        "h2Count": 6,
+        "h3Count": 0,
+        "paragraphs": 17,
+        "lists": 20,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": true,
+        "titleLength": 33,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "good",
+        "structureScore": 7
+      }
+    },
+    {
+      "slug": "apple-vision-pro-review-pl",
+      "title": "Apple Vision Pro: Recenzja rewolucyjnego urządzenia",
+      "excerpt": "Szczegółowa recenzja pierwszego urządzenia rzeczywistości mieszanej od Apple. Czy warto kupić i czego oczekiwać w przyszłości?",
+      "analysis": {
+        "words": 62,
+        "chars": 476,
+        "excerptLength": 126,
+        "headings": 3,
+        "h1Count": 1,
+        "h2Count": 2,
+        "h3Count": 0,
+        "paragraphs": 3,
+        "lists": 3,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": false,
+        "titleLength": 51,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "too short",
+        "structureScore": 3
+      }
+    },
+    {
+      "slug": "gaming-trends-2024-pl",
+      "title": "Trendy w grach 2024: Co się zmieni w branży",
+      "excerpt": "Gry w chmurze, VR i AI - kompleksowa analiza kluczowych trendów kształtujących przyszłość branży gier w 2024 roku.",
+      "analysis": {
+        "words": 68,
+        "chars": 401,
+        "excerptLength": 114,
+        "headings": 3,
+        "h1Count": 1,
+        "h2Count": 2,
+        "h3Count": 0,
+        "paragraphs": 3,
+        "lists": 3,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": false,
+        "titleLength": 43,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "too short",
+        "structureScore": 3
+      }
+    },
+    {
+      "slug": "tech-innovations-2024-pl",
+      "title": "Innowacje technologiczne 2024: Przegląd przełomów",
+      "excerpt": "Od komputerów kwantowych po biotechnologie - analizujemy najważniejsze osiągnięcia technologiczne roku.",
+      "analysis": {
+        "words": 58,
+        "chars": 438,
+        "excerptLength": 103,
+        "headings": 3,
+        "h1Count": 1,
+        "h2Count": 2,
+        "h3Count": 0,
+        "paragraphs": 3,
+        "lists": 3,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": false,
+        "titleLength": 49,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "too short",
+        "structureScore": 3
+      }
+    },
+    {
+      "slug": "digital-transformation-guide-pl",
+      "title": "Przewodnik po transformacji cyfrowej dla biznesu",
+      "excerpt": "Kompleksowy przewodnik transformacji cyfrowej: strategie, narzędzia, studia przypadków i plan działania dla firm 2024.",
+      "analysis": {
+        "words": 52,
+        "chars": 379,
+        "excerptLength": 118,
+        "headings": 3,
+        "h1Count": 1,
+        "h2Count": 2,
+        "h3Count": 0,
+        "paragraphs": 3,
+        "lists": 3,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": false,
+        "titleLength": 48,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "too short",
+        "structureScore": 3
+      }
+    },
+    {
+      "slug": "tech-news-weekly-january-pl",
+      "title": "Wiadomości technologiczne tygodnia: Styczeń 2024",
+      "excerpt": "Najważniejsze wiadomości technologiczne i ogłoszenia z minionego tygodnia w świecie wysokich technologii.",
+      "analysis": {
+        "words": 50,
+        "chars": 391,
+        "excerptLength": 105,
+        "headings": 3,
+        "h1Count": 1,
+        "h2Count": 2,
+        "h3Count": 0,
+        "paragraphs": 3,
+        "lists": 3,
+        "links": 0,
+        "images": 0,
+        "codeBlocks": 0,
+        "hasIntro": true,
+        "hasConclusion": false,
+        "titleLength": 48,
+        "titleSEO": "good",
+        "excerptSEO": "good",
+        "lengthEval": "too short",
+        "structureScore": 3
+      }
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Expand 5 short articles to 500+ words",
+      "effort": "Medium (2-4 hours)",
+      "impact": "High (better SEO, engagement)"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Improve structure for 5 articles",
+      "effort": "Medium (1-2 hours)",
+      "impact": "Medium (better readability)"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Add missing elements to 6 articles",
+      "effort": "Medium (1-2 hours)",
+      "impact": "Medium (better completeness)"
+    }
+  ]
+}

@@ -17,6 +17,55 @@
 
 ---
 
+## [5.1.1] - 2025-10-24 - RUSSIAN TEXT REMOVAL (CONTENT QUALITY PHASE 1) 🌍
+
+**PATCH RELEASE** - Удаление русского текста из всех видимых пользователю элементов
+
+### Fixed - Content Quality & UX
+- 🌍 **Complete Russian Text Removal from UI**
+  - Footer: Newsletter text now uses i18n (EN/PL)
+  - Newsletter component: Removed RU/DE/RO/CS locales (kept only EN/PL)
+  - Admin panel: All alerts, buttons, confirmations translated to English
+  - Editorial page: Complete translation (team info, principles, contacts)
+  - Advertising page: Complete translation (formats, pricing, audience info)
+  - Articles page: All warnings, errors, empty states translated
+  - Category pages: All fallback system comments translated
+  - WordPress service: All documentation comments in English
+
+### Changed
+- `lib/i18n.ts`: Added `newsletterSubscribe` and `socialMediaComingSoon` translations
+- `lib/wordpress-service.ts`: All code comments translated to English
+- `components/Footer.tsx`: Using i18n for newsletter text
+- `components/Newsletter.tsx`: Simplified to EN/PL only
+- `app/[locale]/admin/page.tsx`: Admin alerts and UI text in English
+- `app/[locale]/admin/add-article/page.tsx`: Metadata translated
+- `app/[locale]/(site)/editorial/page.tsx`: Full page content in English
+- `app/[locale]/(site)/articles/page.tsx`: All UI messages in English
+- `app/[locale]/(site)/category/[slug]/page.tsx`: Fallback comments in English
+- `app/[locale]/(site)/advertising/page.tsx`: Complete page translation
+
+### Technical Details
+- Build: ✅ Success (0 errors)
+- TypeScript: ✅ 0 errors
+- Linting: ✅ Passed
+- Breaking changes: None
+- Files modified: 60
+- Lines changed: +224 / -207
+
+### Impact
+- Zero Russian text visible to end users
+- Consistent bilingual experience (EN/PL)
+- Professional international presentation
+- Improved UX for non-Russian speaking visitors
+
+### Notes
+- Internal code comments in API routes remain in Russian (not user-facing)
+- All user-visible content now properly localized
+- Graceful degradation messages translated
+- Mock data categories translated
+
+---
+
 ## [5.1.0] - 2025-10-24 - DALL-E 3 IMAGE GENERATION 🎨
 
 **MINOR RELEASE** - Интеграция DALL-E 3 для генерации уникальных изображений статей

@@ -150,14 +150,14 @@ class QueueService {
    * Process URL parsing job
    */
   private async processUrlParse(job: QueueJob): Promise<any> {
-    const { url } = job.data;
+    const { url, category, language } = job.data;
     
     if (!url) {
       throw new Error('URL is required for url-parse job');
     }
 
-    // Call URL parser API
-    const response = await fetch('/api/admin/parse-url', {
+    // Step 1: Parse URL content
+    const parseResponse = await fetch('/api/admin/parse-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -165,11 +165,45 @@ class QueueService {
       body: JSON.stringify({ url }),
     });
 
-    if (!response.ok) {
-      throw new Error(`URL parsing failed: ${response.statusText}`);
+    if (!parseResponse.ok) {
+      const error = await parseResponse.text();
+      throw new Error(`URL parsing failed: ${error}`);
     }
 
-    return await response.json();
+    const parsedContent = await parseResponse.json();
+
+    // Step 2: Publish article to WordPress
+    const publishResponse = await fetch('/api/admin/publish-article', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: parsedContent.title,
+        content: parsedContent.content,
+        excerpt: parsedContent.excerpt || parsedContent.content.substring(0, 160),
+        category: category || 'Technology',
+        language: language || 'en',
+        author: 'Telegram Bot',
+        tags: ['telegram', 'parsed-url'],
+        source: 'telegram-bot-url'
+      }),
+    });
+
+    if (!publishResponse.ok) {
+      const error = await publishResponse.text();
+      throw new Error(`Publication failed: ${error}`);
+    }
+
+    const publishResult = await publishResponse.json();
+
+    return {
+      ...parsedContent,
+      published: true,
+      publishResult,
+      url: publishResult.url || null,
+      postId: publishResult.postId || null
+    };
   }
 
   /**
@@ -182,8 +216,8 @@ class QueueService {
       throw new Error('Text is required for text-generate job');
     }
 
-    // Call AI copywriting API
-    const response = await fetch('/api/admin/generate-article-content', {
+    // Step 1: Generate article content with AI
+    const generateResponse = await fetch('/api/admin/generate-article-content', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -198,11 +232,45 @@ class QueueService {
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Text generation failed: ${response.statusText}`);
+    if (!generateResponse.ok) {
+      const error = await generateResponse.text();
+      throw new Error(`Text generation failed: ${error}`);
     }
 
-    return await response.json();
+    const generatedContent = await generateResponse.json();
+
+    // Step 2: Publish article to WordPress
+    const publishResponse = await fetch('/api/admin/publish-article', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: generatedContent.title,
+        content: generatedContent.content,
+        excerpt: generatedContent.excerpt,
+        category: category || 'Technology',
+        language: language || 'en',
+        author: 'Telegram Bot',
+        tags: ['telegram', 'ai-generated'],
+        source: 'telegram-bot'
+      }),
+    });
+
+    if (!publishResponse.ok) {
+      const error = await publishResponse.text();
+      throw new Error(`Publication failed: ${error}`);
+    }
+
+    const publishResult = await publishResponse.json();
+
+    return {
+      ...generatedContent,
+      published: true,
+      publishResult,
+      url: publishResult.url || null,
+      postId: publishResult.postId || null
+    };
   }
 
   /**

@@ -17,6 +17,53 @@ import { getQueueService } from '@/lib/queue-service';
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
+// In-memory error log (will persist during runtime)
+// In production, use database or file storage
+let errorLog: Array<{
+  jobId: string;
+  chatId: number;
+  errorType: string;
+  error: string;
+  timestamp: string;
+  jobData: any;
+}> = [];
+
+/**
+ * Log error for admin review
+ */
+async function logErrorForReview(errorData: {
+  jobId: string;
+  chatId: number;
+  errorType: string;
+  error: string;
+  timestamp: string;
+  jobData: any;
+}): Promise<void> {
+  errorLog.push(errorData);
+  
+  // Keep only last 100 errors
+  if (errorLog.length > 100) {
+    errorLog = errorLog.slice(-100);
+  }
+  
+  console.error('[Telegram Bot Error]', {
+    jobId: errorData.jobId,
+    errorType: errorData.errorType,
+    timestamp: errorData.timestamp
+  });
+
+  // Also send to error log API
+  try {
+    await fetch('/api/telegram/errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(errorData)
+    });
+  } catch (e) {
+    console.error('Failed to log error to API:', e);
+  }
+}
+
 // Verify Telegram secret
 function verifyTelegramRequest(request: NextRequest): boolean {
   const secret = request.headers.get('x-telegram-bot-api-secret-token');
@@ -261,26 +308,81 @@ async function monitorJob(jobId: string, chatId: number) {
     if (job.status === 'completed') {
       // Success!
       const result = job.result;
+      const processingTime = Math.round((job.completedAt!.getTime() - job.startedAt!.getTime()) / 1000);
       
-      await sendTelegramMessage(
-        chatId,
-        `✅ <b>Готово!</b>\n\n` +
-        `📝 Заголовок: ${result.title || 'N/A'}\n` +
-        `💬 Слов: ${result.wordCount || 'N/A'}\n` +
-        `⏱️ Время: ${Math.round((job.completedAt!.getTime() - job.startedAt!.getTime()) / 1000)}s\n\n` +
-        `✨ Статья создана и готова к публикации!`
-      );
+      // Check if article was published
+      if (result.published && result.url) {
+        // Published successfully
+        await sendTelegramMessage(
+          chatId,
+          `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
+          `📝 <b>Заголовок:</b> ${result.title || 'N/A'}\n` +
+          `💬 <b>Слов:</b> ${result.wordCount || 'N/A'}\n` +
+          `🌍 <b>Язык:</b> ${result.publishResult?.language || 'en'}\n` +
+          `⏱️ <b>Время:</b> ${processingTime}s\n\n` +
+          `🔗 <b>URL:</b>\n${result.url}\n\n` +
+          `✨ <b>Статус:</b> Опубликовано на сайте!`
+        );
+      } else {
+        // Created but not published
+        await sendTelegramMessage(
+          chatId,
+          `✅ <b>Создано (не опубликовано)</b>\n\n` +
+          `📝 Заголовок: ${result.title || 'N/A'}\n` +
+          `💬 Слов: ${result.wordCount || 'N/A'}\n` +
+          `⏱️ Время: ${processingTime}s\n\n` +
+          `⚠️ Статья создана, но не опубликована.\n` +
+          `Проверьте настройки WordPress.`
+        );
+      }
       return;
     }
 
     if (job.status === 'failed') {
-      // Failed
+      // Failed - determine error type
+      const error = job.error || 'Unknown error';
+      let errorType = 'Неизвестная ошибка';
+      let errorDetails = error;
+      let suggestion = 'Попробуйте еще раз или обратитесь к администратору.';
+
+      // Parse error type
+      if (error.includes('generation failed') || error.includes('Text generation')) {
+        errorType = '🤖 Ошибка генерации AI';
+        errorDetails = 'AI не смог создать статью из вашего текста.';
+        suggestion = 'Попробуйте:\n• Более подробный текст\n• Другую формулировку\n• Уменьшить объем запроса';
+      } else if (error.includes('parsing failed') || error.includes('URL')) {
+        errorType = '🔗 Ошибка парсинга URL';
+        errorDetails = 'Не удалось извлечь контент с указанного URL.';
+        suggestion = 'Проверьте:\n• URL доступен?\n• Сайт не блокирует парсинг?\n• Попробуйте другой URL';
+      } else if (error.includes('Publication failed') || error.includes('WordPress')) {
+        errorType = '📝 Ошибка публикации';
+        errorDetails = 'Статья создана, но не опубликована в WordPress.';
+        suggestion = 'Статья создана локально, но публикация не удалась.\nСвяжитесь с администратором для публикации.';
+      } else if (error.includes('credentials') || error.includes('authentication')) {
+        errorType = '🔐 Ошибка авторизации';
+        errorDetails = 'Проблема с доступом к WordPress.';
+        suggestion = 'Свяжитесь с администратором для проверки настроек.';
+      }
+
       await sendTelegramMessage(
         chatId,
-        `❌ <b>Ошибка обработки</b>\n\n` +
-        `Причина: ${job.error || 'Unknown'}\n\n` +
-        `Попробуйте еще раз или обратитесь к администратору.`
+        `❌ <b>${errorType}</b>\n\n` +
+        `📋 <b>Детали:</b>\n${errorDetails}\n\n` +
+        `💡 <b>Что делать:</b>\n${suggestion}\n\n` +
+        `🆔 <b>Job ID:</b> <code>${job.id}</code>\n` +
+        `⏱️ <b>Попыток:</b> ${job.retryCount}/${job.maxRetries}`
       );
+
+      // Log error for admin review
+      await logErrorForReview({
+        jobId: job.id,
+        chatId,
+        errorType,
+        error,
+        timestamp: new Date().toISOString(),
+        jobData: job.data
+      });
+
       return;
     }
 

@@ -89,16 +89,24 @@ export async function POST(request: NextRequest) {
         console.log(`[Process Queue] Job completed: ${jobId}`, result);
 
         if (result.published && result.url) {
-          await sendTelegramMessage(
-            chatId,
-            `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
+          // Format message based on published languages
+          let message = `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
             `📝 <b>Заголовок:</b> ${result.title || 'N/A'}\n` +
             `💬 <b>Слов:</b> ${result.wordCount || 'N/A'}\n` +
-            `🌍 <b>Язык:</b> ${result.publishResult?.language || 'en'}\n` +
-            `⏱️ <b>Время:</b> ${processingTime}s\n\n` +
-            `🔗 <b>URL:</b>\n${result.url}\n\n` +
-            `✨ <b>Статус:</b> Опубликовано на сайте!`
-          );
+            `🌍 <b>Языки:</b> ${result.languages?.join(', ').toUpperCase() || 'EN'}\n` +
+            `⏱️ <b>Время:</b> ${processingTime}s\n\n`;
+
+          // Add English URL
+          message += `🇬🇧 <b>EN:</b>\n${result.url}\n\n`;
+
+          // Add Polish URL if available
+          if (result.urlPl) {
+            message += `🇵🇱 <b>PL:</b>\n${result.urlPl}\n\n`;
+          }
+
+          message += `✨ <b>Статус:</b> Опубликовано на сайте!`;
+
+          await sendTelegramMessage(chatId, message);
         } else {
           await sendTelegramMessage(
             chatId,

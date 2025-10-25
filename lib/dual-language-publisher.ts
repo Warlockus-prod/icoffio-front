@@ -190,17 +190,30 @@ async function insertImagesIntoContent(
   category: string
 ): Promise<string> {
   try {
-    console.log(`[DualLang] Generating 2 images...`);
+    console.log(`[DualLang] Generating 2 unique images...`);
 
-    // Generate 2 different images
+    // Generate 2 DIFFERENT images with unique queries
+    // Добавляем вариативность через разные keywords и perspectives
+    const imageKeywords = [
+      'technology innovation',
+      'digital transformation',
+      'futuristic concept',
+      'modern workspace',
+      'tech infrastructure',
+      'innovation lab'
+    ];
+    
+    const randomKeyword1 = imageKeywords[Math.floor(Math.random() * imageKeywords.length)];
+    const randomKeyword2 = imageKeywords[Math.floor(Math.random() * imageKeywords.length)];
+    
     const [image1Response, image2Response] = await Promise.all([
       fetch(`${BASE_URL}/api/admin/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'unsplash',
-          title,
-          excerpt,
+          title: `${category} ${randomKeyword1}`,
+          excerpt: title.substring(0, 50), // Используем часть title как context
           category
         }),
       }),
@@ -209,8 +222,8 @@ async function insertImagesIntoContent(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'unsplash',
-          title: `${title} - detailed view`,
-          excerpt,
+          title: `${category} ${randomKeyword2} perspective`,
+          excerpt: excerpt?.substring(0, 50) || title, // Используем excerpt как context
           category
         }),
       })
@@ -233,26 +246,27 @@ async function insertImagesIntoContent(
       return content;
     }
 
-    console.log(`[DualLang] Generated ${images.length} images`);
+    console.log(`[DualLang] Generated ${images.length} unique images`);
 
-    // Split content by major headings (##)
-    const sections = content.split(/(?=^##\s)/m);
-
-    // Insert first image after intro (before first ##)
-    if (images[0] && sections.length > 0) {
-      sections[0] += `\n\n![${title}](${images[0]})\n\n`;
+    // Split content into paragraphs (by double newline)
+    const paragraphs = content.split(/\n\n+/);
+    
+    if (paragraphs.length < 4) {
+      // Not enough content, return as is
+      return content;
     }
 
-    // Insert second image in the middle
-    if (images[1] && sections.length > 3) {
-      const middleIndex = Math.floor(sections.length / 2);
-      sections[middleIndex] += `\n\n![${title} - illustration](${images[1]})\n\n`;
-    } else if (images[1] && sections.length > 1) {
-      // If not enough sections, add to end
-      sections[sections.length - 1] += `\n\n![${title} - illustration](${images[1]})\n\n`;
+    // Insert first image after 30-40% of content (more text before image)
+    const firstImagePosition = Math.floor(paragraphs.length * 0.35);
+    paragraphs.splice(firstImagePosition, 0, `\n![${title}](${images[0]})\n`);
+
+    // Insert second image after 70-80% of content (if we have second image)
+    if (images[1]) {
+      const secondImagePosition = Math.floor(paragraphs.length * 0.75);
+      paragraphs.splice(secondImagePosition, 0, `\n![${title} illustration](${images[1]})\n`);
     }
 
-    return sections.join('');
+    return paragraphs.join('\n\n');
 
   } catch (error) {
     console.error('[DualLang] Image insertion failed:', error);

@@ -71,13 +71,12 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
               className="block rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-sm transition-shadow"
             >
               <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-                {post.image && (
-                  <img
-                    src={post.image}
-                    alt={post.imageAlt || post.title}
-                    className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                  />
-                )}
+                <img
+                  src={post.image || `https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&h=800&auto=format&fit=crop&category=${post.category.slug}`}
+                  alt={post.imageAlt || post.title}
+                  className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                  loading="lazy"
+                />
               </div>
               
               <div className="p-4">

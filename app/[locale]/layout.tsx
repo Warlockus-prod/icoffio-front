@@ -12,6 +12,7 @@ import { ToastProvider } from "@/components/ToastNotification";
 import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
 import { TestPanel } from "@/components/TestPanel";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
+import { CookieConsent } from "@/components/CookieConsent";
 
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
@@ -186,6 +187,7 @@ export default function LocaleLayout({
               <BackToTop />
               <SearchModalWrapper posts={[]} locale={params.locale} />
               <TestPanel locale={params.locale} />
+              <CookieConsent locale={params.locale} />
             </SearchProvider>
           </ToastProvider>
         </ThemeProvider>
@@ -224,25 +226,53 @@ export default function LocaleLayout({
           `
         }} />
 
-        {/* VOX рекламный скрипт - ОБЪЕДИНЕННАЯ ВЕРСИЯ (In-Image + Display) */}
+        {/* VOX рекламный скрипт - ОБЪЕДИНЕННАЯ ВЕРСИЯ (In-Image + Display) с COOKIE CONSENT */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if (typeof window._tx === "undefined") {
-                  var s = document.createElement("script");
-                  s.type = "text/javascript";
-                  s.async = true;
-                  // Кеширование VOX скрипта - убрали timestamp для браузерного кеша
-                  s.src = "https://st.hbrd.io/ssp.js";
-                  // Форсируем загрузку с высоким приоритетом
-                  s.setAttribute('fetchpriority', 'high');
-                  (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
+              // Функция проверки cookie consent для advertising
+              function hasAdvertisingConsent() {
+                try {
+                  var saved = localStorage.getItem('icoffio_cookie_consent');
+                  if (!saved) return false;
+                  var parsed = JSON.parse(saved);
+                  return parsed.hasConsented && parsed.preferences && parsed.preferences.advertising;
+                } catch (e) {
+                  return false;
+                }
               }
-              window._tx = window._tx || {};
-              window._tx.cmds = window._tx.cmds || [];
+              
+              // Загружаем VOX скрипт только если есть согласие
+              function loadVOXScript() {
+                if (!hasAdvertisingConsent()) {
+                  console.log('VOX: Ожидание согласия пользователя на рекламу');
+                  return;
+                }
+                
+                console.log('VOX: Загрузка скрипта с согласием пользователя');
+                
+                if (typeof window._tx === "undefined") {
+                    var s = document.createElement("script");
+                    s.type = "text/javascript";
+                    s.async = true;
+                    // Кеширование VOX скрипта - убрали timestamp для браузерного кеша
+                    s.src = "https://st.hbrd.io/ssp.js";
+                    // Форсируем загрузку с высоким приоритетом
+                    s.setAttribute('fetchpriority', 'high');
+                    (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
+                }
+                window._tx = window._tx || {};
+                window._tx.cmds = window._tx.cmds || [];
+              }
               
               // Функция инициализации VOX с поддержкой переинициализации
               function initVOX() {
+                  // Проверяем согласие перед инициализацией
+                  if (!hasAdvertisingConsent()) {
+                      console.log('VOX: Пропуск инициализации - нет согласия на рекламу');
+                      return;
+                  }
+                  
                   console.log('VOX: Инициализация начата для URL:', window.location.href);
                   
                   // Проверяем доступность VOX API
@@ -361,25 +391,49 @@ export default function LocaleLayout({
                   }
               }
               
-              // Запуск VOX с поддержкой Next.js navigation
-              window._tx.cmds.push(function () {
-                  console.log('VOX: Команда добавлена в очередь');
-                  
-                  // Инициализация при первой загрузке
-                  function firstInit() {
-                      currentUrl = window.location.href;
-                      console.log('VOX: Первая инициализация для URL:', currentUrl);
-                      initVOX();
-                      
-                      // Запускаем мониторинг URL изменений для Next.js navigation
-                      setInterval(checkAndReinitVOX, 1000);
+              // Запуск VOX с поддержкой Next.js navigation и Cookie Consent
+              function startVOX() {
+                  // Проверяем согласие
+                  if (!hasAdvertisingConsent()) {
+                      console.log('VOX: Ожидание согласия пользователя');
+                      return;
                   }
                   
-                  if (document.readyState === 'complete') {
-                      firstInit();
-                  } else {
-                      window.addEventListener('load', firstInit);
-                      setTimeout(firstInit, 1000); // Оптимизировано - уменьшен fallback с 2000 до 1000ms
+                  // Загружаем скрипт если есть согласие
+                  loadVOXScript();
+                  
+                  // После загрузки скрипта инициализируем
+                  window._tx.cmds.push(function () {
+                      console.log('VOX: Команда добавлена в очередь');
+                      
+                      // Инициализация при первой загрузке
+                      function firstInit() {
+                          currentUrl = window.location.href;
+                          console.log('VOX: Первая инициализация для URL:', currentUrl);
+                          initVOX();
+                          
+                          // Запускаем мониторинг URL изменений для Next.js navigation
+                          setInterval(checkAndReinitVOX, 1000);
+                      }
+                      
+                      if (document.readyState === 'complete') {
+                          firstInit();
+                      } else {
+                          window.addEventListener('load', firstInit);
+                          setTimeout(firstInit, 1000); // Оптимизировано - уменьшен fallback с 2000 до 1000ms
+                      }
+                  });
+              }
+              
+              // Запускаем при загрузке страницы
+              startVOX();
+              
+              // Слушаем изменения cookie consent
+              window.addEventListener('cookieConsentChanged', function(event) {
+                  console.log('VOX: Обнаружено изменение cookie consent', event.detail);
+                  if (event.detail && event.detail.advertising) {
+                      console.log('VOX: Реклама разрешена, перезагружаем страницу');
+                      // Страница перезагрузится автоматически в useCookieConsent
                   }
               });
             `,

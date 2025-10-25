@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { checkCookieConsent } from '@/lib/useCookieConsent';
 
 // Type for gtag function
 type GtagFunction = (
@@ -27,13 +28,42 @@ interface AnalyticsProps {
 
 export function Analytics({ gaId }: AnalyticsProps) {
   const pathname = usePathname();
+  const [hasConsent, setHasConsent] = useState(false);
+
+  // Проверяем cookie consent
+  useEffect(() => {
+    const checkConsent = () => {
+      const consent = checkCookieConsent('analytics');
+      setHasConsent(consent);
+    };
+
+    checkConsent();
+
+    // Слушаем изменения consent
+    const handleConsentChange = () => {
+      checkConsent();
+    };
+
+    window.addEventListener('cookieConsentChanged', handleConsentChange);
+    
+    return () => {
+      window.removeEventListener('cookieConsentChanged', handleConsentChange);
+    };
+  }, []);
 
   useEffect(() => {
-    // Only load analytics in production and if GA ID is provided
+    // Only load analytics in production, if GA ID is provided AND if user consented
     if (process.env.NODE_ENV !== 'production' || !gaId) {
       console.log('Analytics: Skipping in development or missing GA ID');
       return;
     }
+
+    if (!hasConsent) {
+      console.log('Analytics: Waiting for cookie consent');
+      return;
+    }
+
+    console.log('Analytics: Loading Google Analytics with user consent');
 
     // Load Google Analytics script
     const script1 = document.createElement('script');
@@ -59,16 +89,16 @@ export function Analytics({ gaId }: AnalyticsProps) {
       if (script1.parentNode) script1.parentNode.removeChild(script1);
       if (script2.parentNode) script2.parentNode.removeChild(script2);
     };
-  }, [gaId]);
+  }, [gaId, hasConsent]);
 
   // Track page views on route change
   useEffect(() => {
-    if (process.env.NODE_ENV === 'production' && gaId && typeof window !== 'undefined' && window.gtag) {
+    if (process.env.NODE_ENV === 'production' && gaId && hasConsent && typeof window !== 'undefined' && window.gtag) {
       window.gtag('config', gaId, {
         page_path: pathname,
       });
     }
-  }, [pathname, gaId]);
+  }, [pathname, gaId, hasConsent]);
 
   return null;
 }

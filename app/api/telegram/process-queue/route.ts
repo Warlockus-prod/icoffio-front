@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { t, translations, getUserLanguage } from '@/lib/telegram-i18n';
 import { getQueueService } from '@/lib/queue-service';
+import { telegramDB } from '@/lib/telegram-database-service';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes (Pro tier only, but we set it anyway)
@@ -90,6 +91,23 @@ export async function POST(request: NextRequest) {
         console.log(`[Process Queue] Job completed: ${jobId}`, result);
 
         if (result.published && result.url) {
+          // Log published article to database
+          await telegramDB.logArticle({
+            chat_id: chatId,
+            job_id: jobId,
+            title: result.title || 'Untitled',
+            url_en: result.url,
+            url_pl: result.urlPl,
+            post_id_en: result.postId,
+            post_id_pl: result.postIdPl,
+            category: result.category || 'Technology',
+            word_count: result.wordCount || 0,
+            languages: result.languages || ['en'],
+            processing_time: processingTime,
+            source: job.data?.url ? 'url-parse' : 'text-generate',
+            original_input: job.data?.url || job.data?.text?.substring(0, 500)
+          });
+
           // Format message based on published languages
           let message = `${t(chatId, 'published')}\n\n` +
             `${t(chatId, 'title')} ${result.title || 'N/A'}\n` +

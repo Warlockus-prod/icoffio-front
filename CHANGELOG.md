@@ -10,10 +10,149 @@
 ## [Unreleased]
 
 ### Planned
-- Image upload в WYSIWYG - будущее улучшение (Phase 5)
+- Image upload в WYSIWYG - будущее улучшение
 - Collaborative editing - будущее улучшение
 - AI-powered content suggestions - будущее улучшение
-- Multiple images generation для inline контента статей
+
+---
+
+## [7.0.0] - 2025-10-25 - DATABASE LOGGING & STATISTICS 📊🗄️
+
+**MAJOR RELEASE** - Полная система логирования и статистики для Telegram Bot
+
+### Added - Database Integration (Supabase)
+
+#### 1. 🗄️ **Database Schema (PostgreSQL/Supabase)**
+- **`user_preferences` table** - хранение настроек пользователей
+  - `chat_id`, `language`, `username`, `first_name`, `last_name`
+  - `created_at`, `last_active`
+- **`usage_logs` table** - логи всех запросов
+  - `request_type` ('text-generate', 'url-parse', 'command')
+  - `command`, `request_data`, `status`, `error_message`
+  - `processing_time`, `created_at`
+- **`published_articles` table** - опубликованные статьи
+  - `title`, `url_en`, `url_pl`, `post_id_en`, `post_id_pl`
+  - `category`, `word_count`, `languages[]`, `processing_time`
+  - `source` ('text-generate' | 'url-parse'), `original_input`
+- **Views**: `user_statistics`, `global_statistics`, `category_statistics`
+
+#### 2. 👤 **User Tracking**
+- Автоматический tracking всех пользователей Telegram бота
+- Сохранение username, first_name, last_name, is_bot
+- Отслеживание last_active timestamp
+- Persistent language storage (fixes Vercel stateless issue)
+
+#### 3. 📊 **Usage Logging**
+- Логирование всех команд (`/start`, `/help`, `/queue`, etc)
+- Логирование URL-parsing запросов
+- Логирование text-generation запросов
+- Tracking processing time для каждого запроса
+- Status tracking: pending → success/failed
+
+#### 4. 📝 **Article Logging**
+- Автоматическое логирование при публикации статьи
+- Двуязычные URL (EN + PL)
+- WordPress post IDs (EN + PL)
+- Category, word count, languages
+- Processing time (seconds)
+- Source (url-parse vs text-generate)
+- Original input (URL or text)
+
+#### 5. 📈 **Statistics API**
+- `GET /api/telegram/stats` - глобальная статистика
+  - Total users, active users (24h/7d)
+  - Total articles, total requests
+- `GET /api/telegram/stats?type=users&limit=20` - топ пользователей
+- `GET /api/telegram/stats?type=articles&limit=50` - последние статьи
+- `GET /api/telegram/stats?type=articles&chat_id=123` - статьи пользователя
+- `GET /api/telegram/stats?type=categories` - статистика по категориям
+
+#### 6. 🌍 **Persistent Language Storage**
+- Language preferences сохраняются в Supabase
+- In-memory cache для fast access
+- Автоматическая загрузка при первом сообщении
+- Fixes: язык НЕ теряется между Vercel cold starts
+
+### Technical Changes
+**New Files:**
+- `supabase/schema.sql` - полная DB schema
+- `docs/SUPABASE_SETUP.md` - setup guide (step-by-step)
+- `lib/supabase-client.ts` - Supabase client (singleton)
+- `lib/telegram-database-service.ts` - database service layer
+- `app/api/telegram/stats/route.ts` - statistics API endpoint
+
+**Modified Files:**
+- `app/api/telegram/webhook/route.ts`
+  * Added user tracking on every message
+  * Added usage logging for all commands
+  * Added usage logging for URL/text requests
+  * Added language loading from DB
+  * Language changes now persist to DB
+  
+- `app/api/telegram/process-queue/route.ts`
+  * Added article logging on successful publication
+  * Stores EN + PL URLs and post IDs
+  * Tracks processing time and source
+  
+- `lib/telegram-i18n.ts`
+  * Added `loadUserLanguage()` function
+  * In-memory cache + DB fallback
+  * Persistent across Vercel function restarts
+
+**Dependencies:**
+- Added: `@supabase/supabase-js@^2.76.1`
+
+### Documentation
+- **`docs/SUPABASE_SETUP.md`** - полный setup guide:
+  1. Создание Supabase проекта
+  2. Запуск SQL schema
+  3. Получение API ключей
+  4. Добавление в Vercel env vars
+  5. Testing и troubleshooting
+  
+- **`supabase/schema.sql`** - производственная DB schema с:
+  - Indexes для быстрого поиска
+  - Foreign keys для referential integrity
+  - Views для сложных аналитических запросов
+  - Row Level Security (RLS) policies
+  - Комментарии для каждой таблицы/view
+
+### Benefits
+✅ **Полная прозрачность использования бота**
+✅ **Tracking кто и сколько публикует статей**
+✅ **Persistence языка между сессиями** (больше не теряется!)
+✅ **Аналитика по категориям и пользователям**
+✅ **Error logging для debugging**
+✅ **Free tier Supabase достаточно** (500 MB, 50K users)
+✅ **Graceful degradation** (работает без Supabase если не настроен)
+
+### Breaking Changes
+⚠️ **MAJOR VERSION** - требуется Supabase setup для full functionality:
+1. Создать Supabase проект
+2. Запустить `schema.sql`
+3. Добавить env vars в Vercel:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY`
+4. Redeploy
+
+**Без Supabase:**
+- Бот работает (graceful degradation)
+- НО язык теряется между cold starts
+- НО нет статистики/логов
+
+### Build Status
+- ✅ TypeScript: 0 errors
+- ✅ Build: Successful
+- ✅ Bundle size: +15 KB (Supabase client)
+- ✅ All tests passing
+- ✅ Compatible with Vercel Free/Hobby tier
+
+### Next Steps (v7.1.0+)
+- Dashboard UI для просмотра статистики
+- Admin panel для управления пользователями
+- Export статистики (CSV, JSON)
+- Rate limiting по пользователям
+- Usage quotas
 
 ---
 

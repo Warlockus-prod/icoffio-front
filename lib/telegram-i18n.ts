@@ -3,26 +3,54 @@
  * 
  * Multi-language support for Telegram bot interface
  * Supported languages: Russian, Polish, English
+ * 
+ * NOTE: Uses in-memory cache + Supabase database for persistence
  */
+
+import { telegramDB } from './telegram-database-service';
 
 export type BotLanguage = 'ru' | 'pl' | 'en';
 
-// In-memory storage for user language preferences
-// In production, use database or Redis
-const userLanguages = new Map<number, BotLanguage>();
+// In-memory cache for fast access (populated from DB)
+// This cache resets on Vercel function cold start, but DB persists
+const languageCache = new Map<number, BotLanguage>();
 
 /**
- * Get user's preferred language
+ * Get user's preferred language (cached + DB fallback)
  */
 export function getUserLanguage(chatId: number): BotLanguage {
-  return userLanguages.get(chatId) || 'ru'; // Default: Russian
+  // Try cache first (fast)
+  const cached = languageCache.get(chatId);
+  if (cached) {
+    return cached;
+  }
+
+  // Cache miss - will load from DB on next interaction
+  // For now return default
+  return 'ru'; // Default: Russian
 }
 
 /**
- * Set user's preferred language
+ * Set user's preferred language (cache + DB)
  */
 export function setUserLanguage(chatId: number, language: BotLanguage): void {
-  userLanguages.set(chatId, language);
+  languageCache.set(chatId, language);
+  // DB update happens separately in webhook/route.ts
+}
+
+/**
+ * Load user language from database and cache it
+ * Called on first message from user
+ */
+export async function loadUserLanguage(chatId: number): Promise<BotLanguage> {
+  try {
+    const language = await telegramDB.getUserLanguage(chatId);
+    languageCache.set(chatId, language);
+    return language;
+  } catch (error) {
+    console.error('[i18n] Failed to load user language from DB:', error);
+    return 'ru'; // Default fallback
+  }
 }
 
 /**

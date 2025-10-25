@@ -13,7 +13,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueueService } from '@/lib/queue-service';
-import { getUserLanguage, setUserLanguage, t, translations, type BotLanguage } from '@/lib/telegram-i18n';
+import { getUserLanguage, setUserLanguage, loadUserLanguage, t, translations, type BotLanguage } from '@/lib/telegram-i18n';
+import { telegramDB } from '@/lib/telegram-database-service';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -128,6 +129,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Track user activity in database
+    await telegramDB.trackUser({
+      chat_id: chatId,
+      username: message.from?.username,
+      first_name: message.from?.first_name,
+      last_name: message.from?.last_name,
+      is_bot: message.from?.is_bot,
+      language: getUserLanguage(chatId)
+    });
+
+    // Load user language from database (cache for this session)
+    await loadUserLanguage(chatId);
+
     // Check for commands
     if (text.startsWith('/')) {
       return await handleCommand(chatId, text);
@@ -151,6 +165,14 @@ export async function POST(request: NextRequest) {
           messageId: message.message_id,
         },
         maxRetries: 2,
+      });
+
+      // Log usage to database
+      await telegramDB.logUsage({
+        chat_id: chatId,
+        request_type: 'url-parse',
+        request_data: { url, jobId },
+        status: 'pending'
       });
 
       await sendTelegramMessage(
@@ -186,6 +208,14 @@ export async function POST(request: NextRequest) {
         maxRetries: 2,
       });
 
+      // Log usage to database
+      await telegramDB.logUsage({
+        chat_id: chatId,
+        request_type: 'text-generate',
+        request_data: { text: text.substring(0, 200), title, jobId },
+        status: 'pending'
+      });
+
       await sendTelegramMessage(
         chatId,
         `${t(chatId, 'textReceived')}\n\n` +
@@ -219,6 +249,14 @@ export async function POST(request: NextRequest) {
  */
 async function handleCommand(chatId: number, text: string) {
   const command = text.toLowerCase().split(' ')[0];
+
+  // Log command usage
+  await telegramDB.logUsage({
+    chat_id: chatId,
+    request_type: 'command',
+    command: command,
+    status: 'success'
+  });
 
   switch (command) {
     case '/start':
@@ -271,16 +309,19 @@ async function handleCommand(chatId: number, text: string) {
 
     case '/lang_ru':
       setUserLanguage(chatId, 'ru');
+      await telegramDB.updateUserLanguage(chatId, 'ru');
       await sendTelegramMessage(chatId, '✅ Язык изменен на Русский');
       break;
 
     case '/lang_pl':
       setUserLanguage(chatId, 'pl');
+      await telegramDB.updateUserLanguage(chatId, 'pl');
       await sendTelegramMessage(chatId, '✅ Język zmieniony na Polski');
       break;
 
     case '/lang_en':
       setUserLanguage(chatId, 'en');
+      await telegramDB.updateUserLanguage(chatId, 'en');
       await sendTelegramMessage(chatId, '✅ Language changed to English');
       break;
 

@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { t, translations, getUserLanguage } from '@/lib/telegram-i18n';
 import { getQueueService } from '@/lib/queue-service';
 
 export const runtime = 'nodejs';
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
         console.error(`[Process Queue] Job not found: ${jobId}`);
         await sendTelegramMessage(
           chatId,
-          `❌ <b>Ошибка</b>\n\nЗадание не найдено. Попробуйте снова.`
+          `${t(chatId, 'error')}\n\n${t(chatId, 'jobNotFound')}`
         );
         break;
       }
@@ -90,12 +91,12 @@ export async function POST(request: NextRequest) {
 
         if (result.published && result.url) {
           // Format message based on published languages
-          let message = `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
-            `📝 <b>Заголовок:</b> ${result.title || 'N/A'}\n` +
-            `💬 <b>Слов:</b> ${result.wordCount || 'N/A'}\n` +
-            `📁 <b>Категория:</b> ${result.category || 'Technology'}\n` +
-            `🌍 <b>Языки:</b> ${result.languages?.join(', ').toUpperCase() || 'EN'}\n` +
-            `⏱️ <b>Время:</b> ${processingTime}s\n\n`;
+          let message = `${t(chatId, 'published')}\n\n` +
+            `${t(chatId, 'title')} ${result.title || 'N/A'}\n` +
+            `${t(chatId, 'words')} ${result.wordCount || 'N/A'}\n` +
+            `${t(chatId, 'category')} ${result.category || 'Technology'}\n` +
+            `${t(chatId, 'languages')} ${result.languages?.join(', ').toUpperCase() || 'EN'}\n` +
+            `${t(chatId, 'time')} ${processingTime}s\n\n`;
 
           // Add English URL
           message += `🇬🇧 <b>EN:</b>\n${result.url}\n\n`;
@@ -105,18 +106,18 @@ export async function POST(request: NextRequest) {
             message += `🇵🇱 <b>PL:</b>\n${result.urlPl}\n\n`;
           }
 
-          message += `✨ <b>Статус:</b> Опубликовано на сайте!`;
+          message += `${t(chatId, 'statusPublished')}`;
 
           await sendTelegramMessage(chatId, message);
         } else {
           await sendTelegramMessage(
             chatId,
-            `✅ <b>Создано (не опубликовано)</b>\n\n` +
-            `📝 Заголовок: ${result.title || 'N/A'}\n` +
-            `💬 Слов: ${result.wordCount || 'N/A'}\n` +
-            `⏱️ Время: ${processingTime}s\n\n` +
+            `${t(chatId, 'createdNotPublished')}\n\n` +
+            `${t(chatId, 'title')} ${result.title || 'N/A'}\n` +
+            `${t(chatId, 'words')} ${result.wordCount || 'N/A'}\n` +
+            `${t(chatId, 'time')} ${processingTime}s\n\n` +
             `⚠️ Статья создана, но не опубликована.\n` +
-            `Проверьте настройки WordPress.`
+            `${t(chatId, 'checkSettings')}`
           );
         }
         break;
@@ -131,33 +132,22 @@ export async function POST(request: NextRequest) {
         if (errorMessage.includes('generation') || errorMessage.includes('openai')) {
           await sendTelegramMessage(
             chatId,
-            `❌ <b>Ошибка AI генерации</b>\n\n` +
-            `Не удалось создать контент статьи.\n` +
-            `Причина: ${job.error || 'Unknown'}\n\n` +
-            `Попробуйте снова или используйте другой запрос.`
+            `${t(chatId, 'errorAiGeneration')}\n\n${t(chatId, 'error')}: ${job.error || 'Unknown'}`
           );
         } else if (errorMessage.includes('parsing') || errorMessage.includes('url')) {
           await sendTelegramMessage(
             chatId,
-            `❌ <b>Ошибка парсинга URL</b>\n\n` +
-            `Не удалось получить контент по ссылке.\n` +
-            `Причина: ${job.error || 'Unknown'}\n\n` +
-            `Убедитесь, что ссылка корректна и доступна.`
+            `${t(chatId, 'errorUrlParsing')}\n\n${t(chatId, 'error')}: ${job.error || 'Unknown'}`
           );
         } else if (errorMessage.includes('publication') || errorMessage.includes('wordpress')) {
           await sendTelegramMessage(
             chatId,
-            `❌ <b>Ошибка публикации</b>\n\n` +
-            `Статья создана, но не опубликована.\n` +
-            `Причина: ${job.error || 'Unknown'}\n\n` +
-            `Свяжитесь с администратором.`
+            `${t(chatId, 'errorPublication')}\n\n${t(chatId, 'error')}: ${job.error || 'Unknown'}`
           );
         } else {
           await sendTelegramMessage(
             chatId,
-            `❌ <b>Ошибка обработки</b>\n\n` +
-            `${job.error || 'Неизвестная ошибка'}\n\n` +
-            `Попробуйте снова позже.`
+            `${t(chatId, 'errorProcessing')}\n\n${t(chatId, 'error')}: ${job.error || 'Unknown'}`
           );
         }
         break;
@@ -173,9 +163,7 @@ export async function POST(request: NextRequest) {
       console.error(`[Process Queue] Job timeout: ${jobId}`);
       await sendTelegramMessage(
         chatId,
-        `⏱️ <b>Timeout</b>\n\n` +
-        `Обработка занимает слишком много времени.\n` +
-        `Проверьте статус позже командой /queue`
+        `${t(chatId, 'timeout')}\n\n${t(chatId, 'checkLater')}`
       );
     }
 

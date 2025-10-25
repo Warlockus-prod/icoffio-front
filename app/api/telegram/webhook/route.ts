@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueueService } from '@/lib/queue-service';
-import { getUserLanguage, setUserLanguage, t, type BotLanguage } from '@/lib/telegram-i18n';
+import { getUserLanguage, setUserLanguage, t, translations, type BotLanguage } from '@/lib/telegram-i18n';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -155,10 +155,10 @@ export async function POST(request: NextRequest) {
 
       await sendTelegramMessage(
         chatId,
-        `🔄 <b>URL получен!</b>\n\n` +
+        `${t(chatId, 'urlReceived')}\n\n` +
         `🔗 <code>${url}</code>\n\n` +
-        `📋 Добавлено в очередь: <code>${jobId}</code>\n` +
-        `⏳ Ожидайте обработки...`
+        `${t(chatId, 'addedToQueue')} <code>${jobId}</code>\n` +
+        `${t(chatId, 'pleaseWait')}`
       );
 
       // Start async processing (fire-and-forget)
@@ -188,11 +188,11 @@ export async function POST(request: NextRequest) {
 
       await sendTelegramMessage(
         chatId,
-        `✨ <b>Текст получен!</b>\n\n` +
-        `📝 Заголовок: <i>${title}</i>\n\n` +
-        `📋 Добавлено в очередь: <code>${jobId}</code>\n` +
-        `🤖 AI генерирует статью...\n` +
-        `⏳ Ожидайте (~30 секунд)`
+        `${t(chatId, 'textReceived')}\n\n` +
+        `${t(chatId, 'title')} <i>${title}</i>\n\n` +
+        `${t(chatId, 'addedToQueue')} <code>${jobId}</code>\n` +
+        `${t(chatId, 'aiGenerating')}\n` +
+        `${t(chatId, 'pleaseWait')}`
       );
 
       // Start async processing (fire-and-forget)
@@ -222,37 +222,13 @@ async function handleCommand(chatId: number, text: string) {
 
   switch (command) {
     case '/start':
-      await sendTelegramMessage(
-        chatId,
-        `👋 <b>Привет! Я icoffio Bot</b>\n\n` +
-        `Я помогу тебе создавать статьи:\n\n` +
-        `📝 <b>Отправь текст</b> → Создам статью с AI\n` +
-        `🔗 <b>Отправь URL</b> → Спарсю и опубликую\n\n` +
-        `📋 <b>Команды:</b>\n` +
-        `/help - Помощь\n` +
-        `/queue - Статус очереди\n` +
-        `/status - Мой статус\n` +
-        `/language - Выбор языка\n\n` +
-        `Powered by GPT-4o 🤖`
-      );
+      await sendTelegramMessage(chatId, t(chatId, 'start'));
       break;
 
     case '/help':
       await sendTelegramMessage(
         chatId,
-        `📖 <b>Как использовать бота:</b>\n\n` +
-        `<b>1. Создание статьи из текста</b>\n` +
-        `Просто отправь текст (1-2 предложения или полный текст).\n` +
-        `AI создаст профессиональную статью.\n\n` +
-        `<b>2. Парсинг статьи с URL</b>\n` +
-        `Отправь ссылку на статью.\n` +
-        `Бот спарсит и добавит в систему.\n\n` +
-        `<b>3. Очередь запросов</b>\n` +
-        `Если отправишь несколько запросов — они обработаются по очереди.\n\n` +
-        `<b>Команды:</b>\n` +
-        `/start - Начало работы\n` +
-        `/queue - Посмотреть очередь\n` +
-        `/status - Статус системы`
+        `${t(chatId, 'help')}\n\n${t(chatId, 'helpDetails')}`
       );
       break;
 
@@ -262,37 +238,34 @@ async function handleCommand(chatId: number, text: string) {
       
       await sendTelegramMessage(
         chatId,
-        `📊 <b>Статус очереди:</b>\n\n` +
-        `📋 Всего заданий: ${stats.total}\n` +
-        `⏳ В ожидании: ${stats.pending}\n` +
-        `⚙️ Обрабатывается: ${stats.processing}\n` +
-        `✅ Завершено: ${stats.completed}\n` +
-        `❌ Ошибки: ${stats.failed}\n\n` +
-        `${stats.isProcessing ? '🔄 Система работает' : '💤 Система ожидает'}`
+        `${t(chatId, 'queueStatus')}\n\n` +
+        `${t(chatId, 'totalJobs')} ${stats.total}\n` +
+        `${t(chatId, 'pending')} ${stats.pending}\n` +
+        `${t(chatId, 'processing')} ${stats.processing}\n` +
+        `${t(chatId, 'completed')} ${stats.completed}\n` +
+        `${t(chatId, 'errors')} ${stats.failed}\n\n` +
+        `${stats.isProcessing ? t(chatId, 'systemWorking') : t(chatId, 'systemWaiting')}`
       );
       break;
 
     case '/status':
       await sendTelegramMessage(
         chatId,
-        `✅ <b>Система активна</b>\n\n` +
-        `🤖 AI: GPT-4o\n` +
-        `🎨 Изображения: DALL-E 3 + Unsplash\n` +
-        `🌍 Языки: EN, PL\n` +
-        `📊 Queue: Активна\n\n` +
-        `Все системы работают нормально!`
+        `${t(chatId, 'systemActive')}\n\n` +
+        `${t(chatId, 'aiModel')}\n` +
+        `${t(chatId, 'images')}\n` +
+        `${t(chatId, 'languagesSupported')}\n` +
+        `${t(chatId, 'queueActive')}\n\n` +
+        `${t(chatId, 'allSystemsNormal')}`
       );
       break;
 
     case '/language':
       await sendTelegramMessage(
         chatId,
-        `🌍 <b>Выбор языка интерфейса</b>\n\n` +
-        `Выберите язык:\n` +
-        `🇷🇺 Русский - /lang_ru\n` +
-        `🇵🇱 Polski - /lang_pl\n` +
-        `🇬🇧 English - /lang_en\n\n` +
-        `Текущий язык: ${getUserLanguage(chatId).toUpperCase()}`
+        `${t(chatId, 'language')}\n\n` +
+        `${t(chatId, 'languagePrompt')}\n\n` +
+        `Текущий: ${getUserLanguage(chatId).toUpperCase()}`
       );
       break;
 
@@ -314,7 +287,7 @@ async function handleCommand(chatId: number, text: string) {
     default:
       await sendTelegramMessage(
         chatId,
-        `❓ Неизвестная команда: ${command}\n\n` +
+        `${t(chatId, 'unknownCommand')}${command ? `: ${command}` : ''}\n\n` +
         `Используй /help для списка команд.`
       );
   }

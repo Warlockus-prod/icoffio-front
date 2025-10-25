@@ -223,12 +223,13 @@ class QueueService {
     }
 
     // Use dual-language publisher (generates EN + PL with 2 images)
+    // AI will auto-detect category and optimize title
     console.log(`[Queue] Starting dual-language article generation...`);
     
     const result = await publishDualLanguageArticle(
       text,
-      title,
-      category || 'Technology'
+      title, // Optional user title
+      category // Optional user category (AI will detect if not provided)
     );
 
     if (!result.success) {
@@ -245,6 +246,7 @@ class QueueService {
       published: true,
       title: result.enResult.title,
       wordCount: result.enResult.wordCount,
+      category: result.category,
       url: result.enResult.url, // Primary (EN) URL
       urlPl: result.plResult?.url || null, // Polish URL
       postId: result.enResult.postId,

@@ -3,9 +3,11 @@
  * 
  * Handles automatic publishing of articles in both EN and PL
  * with 2 images inserted into content
+ * Includes AI category detection and title generation
  */
 
 import { translateArticleContent } from './ai-copywriting-service';
+import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
 
 const BASE_URL = 'https://app.icoffio.com';
 
@@ -22,6 +24,7 @@ export interface DualLanguagePublishResult {
     url: string | null;
     postId: number | null;
   } | null;
+  category: string;
   error?: string;
 }
 
@@ -30,10 +33,25 @@ export interface DualLanguagePublishResult {
  */
 export async function publishDualLanguageArticle(
   prompt: string,
-  title: string | undefined,
-  category: string
+  userTitle: string | undefined,
+  userCategory: string | undefined
 ): Promise<DualLanguagePublishResult> {
   try {
+    // Step 0: AI Category Detection and Title Generation
+    console.log(`[DualLang] AI detecting category...`);
+    const categoryResult = await detectCategory(prompt, userTitle);
+    const detectedCategory = categoryResult.category;
+    console.log(`[DualLang] Detected category: ${detectedCategory} (confidence: ${categoryResult.confidence})`);
+
+    // Generate SEO-optimized title
+    console.log(`[DualLang] AI generating title...`);
+    const optimizedTitle = await generateOptimizedTitle(prompt, detectedCategory);
+    console.log(`[DualLang] Generated title: "${optimizedTitle}"`);
+
+    // Use AI-generated or user-provided values
+    const finalTitle = userTitle || optimizedTitle;
+    const finalCategory = userCategory || detectedCategory;
+
     // Step 1: Generate EN article
     console.log(`[DualLang] Generating EN article...`);
     
@@ -42,8 +60,8 @@ export async function publishDualLanguageArticle(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
-        title,
-        category,
+        title: finalTitle,
+        category: finalCategory,
         language: 'en',
         targetWords: 600,
         style: 'professional'
@@ -62,7 +80,7 @@ export async function publishDualLanguageArticle(
       enContent.content,
       enContent.title,
       enContent.excerpt,
-      category
+      finalCategory
     );
 
     // Step 3: Translate to PL
@@ -85,7 +103,7 @@ export async function publishDualLanguageArticle(
         title: enContent.title,
         content: enContentWithImages,
         excerpt: enContent.excerpt,
-        category,
+        category: finalCategory,
         language: 'en',
         author: 'Telegram Bot',
         source: 'telegram-bot'
@@ -112,7 +130,7 @@ export async function publishDualLanguageArticle(
           title: plTranslation.translatedTitle,
           content: plTranslation.translatedContent,
           excerpt: plTranslation.translatedContent.substring(0, 160).replace(/[#*]/g, ''),
-          category,
+          category: finalCategory,
           language: 'pl',
           author: 'Telegram Bot',
           source: 'telegram-bot'
@@ -141,7 +159,8 @@ export async function publishDualLanguageArticle(
         title: plTranslation.translatedTitle,
         url: plPublishResult.url || null,
         postId: plPublishResult.postId || null
-      } : null
+      } : null,
+      category: finalCategory
     };
 
   } catch (error: any) {
@@ -155,6 +174,7 @@ export async function publishDualLanguageArticle(
         wordCount: 0
       },
       plResult: null,
+      category: 'Technology', // Default on error
       error: error.message
     };
   }

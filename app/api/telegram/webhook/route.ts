@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueueService } from '@/lib/queue-service';
+import { getUserLanguage, setUserLanguage, t, type BotLanguage } from '@/lib/telegram-i18n';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -230,7 +231,8 @@ async function handleCommand(chatId: number, text: string) {
         `📋 <b>Команды:</b>\n` +
         `/help - Помощь\n` +
         `/queue - Статус очереди\n` +
-        `/status - Мой статус\n\n` +
+        `/status - Мой статус\n` +
+        `/language - Выбор языка\n\n` +
         `Powered by GPT-4o 🤖`
       );
       break;
@@ -280,6 +282,33 @@ async function handleCommand(chatId: number, text: string) {
         `📊 Queue: Активна\n\n` +
         `Все системы работают нормально!`
       );
+      break;
+
+    case '/language':
+      await sendTelegramMessage(
+        chatId,
+        `🌍 <b>Выбор языка интерфейса</b>\n\n` +
+        `Выберите язык:\n` +
+        `🇷🇺 Русский - /lang_ru\n` +
+        `🇵🇱 Polski - /lang_pl\n` +
+        `🇬🇧 English - /lang_en\n\n` +
+        `Текущий язык: ${getUserLanguage(chatId).toUpperCase()}`
+      );
+      break;
+
+    case '/lang_ru':
+      setUserLanguage(chatId, 'ru');
+      await sendTelegramMessage(chatId, '✅ Язык изменен на Русский');
+      break;
+
+    case '/lang_pl':
+      setUserLanguage(chatId, 'pl');
+      await sendTelegramMessage(chatId, '✅ Język zmieniony na Polski');
+      break;
+
+    case '/lang_en':
+      setUserLanguage(chatId, 'en');
+      await sendTelegramMessage(chatId, '✅ Language changed to English');
       break;
 
     default:

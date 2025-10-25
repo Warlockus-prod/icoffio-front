@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
           let message = `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
             `📝 <b>Заголовок:</b> ${result.title || 'N/A'}\n` +
             `💬 <b>Слов:</b> ${result.wordCount || 'N/A'}\n` +
+            `📁 <b>Категория:</b> ${result.category || 'Technology'}\n` +
             `🌍 <b>Языки:</b> ${result.languages?.join(', ').toUpperCase() || 'EN'}\n` +
             `⏱️ <b>Время:</b> ${processingTime}s\n\n`;
 

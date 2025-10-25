@@ -75,8 +75,8 @@ function generateImagePrompt(params: ImageGenerationParams): string {
     prompt += ' Style: modern tech journalism, 4K quality, photorealistic, professional.';
   }
   
-  // Добавляем технические требования для вертикального формата (2:3 для inimage рекламы)
-  prompt += ' No text, no watermarks, no logos. Vertical portrait format (2:3 aspect ratio) suitable for article content with ad placement.';
+  // Добавляем технические требования для горизонтального формата (3:2 для inimage рекламы)
+  prompt += ' No text, no watermarks, no logos. Horizontal landscape format (3:2 aspect ratio) suitable for article content with ad placement.';
   
   return prompt;
 }
@@ -110,7 +110,7 @@ export async function generateArticleImage(
       model: 'dall-e-3',
       prompt: prompt,
       n: 1,
-      size: params.size || '1024x1792', // Portrait format (2:3) для inimage рекламы
+      size: params.size || '1792x1024', // Landscape format (близко к 3:2) для inimage рекламы
       quality: params.quality || 'hd',
       style: params.style || 'natural',
     });
@@ -196,15 +196,15 @@ export async function generateMultipleImages(
  */
 export async function getUnsplashImage(
   query: string,
-  orientation: 'landscape' | 'portrait' | 'squarish' = 'portrait'
+  orientation: 'landscape' | 'portrait' | 'squarish' = 'landscape'
 ): Promise<ImageGenerationResult> {
   try {
     const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY;
     
     if (!unsplashAccessKey) {
-      // Fallback к search-based URL если нет API ключа (2:3 aspect ratio)
+      // Fallback к search-based URL если нет API ключа (3:2 aspect ratio)
       const encodedQuery = encodeURIComponent(query);
-      const url = `https://images.unsplash.com/photo-1?q=${encodedQuery}&w=800&h=1200&fit=crop`;
+      const url = `https://images.unsplash.com/photo-1?q=${encodedQuery}&w=1200&h=800&fit=crop`;
       
       return {
         success: true,
@@ -228,7 +228,7 @@ export async function getUnsplashImage(
     }
     
     const data = await response.json();
-    const url = `${data.urls.raw}&w=800&h=1200&fit=crop`; // 2:3 aspect ratio для inimage
+    const url = `${data.urls.raw}&w=1200&h=800&fit=crop`; // 3:2 aspect ratio для inimage
     
     return {
       success: true,

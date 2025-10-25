@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
+import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSkeleton";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 

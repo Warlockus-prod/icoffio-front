@@ -6,9 +6,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { marked } from 'marked';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Configure marked for clean HTML output
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 interface PublishRequest {
   title: string;
@@ -80,10 +87,13 @@ export async function POST(request: NextRequest) {
       console.warn('Failed to fetch category, using default:', error);
     }
 
+    // Convert Markdown to HTML for WordPress
+    const htmlContent = await marked(content);
+
     // Create post
     const postData = {
       title,
-      content,
+      content: htmlContent, // Use HTML instead of Markdown
       excerpt,
       slug,
       status: 'publish', // Publish immediately

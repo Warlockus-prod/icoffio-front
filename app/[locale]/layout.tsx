@@ -8,6 +8,7 @@ import { BackToTop } from "@/components/BackToTop";
 import { Analytics } from "@/components/Analytics";
 import { SearchProvider } from "@/components/SearchProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ToastNotification";
 import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
 import { TestPanel } from "@/components/TestPanel";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
@@ -174,17 +175,19 @@ export default function LocaleLayout({
       </head>
       <body className="min-h-dvh bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 antialiased selection:bg-neutral-900 selection:text-white dark:selection:bg-neutral-100 dark:selection:text-neutral-900 transition-colors duration-300">
         <ThemeProvider>
-          <SearchProvider>
-            <ReadingProgress />
-            <WebVitals />
-            <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID || 'G-35P327PYGH'} />
-            <Header />
-            <main className="pb-10">{children}</main>
-            <Footer locale={params.locale} />
-            <BackToTop />
-            <SearchModalWrapper posts={[]} locale={params.locale} />
-            <TestPanel locale={params.locale} />
-          </SearchProvider>
+          <ToastProvider>
+            <SearchProvider>
+              <ReadingProgress />
+              <WebVitals />
+              <Analytics gaId={process.env.NEXT_PUBLIC_GA_ID || 'G-35P327PYGH'} />
+              <Header />
+              <main className="pb-10">{children}</main>
+              <Footer locale={params.locale} />
+              <BackToTop />
+              <SearchModalWrapper posts={[]} locale={params.locale} />
+              <TestPanel locale={params.locale} />
+            </SearchProvider>
+          </ToastProvider>
         </ThemeProvider>
 
         {/* CSS для VOX Display рекламы - правильные размеры согласно документации */}

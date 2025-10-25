@@ -278,6 +278,81 @@ function parseGeneratedArticle(text: string): {
 }
 
 /**
+ * Translate article content to another language
+ */
+export async function translateArticleContent(
+  content: string,
+  fromLanguage: 'en' | 'pl',
+  toLanguage: 'en' | 'pl',
+  title?: string
+): Promise<{
+  success: boolean;
+  translatedContent: string;
+  translatedTitle: string;
+  error?: string;
+}> {
+  try {
+    if (fromLanguage === toLanguage) {
+      return {
+        success: true,
+        translatedContent: content,
+        translatedTitle: title || ''
+      };
+    }
+
+    const openai = getOpenAIClient();
+
+    const systemPrompt = `You are a professional translator specializing in technical and technology content.
+Translate the following article from ${fromLanguage === 'en' ? 'English' : 'Polish'} to ${toLanguage === 'en' ? 'English' : 'Polish'}.
+
+Requirements:
+- Maintain the original markdown structure (headings, lists, formatting)
+- Preserve technical terms where appropriate
+- Keep the professional tone
+- Ensure natural, fluent language
+- Do NOT add any extra content or commentary
+- Return ONLY the translated article`;
+
+    const userPrompt = `${title ? `Title: ${title}\n\n` : ''}Article content:\n\n${content}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3, // Lower temperature for more accurate translation
+      max_tokens: 3000,
+    });
+
+    const translatedText = completion.choices[0]?.message?.content || '';
+    
+    if (!translatedText) {
+      throw new Error('Translation failed - no content returned');
+    }
+
+    // Extract translated title if present
+    const titleMatch = translatedText.match(/^#\s+(.+)$/m);
+    const translatedTitle = titleMatch ? titleMatch[1].trim() : (title || '');
+
+    return {
+      success: true,
+      translatedContent: translatedText,
+      translatedTitle
+    };
+
+  } catch (error: any) {
+    console.error('Translation Error:', error);
+    return {
+      success: false,
+      translatedContent: '',
+      translatedTitle: '',
+      error: error.message || 'Translation failed'
+    };
+  }
+}
+
+/**
  * Estimate cost for article generation
  */
 export function estimateGenerationCost(

@@ -12,8 +12,6 @@
  * - Progress callbacks
  */
 
-import { publishDualLanguageArticle } from './dual-language-publisher';
-
 export interface QueueJob {
   id: string;
   type: 'url-parse' | 'text-generate' | 'ai-copywrite';
@@ -216,44 +214,86 @@ class QueueService {
    * Process text generation job
    */
   private async processTextGenerate(job: QueueJob): Promise<any> {
-    const { text, title, category } = job.data;
+    const { text, title, category, language } = job.data;
     
     if (!text) {
       throw new Error('Text is required for text-generate job');
     }
 
-    // Use dual-language publisher (generates EN + PL with 2 images)
-    console.log(`[Queue] Starting dual-language article generation...`);
+    // Step 1: Generate article content with AI
+    // IMPORTANT: Use app.icoffio.com for API calls (not icoffio.com which is WordPress)
+    const baseUrl = 'https://app.icoffio.com';
+    console.log(`[Queue] Calling AI generation: ${baseUrl}/api/admin/generate-article-content`);
     
-    const result = await publishDualLanguageArticle(
-      text,
-      title,
-      category || 'Technology'
-    );
+    const generateResponse = await fetch(`${baseUrl}/api/admin/generate-article-content`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: text,
+        title: title || undefined,
+        category: category || 'Technology',
+        language: language || 'en',
+        targetWords: 600,
+        style: 'professional'
+      }),
+    });
 
-    if (!result.success) {
-      throw new Error(result.error || 'Dual-language publication failed');
+    console.log(`[Queue] AI generation response status: ${generateResponse.status}`);
+
+    if (!generateResponse.ok) {
+      const error = await generateResponse.text();
+      console.error(`[Queue] AI generation failed:`, error);
+      throw new Error(`Text generation failed: ${error}`);
     }
 
-    console.log(`[Queue] Dual-language publication complete:`, {
-      enUrl: result.enResult.url,
-      plUrl: result.plResult?.url || 'not published'
+    const generatedContent = await generateResponse.json();
+    console.log(`[Queue] AI generated article:`, {
+      title: generatedContent.title,
+      wordCount: generatedContent.wordCount
+    });
+
+    // Step 2: Publish article to WordPress
+    console.log(`[Queue] Publishing to WordPress: ${baseUrl}/api/admin/publish-article`);
+    
+    const publishResponse = await fetch(`${baseUrl}/api/admin/publish-article`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: generatedContent.title,
+        content: generatedContent.content,
+        excerpt: generatedContent.excerpt,
+        category: category || 'Technology',
+        language: language || 'en',
+        author: 'Telegram Bot',
+        // tags removed - WordPress REST API requires tag IDs (integers), not strings
+        source: 'telegram-bot'
+      }),
+    });
+
+    console.log(`[Queue] Publish response status: ${publishResponse.status}`);
+
+    if (!publishResponse.ok) {
+      const error = await publishResponse.text();
+      console.error(`[Queue] Publication failed:`, error);
+      throw new Error(`Publication failed: ${error}`);
+    }
+
+    const publishResult = await publishResponse.json();
+    console.log(`[Queue] Article published:`, {
+      postId: publishResult.postId,
+      url: publishResult.url
     });
 
     return {
-      success: true,
+      ...generatedContent,
       published: true,
-      title: result.enResult.title,
-      wordCount: result.enResult.wordCount,
-      url: result.enResult.url, // Primary (EN) URL
-      urlPl: result.plResult?.url || null, // Polish URL
-      postId: result.enResult.postId,
-      postIdPl: result.plResult?.postId || null,
-      languages: result.plResult ? ['en', 'pl'] : ['en'],
-      publishResult: {
-        en: result.enResult,
-        pl: result.plResult
-      }
+      publishResult,
+      url: publishResult.url || null,
+      postId: publishResult.postId || null
     };
   }
 

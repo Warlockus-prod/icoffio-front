@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { trackNewsletterSignup } from './Analytics';
+import { useToast } from './ToastNotification';
 
 interface NewsletterProps {
   locale: string;
@@ -38,6 +39,7 @@ export function Newsletter({ locale }: NewsletterProps) {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const { showToast } = useToast();
 
   const t = translations[locale as keyof typeof translations] || translations.en;
 
@@ -88,6 +90,9 @@ export function Newsletter({ locale }: NewsletterProps) {
       setMessage(t.success);
       setEmail('');
       
+      // Show toast notification
+      showToast(t.success, 'success');
+      
       // Reset status after 5 seconds (increased for better UX)
       setTimeout(() => {
         setStatus('idle');
@@ -97,6 +102,9 @@ export function Newsletter({ locale }: NewsletterProps) {
     } catch (error) {
       setStatus('error');
       setMessage(t.networkError);
+      
+      // Show toast notification
+      showToast(t.networkError, 'error');
       
       // Reset error status after 5 seconds
       setTimeout(() => {

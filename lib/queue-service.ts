@@ -154,14 +154,14 @@ class QueueService {
    * Process URL parsing job
    */
   private async processUrlParse(job: QueueJob): Promise<any> {
-    const { url, category, language } = job.data;
+    const { url, category } = job.data;
     
     if (!url) {
       throw new Error('URL is required for url-parse job');
     }
 
     // Step 1: Parse URL content
-    // IMPORTANT: Use app.icoffio.com for API calls (not icoffio.com which is WordPress)
+    console.log(`[Queue] Parsing URL: ${url}`);
     const baseUrl = 'https://app.icoffio.com';
     const parseResponse = await fetch(`${baseUrl}/api/admin/parse-url`, {
       method: 'POST',
@@ -177,38 +177,47 @@ class QueueService {
     }
 
     const parsedContent = await parseResponse.json();
+    console.log(`[Queue] Parsed: "${parsedContent.title}"`);
 
-    // Step 2: Publish article to WordPress
-    const publishResponse = await fetch(`${baseUrl}/api/admin/publish-article`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: parsedContent.title,
-        content: parsedContent.content,
-        excerpt: parsedContent.excerpt || parsedContent.content.substring(0, 160),
-        category: category || 'Technology',
-        language: language || 'en',
-        author: 'Telegram Bot',
-        // tags removed - WordPress REST API requires tag IDs (integers), not strings
-        source: 'telegram-bot-url'
-      }),
-    });
+    // Step 2: Use dual-language publisher (EN + PL + 2 images)
+    // Format content as paragraphs (split by periods, add double newlines)
+    const formattedContent = parsedContent.content
+      .replace(/\.\s+/g, '.\n\n') // Add paragraph breaks after sentences
+      .replace(/\n{3,}/g, '\n\n') // Clean up excessive newlines
+      .trim();
 
-    if (!publishResponse.ok) {
-      const error = await publishResponse.text();
-      throw new Error(`Publication failed: ${error}`);
+    console.log(`[Queue] Publishing dual-language article from parsed URL...`);
+    
+    const result = await publishDualLanguageArticle(
+      formattedContent, // Use parsed content as prompt
+      parsedContent.title, // Use parsed title
+      category // Optional user category (AI will detect if not provided)
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'Dual-language publication failed');
     }
 
-    const publishResult = await publishResponse.json();
+    console.log(`[Queue] Dual-language publication complete:`, {
+      enUrl: result.enResult.url,
+      plUrl: result.plResult?.url || 'not published'
+    });
 
     return {
-      ...parsedContent,
+      success: true,
       published: true,
-      publishResult,
-      url: publishResult.url || null,
-      postId: publishResult.postId || null
+      title: result.enResult.title,
+      wordCount: result.enResult.wordCount,
+      category: result.category,
+      url: result.enResult.url, // Primary (EN) URL
+      urlPl: result.plResult?.url || null, // Polish URL
+      postId: result.enResult.postId,
+      postIdPl: result.plResult?.postId || null,
+      languages: result.plResult ? ['en', 'pl'] : ['en'],
+      publishResult: {
+        en: result.enResult,
+        pl: result.plResult
+      }
     };
   }
 

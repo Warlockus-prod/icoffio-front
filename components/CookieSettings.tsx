@@ -319,3 +319,4 @@ export function CookieSettings({ locale = 'en', onClose }: CookieSettingsProps) 
   );
 }
 
+

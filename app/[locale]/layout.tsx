@@ -13,6 +13,7 @@ import { WebsiteSchema, OrganizationSchema } from "@/components/StructuredData";
 import { TestPanel } from "@/components/TestPanel";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { CookieConsent } from "@/components/CookieConsent";
+import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
@@ -188,6 +189,7 @@ export default function LocaleLayout({
               <SearchModalWrapper posts={[]} locale={params.locale} />
               <TestPanel locale={params.locale} />
               <CookieConsent locale={params.locale} />
+              <CookieSettingsManager locale={params.locale} />
             </SearchProvider>
           </ToastProvider>
         </ThemeProvider>

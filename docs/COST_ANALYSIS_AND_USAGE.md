@@ -515,3 +515,4 @@ Adjustment: Monthly
 **Next Review:** 24 ноября 2025 (через 30 дней)
 
 
+

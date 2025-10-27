@@ -1,6 +1,8 @@
+'use client';
+
 import Link from "next/link";
-import { Newsletter } from "./Newsletter";
 import { getTranslation } from "@/lib/i18n";
+import { useState } from "react";
 
 interface FooterProps {
   locale?: string;
@@ -8,13 +10,16 @@ interface FooterProps {
 
 export function Footer({ locale = 'en' }: FooterProps = {}) {
   const t = getTranslation(locale);
+  const [showCookieSettings, setShowCookieSettings] = useState(false);
+
+  const handleCookieSettings = () => {
+    // Trigger event to open cookie settings modal
+    window.dispatchEvent(new CustomEvent('openCookieSettings'));
+  };
+
   return (
     <footer className="bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
       <div className="mx-auto max-w-6xl px-4 py-12">
-        {/* Newsletter Section */}
-        <div className="mb-12">
-          <Newsletter locale={locale} />
-        </div>
 
         {/* Main footer content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -45,14 +50,68 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
             </ul>
           </div>
 
-          {/* Newsletter section */}
+          {/* Legal section */}
           <div>
-            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">📬 {t.followUs}</h3>
-            <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-3">
-              {t.newsletterSubscribe}
-            </p>
-            <div className="text-neutral-500 dark:text-neutral-500 text-xs">
-              {t.socialMediaComingSoon}
+            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+              {locale === 'en' && 'Legal'}
+              {locale === 'ru' && 'Правовая информация'}
+              {locale === 'pl' && 'Informacje prawne'}
+              {locale === 'de' && 'Rechtliches'}
+              {locale === 'es' && 'Legal'}
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <Link href={`/${locale}/privacy`} className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
+                  {locale === 'en' && 'Privacy Policy'}
+                  {locale === 'ru' && 'Политика конфиденциальности'}
+                  {locale === 'pl' && 'Polityka prywatności'}
+                  {locale === 'de' && 'Datenschutz'}
+                  {locale === 'es' && 'Política de privacidad'}
+                </Link>
+              </li>
+              <li>
+                <Link href={`/${locale}/cookies`} className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
+                  {locale === 'en' && 'Cookie Policy'}
+                  {locale === 'ru' && 'Политика cookies'}
+                  {locale === 'pl' && 'Polityka plików cookie'}
+                  {locale === 'de' && 'Cookie-Richtlinie'}
+                  {locale === 'es' && 'Política de cookies'}
+                </Link>
+              </li>
+              <li>
+                <button
+                  onClick={handleCookieSettings}
+                  className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors text-left"
+                >
+                  🍪 {locale === 'en' && 'Cookie Settings'}
+                  {locale === 'ru' && 'Настройки cookies'}
+                  {locale === 'pl' && 'Ustawienia plików cookie'}
+                  {locale === 'de' && 'Cookie-Einstellungen'}
+                  {locale === 'es' && 'Configuración de cookies'}
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          {/* Contact section */}
+          <div>
+            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
+              {locale === 'en' && 'Contact'}
+              {locale === 'ru' && 'Контакты'}
+              {locale === 'pl' && 'Kontakt'}
+              {locale === 'de' && 'Kontakt'}
+              {locale === 'es' && 'Contacto'}
+            </h3>
+            <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
+              <p>📧 gtframestudioai@gmail.com</p>
+              <p>📍 Warsaw, Poland</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-3">
+                {locale === 'en' && 'European Union'}
+                {locale === 'ru' && 'Европейский Союз'}
+                {locale === 'pl' && 'Unia Europejska'}
+                {locale === 'de' && 'Europäische Union'}
+                {locale === 'es' && 'Unión Europea'}
+              </p>
             </div>
           </div>
         </div>

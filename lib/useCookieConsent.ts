@@ -201,3 +201,4 @@ export function checkCookieConsent(category: CookieCategory): boolean {
   }
 }
 
+

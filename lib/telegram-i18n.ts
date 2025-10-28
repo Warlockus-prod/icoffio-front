@@ -68,6 +68,28 @@ export const translations: Record<BotLanguage, {
   languageChanged: string;
   unknownCommand: string;
 
+  // Compose mode commands
+  compose: string;
+  composeStarted: string;
+  composeInfo: string;
+  publish: string;
+  cancel: string;
+  composeCancelled: string;
+  notInComposeMode: string;
+  composeEmpty: string;
+  composeStats: string;
+
+  // Delete command
+  deleteCommand: string;
+  deletePrompt: string;
+  deleteSuccess: string;
+  deleteError: string;
+  invalidArticleUrl: string;
+
+  // Inline buttons
+  btnAddMore: string;
+  btnPublishNow: string;
+
   // Processing messages
   textReceived: string;
   urlReceived: string;
@@ -122,6 +144,8 @@ export const translations: Record<BotLanguage, {
            '🔗 <b>Отправь URL</b> → Спарсю и опубликую\n\n' +
            '📋 <b>Команды:</b>\n' +
            '/help - Помощь\n' +
+           '/compose - Режим составления\n' +
+           '/delete - Удалить статью\n' +
            '/queue - Статус очереди\n' +
            '/status - Мой статус\n' +
            '/language - Выбор языка\n\n' +
@@ -130,13 +154,22 @@ export const translations: Record<BotLanguage, {
     helpDetails: '<b>1. Создание статьи из текста</b>\n' +
                  'Просто отправь текст (1-2 предложения или полный текст).\n' +
                  'AI создаст профессиональную статью.\n\n' +
-                 '<b>2. Парсинг статьи с URL</b>\n' +
+                 '<b>2. Режим составления (для длинных статей)</b>\n' +
+                 '/compose - Начать составление\n' +
+                 'Отправляй несколько сообщений подряд\n' +
+                 '/publish - Опубликовать все вместе\n' +
+                 '/cancel - Отменить составление\n\n' +
+                 '<b>3. Парсинг статьи с URL</b>\n' +
                  'Отправь ссылку на статью.\n' +
                  'Бот спарсит и добавит в систему.\n\n' +
-                 '<b>3. Очередь запросов</b>\n' +
-                 'Если отправишь несколько запросов — они обработаются по очереди.\n\n' +
+                 '<b>4. Удаление статьи</b>\n' +
+                 '/delete - Отправь ссылку на статью для удаления\n\n' +
                  '<b>Команды:</b>\n' +
                  '/start - Начало работы\n' +
+                 '/compose - Режим составления\n' +
+                 '/publish - Опубликовать составленное\n' +
+                 '/cancel - Отменить\n' +
+                 '/delete - Удалить статью\n' +
                  '/queue - Посмотреть очередь\n' +
                  '/status - Статус системы\n' +
                  '/language - Выбор языка',
@@ -149,6 +182,39 @@ export const translations: Record<BotLanguage, {
                     '🇬🇧 English - /lang_en',
     languageChanged: '✅ Язык изменен на Русский',
     unknownCommand: '❓ Неизвестная команда',
+
+    // Compose mode
+    compose: '📝 <b>Режим составления активирован</b>',
+    composeStarted: '✍️ Теперь отправляй сообщения одно за другим.\n' +
+                    'Я объединю их в одну статью.\n\n' +
+                    '📋 <b>Команды:</b>\n' +
+                    '/publish - Опубликовать все\n' +
+                    '/cancel - Отменить',
+    composeInfo: '📊 <b>Накоплено:</b>',
+    publish: '✅ <b>Публикую составленную статью...</b>',
+    cancel: '❌ <b>Отменено</b>',
+    composeCancelled: 'Режим составления отменен. Все сообщения удалены.',
+    notInComposeMode: '⚠️ Вы не в режиме составления.\n\nИспользуйте /compose чтобы начать.',
+    composeEmpty: '⚠️ Нет накопленных сообщений.\n\nОтправьте текст после команды /compose',
+    composeStats: 'Сообщений: {count}\nСимволов: {length}\nВремя: {duration} сек',
+
+    // Delete command
+    deleteCommand: '🗑️ <b>Удаление статьи</b>',
+    deletePrompt: 'Отправьте ссылку на статью для удаления:\n\n' +
+                  'Например:\n' +
+                  'https://app.icoffio.com/en/article/my-article-en\n' +
+                  'https://app.icoffio.com/pl/article/my-article-pl',
+    deleteSuccess: '✅ <b>Статья удалена!</b>\n\n' +
+                   '📝 Slug: {slug}\n' +
+                   '🌍 Язык: {lang}',
+    deleteError: '❌ <b>Ошибка удаления</b>\n\n{error}',
+    invalidArticleUrl: '❌ <b>Неверная ссылка</b>\n\n' +
+                       'Ссылка должна быть в формате:\n' +
+                       'https://app.icoffio.com/[язык]/article/[slug]',
+
+    // Inline buttons
+    btnAddMore: '📝 Добавить еще',
+    btnPublishNow: '✅ Опубликовать сейчас',
 
     // Processing
     textReceived: '✨ <b>Текст получен!</b>',
@@ -205,6 +271,8 @@ export const translations: Record<BotLanguage, {
            '🔗 <b>Wyślij URL</b> → Spparsuję i opublikuję\n\n' +
            '📋 <b>Komendy:</b>\n' +
            '/help - Pomoc\n' +
+           '/compose - Tryb komponowania\n' +
+           '/delete - Usuń artykuł\n' +
            '/queue - Status kolejki\n' +
            '/status - Mój status\n' +
            '/language - Wybór języka\n\n' +
@@ -213,13 +281,22 @@ export const translations: Record<BotLanguage, {
     helpDetails: '<b>1. Tworzenie artykułu z tekstu</b>\n' +
                  'Po prostu wyślij tekst (1-2 zdania lub pełny tekst).\n' +
                  'AI stworzy profesjonalny artykuł.\n\n' +
-                 '<b>2. Parsowanie artykułu z URL</b>\n' +
+                 '<b>2. Tryb komponowania (dla długich artykułów)</b>\n' +
+                 '/compose - Rozpocznij komponowanie\n' +
+                 'Wysyłaj kilka wiadomości po kolei\n' +
+                 '/publish - Opublikuj wszystko razem\n' +
+                 '/cancel - Anuluj komponowanie\n\n' +
+                 '<b>3. Parsowanie artykułu z URL</b>\n' +
                  'Wyślij link do artykułu.\n' +
                  'Bot sparsuje i doda do systemu.\n\n' +
-                 '<b>3. Kolejka zapytań</b>\n' +
-                 'Jeśli wyślesz kilka zapytań — będą przetwarzane po kolei.\n\n' +
+                 '<b>4. Usuwanie artykułu</b>\n' +
+                 '/delete - Wyślij link do artykułu do usunięcia\n\n' +
                  '<b>Komendy:</b>\n' +
                  '/start - Początek pracy\n' +
+                 '/compose - Tryb komponowania\n' +
+                 '/publish - Opublikuj skomponowane\n' +
+                 '/cancel - Anuluj\n' +
+                 '/delete - Usuń artykuł\n' +
                  '/queue - Zobacz kolejkę\n' +
                  '/status - Status systemu\n' +
                  '/language - Wybór języka',
@@ -232,6 +309,39 @@ export const translations: Record<BotLanguage, {
                     '🇬🇧 English - /lang_en',
     languageChanged: '✅ Język zmieniony na Polski',
     unknownCommand: '❓ Nieznana komenda',
+
+    // Compose mode
+    compose: '📝 <b>Tryb komponowania aktywowany</b>',
+    composeStarted: '✍️ Teraz wysyłaj wiadomości jedną po drugiej.\n' +
+                    'Połączę je w jeden artykuł.\n\n' +
+                    '📋 <b>Komendy:</b>\n' +
+                    '/publish - Opublikuj wszystko\n' +
+                    '/cancel - Anuluj',
+    composeInfo: '📊 <b>Zgromadzono:</b>',
+    publish: '✅ <b>Publikuję skomponowany artykuł...</b>',
+    cancel: '❌ <b>Anulowano</b>',
+    composeCancelled: 'Tryb komponowania anulowany. Wszystkie wiadomości usunięte.',
+    notInComposeMode: '⚠️ Nie jesteś w trybie komponowania.\n\nUżyj /compose aby rozpocząć.',
+    composeEmpty: '⚠️ Brak zgromadzonych wiadomości.\n\nWyślij tekst po komendzie /compose',
+    composeStats: 'Wiadomości: {count}\nZnaków: {length}\nCzas: {duration} sek',
+
+    // Delete command
+    deleteCommand: '🗑️ <b>Usuwanie artykułu</b>',
+    deletePrompt: 'Wyślij link do artykułu do usunięcia:\n\n' +
+                  'Na przykład:\n' +
+                  'https://app.icoffio.com/en/article/my-article-en\n' +
+                  'https://app.icoffio.com/pl/article/my-article-pl',
+    deleteSuccess: '✅ <b>Artykuł usunięty!</b>\n\n' +
+                   '📝 Slug: {slug}\n' +
+                   '🌍 Język: {lang}',
+    deleteError: '❌ <b>Błąd usuwania</b>\n\n{error}',
+    invalidArticleUrl: '❌ <b>Nieprawidłowy link</b>\n\n' +
+                       'Link powinien być w formacie:\n' +
+                       'https://app.icoffio.com/[język]/article/[slug]',
+
+    // Inline buttons
+    btnAddMore: '📝 Dodaj więcej',
+    btnPublishNow: '✅ Opublikuj teraz',
 
     // Processing
     textReceived: '✨ <b>Tekst otrzymany!</b>',
@@ -288,6 +398,8 @@ export const translations: Record<BotLanguage, {
            '🔗 <b>Send URL</b> → I\'ll parse and publish\n\n' +
            '📋 <b>Commands:</b>\n' +
            '/help - Help\n' +
+           '/compose - Compose mode\n' +
+           '/delete - Delete article\n' +
            '/queue - Queue status\n' +
            '/status - My status\n' +
            '/language - Language selection\n\n' +
@@ -296,13 +408,22 @@ export const translations: Record<BotLanguage, {
     helpDetails: '<b>1. Create article from text</b>\n' +
                  'Just send text (1-2 sentences or full text).\n' +
                  'AI will create a professional article.\n\n' +
-                 '<b>2. Parse article from URL</b>\n' +
+                 '<b>2. Compose mode (for long articles)</b>\n' +
+                 '/compose - Start composing\n' +
+                 'Send multiple messages in a row\n' +
+                 '/publish - Publish everything together\n' +
+                 '/cancel - Cancel composing\n\n' +
+                 '<b>3. Parse article from URL</b>\n' +
                  'Send a link to an article.\n' +
                  'Bot will parse and add to the system.\n\n' +
-                 '<b>3. Request queue</b>\n' +
-                 'If you send multiple requests — they will be processed in order.\n\n' +
+                 '<b>4. Delete article</b>\n' +
+                 '/delete - Send article link to delete\n\n' +
                  '<b>Commands:</b>\n' +
                  '/start - Start working\n' +
+                 '/compose - Compose mode\n' +
+                 '/publish - Publish composed\n' +
+                 '/cancel - Cancel\n' +
+                 '/delete - Delete article\n' +
                  '/queue - View queue\n' +
                  '/status - System status\n' +
                  '/language - Language selection',
@@ -315,6 +436,39 @@ export const translations: Record<BotLanguage, {
                     '🇬🇧 English - /lang_en',
     languageChanged: '✅ Language changed to English',
     unknownCommand: '❓ Unknown command',
+
+    // Compose mode
+    compose: '📝 <b>Compose mode activated</b>',
+    composeStarted: '✍️ Now send messages one after another.\n' +
+                    'I\'ll combine them into one article.\n\n' +
+                    '📋 <b>Commands:</b>\n' +
+                    '/publish - Publish everything\n' +
+                    '/cancel - Cancel',
+    composeInfo: '📊 <b>Accumulated:</b>',
+    publish: '✅ <b>Publishing composed article...</b>',
+    cancel: '❌ <b>Cancelled</b>',
+    composeCancelled: 'Compose mode cancelled. All messages deleted.',
+    notInComposeMode: '⚠️ You are not in compose mode.\n\nUse /compose to start.',
+    composeEmpty: '⚠️ No accumulated messages.\n\nSend text after /compose command',
+    composeStats: 'Messages: {count}\nCharacters: {length}\nTime: {duration} sec',
+
+    // Delete command
+    deleteCommand: '🗑️ <b>Delete article</b>',
+    deletePrompt: 'Send article link to delete:\n\n' +
+                  'For example:\n' +
+                  'https://app.icoffio.com/en/article/my-article-en\n' +
+                  'https://app.icoffio.com/pl/article/my-article-pl',
+    deleteSuccess: '✅ <b>Article deleted!</b>\n\n' +
+                   '📝 Slug: {slug}\n' +
+                   '🌍 Language: {lang}',
+    deleteError: '❌ <b>Deletion error</b>\n\n{error}',
+    invalidArticleUrl: '❌ <b>Invalid link</b>\n\n' +
+                       'Link should be in format:\n' +
+                       'https://app.icoffio.com/[language]/article/[slug]',
+
+    // Inline buttons
+    btnAddMore: '📝 Add more',
+    btnPublishNow: '✅ Publish now',
 
     // Processing
     textReceived: '✨ <b>Text received!</b>',

@@ -10,10 +10,118 @@
 ## [Unreleased]
 
 ### Planned
-- Cookie Manager кнопка в Footer
 - Image upload в WYSIWYG - будущее улучшение
 - Collaborative editing - будущее улучшение
 - AI-powered content suggestions - будущее улучшение
+
+---
+
+## [7.5.0] - 2025-10-28 - TELEGRAM BOT: COMPOSE MODE + DELETE ARTICLES 📝🗑️
+
+**MINOR RELEASE** - Multi-message composition & article deletion for Telegram bot
+
+### ✨ Added - Compose Mode (Multi-Message Articles)
+
+#### 1. 📝 **Compose State Management**
+- **Файл:** `lib/telegram-compose-state.ts`
+- In-memory session tracking для накопления нескольких сообщений
+- Auto-cleanup через 15 минут (timeout для неактивных сессий)
+- Delete mode tracking для удаления статей
+- Функции: `startComposeSession()`, `addToComposeSession()`, `endComposeSession()`, `cancelComposeSession()`
+- Statistics tracking: message count, total length, duration
+
+#### 2. 🔘 **Inline Buttons**
+- Кнопки "📝 Добавить еще" и "✅ Опубликовать сейчас" после каждого сообщения в compose mode
+- Multi-language support (RU, PL, EN)
+- Callback query handling для обработки нажатий
+- Real-time feedback с показом статистики (количество сообщений, символов, время)
+
+#### 3. 🤖 **Telegram Webhook Updates**
+- `handleCallbackQuery()` - обработка inline кнопок
+- `handleComposeMessage()` - накопление текста в compose mode
+- `handleDeleteArticle()` - удаление статей по URL
+- Auto-detection для compose/delete режимов
+- Seamless integration с существующей queue системой
+
+### 🗑️ Added - Article Deletion
+
+#### 4. 🗑️ **Delete Article API**
+- **Файл:** `app/api/admin/delete-article/route.ts`
+- REST API endpoint для удаления статей из WordPress
+- Search by slug → Find post ID → Delete (force=true)
+- Multi-language support (EN/PL)
+- Error handling и detailed logging
+
+#### 5. 🚫 **Delete Mode**
+- `/delete` команда активирует delete mode
+- User sends article URL → article deleted from WordPress
+- Auto-cleanup через 5 минут
+- URL validation (app.icoffio.com/[lang]/article/[slug])
+- Success/error feedback в Telegram
+
+### 🌐 Updated - i18n Translations
+
+#### 6. 📖 **New Translation Keys**
+- **Compose mode:** `compose`, `composeStarted`, `composeInfo`, `publish`, `cancel`, `composeCancelled`, `notInComposeMode`, `composeEmpty`, `composeStats`
+- **Delete mode:** `deleteCommand`, `deletePrompt`, `deleteSuccess`, `deleteError`, `invalidArticleUrl`
+- **Buttons:** `btnAddMore`, `btnPublishNow`
+- **Полные переводы на RU, PL, EN**
+
+#### 7. 📋 **Updated Help & Start Commands**
+- Добавлены инструкции для compose mode
+- Добавлены инструкции для удаления статей
+- Обновлен список команд в `/start` и `/help`
+
+### 🎨 Added - Bot Menu Commands
+
+#### 8. 📝 **Setup Script**
+- **Файл:** `scripts/setup-telegram-menu.sh`
+- Автоматическая установка команд в Telegram menu (hamburger button)
+- 9 команд: start, help, compose, publish, cancel, delete, queue, status, language
+- Multi-language menu (EN, RU, PL) с локализованными описаниями
+- One-click setup через Telegram Bot API
+
+### 🔧 Technical Details
+
+**Новые файлы:**
++ `lib/telegram-compose-state.ts` (172 строки)
++ `app/api/admin/delete-article/route.ts` (159 строк)
++ `scripts/setup-telegram-menu.sh` (161 строка)
+
+**Обновлены:**
+- `lib/telegram-i18n.ts` (+120 строк, новые ключи для всех 3 языков)
+- `app/api/telegram/webhook/route.ts` (+200 строк, compose + delete + inline buttons)
+
+**Команды:**
+- `/compose` - Начать составление статьи из нескольких сообщений
+- `/publish` - Опубликовать накопленный текст
+- `/cancel` - Отменить compose mode
+- `/delete` - Удалить статью по URL
+
+**User Flow (Compose):**
+1. User: `/compose`
+2. Bot: "Режим составления активирован. Отправляй сообщения..."
+3. User sends message 1 → Bot shows inline buttons [Добавить еще | Опубликовать]
+4. User sends message 2 → Bot shows inline buttons [Добавить еще | Опубликовать]
+5. User clicks "Опубликовать" → Bot publishes as ONE article
+
+**User Flow (Delete):**
+1. User: `/delete`
+2. Bot: "Отправьте ссылку на статью для удаления"
+3. User: `https://app.icoffio.com/en/article/my-article-en`
+4. Bot: "✅ Статья удалена! Slug: my-article-en, Язык: EN"
+
+**Архитектура:**
+- In-memory state (stateless Vercel functions)
+- Auto-cleanup timers для предотвращения memory leaks
+- Dual-mode detection (compose vs delete)
+- Callback query для interactive buttons
+- Full i18n integration
+
+**Build Status:**
+✅ TypeScript: 0 errors
+✅ Next.js: Successful compilation
+✅ Linter: No errors
 
 ---
 

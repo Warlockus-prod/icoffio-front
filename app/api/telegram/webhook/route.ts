@@ -16,6 +16,18 @@ import { getQueueService } from '@/lib/queue-service';
 import { getUserLanguage, setUserLanguage, loadUserLanguage, t, translations, type BotLanguage } from '@/lib/telegram-i18n';
 import { telegramDB } from '@/lib/telegram-database-service';
 import { createTelegramSubmission } from '@/lib/supabase-analytics';
+import {
+  startComposeSession,
+  addToComposeSession,
+  getComposedText,
+  isInComposeMode,
+  endComposeSession,
+  cancelComposeSession,
+  getComposeStats,
+  startDeleteMode,
+  endDeleteMode,
+  isInDeleteMode,
+} from '@/lib/telegram-compose-state';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -80,7 +92,7 @@ function verifyTelegramRequest(request: NextRequest): boolean {
 }
 
 // Send message to Telegram
-async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
+async function sendTelegramMessage(chatId: number, text: string, keyboard?: any): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   
   if (!token) {
@@ -89,19 +101,211 @@ async function sendTelegramMessage(chatId: number, text: string): Promise<void> 
   }
 
   try {
+    const body: any = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+    };
+
+    if (keyboard) {
+      body.reply_markup = keyboard;
+    }
+
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-      }),
+      body: JSON.stringify(body),
     });
   } catch (error) {
     console.error('Failed to send Telegram message:', error);
+  }
+}
+
+/**
+ * Send message with inline buttons
+ */
+async function sendMessageWithButtons(
+  chatId: number,
+  text: string,
+  buttons: Array<{ text: string; callback_data: string }>
+): Promise<void> {
+  const keyboard = {
+    inline_keyboard: [buttons.map(btn => ({
+      text: btn.text,
+      callback_data: btn.callback_data,
+    }))],
+  };
+
+  await sendTelegramMessage(chatId, text, keyboard);
+}
+
+/**
+ * Handle callback query from inline buttons
+ */
+async function handleCallbackQuery(callbackQuery: any): Promise<NextResponse> {
+  const chatId = callbackQuery.message?.chat?.id;
+  const data = callbackQuery.data;
+  const callbackId = callbackQuery.id;
+
+  if (!chatId || !data) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // Load user language
+  await loadUserLanguage(chatId);
+
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+
+  // Answer callback query (remove loading state)
+  if (token) {
+    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: callbackId }),
+    });
+  }
+
+  // Handle button actions
+  if (data === 'add_more') {
+    // User wants to add more text
+    const stats = getComposeStats(chatId);
+    if (stats) {
+      await sendTelegramMessage(
+        chatId,
+        `${t(chatId, 'composeInfo')}\n` +
+        `${t(chatId, 'composeStats').replace('{count}', stats.messageCount.toString()).replace('{length}', stats.totalLength.toString()).replace('{duration}', stats.duration.toString())}\n\n` +
+        `📝 Продолжай отправлять текст...`
+      );
+    }
+  } else if (data === 'publish_now') {
+    // User wants to publish
+    if (!isInComposeMode(chatId)) {
+      await sendTelegramMessage(chatId, t(chatId, 'notInComposeMode'));
+      return NextResponse.json({ ok: true });
+    }
+
+    const composedText = endComposeSession(chatId);
+    if (!composedText) {
+      await sendTelegramMessage(chatId, t(chatId, 'composeEmpty'));
+      return NextResponse.json({ ok: true });
+    }
+
+    // Send to queue for processing
+    await sendTelegramMessage(chatId, t(chatId, 'publish'));
+    
+    const queueService = getQueueService();
+    const publishJobId = `job_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    
+    queueService.addJob({
+      id: publishJobId,
+      type: 'text-generate',
+      data: { text: composedText },
+      userId: chatId,
+      createdAt: new Date(),
+      status: 'pending',
+    });
+
+    // Create Supabase submission
+    const publishSubmissionId = await createTelegramSubmission({
+      telegram_user_id: chatId,
+      submission_type: 'text-generate',
+      content: composedText,
+      status: 'processing',
+    });
+
+    // Start async processing
+    fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: publishJobId, chatId, submissionId: publishSubmissionId }),
+    }).catch(console.error);
+
+    await sendTelegramMessage(
+      chatId,
+      `${t(chatId, 'addedToQueue')} ${publishJobId}\n` +
+      `${t(chatId, 'aiGenerating')}\n` +
+      `${t(chatId, 'pleaseWait')}`
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * Handle message in compose mode
+ */
+async function handleComposeMessage(chatId: number, text: string, message: any): Promise<NextResponse> {
+  // Add message to compose session
+  addToComposeSession(chatId, text);
+
+  // Get current stats
+  const stats = getComposeStats(chatId);
+  if (!stats) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // Send confirmation with inline buttons
+  await sendMessageWithButtons(
+    chatId,
+    `${t(chatId, 'composeInfo')}\n` +
+    `${t(chatId, 'composeStats').replace('{count}', stats.messageCount.toString()).replace('{length}', stats.totalLength.toString()).replace('{duration}', stats.duration.toString())}\n\n` +
+    `Что дальше?`,
+    [
+      { text: t(chatId, 'btnAddMore'), callback_data: 'add_more' },
+      { text: t(chatId, 'btnPublishNow'), callback_data: 'publish_now' },
+    ]
+  );
+
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * Handle delete article by URL
+ */
+async function handleDeleteArticle(chatId: number, url: string): Promise<void> {
+  try {
+    // Parse article URL
+    // Format: https://app.icoffio.com/en/article/slug-en
+    const urlPattern = /https:\/\/app\.icoffio\.com\/(en|pl)\/article\/([a-z0-9-]+)/i;
+    const match = url.match(urlPattern);
+
+    if (!match) {
+      await sendTelegramMessage(chatId, t(chatId, 'invalidArticleUrl'));
+      return;
+    }
+
+    const locale = match[1] as 'en' | 'pl';
+    const slug = match[2];
+
+    // Call delete API
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/delete-article`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, locale }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      await sendTelegramMessage(
+        chatId,
+        t(chatId, 'deleteSuccess')
+          .replace('{slug}', slug)
+          .replace('{lang}', locale.toUpperCase())
+      );
+    } else {
+      await sendTelegramMessage(
+        chatId,
+        t(chatId, 'deleteError').replace('{error}', result.error || 'Unknown error')
+      );
+    }
+  } catch (error: any) {
+    await sendTelegramMessage(
+      chatId,
+      t(chatId, 'deleteError').replace('{error}', error.message || 'Unknown error')
+    );
   }
 }
 
@@ -116,6 +320,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    
+    // Handle callback_query (inline button presses)
+    if (body.callback_query) {
+      return await handleCallbackQuery(body.callback_query);
+    }
     
     // Extract message
     const message = body.message || body.edited_message;
@@ -146,6 +355,18 @@ export async function POST(request: NextRequest) {
     // Check for commands
     if (text.startsWith('/')) {
       return await handleCommand(chatId, text);
+    }
+
+    // Check if in compose mode
+    if (isInComposeMode(chatId)) {
+      return await handleComposeMessage(chatId, text, message);
+    }
+
+    // Check if in delete mode
+    if (isInDeleteMode(chatId)) {
+      endDeleteMode(chatId);
+      await handleDeleteArticle(chatId, text);
+      return NextResponse.json({ ok: true });
     }
 
     // Detect URL or text
@@ -364,6 +585,90 @@ async function handleCommand(chatId: number, text: string) {
       setUserLanguage(chatId, 'en');
       await telegramDB.updateUserLanguage(chatId, 'en');
       await sendTelegramMessage(chatId, '✅ Language changed to English');
+      break;
+
+    case '/compose':
+      // Start compose mode
+      startComposeSession(chatId, getUserLanguage(chatId));
+      await sendTelegramMessage(
+        chatId,
+        `${t(chatId, 'compose')}\n\n${t(chatId, 'composeStarted')}`
+      );
+      break;
+
+    case '/publish':
+      // Publish composed article
+      if (!isInComposeMode(chatId)) {
+        await sendTelegramMessage(chatId, t(chatId, 'notInComposeMode'));
+        break;
+      }
+
+      const composedText = endComposeSession(chatId);
+      if (!composedText) {
+        await sendTelegramMessage(chatId, t(chatId, 'composeEmpty'));
+        break;
+      }
+
+      // Send to queue for processing
+      await sendTelegramMessage(chatId, t(chatId, 'publish'));
+      
+      // Process as text-generate job
+      const queueService = getQueueService();
+      const publishJobId = `job_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      queueService.addJob({
+        id: publishJobId,
+        type: 'text-generate',
+        data: { text: composedText },
+        userId: chatId,
+        createdAt: new Date(),
+        status: 'pending',
+      });
+
+      // Create Supabase submission
+      const publishSubmissionId = await createTelegramSubmission({
+        telegram_user_id: chatId,
+        submission_type: 'text-generate',
+        content: composedText,
+        status: 'processing',
+      });
+
+      // Start async processing
+      fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: publishJobId, chatId, submissionId: publishSubmissionId }),
+      }).catch(console.error);
+
+      await sendTelegramMessage(
+        chatId,
+        `${t(chatId, 'addedToQueue')} ${publishJobId}\n` +
+        `${t(chatId, 'aiGenerating')}\n` +
+        `${t(chatId, 'pleaseWait')}`
+      );
+      break;
+
+    case '/cancel':
+      // Cancel compose mode
+      if (!isInComposeMode(chatId)) {
+        await sendTelegramMessage(chatId, t(chatId, 'notInComposeMode'));
+        break;
+      }
+
+      cancelComposeSession(chatId);
+      await sendTelegramMessage(
+        chatId,
+        `${t(chatId, 'cancel')}\n\n${t(chatId, 'composeCancelled')}`
+      );
+      break;
+
+    case '/delete':
+      // Start delete mode
+      startDeleteMode(chatId);
+      await sendTelegramMessage(
+        chatId,
+        `${t(chatId, 'deleteCommand')}\n\n${t(chatId, 'deletePrompt')}`
+      );
       break;
 
     default:

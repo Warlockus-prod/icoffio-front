@@ -4,6 +4,20 @@
 
 ---
 
+## ⚠️ ВАЖНО: Vercel Webhooks = PRO Feature
+
+**Vercel Webhooks доступны только на Pro Plan ($20/month)**
+
+### Альтернатива (БЕСПЛАТНО):
+
+✅ **GitHub Actions** - используй вместо Vercel Webhooks!
+- Полностью бесплатно
+- Работает на Free tier
+- См. `.github/workflows/vercel-build-monitor.yml`
+- Setup: `docs/GITHUB_SECRETS_SETUP.md`
+
+---
+
 ## 🎯 ЧТО ЭТО?
 
 Система автоматически отправляет уведомления в Telegram:
@@ -26,7 +40,7 @@
 4. Добавь (если еще нет):
    ```
    TELEGRAM_BOT_TOKEN = 7978267759:AAGuVKnd3Rz5oGgDIlYJBwhinUp1egVcq08
-   TELEGRAM_CHAT_ID = [твой Chat ID]
+   TELEGRAM_CHAT_ID = 386781503
    ```
 5. Нажми **Save**
 6. **Redeploy** проект для применения переменных

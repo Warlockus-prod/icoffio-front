@@ -601,7 +601,7 @@ async function handleCommand(chatId: number, text: string) {
       );
       break;
 
-    case '/publish':
+    case '/publish': {
       // Publish composed article
       if (!isInComposeMode(chatId)) {
         await sendTelegramMessage(chatId, t(chatId, 'notInComposeMode'));
@@ -618,10 +618,10 @@ async function handleCommand(chatId: number, text: string) {
       await sendTelegramMessage(chatId, t(chatId, 'publish'));
       
       // Process as text-generate job
-      const queueService = getQueueService();
+      const publishQueueService = getQueueService();
       const publishJobId = `job_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
-      queueService.addJob({
+      publishQueueService.addJob({
         id: publishJobId,
         type: 'text-generate',
         data: { text: composedText },
@@ -652,6 +652,7 @@ async function handleCommand(chatId: number, text: string) {
         `${t(chatId, 'pleaseWait')}`
       );
       break;
+    }
 
     case '/cancel':
       // Cancel compose mode

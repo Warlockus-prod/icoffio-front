@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQueueService } from '@/lib/queue-service';
 import { getUserLanguage, setUserLanguage, loadUserLanguage, t, translations, type BotLanguage } from '@/lib/telegram-i18n';
 import { telegramDB } from '@/lib/telegram-database-service';
+import { createTelegramSubmission } from '@/lib/supabase-analytics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -167,11 +168,31 @@ export async function POST(request: NextRequest) {
         maxRetries: 2,
       });
 
+      // Create submission in Supabase
+      const submissionId = await createTelegramSubmission({
+        user_id: from.id,
+        username: from.username,
+        first_name: from.first_name,
+        last_name: from.last_name,
+        submission_type: 'url',
+        submission_content: url,
+        status: 'processing',
+        language: getUserLanguage(chatId),
+      });
+
+      // Store submission_id in job for later update
+      if (submissionId) {
+        const job = queueService.getJob(jobId);
+        if (job) {
+          job.data.submissionId = submissionId;
+        }
+      }
+
       // Log usage to database
       await telegramDB.logUsage({
         chat_id: chatId,
         request_type: 'url-parse',
-        request_data: { url, jobId },
+        request_data: { url, jobId, submissionId },
         status: 'pending'
       });
 
@@ -208,11 +229,31 @@ export async function POST(request: NextRequest) {
         maxRetries: 2,
       });
 
+      // Create submission in Supabase
+      const submissionId = await createTelegramSubmission({
+        user_id: from.id,
+        username: from.username,
+        first_name: from.first_name,
+        last_name: from.last_name,
+        submission_type: 'text',
+        submission_content: text,
+        status: 'processing',
+        language: getUserLanguage(chatId),
+      });
+
+      // Store submission_id in job for later update
+      if (submissionId) {
+        const job = queueService.getJob(jobId);
+        if (job) {
+          job.data.submissionId = submissionId;
+        }
+      }
+
       // Log usage to database
       await telegramDB.logUsage({
         chat_id: chatId,
         request_type: 'text-generate',
-        request_data: { text: text.substring(0, 200), title, jobId },
+        request_data: { text: text.substring(0, 200), title, jobId, submissionId },
         status: 'pending'
       });
 

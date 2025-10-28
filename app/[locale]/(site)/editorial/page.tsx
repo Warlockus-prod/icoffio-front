@@ -69,16 +69,7 @@ export default function EditorialPage({ params }: { params: { locale: string } }
             </h2>
             <div className="bg-neutral-50 dark:bg-neutral-800 p-6 rounded-lg space-y-3">
               <p className="text-neutral-700 dark:text-neutral-300">
-                <strong>General inquiries:</strong> gtframestudioai@gmail.com
-              </p>
-              <p className="text-neutral-700 dark:text-neutral-300">
-                <strong>Editorial:</strong> editorial@icoffio.com
-              </p>
-              <p className="text-neutral-700 dark:text-neutral-300">
-                <strong>Collaboration:</strong> contact@icoffio.com
-              </p>
-              <p className="text-neutral-700 dark:text-neutral-300">
-                <strong>Press Releases:</strong> press@icoffio.com
+                <strong>Email:</strong> gtframestudioai@gmail.com
               </p>
               <div className="pt-3 mt-3 border-t border-neutral-200 dark:border-neutral-700">
                 <p className="text-neutral-700 dark:text-neutral-300">

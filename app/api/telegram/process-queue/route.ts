@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { t, translations, getUserLanguage } from '@/lib/telegram-i18n';
 import { getQueueService } from '@/lib/queue-service';
 import { telegramDB } from '@/lib/telegram-database-service';
+import { updateTelegramSubmission } from '@/lib/supabase-analytics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes (Pro tier only, but we set it anyway)
@@ -91,6 +92,21 @@ export async function POST(request: NextRequest) {
         console.log(`[Process Queue] Job completed: ${jobId}`, result);
 
         if (result.published && result.url) {
+          // Update submission in Supabase if exists
+          if (job.data?.submissionId) {
+            await updateTelegramSubmission(job.data.submissionId, {
+              status: 'published',
+              article_slug_en: result.url?.split('/').pop() || '',
+              article_slug_pl: result.urlPl?.split('/').pop() || '',
+              article_url_en: result.url,
+              article_url_pl: result.urlPl,
+              wp_post_id_en: result.postId,
+              wp_post_id_pl: result.postIdPl,
+              processing_time_ms: (Date.now() - startTime),
+              category: result.category,
+            });
+          }
+
           // Log published article to database
           await telegramDB.logArticle({
             chat_id: chatId,
@@ -143,6 +159,16 @@ export async function POST(request: NextRequest) {
 
       if (job.status === 'failed') {
         console.error(`[Process Queue] Job failed: ${jobId}`, job.error);
+
+        // Update submission in Supabase if exists
+        if (job.data?.submissionId) {
+          await updateTelegramSubmission(job.data.submissionId, {
+            status: 'failed',
+            error_message: job.error || 'Unknown error',
+            error_details: job,
+            processing_time_ms: (Date.now() - startTime),
+          });
+        }
 
         // Determine error type and send appropriate message
         const errorMessage = job.error?.toLowerCase() || '';

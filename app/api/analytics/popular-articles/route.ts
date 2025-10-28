@@ -39,9 +39,11 @@ export async function GET(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Refresh materialized view (optional, can be slow)
-    await supabase.rpc('refresh_article_popularity').catch(() => {
-      console.warn('[Popular Articles API] Failed to refresh materialized view');
-    });
+    try {
+      await supabase.rpc('refresh_article_popularity');
+    } catch (err) {
+      console.warn('[Popular Articles API] Failed to refresh materialized view:', err);
+    }
 
     // Get popular articles
     const { data, error } = await supabase

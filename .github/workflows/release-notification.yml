@@ -1,0 +1,75 @@
+name: 🚀 Release Notification
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  notify:
+    name: Send Telegram Notification
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 📝 Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: v$VERSION"
+      
+      - name: 📖 Extract release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          # Extract title (first line after version heading)
+          TITLE=$(grep -A 1 "## \[${VERSION}\]" CHANGELOG.md | tail -n 1 | sed 's/^[[:space:]]*//')
+          
+          # Extract key features (first 8 bullet points)
+          FEATURES=$(awk "/## \[${VERSION}\]/,/^## \[/" CHANGELOG.md | \
+            grep -E "^-|^[0-9]+\.|^####" | head -n 8 | \
+            sed 's/^- /• /g' | sed 's/^[0-9]*\. /• /g' | sed 's/^#### /📌 /g')
+          
+          # Save to output (escape for JSON)
+          echo "title<<EOF" >> $GITHUB_OUTPUT
+          echo "$TITLE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "features<<EOF" >> $GITHUB_OUTPUT
+          echo "$FEATURES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: 📤 Send Telegram notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: html
+          disable_web_page_preview: false
+          message: |
+            🚀 <b>icoffio v${{ steps.version.outputs.version }} Released!</b>
+            
+            ${{ steps.release_notes.outputs.title }}
+            
+            <b>Key Updates:</b>
+            ${{ steps.release_notes.outputs.features }}
+            
+            <b>Links:</b>
+            🌐 <a href="https://app.icoffio.com">Live Site</a>
+            📝 <a href="https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}">Release Notes</a>
+            💻 <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">Commit</a>
+            
+            <i>✅ Deployed to Vercel</i>
+      
+      - name: ✅ Success
+        run: |
+          echo "✅ Release notification sent to Telegram!"
+          echo "Version: v${{ steps.version.outputs.version }}"
+          echo "Commit: ${{ github.sha }}"
+

@@ -89,7 +89,8 @@ const translations: Record<string, {
           '',
           '**Email**: gtframestudioai@gmail.com',
           '**Website**: icoffio.com',
-          '**Location**: Warsaw, Poland, European Union'
+          '**Address**: Warsaw, Poland',
+          '**Region**: European Union'
         ]
       },
       {
@@ -176,7 +177,8 @@ const translations: Record<string, {
           '',
           '**Email**: gtframestudioai@gmail.com',
           '**Сайт**: icoffio.com',
-          '**Местоположение**: Варшава, Польша, Европейский Союз'
+          '**Адрес**: Варшава, Польша',
+          '**Регион**: Европейский Союз'
         ]
       },
       {
@@ -263,7 +265,8 @@ const translations: Record<string, {
           '',
           '**Email**: gtframestudioai@gmail.com',
           '**Witryna**: icoffio.com',
-          '**Lokalizacja**: Warszawa, Polska, Unia Europejska'
+          '**Adres**: Warszawa, Polska',
+          '**Region**: Unia Europejska'
         ]
       },
       {
@@ -350,7 +353,8 @@ const translations: Record<string, {
           '',
           '**E-Mail**: gtframestudioai@gmail.com',
           '**Website**: icoffio.com',
-          '**Standort**: Warschau, Polen, Europäische Union'
+          '**Adresse**: Warschau, Polen',
+          '**Region**: Europäische Union'
         ]
       },
       {
@@ -577,4 +581,5 @@ export default function PrivacyPage({ params }: PrivacyPageProps) {
     </div>
   );
 }
+
 

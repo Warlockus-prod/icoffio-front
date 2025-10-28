@@ -9,6 +9,7 @@ import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { InlineAd } from "@/components/InlineAd";
 import { SidebarAd } from "@/components/SidebarAd";
+import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -527,6 +528,9 @@ export default async function Article({ params }: { params: { locale: string; sl
     <>
       <ArticleSchema post={post} locale={params.locale} />
       <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
+      
+      {/* Track article view for analytics */}
+      <ArticleViewTracker articleSlug={post.slug} />
       
       <Container>
         <div className="flex items-center justify-between mb-4">

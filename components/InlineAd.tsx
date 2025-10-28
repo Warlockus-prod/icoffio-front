@@ -44,3 +44,4 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
   );
 }
 
+

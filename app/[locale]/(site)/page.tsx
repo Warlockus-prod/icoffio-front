@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
+import { getPopularArticles } from "@/lib/supabase-analytics";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
@@ -186,12 +187,40 @@ export default async function Page({ params }: { params: { locale: string } }) {
   // Попытка получить данные из GraphQL (если работает)
   try {
     const graphqlHeroPosts = await getTopPosts(3);
-    const graphqlPosts = await getAllPosts(12, params.locale);
     const graphqlCats = await getCategories(params.locale);
     
-    // Используем GraphQL данные если они есть
-    if (graphqlHeroPosts && graphqlHeroPosts.length > 0) heroPosts = graphqlHeroPosts;
-    if (graphqlPosts && graphqlPosts.length > 0) posts = graphqlPosts;
+    // HERO: Последние статьи (как было)
+    if (graphqlHeroPosts && graphqlHeroPosts.length > 0) {
+      heroPosts = graphqlHeroPosts;
+    }
+    
+    // LATEST NEWS: Популярные статьи из Supabase
+    const popularSlugs = await getPopularArticles(12);
+    
+    if (popularSlugs.length > 0) {
+      // Получаем все посты
+      const allPosts = await getAllPosts(50, params.locale);
+      
+      // Фильтруем по популярным slug'ам и сортируем по популярности
+      const popularPosts = popularSlugs
+        .map(slug => allPosts.find(p => p.slug === slug))
+        .filter(Boolean) // Убираем undefined
+        .slice(0, 9); // Максимум 9 постов
+      
+      if (popularPosts.length > 0) {
+        posts = popularPosts;
+        console.log('[Home Page] ✅ Showing popular articles:', popularPosts.length);
+      } else {
+        // Если популярных не нашли, показываем последние
+        const latestPosts = await getAllPosts(12, params.locale);
+        if (latestPosts && latestPosts.length > 0) posts = latestPosts;
+      }
+    } else {
+      // Если Supabase пустой или недоступен, показываем последние
+      const latestPosts = await getAllPosts(12, params.locale);
+      if (latestPosts && latestPosts.length > 0) posts = latestPosts;
+    }
+    
     if (graphqlCats && graphqlCats.length > 0) cats = graphqlCats;
   } catch (error) {
     console.error('GraphQL Error (using fallback content):', error);

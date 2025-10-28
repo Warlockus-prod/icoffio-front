@@ -22,9 +22,9 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
       <div className="mx-auto max-w-6xl px-4 py-12">
 
         {/* Main footer content */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand section */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-1">
             <Link href="/" className="inline-flex items-center gap-2 mb-4">
               <span className="font-bold text-xl text-neutral-900 dark:text-neutral-100">icoffio</span>
             </Link>
@@ -91,28 +91,6 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
                 </button>
               </li>
             </ul>
-          </div>
-
-          {/* Contact section */}
-          <div>
-            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
-              {locale === 'en' && 'Contact'}
-              {locale === 'ru' && 'Контакты'}
-              {locale === 'pl' && 'Kontakt'}
-              {locale === 'de' && 'Kontakt'}
-              {locale === 'es' && 'Contacto'}
-            </h3>
-            <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
-              <p>📧 gtframestudioai@gmail.com</p>
-              <p>📍 Warsaw, Poland</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-3">
-                {locale === 'en' && 'European Union'}
-                {locale === 'ru' && 'Европейский Союз'}
-                {locale === 'pl' && 'Unia Europejska'}
-                {locale === 'de' && 'Europäische Union'}
-                {locale === 'es' && 'Unión Europea'}
-              </p>
-            </div>
           </div>
         </div>
 

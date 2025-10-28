@@ -155,3 +155,4 @@ COMMENT ON VIEW global_statistics IS 'Глобальная статистика 
 COMMENT ON VIEW category_statistics IS 'Статистика по категориям статей';
 
 
+

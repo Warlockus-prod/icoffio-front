@@ -65,18 +65,29 @@ export default function EditorialPage({ params }: { params: { locale: string } }
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4 text-neutral-900 dark:text-neutral-100">
-              Editorial Contacts
+              Contact Information
             </h2>
-            <div className="bg-neutral-50 dark:bg-neutral-800 p-6 rounded-lg">
-              <p className="text-neutral-700 dark:text-neutral-300 mb-2">
-                <strong>Email:</strong> editorial@icoffio.com
+            <div className="bg-neutral-50 dark:bg-neutral-800 p-6 rounded-lg space-y-3">
+              <p className="text-neutral-700 dark:text-neutral-300">
+                <strong>General inquiries:</strong> gtframestudioai@gmail.com
               </p>
-              <p className="text-neutral-700 dark:text-neutral-300 mb-2">
-                <strong>Suggestions and Collaboration:</strong> contact@icoffio.com
+              <p className="text-neutral-700 dark:text-neutral-300">
+                <strong>Editorial:</strong> editorial@icoffio.com
+              </p>
+              <p className="text-neutral-700 dark:text-neutral-300">
+                <strong>Collaboration:</strong> contact@icoffio.com
               </p>
               <p className="text-neutral-700 dark:text-neutral-300">
                 <strong>Press Releases:</strong> press@icoffio.com
               </p>
+              <div className="pt-3 mt-3 border-t border-neutral-200 dark:border-neutral-700">
+                <p className="text-neutral-700 dark:text-neutral-300">
+                  <strong>Address:</strong> Warsaw, Poland
+                </p>
+                <p className="text-neutral-600 dark:text-neutral-400 text-sm mt-1">
+                  European Union
+                </p>
+              </div>
             </div>
           </section>
 
@@ -97,4 +108,5 @@ export default function EditorialPage({ params }: { params: { locale: string } }
     </Container>
   );
 }
+
 

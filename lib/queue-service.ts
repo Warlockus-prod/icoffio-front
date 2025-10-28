@@ -127,8 +127,11 @@ class QueueService {
     this.isProcessing = false;
 
     // Continue processing if more jobs added
+    // OPTIMIZATION: Only process if explicitly triggered, not auto-polling
     if (this.queue.some(j => j.status === 'pending')) {
-      setTimeout(() => this.processQueue(), 100);
+      // Removed auto-polling to reduce function invocations
+      // Processing will be triggered by addJob() or external trigger
+      console.log('[Queue] Pending jobs remain, awaiting next trigger');
     }
   }
 

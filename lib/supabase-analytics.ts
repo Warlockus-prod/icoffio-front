@@ -5,9 +5,14 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { getRateLimiter, RateLimits } from './rate-limiter';
 
 // Ленивая инициализация клиента
 let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+// Cache для популярных статей
+let popularArticlesCache: { data: string[]; timestamp: number } | null = null;
+const POPULAR_ARTICLES_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**
  * Получить Supabase клиент (singleton)
@@ -47,6 +52,15 @@ export async function trackArticleView(
   const client = getSupabaseClient();
   if (!client) return false;
 
+  // Rate limiting: 1 view per IP per article per hour
+  const rateLimiter = getRateLimiter();
+  const rateLimitKey = `article_view:${articleSlug}:${userIp || 'unknown'}`;
+  
+  if (!rateLimiter.isAllowed(rateLimitKey, RateLimits.ARTICLE_VIEW.maxRequests, RateLimits.ARTICLE_VIEW.windowMs)) {
+    console.log(`[Supabase Analytics] ⏳ Rate limited: ${articleSlug}`);
+    return false; // Skip tracking to save function invocations
+  }
+
   try {
     const { error } = await (client as any)
       .from('article_views')
@@ -74,17 +88,20 @@ export async function trackArticleView(
  * Получить популярные статьи
  */
 export async function getPopularArticles(limit: number = 10): Promise<string[]> {
+  // Check cache first (15 min TTL) - OPTIMIZATION to reduce DB calls
+  const now = Date.now();
+  if (popularArticlesCache && (now - popularArticlesCache.timestamp) < POPULAR_ARTICLES_CACHE_TTL) {
+    console.log(`[Supabase Analytics] 💾 Using cached popular articles (${popularArticlesCache.data.length})`);
+    return popularArticlesCache.data.slice(0, limit);
+  }
+
   const client = getSupabaseClient();
   if (!client) return [];
 
   try {
-    // Сначала обновляем materialized view (если нужно)
-    try {
-      await client.rpc('refresh_article_popularity');
-    } catch (err) {
-      // Игнорируем ошибку, если функция еще не создана
-    }
-
+    // Skip materialized view refresh to save CPU time
+    // Will be refreshed by scheduled Supabase function instead
+    
     // Получаем популярные статьи
     const { data, error } = await (client as any)
       .from('article_popularity')
@@ -98,7 +115,14 @@ export async function getPopularArticles(limit: number = 10): Promise<string[]> 
     }
 
     const slugs = (data || []).map((row: any) => row.article_slug);
-    console.log(`[Supabase Analytics] ✅ Got ${slugs.length} popular articles`);
+    
+    // Update cache
+    popularArticlesCache = {
+      data: slugs,
+      timestamp: now
+    };
+    
+    console.log(`[Supabase Analytics] ✅ Got ${slugs.length} popular articles (cached)`);
     return slugs;
   } catch (error) {
     console.error('[Supabase Analytics] Exception getting popular articles:', error);

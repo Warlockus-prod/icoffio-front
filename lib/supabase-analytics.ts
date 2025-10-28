@@ -48,7 +48,7 @@ export async function trackArticleView(
   if (!client) return false;
 
   try {
-    const { error } = await client
+    const { error } = await (client as any)
       .from('article_views')
       .insert({
         article_slug: articleSlug,
@@ -79,12 +79,14 @@ export async function getPopularArticles(limit: number = 10): Promise<string[]> 
 
   try {
     // Сначала обновляем materialized view (если нужно)
-    await client.rpc('refresh_article_popularity').catch(() => {
+    try {
+      await client.rpc('refresh_article_popularity');
+    } catch (err) {
       // Игнорируем ошибку, если функция еще не создана
-    });
+    }
 
     // Получаем популярные статьи
-    const { data, error } = await client
+    const { data, error } = await (client as any)
       .from('article_popularity')
       .select('article_slug, total_views, popularity_score')
       .order('popularity_score', { ascending: false })
@@ -112,7 +114,7 @@ export async function getArticleViews(articleSlug: string): Promise<number> {
   if (!client) return 0;
 
   try {
-    const { data, error } = await client
+    const { data, error } = await (client as any)
       .from('article_popularity')
       .select('total_views')
       .eq('article_slug', articleSlug)
@@ -165,7 +167,7 @@ export async function createTelegramSubmission(
   if (!client) return null;
 
   try {
-    const { data, error } = await client
+    const { data, error } = await (client as any)
       .from('telegram_submissions')
       .insert(submission)
       .select('id')
@@ -195,7 +197,7 @@ export async function updateTelegramSubmission(
   if (!client) return false;
 
   try {
-    const { error } = await client
+    const { error } = await (client as any)
       .from('telegram_submissions')
       .update({
         ...updates,
@@ -227,7 +229,7 @@ export async function getTelegramSubmissions(
   if (!client) return [];
 
   try {
-    let query = client
+    let query = (client as any)
       .from('telegram_submissions')
       .select('*')
       .order('submitted_at', { ascending: false })
@@ -259,7 +261,7 @@ export async function getTelegramUserStats(userId: number): Promise<any> {
   if (!client) return null;
 
   try {
-    const { data, error } = await client
+    const { data, error } = await (client as any)
       .from('telegram_user_stats')
       .select('*')
       .eq('user_id', userId)

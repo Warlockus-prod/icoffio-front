@@ -25,7 +25,7 @@ export interface QueueJob {
     language?: string;
     chatId?: number;
     messageId?: number;
-    submissionId?: string; // Supabase submission ID for tracking
+    submissionId?: number; // Supabase submission ID for tracking
   };
   status: 'pending' | 'processing' | 'completed' | 'failed';
   createdAt: Date;

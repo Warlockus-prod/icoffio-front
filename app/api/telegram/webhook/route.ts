@@ -195,31 +195,31 @@ async function handleCallbackQuery(callbackQuery: any): Promise<NextResponse> {
     // Send to queue for processing
     await sendTelegramMessage(chatId, t(chatId, 'publish'));
     
-    const queueService = getQueueService();
-    const publishJobId = `job_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    
-    queueService.addJob({
-      id: publishJobId,
-      type: 'text-generate',
-      data: { text: composedText },
-      userId: chatId,
-      createdAt: new Date(),
-      status: 'pending',
-    });
-
-    // Create Supabase submission
+    // Create Supabase submission first
     const publishSubmissionId = await createTelegramSubmission({
-      telegram_user_id: chatId,
-      submission_type: 'text-generate',
-      content: composedText,
+      user_id: chatId,
+      submission_type: 'text',
+      submission_content: composedText,
       status: 'processing',
+    });
+    
+    const queueService = getQueueService();
+    
+    const publishJobId = await queueService.addJob({
+      type: 'text-generate',
+      data: { 
+        text: composedText,
+        chatId,
+        submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
+      },
+      maxRetries: 3,
     });
 
     // Start async processing
     fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId: publishJobId, chatId, submissionId: publishSubmissionId }),
+      body: JSON.stringify({ jobId: publishJobId, chatId }),
     }).catch(console.error);
 
     await sendTelegramMessage(
@@ -379,35 +379,24 @@ export async function POST(request: NextRequest) {
       // URL parsing job
       const url = urlMatch[0];
       
+      // Create submission in Supabase first
+      const submissionId = await createTelegramSubmission({
+        user_id: chatId,
+        submission_type: 'url',
+        submission_content: url,
+        status: 'processing',
+      });
+      
       const jobId = await queueService.addJob({
         type: 'url-parse',
         data: {
           url,
           chatId,
           messageId: message.message_id,
+          submissionId: submissionId || undefined, // Include submissionId for tracking
         },
         maxRetries: 2,
       });
-
-      // Create submission in Supabase
-      const submissionId = await createTelegramSubmission({
-        user_id: from.id,
-        username: from.username,
-        first_name: from.first_name,
-        last_name: from.last_name,
-        submission_type: 'url',
-        submission_content: url,
-        status: 'processing',
-        language: getUserLanguage(chatId),
-      });
-
-      // Store submission_id in job for later update
-      if (submissionId) {
-        const job = queueService.getJob(jobId);
-        if (job) {
-          job.data.submissionId = submissionId;
-        }
-      }
 
       // Log usage to database
       await telegramDB.logUsage({
@@ -437,6 +426,14 @@ export async function POST(request: NextRequest) {
       const lines = text.split('\n');
       const title = lines[0]?.substring(0, 100) || 'Article from Telegram';
       
+      // Create submission in Supabase first
+      const submissionId = await createTelegramSubmission({
+        user_id: chatId,
+        submission_type: 'text',
+        submission_content: text,
+        status: 'processing',
+      });
+      
       const jobId = await queueService.addJob({
         type: 'text-generate',
         data: {
@@ -446,29 +443,10 @@ export async function POST(request: NextRequest) {
           language: 'en',
           chatId,
           messageId: message.message_id,
+          submissionId: submissionId || undefined, // Include submissionId for tracking
         },
         maxRetries: 2,
       });
-
-      // Create submission in Supabase
-      const submissionId = await createTelegramSubmission({
-        user_id: from.id,
-        username: from.username,
-        first_name: from.first_name,
-        last_name: from.last_name,
-        submission_type: 'text',
-        submission_content: text,
-        status: 'processing',
-        language: getUserLanguage(chatId),
-      });
-
-      // Store submission_id in job for later update
-      if (submissionId) {
-        const job = queueService.getJob(jobId);
-        if (job) {
-          job.data.submissionId = submissionId;
-        }
-      }
 
       // Log usage to database
       await telegramDB.logUsage({
@@ -617,32 +595,32 @@ async function handleCommand(chatId: number, text: string) {
       // Send to queue for processing
       await sendTelegramMessage(chatId, t(chatId, 'publish'));
       
+      // Create Supabase submission first
+      const publishSubmissionId = await createTelegramSubmission({
+        user_id: chatId,
+        submission_type: 'text',
+        submission_content: composedText,
+        status: 'processing',
+      });
+      
       // Process as text-generate job
       const publishQueueService = getQueueService();
-      const publishJobId = `job_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
-      publishQueueService.addJob({
-        id: publishJobId,
+      const publishJobId = await publishQueueService.addJob({
         type: 'text-generate',
-        data: { text: composedText },
-        userId: chatId,
-        createdAt: new Date(),
-        status: 'pending',
-      });
-
-      // Create Supabase submission
-      const publishSubmissionId = await createTelegramSubmission({
-        telegram_user_id: chatId,
-        submission_type: 'text-generate',
-        content: composedText,
-        status: 'processing',
+        data: { 
+          text: composedText,
+          chatId,
+          submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
+        },
+        maxRetries: 3,
       });
 
       // Start async processing
       fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: publishJobId, chatId, submissionId: publishSubmissionId }),
+        body: JSON.stringify({ jobId: publishJobId, chatId }),
       }).catch(console.error);
 
       await sendTelegramMessage(

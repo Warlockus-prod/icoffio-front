@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import { DashboardSkeleton } from './LoadingStates';
+import { TelegramStats } from './TelegramStats';
+import { ArticlePopularityStats } from './ArticlePopularityStats';
 
 export default function Dashboard() {
   const { statistics, updateStatistics } = useAdminStore();
@@ -209,6 +211,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Analytics Grid - Telegram + Article Popularity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <TelegramStats />
+        <ArticlePopularityStats />
       </div>
 
       {/* Quick Actions */}

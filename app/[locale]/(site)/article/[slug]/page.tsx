@@ -7,9 +7,9 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
-import { InlineAd } from "@/components/InlineAd";
-import { SidebarAd } from "@/components/SidebarAd";
+import { UniversalAd } from "@/components/UniversalAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
+import { getAdPlacementsByLocation, getAdPlacementsByDevice } from "@/lib/config/adPlacements";
 import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -495,6 +495,15 @@ export async function generateMetadata({ params }: { params: { locale: string; s
 }
 
 export default async function Article({ params }: { params: { locale: string; slug: string } }) {
+  // Получаем конфигурацию рекламных мест для статей
+  const articleAds = getAdPlacementsByLocation('article');
+  
+  // Разделяем по позициям для удобства
+  const adsContentTop = articleAds.filter(ad => ad.position === 'content-top');
+  const adsContentBottom = articleAds.filter(ad => ad.position === 'content-bottom');
+  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top');
+  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom');
+  
   // Пробуем получить из GraphQL, если не получается - используем моки
   let post: Post | null = null;
   let related: Post[] = [];
@@ -570,12 +579,17 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-                  {/* VOX Display реклама - 728x90 Leaderboard после заголовка */}
-                  <InlineAd 
-                    placeId="63da9b577bc72f39bc3bfc68" 
-                    format="728x90" 
-                    className="mb-6"
-                  />
+                  {/* Реклама после заголовка (content-top) */}
+                  {adsContentTop.map((ad) => (
+                    <UniversalAd 
+                      key={ad.id}
+                      placeId={ad.placeId} 
+                      format={ad.format}
+                      placement={ad.placement}
+                      enabled={ad.enabled}
+                      className="mb-6 lg:block hidden" // Скрываем на мобильных если это desktop-only
+                    />
+                  ))}
 
             <div className="mb-8">
               <img 
@@ -596,29 +610,44 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
-            {/* VOX Display реклама - 970x250 Large Leaderboard после контента */}
-            <InlineAd 
-              placeId="63daa3c24d506e16acfd2a38" 
-              format="970x250" 
-              className="mt-8"
-            />
+            {/* Реклама после контента (content-bottom) */}
+            {adsContentBottom.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className={`mt-8 ${ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}`}
+              />
+            ))}
 
           </article>
 
           {/* Sidebar с VOX Display рекламой */}
-          <aside className="lg:sticky lg:top-4 lg:h-fit">
+          <aside className="lg:sticky lg:top-4 lg:h-fit hidden lg:block">
             
-            {/* VOX Display реклама - 300x250 Medium Rectangle сверху */}
-            <SidebarAd 
-              placeId="63da9e2a4d506e16acfd2a36" 
-              format="300x250" 
-            />
+            {/* Реклама в верхней части сайдбара */}
+            {adsSidebarTop.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+              />
+            ))}
 
-            {/* VOX Display реклама - 300x600 Large Skyscraper снизу */}
-            <SidebarAd 
-              placeId="63daa2ea7bc72f39bc3bfc72" 
-              format="300x600" 
-            />
+            {/* Реклама в нижней части сайдбара */}
+            {adsSidebarBottom.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+              />
+            ))}
             
           </aside>
         </div>

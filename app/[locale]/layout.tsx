@@ -225,6 +225,28 @@ export default function LocaleLayout({
               width: 300px !important;
               height: 600px !important;
             }
+            
+            /* Mobile форматы - новые (2025-10-28) */
+            [data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
+              max-width: 320px !important;
+              min-height: 50px !important;
+            }
+            
+            [data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
+              max-width: 160px !important;
+              min-height: 600px !important;
+            }
+            
+            [data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
+              max-width: 320px !important;
+              min-height: 100px !important;
+            }
+            
+            /* Display форматы - новые (2025-10-28) */
+            [data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
+              max-width: 320px !important;
+              min-height: 480px !important;
+            }
           `
         }} />
 
@@ -293,10 +315,17 @@ export default function LocaleLayout({
                       
                       // 2. Display форматы (только для страниц где есть контейнеры)
                       const displayPlacements = [
-                          { id: "63da9b577bc72f39bc3bfc68", format: "728x90" },
-                          { id: "63da9e2a4d506e16acfd2a36", format: "300x250" },
-                          { id: "63daa3c24d506e16acfd2a38", format: "970x250" },
-                          { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600" }
+                          // Desktop formats (stable)
+                          { id: "63da9b577bc72f39bc3bfc68", format: "728x90", type: "desktop" },
+                          { id: "63da9e2a4d506e16acfd2a36", format: "300x250", type: "desktop" },
+                          { id: "63daa3c24d506e16acfd2a38", format: "970x250", type: "desktop" },
+                          { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600", type: "desktop" },
+                          // Mobile formats (new - 2025-10-28)
+                          { id: "68f644dc70e7b26b58596f34", format: "320x50", type: "mobile" },
+                          { id: "68f6451d810d98e1a08f2725", format: "160x600", type: "mobile" },
+                          { id: "68f645bf810d98e1a08f272f", format: "320x100", type: "mobile" },
+                          // Display formats (new - 2025-10-28)
+                          { id: "68f63437810d98e1a08f26de", format: "320x480", type: "display" }
                       ];
                       
                       let displayCount = 0;

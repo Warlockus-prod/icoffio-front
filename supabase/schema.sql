@@ -156,3 +156,4 @@ COMMENT ON VIEW category_statistics IS 'Статистика по категор
 
 
 
+

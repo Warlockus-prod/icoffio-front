@@ -476,11 +476,11 @@ export async function POST(request: NextRequest) {
       );
 
       // Start async processing (fire-and-forget)
-      fetch('https://app.icoffio.com/api/telegram/process-queue', {
+      fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, chatId }),
-      }).catch(err => console.error('[Webhook] Failed to trigger processing:', err));
+      }).catch(err => console.error('[Webhook] Failed to trigger text-generate processing:', err));
     }
 
     return NextResponse.json({ ok: true });

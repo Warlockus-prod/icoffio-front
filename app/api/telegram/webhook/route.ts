@@ -27,6 +27,8 @@ import {
   startDeleteMode,
   endDeleteMode,
   isInDeleteMode,
+  wasRecentlyProcessed,
+  markAsProcessed,
 } from '@/lib/telegram-compose-state';
 
 export const runtime = 'nodejs';
@@ -326,8 +328,8 @@ export async function POST(request: NextRequest) {
       return await handleCallbackQuery(body.callback_query);
     }
     
-    // Extract message
-    const message = body.message || body.edited_message;
+    // Extract message - IGNORE edited_message to prevent duplicate processing
+    const message = body.message; // Only process new messages, not edits
     if (!message) {
       return NextResponse.json({ ok: true }); // Ignore non-message updates
     }
@@ -364,6 +366,14 @@ export async function POST(request: NextRequest) {
 
     // Check if in delete mode
     if (isInDeleteMode(chatId)) {
+      // Check if this delete request was recently processed (prevent duplicates)
+      if (wasRecentlyProcessed(chatId, text)) {
+        console.log(`[Webhook] Ignoring duplicate delete request for chat ${chatId}`);
+        return NextResponse.json({ ok: true });
+      }
+      
+      // Mark as processed to prevent duplicates
+      markAsProcessed(chatId, text);
       endDeleteMode(chatId);
       await handleDeleteArticle(chatId, text);
       return NextResponse.json({ ok: true });

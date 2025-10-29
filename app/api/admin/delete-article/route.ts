@@ -32,7 +32,7 @@ interface DeleteArticleResponse {
  */
 async function findPostBySlug(slug: string): Promise<number | null> {
   try {
-    const searchUrl = `${WORDPRESS_API_URL}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}&_fields=id,slug`;
+    const searchUrl = `${WORDPRESS_API_URL}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}&_fields=id,slug,title`;
     
     console.log('[Delete Article] Searching for post:', searchUrl);
     
@@ -48,14 +48,44 @@ async function findPostBySlug(slug: string): Promise<number | null> {
     }
 
     const posts = await response.json();
+    console.log('[Delete Article] Search results:', posts.length, 'posts found');
     
     if (!Array.isArray(posts) || posts.length === 0) {
       console.log('[Delete Article] No post found with slug:', slug);
+      
+      // Try alternative slug patterns (without language suffix)
+      const alternativeSlugs = [
+        slug.replace(/-en$/, ''),
+        slug.replace(/-pl$/, ''),
+        slug.replace(/-ru$/, ''),
+        slug + '-en',
+        slug + '-pl'
+      ].filter(s => s !== slug); // Remove duplicates
+      
+      console.log('[Delete Article] Trying alternative slugs:', alternativeSlugs);
+      
+      for (const altSlug of alternativeSlugs) {
+        const altUrl = `${WORDPRESS_API_URL}/wp-json/wp/v2/posts?slug=${encodeURIComponent(altSlug)}&_fields=id,slug,title`;
+        const altResponse = await fetch(altUrl, {
+          headers: {
+            'Authorization': `Basic ${btoa(`${WP_USERNAME}:${WP_APP_PASSWORD}`)}`,
+          },
+        });
+        
+        if (altResponse.ok) {
+          const altPosts = await altResponse.json();
+          if (Array.isArray(altPosts) && altPosts.length > 0) {
+            console.log('[Delete Article] Found post with alternative slug:', altSlug, '-> ID:', altPosts[0].id);
+            return altPosts[0].id;
+          }
+        }
+      }
+      
       return null;
     }
 
     const postId = posts[0].id;
-    console.log('[Delete Article] Found post ID:', postId, 'for slug:', slug);
+    console.log('[Delete Article] Found post ID:', postId, 'for slug:', slug, 'title:', posts[0].title?.rendered || posts[0].title);
     return postId;
   } catch (error) {
     console.error('[Delete Article] Error searching for post:', error);
@@ -127,9 +157,10 @@ export async function POST(request: NextRequest) {
     const postId = await findPostBySlug(slug);
     
     if (!postId) {
+      console.log('[Delete Article] Article not found in WordPress:', slug);
       return NextResponse.json({
         success: false,
-        error: 'Article not found',
+        error: `Article not found in WordPress with slug: ${slug}. It may have already been deleted.`,
         slug,
       } as DeleteArticleResponse, { status: 404 });
     }

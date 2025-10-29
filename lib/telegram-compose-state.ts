@@ -20,6 +20,9 @@ const composeSessions = new Map<number, ComposeSession>();
 // Delete mode tracking
 const deleteModeSessions = new Set<number>();
 
+// Track recently processed delete requests to prevent duplicates
+const recentDeleteRequests = new Map<string, number>(); // key: "chatId:url", value: timestamp
+
 // Auto-cleanup timer (15 minutes)
 const COMPOSE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -168,5 +171,40 @@ export function endDeleteMode(chatId: number): void {
  */
 export function isInDeleteMode(chatId: number): boolean {
   return deleteModeSessions.has(chatId);
+}
+
+/**
+ * CHECK IF DELETE REQUEST WAS RECENTLY PROCESSED (prevent duplicates)
+ */
+export function wasRecentlyProcessed(chatId: number, url: string): boolean {
+  const key = `${chatId}:${url}`;
+  const lastProcessed = recentDeleteRequests.get(key);
+  
+  if (!lastProcessed) {
+    return false;
+  }
+  
+  // Consider "recent" as within last 10 seconds
+  const isRecent = Date.now() - lastProcessed < 10000;
+  
+  if (!isRecent) {
+    // Clean up old entry
+    recentDeleteRequests.delete(key);
+  }
+  
+  return isRecent;
+}
+
+/**
+ * MARK DELETE REQUEST AS PROCESSED
+ */
+export function markAsProcessed(chatId: number, url: string): void {
+  const key = `${chatId}:${url}`;
+  recentDeleteRequests.set(key, Date.now());
+  
+  // Auto-cleanup after 30 seconds
+  setTimeout(() => {
+    recentDeleteRequests.delete(key);
+  }, 30000);
 }
 

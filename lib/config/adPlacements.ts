@@ -160,13 +160,24 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
 
 /**
  * Получить все активные рекламные места
+ * Использует сохраненную конфигурацию из localStorage если есть
  */
 export function getEnabledAdPlacements(): AdPlacementConfig[] {
+  // Импортируем динамически чтобы избежать циклических зависимостей
+  if (typeof window !== 'undefined') {
+    try {
+      const { getAdPlacements } = require('./adPlacementsManager');
+      return getAdPlacements().filter((ad: AdPlacementConfig) => ad.enabled);
+    } catch (error) {
+      console.error('Error loading ad placements:', error);
+    }
+  }
   return AD_PLACEMENTS.filter(ad => ad.enabled);
 }
 
 /**
  * Получить рекламные места для конкретной локации
+ * Использует сохраненную конфигурацию из localStorage если есть
  */
 export function getAdPlacementsByLocation(location: AdPlacementConfig['location']): AdPlacementConfig[] {
   return getEnabledAdPlacements()

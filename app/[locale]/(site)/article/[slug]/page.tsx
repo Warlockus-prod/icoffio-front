@@ -10,6 +10,8 @@ import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { UniversalAd } from "@/components/UniversalAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { getAdPlacementsByLocation, getAdPlacementsByDevice } from "@/lib/config/adPlacements";
+import VideoPlayer from "@/components/VideoPlayer";
+import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -622,6 +624,22 @@ export default async function Article({ params }: { params: { locale: string; sl
               />
             ))}
 
+            {/* Instream Video Player - В конце статьи */}
+            {getInstreamPlayers()
+              .filter(p => p.position === 'article-end')
+              .map((player) => (
+                <VideoPlayer
+                  key={player.id}
+                  type={player.type}
+                  position={player.position}
+                  voxPlaceId={player.voxPlaceId}
+                  autoplay={player.autoplay}
+                  muted={player.muted}
+                  videoTitle={post.title}
+                  className={`mt-12 ${player.device === 'desktop' ? 'lg:block hidden' : player.device === 'mobile' ? 'lg:hidden' : ''}`}
+                />
+              ))}
+
           </article>
 
           {/* Sidebar с VOX Display рекламой */}
@@ -637,6 +655,21 @@ export default async function Article({ params }: { params: { locale: string; sl
                 enabled={ad.enabled}
               />
             ))}
+
+            {/* Outstream Video Player - Sticky Sidebar (Desktop only) */}
+            {getOutstreamPlayers()
+              .filter(p => p.position === 'sidebar-sticky' && p.device === 'desktop')
+              .map((player) => (
+                <VideoPlayer
+                  key={player.id}
+                  type={player.type}
+                  position={player.position}
+                  voxPlaceId={player.voxPlaceId}
+                  autoplay={player.autoplay}
+                  muted={player.muted}
+                  className="mt-6"
+                />
+              ))}
 
             {/* Реклама в нижней части сайдбара */}
             {adsSidebarBottom.map((ad) => (

@@ -1,5 +1,5 @@
 /**
- * QUEUE SERVICE v7.9.3 - SUPABASE WITH IN-MEMORY FALLBACK
+ * QUEUE SERVICE v7.12.0 - SUPABASE WITH TIMEOUT PROTECTION
  * 
  * Manages processing queue for Telegram bot requests
  * Uses Supabase for persistent storage with graceful fallback to in-memory
@@ -9,9 +9,11 @@
  * - ✅ In-memory fallback if Supabase fails
  * - ✅ Serverless-safe
  * - ✅ FIFO queue
- * - ✅ Automatic retry
+ * - ✅ Automatic retry (max 3 attempts)
+ * - ✅ TIMEOUT protection (180 seconds)
+ * - ✅ Enhanced logging with emojis
  * 
- * @version 7.9.3
+ * @version 7.12.0
  * @date 2025-10-30
  */
 
@@ -261,21 +263,36 @@ class QueueService {
   }
 
   /**
-   * Process Supabase job
+   * Process Supabase job with TIMEOUT
    */
   private async processSupabaseJob(job: QueueJob) {
     const supabase = getSupabase();
     if (!supabase) return;
     
+    const startedAt = new Date().toISOString();
+    
     try {
       await supabase
         .from('telegram_jobs')
-        .update({ status: 'processing', started_at: new Date().toISOString() })
+        .update({ status: 'processing', started_at: startedAt })
         .eq('id', job.id);
 
-      const result = await this.processJob(job);
+      console.log(`[Queue] 🚀 Starting job: ${job.id} (type: ${job.type})`);
+
+      // ⏱️ ADD TIMEOUT: 180 seconds (3 minutes)
+      const TIMEOUT = 180000;
+      const result = await Promise.race([
+        this.processJob(job),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Job timeout after 3 minutes')), TIMEOUT)
+        )
+      ]);
       
       const completedAt = new Date().toISOString();
+      const processingTime = Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000);
+      
+      console.log(`[Queue] ✅ Job completed: ${job.id} (${processingTime}s)`);
+      
       await supabase
         .from('telegram_jobs')
         .update({
@@ -285,36 +302,32 @@ class QueueService {
         })
         .eq('id', job.id);
       
-      console.log(`[Queue] Supabase job completed: ${job.id}`);
-      
       // Send Telegram notification
       if (job.data.chatId) {
         const chatId = job.data.chatId;
-        const startedAt = job.started_at ? new Date(job.started_at) : new Date();
-        const processingTime = Math.round((new Date(completedAt).getTime() - startedAt.getTime()) / 1000);
         
-        if (result.published && result.url) {
+        if ((result as any).published && (result as any).url) {
           await sendTelegramNotification(
             chatId,
             `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
-            `📝 <b>Заголовок:</b> ${result.title || 'N/A'}\n` +
-            `💬 <b>Слов:</b> ${result.wordCount || 'N/A'}\n` +
+            `📝 <b>Заголовок:</b> ${(result as any).title || 'N/A'}\n` +
+            `💬 <b>Слов:</b> ${(result as any).wordCount || 'N/A'}\n` +
             `⏱️ <b>Время:</b> ${processingTime}s\n\n` +
-            `🔗 <b>URL:</b>\n${result.url}\n\n` +
+            `🔗 <b>URL:</b>\n${(result as any).url}\n\n` +
             `✨ <b>Статус:</b> Опубликовано на сайте!`
           );
         } else {
           await sendTelegramNotification(
             chatId,
             `✅ <b>Создано</b>\n\n` +
-            `📝 Заголовок: ${result.title || 'N/A'}\n` +
-            `💬 Слов: ${result.wordCount || 'N/A'}\n` +
+            `📝 Заголовок: ${(result as any).title || 'N/A'}\n` +
+            `💬 Слов: ${(result as any).wordCount || 'N/A'}\n` +
             `⏱️ Время: ${processingTime}s`
           );
         }
       }
     } catch (error: any) {
-      console.error(`[Queue] Supabase job failed: ${job.id}`, error);
+      console.error(`[Queue] ❌ Job failed: ${job.id}`, error.message);
       
       const newRetries = job.retries + 1;
       
@@ -323,7 +336,7 @@ class QueueService {
           .from('telegram_jobs')
           .update({ status: 'pending', retries: newRetries })
           .eq('id', job.id);
-        console.log(`[Queue] Job ${job.id} will retry (${newRetries}/${job.max_retries})`);
+        console.log(`[Queue] 🔄 Job ${job.id} will retry (${newRetries}/${job.max_retries})`);
       } else {
         await supabase
           .from('telegram_jobs')
@@ -334,7 +347,7 @@ class QueueService {
           })
           .eq('id', job.id);
         
-        console.log(`[Queue] Job ${job.id} FAILED permanently`);
+        console.log(`[Queue] 💀 Job ${job.id} FAILED permanently`);
         
         // Send failure notification
         if (job.data.chatId) {
@@ -352,58 +365,69 @@ class QueueService {
   }
 
   /**
-   * Process memory job
+   * Process memory job with TIMEOUT
    */
   private async processMemoryJob(job: QueueJob) {
     job.status = 'processing';
     const startedAt = new Date().toISOString();
     job.started_at = startedAt;
     
+    console.log(`[Queue] 🚀 Starting memory job: ${job.id} (type: ${job.type})`);
+    
     try {
-      const result = await this.processJob(job);
+      // ⏱️ ADD TIMEOUT: 180 seconds (3 minutes)
+      const TIMEOUT = 180000;
+      const result = await Promise.race([
+        this.processJob(job),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Job timeout after 3 minutes')), TIMEOUT)
+        )
+      ]);
+      
       job.status = 'completed';
       job.result = result;
       const completedAt = new Date().toISOString();
       job.completed_at = completedAt;
-      console.log(`[Queue] Memory job completed: ${job.id}`);
+      const processingTime = Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000);
+      
+      console.log(`[Queue] ✅ Memory job completed: ${job.id} (${processingTime}s)`);
       
       // Send Telegram notification
       if (job.data.chatId) {
         const chatId = job.data.chatId;
-        const processingTime = Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000);
         
-        if (result.published && result.url) {
+        if ((result as any).published && (result as any).url) {
           await sendTelegramNotification(
             chatId,
             `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
-            `📝 <b>Заголовок:</b> ${result.title || 'N/A'}\n` +
-            `💬 <b>Слов:</b> ${result.wordCount || 'N/A'}\n` +
+            `📝 <b>Заголовок:</b> ${(result as any).title || 'N/A'}\n` +
+            `💬 <b>Слов:</b> ${(result as any).wordCount || 'N/A'}\n` +
             `⏱️ <b>Время:</b> ${processingTime}s\n\n` +
-            `🔗 <b>URL:</b>\n${result.url}\n\n` +
+            `🔗 <b>URL:</b>\n${(result as any).url}\n\n` +
             `✨ <b>Статус:</b> Опубликовано на сайте!`
           );
         } else {
           await sendTelegramNotification(
             chatId,
             `✅ <b>Создано</b>\n\n` +
-            `📝 Заголовок: ${result.title || 'N/A'}\n` +
-            `💬 Слов: ${result.wordCount || 'N/A'}\n` +
+            `📝 Заголовок: ${(result as any).title || 'N/A'}\n` +
+            `💬 Слов: ${(result as any).wordCount || 'N/A'}\n` +
             `⏱️ Время: ${processingTime}s`
           );
         }
       }
     } catch (error: any) {
-      console.error(`[Queue] Memory job failed: ${job.id}`, error);
+      console.error(`[Queue] ❌ Memory job failed: ${job.id}`, error.message);
       job.retries++;
       
       if (job.retries < job.max_retries) {
         job.status = 'pending';
-        console.log(`[Queue] Memory job ${job.id} will retry (${job.retries}/${job.max_retries})`);
+        console.log(`[Queue] 🔄 Memory job ${job.id} will retry (${job.retries}/${job.max_retries})`);
       } else {
         job.status = 'failed';
         job.error = error.message;
         job.completed_at = new Date().toISOString();
-        console.log(`[Queue] Memory job ${job.id} FAILED permanently`);
+        console.log(`[Queue] 💀 Memory job ${job.id} FAILED permanently`);
         
         // Send failure notification
         if (job.data.chatId) {

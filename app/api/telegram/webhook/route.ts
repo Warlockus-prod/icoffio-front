@@ -688,11 +688,16 @@ async function monitorJob(jobId: string, chatId: number) {
   const maxAttempts = 60; // 5 minutes (5s intervals)
   let attempts = 0;
 
+  console.log(`[MonitorJob] Starting monitoring for job: ${jobId}, chatId: ${chatId}`);
+
   const checkJob = async () => {
     attempts++;
+    console.log(`[MonitorJob] Attempt ${attempts}/${maxAttempts} for job: ${jobId}`);
+    
     const job = await queueService.getJobStatus(jobId);
 
     if (!job) {
+      console.error(`[MonitorJob] Job not found: ${jobId}`);
       await sendTelegramMessage(
         chatId,
         `❌ <b>Ошибка:</b> Задание ${jobId} не найдено.`
@@ -700,7 +705,10 @@ async function monitorJob(jobId: string, chatId: number) {
       return;
     }
 
+    console.log(`[MonitorJob] Job ${jobId} status: ${job.status}`);
+
     if (job.status === 'completed') {
+      console.log(`[MonitorJob] Job ${jobId} completed! Sending notification...`);
       // Success!
       const result = job.result;
       const startedAt = job.started_at ? new Date(job.started_at) : new Date();
@@ -736,6 +744,7 @@ async function monitorJob(jobId: string, chatId: number) {
     }
 
     if (job.status === 'failed') {
+      console.error(`[MonitorJob] Job ${jobId} FAILED! Error: ${job.error}`);
       // Failed - determine error type
       const error = job.error || 'Unknown error';
       let errorType = 'Неизвестная ошибка';
@@ -784,6 +793,7 @@ async function monitorJob(jobId: string, chatId: number) {
     }
 
     if (attempts >= maxAttempts) {
+      console.error(`[MonitorJob] TIMEOUT for job ${jobId} after ${maxAttempts} attempts`);
       // Timeout
       await sendTelegramMessage(
         chatId,
@@ -795,6 +805,7 @@ async function monitorJob(jobId: string, chatId: number) {
     }
 
     // Still processing, check again
+    console.log(`[MonitorJob] Job ${jobId} still ${job.status}, will retry in 5s (attempt ${attempts}/${maxAttempts})`);
     setTimeout(checkJob, 5000); // Check every 5 seconds
   };
 

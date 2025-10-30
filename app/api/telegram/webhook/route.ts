@@ -214,7 +214,7 @@ async function handleCallbackQuery(callbackQuery: any): Promise<NextResponse> {
         chatId,
         submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
       },
-      maxRetries: 3,
+      max_retries: 3,
     });
 
     // Start async processing
@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
           messageId: message.message_id,
           submissionId: submissionId || undefined, // Include submissionId for tracking
         },
-        maxRetries: 2,
+        max_retries: 2,
       });
 
       // Log usage to database
@@ -458,7 +458,7 @@ export async function POST(request: NextRequest) {
           messageId: message.message_id,
           submissionId: submissionId || undefined, // Include submissionId for tracking
         },
-        maxRetries: 2,
+        max_retries: 2,
       });
 
       // Log usage to database
@@ -530,7 +530,7 @@ async function handleCommand(chatId: number, text: string) {
 
     case '/queue':
       const queueService = getQueueService();
-      const stats = queueService.getQueueStats();
+      const stats = await queueService.getQueueStats();
       
       await sendTelegramMessage(
         chatId,
@@ -540,7 +540,7 @@ async function handleCommand(chatId: number, text: string) {
         `${t(chatId, 'processing')} ${stats.processing}\n` +
         `${t(chatId, 'completed')} ${stats.completed}\n` +
         `${t(chatId, 'errors')} ${stats.failed}\n\n` +
-        `${stats.isProcessing ? t(chatId, 'systemWorking') : t(chatId, 'systemWaiting')}`
+        `${stats.processing > 0 ? t(chatId, 'systemWorking') : t(chatId, 'systemWaiting')}`
       );
       break;
 
@@ -622,11 +622,11 @@ async function handleCommand(chatId: number, text: string) {
       const publishJobId = await publishQueueService.addJob({
         type: 'text-generate',
         data: { 
-          text: composedText,
-          chatId,
-          submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
-        },
-        maxRetries: 3,
+        text: composedText,
+        chatId,
+        submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
+      },
+      max_retries: 3,
       });
 
       // Start async processing
@@ -692,7 +692,7 @@ async function monitorJob(jobId: string, chatId: number) {
 
   const checkJob = async () => {
     attempts++;
-    const job = queueService.getJobStatus(jobId);
+    const job = await queueService.getJobStatus(jobId);
 
     if (!job) {
       await sendTelegramMessage(
@@ -705,7 +705,9 @@ async function monitorJob(jobId: string, chatId: number) {
     if (job.status === 'completed') {
       // Success!
       const result = job.result;
-      const processingTime = Math.round((job.completedAt!.getTime() - job.startedAt!.getTime()) / 1000);
+      const startedAt = job.started_at ? new Date(job.started_at) : new Date();
+      const completedAt = job.completed_at ? new Date(job.completed_at) : new Date();
+      const processingTime = Math.round((completedAt.getTime() - startedAt.getTime()) / 1000);
       
       // Check if article was published
       if (result.published && result.url) {
@@ -767,7 +769,7 @@ async function monitorJob(jobId: string, chatId: number) {
         `📋 <b>Детали:</b>\n${errorDetails}\n\n` +
         `💡 <b>Что делать:</b>\n${suggestion}\n\n` +
         `🆔 <b>Job ID:</b> <code>${job.id}</code>\n` +
-        `⏱️ <b>Попыток:</b> ${job.retryCount}/${job.maxRetries}`
+        `⏱️ <b>Попыток:</b> ${job.retries}/${job.max_retries}`
       );
 
       // Log error for admin review

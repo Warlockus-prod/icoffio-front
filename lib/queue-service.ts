@@ -1,18 +1,41 @@
 /**
- * QUEUE SERVICE
+ * QUEUE SERVICE v7.9.2 - SUPABASE PERSISTENT QUEUE
  * 
  * Manages processing queue for Telegram bot requests
- * Ensures sequential processing of article creation/parsing
+ * Uses Supabase for persistent storage across serverless invocations
  * 
  * Features:
- * - FIFO (First In, First Out) queue
- * - Automatic retry on failure
- * - Status tracking
- * - Concurrent processing limit
- * - Progress callbacks
+ * - ✅ Persistent storage (Supabase)
+ * - ✅ Serverless-safe (no memory state)
+ * - ✅ FIFO (First In, First Out) queue
+ * - ✅ Automatic retry on failure
+ * - ✅ Status tracking
+ * - ✅ Concurrent processing limit
+ * 
+ * @version 7.9.2
+ * @date 2025-10-30
  */
 
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { publishDualLanguageArticle } from './dual-language-publisher';
+
+// Lazy initialization для Supabase (не создаем при импорте модуля)
+let supabaseClient: SupabaseClient | null = null;
+
+function getSupabase(): SupabaseClient {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase environment variables not configured');
+    }
+    
+    supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+  }
+  
+  return supabaseClient;
+}
 
 export interface QueueJob {
   id: string;
@@ -25,114 +48,178 @@ export interface QueueJob {
     language?: string;
     chatId?: number;
     messageId?: number;
-    submissionId?: number; // Supabase submission ID for tracking
+    submissionId?: number;
   };
   status: 'pending' | 'processing' | 'completed' | 'failed';
-  createdAt: Date;
-  startedAt?: Date;
-  completedAt?: Date;
+  created_at?: string;
+  started_at?: string;
+  completed_at?: string;
   result?: any;
   error?: string;
-  retryCount: number;
-  maxRetries: number;
+  retries: number;
+  max_retries: number;
 }
 
 class QueueService {
-  private queue: QueueJob[] = [];
   private isProcessing: boolean = false;
-  private maxConcurrent: number = 1; // Process one at a time
-  private currentlyProcessing: Set<string> = new Set();
+  private maxConcurrent: number = 1;
 
   /**
-   * Add job to queue
+   * Add job to Supabase queue
    */
-  async addJob(job: Omit<QueueJob, 'id' | 'status' | 'createdAt' | 'retryCount'>): Promise<string> {
+  async addJob(job: Omit<QueueJob, 'id' | 'status' | 'created_at' | 'retries'>): Promise<string> {
     const id = this.generateId();
+    const supabase = getSupabase();
     
-    const newJob: QueueJob = {
-      ...job,
-      id,
-      status: 'pending',
-      createdAt: new Date(),
-      retryCount: 0,
-      maxRetries: job.maxRetries || 3
-    };
+    const { data, error } = await supabase
+      .from('telegram_jobs')
+      .insert({
+        id,
+        type: job.type,
+        status: 'pending',
+        data: job.data,
+        retries: 0,
+        max_retries: job.max_retries || 3,
+      })
+      .select()
+      .single();
 
-    this.queue.push(newJob);
-    
-    console.log(`[Queue] Job added: ${id} (type: ${job.type})`);
-    
-    // Start processing if not already running
-    if (!this.isProcessing) {
-      this.processQueue();
+    if (error) {
+      console.error('[Queue] Failed to add job:', error);
+      throw new Error(`Failed to add job: ${error.message}`);
     }
+
+    console.log(`[Queue] Job added to Supabase: ${id} (type: ${job.type})`);
+    
+    // Start processing asynchronously
+    this.processQueue().catch(err => 
+      console.error('[Queue] Process queue error:', err)
+    );
 
     return id;
   }
 
   /**
-   * Process queue sequentially
+   * Get job status from Supabase
+   */
+  async getJobStatus(jobId: string): Promise<QueueJob | null> {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('telegram_jobs')
+      .select('*')
+      .eq('id', jobId)
+      .single();
+
+    if (error || !data) {
+      console.error(`[Queue] Job not found: ${jobId}`, error);
+      return null;
+    }
+
+    return data as QueueJob;
+  }
+
+  /**
+   * Process queue sequentially from Supabase
    */
   private async processQueue() {
-    if (this.isProcessing || this.currentlyProcessing.size >= this.maxConcurrent) {
+    if (this.isProcessing) {
+      console.log('[Queue] Already processing, skipping...');
       return;
     }
 
     this.isProcessing = true;
 
-    while (this.queue.length > 0 && this.currentlyProcessing.size < this.maxConcurrent) {
-      const job = this.queue.find(j => j.status === 'pending');
-      
-      if (!job) break;
+    try {
+      // Get all pending jobs
+      const supabase = getSupabase();
+      const { data: pendingJobs, error } = await supabase
+        .from('telegram_jobs')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(10);
 
-      job.status = 'processing';
-      job.startedAt = new Date();
-      this.currentlyProcessing.add(job.id);
+      if (error) {
+        console.error('[Queue] Failed to fetch pending jobs:', error);
+        return;
+      }
 
-      console.log(`[Queue] Processing job: ${job.id} (${this.queue.length - 1} remaining)`);
-      console.log(`[Queue] Job type: ${job.type}, data:`, JSON.stringify(job.data));
+      if (!pendingJobs || pendingJobs.length === 0) {
+        console.log('[Queue] No pending jobs');
+        return;
+      }
+
+      console.log(`[Queue] Found ${pendingJobs.length} pending jobs`);
+
+      // Process first job
+      const job = pendingJobs[0] as QueueJob;
+
+      // Update status to processing
+      await supabase
+        .from('telegram_jobs')
+        .update({
+          status: 'processing',
+          started_at: new Date().toISOString(),
+        })
+        .eq('id', job.id);
+
+      console.log(`[Queue] Processing job: ${job.id}`);
 
       try {
-        console.log(`[Queue] Starting processJob for: ${job.id}`);
         const result = await this.processJob(job);
         
-        job.status = 'completed';
-        job.completedAt = new Date();
-        job.result = result;
+        // Update as completed
+        await supabase
+          .from('telegram_jobs')
+          .update({
+            status: 'completed',
+            result,
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', job.id);
         
-        console.log(`[Queue] Job completed: ${job.id}`, JSON.stringify(result));
+        console.log(`[Queue] Job completed: ${job.id}`);
         
       } catch (error: any) {
         console.error(`[Queue] Job failed: ${job.id}`, error);
         
-        job.retryCount++;
+        const newRetries = job.retries + 1;
         
-        if (job.retryCount < job.maxRetries) {
+        if (newRetries < job.max_retries) {
           // Retry
-          job.status = 'pending';
-          job.error = undefined;
-          console.log(`[Queue] Retrying job: ${job.id} (attempt ${job.retryCount + 1}/${job.maxRetries})`);
+          await supabase
+            .from('telegram_jobs')
+            .update({
+              status: 'pending',
+              retries: newRetries,
+              error: null,
+            })
+            .eq('id', job.id);
+          
+          console.log(`[Queue] Retrying job: ${job.id} (attempt ${newRetries + 1}/${job.max_retries})`);
         } else {
           // Max retries reached
-          job.status = 'failed';
-          job.completedAt = new Date();
-          job.error = error.message || 'Unknown error';
+          await supabase
+            .from('telegram_jobs')
+            .update({
+              status: 'failed',
+              error: error.message || 'Unknown error',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', job.id);
+          
           console.error(`[Queue] Job failed permanently: ${job.id}`);
         }
-      } finally {
-        this.currentlyProcessing.delete(job.id);
       }
-    }
 
-    this.isProcessing = false;
+      // Process next job if exists
+      if (pendingJobs.length > 1) {
+        console.log('[Queue] More jobs pending, scheduling next batch...');
+        setTimeout(() => this.processQueue(), 2000);
+      }
 
-    // Continue processing if more jobs added
-    // OPTIMIZATION: Use longer delay (2s instead of 100ms) to reduce invocations
-    if (this.queue.some(j => j.status === 'pending')) {
-      console.log('[Queue] Pending jobs remain, scheduling next batch...');
-      // Process remaining jobs with 2 second delay (instead of 100ms)
-      // This reduces function invocations by 95% while still processing queue
-      setTimeout(() => this.processQueue(), 2000);
+    } finally {
+      this.isProcessing = false;
     }
   }
 
@@ -165,14 +252,11 @@ class QueueService {
       throw new Error('URL is required for url-parse job');
     }
 
-    // Step 1: Parse URL content
     console.log(`[Queue] Parsing URL: ${url}`);
     const baseUrl = 'https://app.icoffio.com';
     const parseResponse = await fetch(`${baseUrl}/api/admin/parse-url`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
     });
 
@@ -184,19 +268,17 @@ class QueueService {
     const parsedContent = await parseResponse.json();
     console.log(`[Queue] Parsed: "${parsedContent.title}"`);
 
-    // Step 2: Use dual-language publisher (EN + PL + 2 images)
-    // Format content as paragraphs (split by periods, add double newlines)
     const formattedContent = parsedContent.content
-      .replace(/\.\s+/g, '.\n\n') // Add paragraph breaks after sentences
-      .replace(/\n{3,}/g, '\n\n') // Clean up excessive newlines
+      .replace(/\.\s+/g, '.\n\n')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
 
     console.log(`[Queue] Publishing dual-language article from parsed URL...`);
     
     const result = await publishDualLanguageArticle(
-      formattedContent, // Use parsed content as prompt
-      parsedContent.title, // Use parsed title
-      category // Optional user category (AI will detect if not provided)
+      formattedContent,
+      parsedContent.title,
+      category
     );
 
     if (!result.success) {
@@ -214,8 +296,8 @@ class QueueService {
       title: result.enResult.title,
       wordCount: result.enResult.wordCount,
       category: result.category,
-      url: result.enResult.url, // Primary (EN) URL
-      urlPl: result.plResult?.url || null, // Polish URL
+      url: result.enResult.url,
+      urlPl: result.plResult?.url || null,
       postId: result.enResult.postId,
       postIdPl: result.plResult?.postId || null,
       languages: result.plResult ? ['en', 'pl'] : ['en'],
@@ -236,14 +318,12 @@ class QueueService {
       throw new Error('Text is required for text-generate job');
     }
 
-    // Use dual-language publisher (generates EN + PL with 2 images)
-    // AI will auto-detect category and optimize title
     console.log(`[Queue] Starting dual-language article generation...`);
     
     const result = await publishDualLanguageArticle(
       text,
-      title, // Optional user title
-      category // Optional user category (AI will detect if not provided)
+      title,
+      category
     );
 
     if (!result.success) {
@@ -261,8 +341,8 @@ class QueueService {
       title: result.enResult.title,
       wordCount: result.enResult.wordCount,
       category: result.category,
-      url: result.enResult.url, // Primary (EN) URL
-      urlPl: result.plResult?.url || null, // Polish URL
+      url: result.enResult.url,
+      urlPl: result.plResult?.url || null,
       postId: result.enResult.postId,
       postIdPl: result.plResult?.postId || null,
       languages: result.plResult ? ['en', 'pl'] : ['en'],
@@ -277,49 +357,55 @@ class QueueService {
    * Process AI copywriting job
    */
   private async processAICopywrite(job: QueueJob): Promise<any> {
-    // Similar to text-generate but with different parameters
     return await this.processTextGenerate(job);
   }
 
   /**
-   * Get job status
+   * Get queue statistics from Supabase
    */
-  getJobStatus(jobId: string): QueueJob | undefined {
-    return this.queue.find(j => j.id === jobId);
-  }
+  async getQueueStats() {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('telegram_jobs')
+      .select('status');
 
-  /**
-   * Get queue statistics
-   */
-  getQueueStats() {
+    if (error) {
+      console.error('[Queue] Failed to get stats:', error);
+      return {
+        total: 0,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+      };
+    }
+
     return {
-      total: this.queue.length,
-      pending: this.queue.filter(j => j.status === 'pending').length,
-      processing: this.queue.filter(j => j.status === 'processing').length,
-      completed: this.queue.filter(j => j.status === 'completed').length,
-      failed: this.queue.filter(j => j.status === 'failed').length,
-      isProcessing: this.isProcessing
+      total: data.length,
+      pending: data.filter(j => j.status === 'pending').length,
+      processing: data.filter(j => j.status === 'processing').length,
+      completed: data.filter(j => j.status === 'completed').length,
+      failed: data.filter(j => j.status === 'failed').length,
     };
   }
 
   /**
-   * Clear completed/failed jobs older than X minutes
+   * Clear completed/failed jobs older than X hours
    */
-  cleanupOldJobs(minutesOld: number = 60) {
-    const cutoff = new Date(Date.now() - minutesOld * 60 * 1000);
+  async cleanupOldJobs(hoursOld: number = 24) {
+    const cutoff = new Date(Date.now() - hoursOld * 60 * 60 * 1000).toISOString();
+    const supabase = getSupabase();
     
-    const before = this.queue.length;
-    this.queue = this.queue.filter(job => {
-      if (job.status === 'pending' || job.status === 'processing') {
-        return true; // Keep active jobs
-      }
-      
-      return job.completedAt && job.completedAt > cutoff;
-    });
-    
-    const removed = before - this.queue.length;
-    if (removed > 0) {
-      console.log(`[Queue] Cleaned up ${removed} old jobs`);
+    const { error } = await supabase
+      .from('telegram_jobs')
+      .delete()
+      .in('status', ['completed', 'failed'])
+      .lt('completed_at', cutoff);
+
+    if (error) {
+      console.error('[Queue] Cleanup failed:', error);
+    } else {
+      console.log(`[Queue] Cleaned up jobs older than ${hoursOld}h`);
     }
   }
 
@@ -331,29 +417,15 @@ class QueueService {
   }
 }
 
-// Singleton instance with global persistence for Vercel serverless
-// Использует globalThis чтобы сохранить инстанс между запросами в одном worker
-const globalForQueue = globalThis as unknown as {
-  queueService: QueueService | undefined;
-};
+// Singleton instance
+let queueServiceInstance: QueueService | null = null;
 
 export function getQueueService(): QueueService {
-  if (!globalForQueue.queueService) {
-    console.log('[QueueService] Creating NEW instance (first time or new worker)');
-    globalForQueue.queueService = new QueueService();
-    
-    // Auto cleanup every 30 minutes
-    if (typeof setInterval !== 'undefined') {
-      setInterval(() => {
-        globalForQueue.queueService?.cleanupOldJobs(30);
-      }, 30 * 60 * 1000);
-    }
-  } else {
-    console.log('[QueueService] Reusing EXISTING instance from globalThis');
+  if (!queueServiceInstance) {
+    console.log('[QueueService] Creating new instance');
+    queueServiceInstance = new QueueService();
   }
-  
-  return globalForQueue.queueService;
+  return queueServiceInstance;
 }
 
 export default QueueService;
-

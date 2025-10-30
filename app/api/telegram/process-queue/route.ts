@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     let totalWaited = 0;
 
     while (totalWaited < maxWaitTime) {
-      const job = queueService.getJobStatus(jobId);
+      const job = await queueService.getJobStatus(jobId);
 
       if (!job) {
         console.error(`[Process Queue] Job not found: ${jobId}`);

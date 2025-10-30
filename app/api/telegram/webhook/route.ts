@@ -214,7 +214,7 @@ async function handleCallbackQuery(callbackQuery: any): Promise<NextResponse> {
         chatId,
         submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
       },
-      max_retries: 3,
+      maxRetries: 3,
     });
 
     // Start async processing
@@ -223,9 +223,6 @@ async function handleCallbackQuery(callbackQuery: any): Promise<NextResponse> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId: publishJobId, chatId }),
     }).catch(console.error);
-
-    // Start monitoring job for updates
-    monitorJob(publishJobId, chatId);
 
     await sendTelegramMessage(
       chatId,
@@ -408,7 +405,7 @@ export async function POST(request: NextRequest) {
           messageId: message.message_id,
           submissionId: submissionId || undefined, // Include submissionId for tracking
         },
-        max_retries: 2,
+        maxRetries: 2,
       });
 
       // Log usage to database
@@ -458,7 +455,7 @@ export async function POST(request: NextRequest) {
           messageId: message.message_id,
           submissionId: submissionId || undefined, // Include submissionId for tracking
         },
-        max_retries: 2,
+        maxRetries: 2,
       });
 
       // Log usage to database
@@ -515,7 +512,9 @@ async function handleCommand(chatId: number, text: string) {
     case '/start':
       await sendTelegramMessage(
         chatId, 
-        t(chatId, 'start')
+        `${t(chatId, 'start')}\n\n` +
+        `<b>🔑 Your Chat ID:</b> <code>${chatId}</code>\n` +
+        `<i>(Для GitHub Secrets)</i>`
       );
       break;
 
@@ -528,7 +527,7 @@ async function handleCommand(chatId: number, text: string) {
 
     case '/queue':
       const queueService = getQueueService();
-      const stats = await queueService.getQueueStats();
+      const stats = queueService.getQueueStats();
       
       await sendTelegramMessage(
         chatId,
@@ -538,7 +537,7 @@ async function handleCommand(chatId: number, text: string) {
         `${t(chatId, 'processing')} ${stats.processing}\n` +
         `${t(chatId, 'completed')} ${stats.completed}\n` +
         `${t(chatId, 'errors')} ${stats.failed}\n\n` +
-        `${stats.processing > 0 ? t(chatId, 'systemWorking') : t(chatId, 'systemWaiting')}`
+        `${stats.isProcessing ? t(chatId, 'systemWorking') : t(chatId, 'systemWaiting')}`
       );
       break;
 
@@ -620,11 +619,11 @@ async function handleCommand(chatId: number, text: string) {
       const publishJobId = await publishQueueService.addJob({
         type: 'text-generate',
         data: { 
-        text: composedText,
-        chatId,
-        submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
-      },
-      max_retries: 3,
+          text: composedText,
+          chatId,
+          submissionId: publishSubmissionId || undefined, // Add submissionId for tracking
+        },
+        maxRetries: 3,
       });
 
       // Start async processing
@@ -633,9 +632,6 @@ async function handleCommand(chatId: number, text: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: publishJobId, chatId }),
       }).catch(console.error);
-
-      // Start monitoring job for updates
-      monitorJob(publishJobId, chatId);
 
       await sendTelegramMessage(
         chatId,
@@ -688,16 +684,11 @@ async function monitorJob(jobId: string, chatId: number) {
   const maxAttempts = 60; // 5 minutes (5s intervals)
   let attempts = 0;
 
-  console.log(`[MonitorJob] Starting monitoring for job: ${jobId}, chatId: ${chatId}`);
-
   const checkJob = async () => {
     attempts++;
-    console.log(`[MonitorJob] Attempt ${attempts}/${maxAttempts} for job: ${jobId}`);
-    
-    const job = await queueService.getJobStatus(jobId);
+    const job = queueService.getJobStatus(jobId);
 
     if (!job) {
-      console.error(`[MonitorJob] Job not found: ${jobId}`);
       await sendTelegramMessage(
         chatId,
         `❌ <b>Ошибка:</b> Задание ${jobId} не найдено.`
@@ -705,15 +696,10 @@ async function monitorJob(jobId: string, chatId: number) {
       return;
     }
 
-    console.log(`[MonitorJob] Job ${jobId} status: ${job.status}`);
-
     if (job.status === 'completed') {
-      console.log(`[MonitorJob] Job ${jobId} completed! Sending notification...`);
       // Success!
       const result = job.result;
-      const startedAt = job.started_at ? new Date(job.started_at) : new Date();
-      const completedAt = job.completed_at ? new Date(job.completed_at) : new Date();
-      const processingTime = Math.round((completedAt.getTime() - startedAt.getTime()) / 1000);
+      const processingTime = Math.round((job.completedAt!.getTime() - job.startedAt!.getTime()) / 1000);
       
       // Check if article was published
       if (result.published && result.url) {
@@ -744,7 +730,6 @@ async function monitorJob(jobId: string, chatId: number) {
     }
 
     if (job.status === 'failed') {
-      console.error(`[MonitorJob] Job ${jobId} FAILED! Error: ${job.error}`);
       // Failed - determine error type
       const error = job.error || 'Unknown error';
       let errorType = 'Неизвестная ошибка';
@@ -776,7 +761,7 @@ async function monitorJob(jobId: string, chatId: number) {
         `📋 <b>Детали:</b>\n${errorDetails}\n\n` +
         `💡 <b>Что делать:</b>\n${suggestion}\n\n` +
         `🆔 <b>Job ID:</b> <code>${job.id}</code>\n` +
-        `⏱️ <b>Попыток:</b> ${job.retries}/${job.max_retries}`
+        `⏱️ <b>Попыток:</b> ${job.retryCount}/${job.maxRetries}`
       );
 
       // Log error for admin review
@@ -793,7 +778,6 @@ async function monitorJob(jobId: string, chatId: number) {
     }
 
     if (attempts >= maxAttempts) {
-      console.error(`[MonitorJob] TIMEOUT for job ${jobId} after ${maxAttempts} attempts`);
       // Timeout
       await sendTelegramMessage(
         chatId,
@@ -805,7 +789,6 @@ async function monitorJob(jobId: string, chatId: number) {
     }
 
     // Still processing, check again
-    console.log(`[MonitorJob] Job ${jobId} still ${job.status}, will retry in 5s (attempt ${attempts}/${maxAttempts})`);
     setTimeout(checkJob, 5000); // Check every 5 seconds
   };
 

@@ -515,9 +515,7 @@ async function handleCommand(chatId: number, text: string) {
     case '/start':
       await sendTelegramMessage(
         chatId, 
-        `${t(chatId, 'start')}\n\n` +
-        `<b>🔑 Your Chat ID:</b> <code>${chatId}</code>\n` +
-        `<i>(Для GitHub Secrets)</i>`
+        t(chatId, 'start')
       );
       break;
 

@@ -12,6 +12,7 @@ import LogsViewer from '@/components/admin/LogsViewer';
 import CleanupTool from '@/components/admin/CleanupTool';
 import ArticlesManager from '@/components/admin/ArticlesManager';
 import AdvertisingManager from '@/components/admin/AdvertisingManager';
+import ContentPromptManager from '@/components/admin/ContentPromptManager';
 
 export default function AdminPage() {
   const { 
@@ -149,6 +150,8 @@ export default function AdminPage() {
         return <LogsViewer />;
       case 'advertising':
         return <AdvertisingManager />;
+      case 'content-prompts':
+        return <ContentPromptManager />;
       case 'settings':
         return (
           <div className="space-y-6">

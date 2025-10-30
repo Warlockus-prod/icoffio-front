@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Publication queue' },
     { id: 'images', label: 'Images', icon: '🖼️', description: 'Image gallery' },
     { id: 'advertising', label: 'Advertising', icon: '📊', description: 'Manage ad placements' },
+    { id: 'content-prompts', label: 'Content Prompts', icon: '📝', description: 'Manage text processing styles' },
     { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings' }
   ] as const;

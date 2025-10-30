@@ -331,20 +331,28 @@ class QueueService {
   }
 }
 
-// Singleton instance
-let queueServiceInstance: QueueService | null = null;
+// Singleton instance with global persistence for Vercel serverless
+// Использует globalThis чтобы сохранить инстанс между запросами в одном worker
+const globalForQueue = globalThis as unknown as {
+  queueService: QueueService | undefined;
+};
 
 export function getQueueService(): QueueService {
-  if (!queueServiceInstance) {
-    queueServiceInstance = new QueueService();
+  if (!globalForQueue.queueService) {
+    console.log('[QueueService] Creating NEW instance (first time or new worker)');
+    globalForQueue.queueService = new QueueService();
     
     // Auto cleanup every 30 minutes
-    setInterval(() => {
-      queueServiceInstance?.cleanupOldJobs(30);
-    }, 30 * 60 * 1000);
+    if (typeof setInterval !== 'undefined') {
+      setInterval(() => {
+        globalForQueue.queueService?.cleanupOldJobs(30);
+      }, 30 * 60 * 1000);
+    }
+  } else {
+    console.log('[QueueService] Reusing EXISTING instance from globalThis');
   }
   
-  return queueServiceInstance;
+  return globalForQueue.queueService;
 }
 
 export default QueueService;

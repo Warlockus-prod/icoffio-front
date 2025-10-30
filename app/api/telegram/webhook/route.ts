@@ -190,9 +190,9 @@ async function handleTextMessage(chatId: number, messageId: number, text: string
       `⏳ Ожидайте (~60 секунд)`
     );
 
-    // Trigger queue processing
-    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
-      method: 'POST',
+    // Trigger queue processing (async, non-blocking)
+    queueService.processQueue().catch(err => {
+      console.error('[Bot] Queue processing error:', err);
     });
 
   } catch (error) {
@@ -233,9 +233,9 @@ async function handleUrlMessage(chatId: number, messageId: number, url: string):
       `⏳ Ожидайте (~60 секунд)`
     );
 
-    // Trigger queue processing
-    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/telegram/process-queue`, {
-      method: 'POST',
+    // Trigger queue processing (async, non-blocking)
+    queueService.processQueue().catch(err => {
+      console.error('[Bot] Queue processing error:', err);
     });
 
   } catch (error) {

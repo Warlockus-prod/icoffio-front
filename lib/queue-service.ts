@@ -195,7 +195,7 @@ class QueueService {
   /**
    * Process queue (Supabase or memory)
    */
-  private async processQueue() {
+  public async processQueue() {
     if (this.isProcessing) {
       console.log('[Queue] Already processing, scheduling retry in 3s');
       setTimeout(() => this.processQueue(), 3000);

@@ -166,10 +166,13 @@ class QueueService {
    */
   private async processQueue() {
     if (this.isProcessing) {
+      console.log('[Queue] Already processing, scheduling retry in 3s');
+      setTimeout(() => this.processQueue(), 3000);
       return;
     }
 
     this.isProcessing = true;
+    console.log('[Queue] Starting queue processing...');
 
     try {
       const supabase = getSupabase();
@@ -184,13 +187,20 @@ class QueueService {
             .order('created_at', { ascending: true })
             .limit(10);
 
-          if (!error && pendingJobs && pendingJobs.length > 0) {
+          if (error) {
+            console.error('[Queue] Supabase query error:', error);
+          } else if (pendingJobs && pendingJobs.length > 0) {
+            console.log(`[Queue] Found ${pendingJobs.length} pending jobs in Supabase`);
             await this.processSupabaseJob(pendingJobs[0] as QueueJob);
             
+            // Continue processing remaining jobs
+            this.isProcessing = false;
             if (pendingJobs.length > 1) {
-              setTimeout(() => this.processQueue(), 2000);
+              setTimeout(() => this.processQueue(), 1000);
             }
             return;
+          } else {
+            console.log('[Queue] No pending jobs in Supabase');
           }
         } catch (err) {
           console.error('[Queue] Supabase processQueue error:', err);
@@ -200,12 +210,20 @@ class QueueService {
       // Fallback to memory
       const job = this.memoryQueue.find(j => j.status === 'pending');
       if (job) {
+        console.log(`[Queue] Processing memory job: ${job.id}`);
         await this.processMemoryJob(job);
         
+        // Continue processing remaining jobs
+        this.isProcessing = false;
         if (this.memoryQueue.some(j => j.status === 'pending')) {
-          setTimeout(() => this.processQueue(), 2000);
+          setTimeout(() => this.processQueue(), 1000);
         }
+        return;
+      } else {
+        console.log('[Queue] No pending jobs in memory');
       }
+    } catch (err) {
+      console.error('[Queue] processQueue critical error:', err);
     } finally {
       this.isProcessing = false;
     }

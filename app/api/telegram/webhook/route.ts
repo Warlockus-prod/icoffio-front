@@ -224,6 +224,9 @@ async function handleCallbackQuery(callbackQuery: any): Promise<NextResponse> {
       body: JSON.stringify({ jobId: publishJobId, chatId }),
     }).catch(console.error);
 
+    // Start monitoring job for updates
+    monitorJob(publishJobId, chatId);
+
     await sendTelegramMessage(
       chatId,
       `${t(chatId, 'addedToQueue')} ${publishJobId}\n` +
@@ -632,6 +635,9 @@ async function handleCommand(chatId: number, text: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: publishJobId, chatId }),
       }).catch(console.error);
+
+      // Start monitoring job for updates
+      monitorJob(publishJobId, chatId);
 
       await sendTelegramMessage(
         chatId,

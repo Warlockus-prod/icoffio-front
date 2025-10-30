@@ -253,10 +253,15 @@ export async function getUnsplashImage(
 
 /**
  * Универсальная функция для получения изображения из любого источника
+ * v7.8.0: Добавлена поддержка умных промптов через AI
  */
 export async function getArticleImage(
   source: ImageSource,
-  params: ImageGenerationParams,
+  params: ImageGenerationParams & { 
+    unsplashTags?: string[]; 
+    useSmartPrompts?: boolean;
+    customQuery?: string;
+  },
   customUrl?: string
 ): Promise<ImageGenerationResult> {
   switch (source) {
@@ -264,7 +269,35 @@ export async function getArticleImage(
       return generateArticleImage(params);
       
     case 'unsplash':
-      const query = `${params.title} ${params.category || 'technology'}`;
+      let query: string;
+      
+      if (params.customQuery) {
+        // Используем кастомный query если указан
+        query = params.customQuery;
+      } else if (params.unsplashTags && params.unsplashTags.length > 0) {
+        // Используем теги если указаны
+        query = params.unsplashTags.slice(0, 4).join(' ');
+      } else if (params.useSmartPrompts) {
+        // Генерируем умные промпты через AI
+        try {
+          const { generateSmartImagePrompts } = await import('./smart-image-prompt-generator');
+          const smartPrompts = await generateSmartImagePrompts({
+            title: params.title,
+            content: params.excerpt || '',
+            excerpt: params.excerpt || params.title,
+            category: params.category || 'technology'
+          });
+          query = smartPrompts.heroPrompt;
+          console.log('[ImageService] Generated smart prompt:', query);
+        } catch (error) {
+          console.warn('[ImageService] Smart prompts failed, using fallback');
+          query = `${params.title} ${params.category || 'technology'}`;
+        }
+      } else {
+        // Fallback к базовому query
+        query = `${params.title} ${params.category || 'technology'}`;
+      }
+      
       return getUnsplashImage(query);
       
     case 'custom':

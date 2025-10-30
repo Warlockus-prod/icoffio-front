@@ -6,10 +6,11 @@ import { localArticleStorage } from '@/lib/local-article-storage';
 import ArticlePreview from './ArticleEditor/ArticlePreview';
 import TranslationPanel from './ArticleEditor/TranslationPanel';
 import ContentEditor from './ArticleEditor/ContentEditor';
+import ImageMetadataEditor from './ImageMetadataEditor';
 
 export default function ArticleEditor() {
   const { selectedArticle, parsingQueue, selectArticle } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<'preview' | 'editor' | 'translations'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'editor' | 'translations' | 'images'>('preview');
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pl'>('en');
   
   // Get articles ready for editing (from queue + local storage)
@@ -121,6 +122,7 @@ export default function ArticleEditor() {
   const tabs = [
     { id: 'preview', label: 'Preview', icon: '👁️', description: 'View article in all languages' },
     { id: 'editor', label: 'Editor', icon: '✏️', description: 'Edit content and metadata' },
+    { id: 'images', label: 'Images', icon: '🖼️', description: 'Manage images, prompts & tags' },
     { id: 'translations', label: 'Translations', icon: '🌍', description: 'Manage EN/PL translations' }
   ];
 
@@ -256,6 +258,16 @@ export default function ArticleEditor() {
             
             {activeTab === 'editor' && (
               <ContentEditor article={selectedArticle} language={selectedLanguage} />
+            )}
+            
+            {activeTab === 'images' && (
+              <div className="p-6">
+                <ImageMetadataEditor
+                  articleId={selectedArticle.id}
+                  articleTitle={selectedArticle.title}
+                  articleCategory={selectedArticle.category}
+                />
+              </div>
             )}
             
             {activeTab === 'translations' && (

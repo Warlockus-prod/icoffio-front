@@ -190,31 +190,45 @@ async function insertImagesIntoContent(
   category: string
 ): Promise<string> {
   try {
-    console.log(`[DualLang] Generating 2 unique images...`);
+    console.log(`[DualLang] Generating 2 unique images with SMART AI prompts...`);
 
-    // Generate 2 DIFFERENT images with unique queries
-    // Добавляем вариативность через разные keywords и perspectives
-    const imageKeywords = [
-      'technology innovation',
-      'digital transformation',
-      'futuristic concept',
-      'modern workspace',
-      'tech infrastructure',
-      'innovation lab'
-    ];
+    // ✨ НОВАЯ СИСТЕМА: Используем умные промпты через GPT-4
+    const { generateSmartImagePrompts } = await import('./smart-image-prompt-generator');
     
-    const randomKeyword1 = imageKeywords[Math.floor(Math.random() * imageKeywords.length)];
-    const randomKeyword2 = imageKeywords[Math.floor(Math.random() * imageKeywords.length)];
-    
+    let smartPrompts;
+    try {
+      smartPrompts = await generateSmartImagePrompts({
+        title,
+        content: content.substring(0, 1000), // Первые 1000 символов для анализа
+        excerpt,
+        category
+      });
+      
+      console.log('[DualLang] ✅ Smart prompts generated:', {
+        heroPrompt: smartPrompts.heroPrompt.substring(0, 50),
+        contentPrompts: smartPrompts.contentPrompts.length,
+        tags: smartPrompts.unsplashTags.length
+      });
+    } catch (error) {
+      console.warn('[DualLang] Smart prompts failed, using fallback:', error);
+      // Fallback если AI недоступен
+      smartPrompts = {
+        contentPrompts: [`${title} ${category}`, `${category} technology concept`],
+        unsplashTags: [category, ...title.split(' ').slice(0, 3)]
+      };
+    }
+
+    // Генерируем 2 изображения с разными промптами
     const [image1Response, image2Response] = await Promise.all([
       fetch(`${BASE_URL}/api/admin/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'unsplash',
-          title: `${category} ${randomKeyword1}`,
-          excerpt: title.substring(0, 50), // Используем часть title как context
-          category
+          title: smartPrompts.contentPrompts[0] || title,
+          excerpt: title,
+          category,
+          unsplashTags: smartPrompts.unsplashTags?.slice(0, 6) // Передаем теги
         }),
       }),
       fetch(`${BASE_URL}/api/admin/generate-image`, {
@@ -222,9 +236,10 @@ async function insertImagesIntoContent(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'unsplash',
-          title: `${category} ${randomKeyword2} perspective`,
-          excerpt: excerpt?.substring(0, 50) || title, // Используем excerpt как context
-          category
+          title: smartPrompts.contentPrompts[1] || `${category} perspective`,
+          excerpt: excerpt || title,
+          category,
+          unsplashTags: smartPrompts.unsplashTags?.slice(3, 9) // Другие теги для разнообразия
         }),
       })
     ]);

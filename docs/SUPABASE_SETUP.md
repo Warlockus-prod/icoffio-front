@@ -210,3 +210,6 @@ Supabase Free Plan:
 
 
 
+
+
+

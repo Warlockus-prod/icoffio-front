@@ -1,37 +1,48 @@
 /**
- * QUEUE SERVICE v7.9.2 - SUPABASE PERSISTENT QUEUE
+ * QUEUE SERVICE v7.9.3 - SUPABASE WITH IN-MEMORY FALLBACK
  * 
  * Manages processing queue for Telegram bot requests
- * Uses Supabase for persistent storage across serverless invocations
+ * Uses Supabase for persistent storage with graceful fallback to in-memory
  * 
  * Features:
- * - ✅ Persistent storage (Supabase)
- * - ✅ Serverless-safe (no memory state)
- * - ✅ FIFO (First In, First Out) queue
- * - ✅ Automatic retry on failure
- * - ✅ Status tracking
- * - ✅ Concurrent processing limit
+ * - ✅ Persistent storage (Supabase) when available
+ * - ✅ In-memory fallback if Supabase fails
+ * - ✅ Serverless-safe
+ * - ✅ FIFO queue
+ * - ✅ Automatic retry
  * 
- * @version 7.9.2
+ * @version 7.9.3
  * @date 2025-10-30
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { publishDualLanguageArticle } from './dual-language-publisher';
 
-// Lazy initialization для Supabase (не создаем при импорте модуля)
+// Lazy initialization для Supabase
 let supabaseClient: SupabaseClient | null = null;
+let supabaseAvailable: boolean = true;
 
-function getSupabase(): SupabaseClient {
+function getSupabase(): SupabaseClient | null {
+  if (!supabaseAvailable) return null;
+  
   if (!supabaseClient) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Supabase environment variables not configured');
+      console.warn('[Queue] Supabase not configured, using in-memory queue');
+      supabaseAvailable = false;
+      return null;
     }
     
-    supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    try {
+      supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+      console.log('[Queue] Supabase client initialized');
+    } catch (error) {
+      console.error('[Queue] Failed to initialize Supabase:', error);
+      supabaseAvailable = false;
+      return null;
+    }
   }
   
   return supabaseClient;
@@ -61,198 +72,246 @@ export interface QueueJob {
 }
 
 class QueueService {
+  private memoryQueue: QueueJob[] = []; // Fallback in-memory queue
   private isProcessing: boolean = false;
   private maxConcurrent: number = 1;
 
   /**
-   * Add job to Supabase queue
+   * Add job to queue (Supabase or memory)
    */
   async addJob(job: Omit<QueueJob, 'id' | 'status' | 'created_at' | 'retries'>): Promise<string> {
     const id = this.generateId();
     const supabase = getSupabase();
     
-    const { data, error } = await supabase
-      .from('telegram_jobs')
-      .insert({
-        id,
-        type: job.type,
-        status: 'pending',
-        data: job.data,
-        retries: 0,
-        max_retries: job.max_retries || 3,
-      })
-      .select()
-      .single();
+    // Try Supabase first
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('telegram_jobs')
+          .insert({
+            id,
+            type: job.type,
+            status: 'pending',
+            data: job.data,
+            retries: 0,
+            max_retries: job.max_retries || 3,
+          })
+          .select()
+          .single();
 
-    if (error) {
-      console.error('[Queue] Failed to add job:', error);
-      throw new Error(`Failed to add job: ${error.message}`);
+        if (!error) {
+          console.log(`[Queue] Job added to Supabase: ${id}`);
+          this.processQueue().catch(err => 
+            console.error('[Queue] Process queue error:', err)
+          );
+          return id;
+        }
+        
+        console.error('[Queue] Supabase insert failed:', error);
+      } catch (err) {
+        console.error('[Queue] Supabase error:', err);
+      }
     }
-
-    console.log(`[Queue] Job added to Supabase: ${id} (type: ${job.type})`);
     
-    // Start processing asynchronously
-    this.processQueue().catch(err => 
-      console.error('[Queue] Process queue error:', err)
-    );
-
+    // Fallback to in-memory
+    console.log(`[Queue] Using in-memory queue for: ${id}`);
+    const newJob: QueueJob = {
+      id,
+      type: job.type,
+      data: job.data,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      retries: 0,
+      max_retries: job.max_retries || 3,
+    };
+    
+    this.memoryQueue.push(newJob);
+    
+    if (!this.isProcessing) {
+      this.processQueue();
+    }
+    
     return id;
   }
 
   /**
-   * Get job status from Supabase
+   * Get job status (Supabase or memory)
    */
   async getJobStatus(jobId: string): Promise<QueueJob | null> {
     const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('telegram_jobs')
-      .select('*')
-      .eq('id', jobId)
-      .single();
+    
+    // Try Supabase first
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('telegram_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single();
 
-    if (error || !data) {
-      console.error(`[Queue] Job not found: ${jobId}`, error);
-      return null;
+        if (!error && data) {
+          return data as QueueJob;
+        }
+      } catch (err) {
+        console.error('[Queue] Supabase getJobStatus error:', err);
+      }
     }
-
-    return data as QueueJob;
+    
+    // Fallback to memory
+    return this.memoryQueue.find(j => j.id === jobId) || null;
   }
 
   /**
-   * Process queue sequentially from Supabase
+   * Process queue (Supabase or memory)
    */
   private async processQueue() {
     if (this.isProcessing) {
-      console.log('[Queue] Already processing, skipping...');
       return;
     }
 
     this.isProcessing = true;
 
     try {
-      // Get all pending jobs
       const supabase = getSupabase();
-      const { data: pendingJobs, error } = await supabase
-        .from('telegram_jobs')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-        .limit(10);
-
-      if (error) {
-        console.error('[Queue] Failed to fetch pending jobs:', error);
-        return;
-      }
-
-      if (!pendingJobs || pendingJobs.length === 0) {
-        console.log('[Queue] No pending jobs');
-        return;
-      }
-
-      console.log(`[Queue] Found ${pendingJobs.length} pending jobs`);
-
-      // Process first job
-      const job = pendingJobs[0] as QueueJob;
-
-      // Update status to processing
-      await supabase
-        .from('telegram_jobs')
-        .update({
-          status: 'processing',
-          started_at: new Date().toISOString(),
-        })
-        .eq('id', job.id);
-
-      console.log(`[Queue] Processing job: ${job.id}`);
-
-      try {
-        const result = await this.processJob(job);
-        
-        // Update as completed
-        await supabase
-          .from('telegram_jobs')
-          .update({
-            status: 'completed',
-            result,
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', job.id);
-        
-        console.log(`[Queue] Job completed: ${job.id}`);
-        
-      } catch (error: any) {
-        console.error(`[Queue] Job failed: ${job.id}`, error);
-        
-        const newRetries = job.retries + 1;
-        
-        if (newRetries < job.max_retries) {
-          // Retry
-          await supabase
+      
+      // Try Supabase first
+      if (supabase) {
+        try {
+          const { data: pendingJobs, error } = await supabase
             .from('telegram_jobs')
-            .update({
-              status: 'pending',
-              retries: newRetries,
-              error: null,
-            })
-            .eq('id', job.id);
-          
-          console.log(`[Queue] Retrying job: ${job.id} (attempt ${newRetries + 1}/${job.max_retries})`);
-        } else {
-          // Max retries reached
-          await supabase
-            .from('telegram_jobs')
-            .update({
-              status: 'failed',
-              error: error.message || 'Unknown error',
-              completed_at: new Date().toISOString(),
-            })
-            .eq('id', job.id);
-          
-          console.error(`[Queue] Job failed permanently: ${job.id}`);
+            .select('*')
+            .eq('status', 'pending')
+            .order('created_at', { ascending: true })
+            .limit(10);
+
+          if (!error && pendingJobs && pendingJobs.length > 0) {
+            await this.processSupabaseJob(pendingJobs[0] as QueueJob);
+            
+            if (pendingJobs.length > 1) {
+              setTimeout(() => this.processQueue(), 2000);
+            }
+            return;
+          }
+        } catch (err) {
+          console.error('[Queue] Supabase processQueue error:', err);
         }
       }
-
-      // Process next job if exists
-      if (pendingJobs.length > 1) {
-        console.log('[Queue] More jobs pending, scheduling next batch...');
-        setTimeout(() => this.processQueue(), 2000);
+      
+      // Fallback to memory
+      const job = this.memoryQueue.find(j => j.status === 'pending');
+      if (job) {
+        await this.processMemoryJob(job);
+        
+        if (this.memoryQueue.some(j => j.status === 'pending')) {
+          setTimeout(() => this.processQueue(), 2000);
+        }
       }
-
     } finally {
       this.isProcessing = false;
     }
   }
 
   /**
-   * Process individual job based on type
+   * Process Supabase job
+   */
+  private async processSupabaseJob(job: QueueJob) {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
+    try {
+      await supabase
+        .from('telegram_jobs')
+        .update({ status: 'processing', started_at: new Date().toISOString() })
+        .eq('id', job.id);
+
+      const result = await this.processJob(job);
+      
+      await supabase
+        .from('telegram_jobs')
+        .update({
+          status: 'completed',
+          result,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', job.id);
+      
+      console.log(`[Queue] Supabase job completed: ${job.id}`);
+    } catch (error: any) {
+      console.error(`[Queue] Supabase job failed: ${job.id}`, error);
+      
+      const newRetries = job.retries + 1;
+      
+      if (newRetries < job.max_retries) {
+        await supabase
+          .from('telegram_jobs')
+          .update({ status: 'pending', retries: newRetries })
+          .eq('id', job.id);
+      } else {
+        await supabase
+          .from('telegram_jobs')
+          .update({
+            status: 'failed',
+            error: error.message,
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', job.id);
+      }
+    }
+  }
+
+  /**
+   * Process memory job
+   */
+  private async processMemoryJob(job: QueueJob) {
+    job.status = 'processing';
+    job.started_at = new Date().toISOString();
+    
+    try {
+      const result = await this.processJob(job);
+      job.status = 'completed';
+      job.result = result;
+      job.completed_at = new Date().toISOString();
+      console.log(`[Queue] Memory job completed: ${job.id}`);
+    } catch (error: any) {
+      console.error(`[Queue] Memory job failed: ${job.id}`, error);
+      job.retries++;
+      
+      if (job.retries < job.max_retries) {
+        job.status = 'pending';
+      } else {
+        job.status = 'failed';
+        job.error = error.message;
+        job.completed_at = new Date().toISOString();
+      }
+    }
+  }
+
+  /**
+   * Process individual job
    */
   private async processJob(job: QueueJob): Promise<any> {
     switch (job.type) {
       case 'url-parse':
         return await this.processUrlParse(job);
-      
       case 'text-generate':
         return await this.processTextGenerate(job);
-      
       case 'ai-copywrite':
         return await this.processAICopywrite(job);
-      
       default:
         throw new Error(`Unknown job type: ${(job as any).type}`);
     }
   }
 
   /**
-   * Process URL parsing job
+   * Process URL parsing
    */
   private async processUrlParse(job: QueueJob): Promise<any> {
     const { url, category } = job.data;
     
     if (!url) {
-      throw new Error('URL is required for url-parse job');
+      throw new Error('URL is required');
     }
 
-    console.log(`[Queue] Parsing URL: ${url}`);
     const baseUrl = 'https://app.icoffio.com';
     const parseResponse = await fetch(`${baseUrl}/api/admin/parse-url`, {
       method: 'POST',
@@ -261,20 +320,15 @@ class QueueService {
     });
 
     if (!parseResponse.ok) {
-      const error = await parseResponse.text();
-      throw new Error(`URL parsing failed: ${error}`);
+      throw new Error(`URL parsing failed`);
     }
 
     const parsedContent = await parseResponse.json();
-    console.log(`[Queue] Parsed: "${parsedContent.title}"`);
-
     const formattedContent = parsedContent.content
       .replace(/\.\s+/g, '.\n\n')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    console.log(`[Queue] Publishing dual-language article from parsed URL...`);
-    
     const result = await publishDualLanguageArticle(
       formattedContent,
       parsedContent.title,
@@ -282,13 +336,8 @@ class QueueService {
     );
 
     if (!result.success) {
-      throw new Error(result.error || 'Dual-language publication failed');
+      throw new Error(result.error || 'Publication failed');
     }
-
-    console.log(`[Queue] Dual-language publication complete:`, {
-      enUrl: result.enResult.url,
-      plUrl: result.plResult?.url || 'not published'
-    });
 
     return {
       success: true,
@@ -301,39 +350,25 @@ class QueueService {
       postId: result.enResult.postId,
       postIdPl: result.plResult?.postId || null,
       languages: result.plResult ? ['en', 'pl'] : ['en'],
-      publishResult: {
-        en: result.enResult,
-        pl: result.plResult
-      }
+      publishResult: { en: result.enResult, pl: result.plResult }
     };
   }
 
   /**
-   * Process text generation job
+   * Process text generation
    */
   private async processTextGenerate(job: QueueJob): Promise<any> {
     const { text, title, category } = job.data;
     
     if (!text) {
-      throw new Error('Text is required for text-generate job');
+      throw new Error('Text is required');
     }
 
-    console.log(`[Queue] Starting dual-language article generation...`);
-    
-    const result = await publishDualLanguageArticle(
-      text,
-      title,
-      category
-    );
+    const result = await publishDualLanguageArticle(text, title, category);
 
     if (!result.success) {
-      throw new Error(result.error || 'Dual-language publication failed');
+      throw new Error(result.error || 'Publication failed');
     }
-
-    console.log(`[Queue] Dual-language publication complete:`, {
-      enUrl: result.enResult.url,
-      plUrl: result.plResult?.url || 'not published'
-    });
 
     return {
       success: true,
@@ -346,67 +381,52 @@ class QueueService {
       postId: result.enResult.postId,
       postIdPl: result.plResult?.postId || null,
       languages: result.plResult ? ['en', 'pl'] : ['en'],
-      publishResult: {
-        en: result.enResult,
-        pl: result.plResult
-      }
+      publishResult: { en: result.enResult, pl: result.plResult }
     };
   }
 
   /**
-   * Process AI copywriting job
+   * Process AI copywriting
    */
   private async processAICopywrite(job: QueueJob): Promise<any> {
     return await this.processTextGenerate(job);
   }
 
   /**
-   * Get queue statistics from Supabase
+   * Get queue statistics
    */
   async getQueueStats() {
     const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('telegram_jobs')
-      .select('status');
-
-    if (error) {
-      console.error('[Queue] Failed to get stats:', error);
-      return {
-        total: 0,
-        pending: 0,
-        processing: 0,
-        completed: 0,
-        failed: 0,
-      };
-    }
-
-    return {
-      total: data.length,
-      pending: data.filter(j => j.status === 'pending').length,
-      processing: data.filter(j => j.status === 'processing').length,
-      completed: data.filter(j => j.status === 'completed').length,
-      failed: data.filter(j => j.status === 'failed').length,
-    };
-  }
-
-  /**
-   * Clear completed/failed jobs older than X hours
-   */
-  async cleanupOldJobs(hoursOld: number = 24) {
-    const cutoff = new Date(Date.now() - hoursOld * 60 * 60 * 1000).toISOString();
-    const supabase = getSupabase();
     
-    const { error } = await supabase
-      .from('telegram_jobs')
-      .delete()
-      .in('status', ['completed', 'failed'])
-      .lt('completed_at', cutoff);
+    // Try Supabase first
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('telegram_jobs')
+          .select('status');
 
-    if (error) {
-      console.error('[Queue] Cleanup failed:', error);
-    } else {
-      console.log(`[Queue] Cleaned up jobs older than ${hoursOld}h`);
+        if (!error && data) {
+          return {
+            total: data.length,
+            pending: data.filter(j => j.status === 'pending').length,
+            processing: data.filter(j => j.status === 'processing').length,
+            completed: data.filter(j => j.status === 'completed').length,
+            failed: data.filter(j => j.status === 'failed').length,
+          };
+        }
+      } catch (err) {
+        console.error('[Queue] Supabase getQueueStats error:', err);
+      }
     }
+    
+    // Fallback to memory
+    return {
+      total: this.memoryQueue.length,
+      pending: this.memoryQueue.filter(j => j.status === 'pending').length,
+      processing: this.memoryQueue.filter(j => j.status === 'processing').length,
+      completed: this.memoryQueue.filter(j => j.status === 'completed').length,
+      failed: this.memoryQueue.filter(j => j.status === 'failed').length,
+    };
   }
 
   /**
@@ -417,15 +437,17 @@ class QueueService {
   }
 }
 
-// Singleton instance
-let queueServiceInstance: QueueService | null = null;
+// Singleton with global persistence
+const globalForQueue = globalThis as unknown as {
+  queueService: QueueService | undefined;
+};
 
 export function getQueueService(): QueueService {
-  if (!queueServiceInstance) {
+  if (!globalForQueue.queueService) {
     console.log('[QueueService] Creating new instance');
-    queueServiceInstance = new QueueService();
+    globalForQueue.queueService = new QueueService();
   }
-  return queueServiceInstance;
+  return globalForQueue.queueService;
 }
 
 export default QueueService;

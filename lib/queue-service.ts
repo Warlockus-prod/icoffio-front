@@ -317,15 +317,23 @@ class QueueService {
         const chatId = job.data.chatId;
         
         if ((result as any).published && (result as any).url) {
-          await sendTelegramNotification(
-            chatId,
-            `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
+          // Format message with both EN and PL URLs if available
+          let message = `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
             `📝 <b>Заголовок:</b> ${(result as any).title || 'N/A'}\n` +
             `💬 <b>Слов:</b> ${(result as any).wordCount || 'N/A'}\n` +
-            `⏱️ <b>Время:</b> ${processingTime}s\n\n` +
-            `🔗 <b>URL:</b>\n${(result as any).url}\n\n` +
-            `✨ <b>Статус:</b> Опубликовано на сайте!`
-          );
+            `⏱️ <b>Время:</b> ${processingTime}s\n\n`;
+          
+          // Add English URL
+          message += `🇬🇧 <b>EN:</b>\n${(result as any).url}\n\n`;
+          
+          // Add Polish URL if available
+          if ((result as any).urlPl) {
+            message += `🇵🇱 <b>PL:</b>\n${(result as any).urlPl}\n\n`;
+          }
+          
+          message += `✨ <b>Статус:</b> Опубликовано на сайте!`;
+          
+          await sendTelegramNotification(chatId, message);
         } else {
           await sendTelegramNotification(
             chatId,
@@ -407,15 +415,23 @@ class QueueService {
         const chatId = job.data.chatId;
         
         if ((result as any).published && (result as any).url) {
-          await sendTelegramNotification(
-            chatId,
-            `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
+          // Format message with both EN and PL URLs if available
+          let message = `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
             `📝 <b>Заголовок:</b> ${(result as any).title || 'N/A'}\n` +
             `💬 <b>Слов:</b> ${(result as any).wordCount || 'N/A'}\n` +
-            `⏱️ <b>Время:</b> ${processingTime}s\n\n` +
-            `🔗 <b>URL:</b>\n${(result as any).url}\n\n` +
-            `✨ <b>Статус:</b> Опубликовано на сайте!`
-          );
+            `⏱️ <b>Время:</b> ${processingTime}s\n\n`;
+          
+          // Add English URL
+          message += `🇬🇧 <b>EN:</b>\n${(result as any).url}\n\n`;
+          
+          // Add Polish URL if available
+          if ((result as any).urlPl) {
+            message += `🇵🇱 <b>PL:</b>\n${(result as any).urlPl}\n\n`;
+          }
+          
+          message += `✨ <b>Статус:</b> Опубликовано на сайте!`;
+          
+          await sendTelegramNotification(chatId, message);
         } else {
           await sendTelegramNotification(
             chatId,

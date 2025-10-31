@@ -516,7 +516,8 @@ class QueueService {
     const result = await publishDualLanguageArticle(
       formattedContent,
       parsedContent.title,
-      category
+      category,
+      job.data.chatId
     );
 
     if (!result.success) {
@@ -548,7 +549,7 @@ class QueueService {
       throw new Error('Text is required');
     }
 
-    const result = await publishDualLanguageArticle(text, title, category);
+    const result = await publishDualLanguageArticle(text, title, category, job.data.chatId);
 
     if (!result.success) {
       throw new Error(result.error || 'Publication failed');

@@ -10,6 +10,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueueService } from '@/lib/queue-service';
+import { t, getUserLanguage } from '@/lib/telegram-i18n';
+import { setPublicationStyle, getPublicationStyle, PublicationStyle } from '@/lib/telegram-user-preferences';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -149,6 +151,87 @@ ${stats.processing > 0 ? '🔄 Система работает' : '💤 Сист
     console.error('[Bot] Error getting queue stats:', error);
     await sendMessage(chatId, '❌ Ошибка получения статуса очереди');
   }
+}
+
+/**
+ * Handle /style command
+ */
+async function handleStyle(chatId: number, command?: string): Promise<void> {
+  try {
+    const language = getUserLanguage(chatId);
+    
+    // If specific style selected
+    if (command) {
+      let style: PublicationStyle;
+      
+      switch (command) {
+        case '/style_news':
+          style = 'news';
+          break;
+        case '/style_analytical':
+          style = 'analytical';
+          break;
+        case '/style_tutorial':
+          style = 'tutorial';
+          break;
+        case '/style_opinion':
+          style = 'opinion';
+          break;
+        default:
+          await sendMessage(chatId, t(chatId, 'unknownCommand'));
+          return;
+      }
+      
+      await setPublicationStyle(chatId, style);
+      const styleName = getStyleName(chatId, style);
+      await sendMessage(chatId, t(chatId, 'styleChanged').replace('{style}', styleName));
+      
+      console.log(`[Bot] Style changed for chat ${chatId}: ${style}`);
+      return;
+    }
+    
+    // Show style selection menu
+    const currentStyle = await getPublicationStyle(chatId);
+    const currentStyleName = getStyleName(chatId, currentStyle);
+    const styleMessage = t(chatId, 'styleCommand') + '\n\n' + 
+                         t(chatId, 'styleCurrent').replace('{style}', currentStyleName);
+    
+    await sendMessage(chatId, styleMessage);
+    
+  } catch (error) {
+    console.error('[Bot] Error handling style command:', error);
+    await sendMessage(chatId, '❌ Ошибка изменения стиля');
+  }
+}
+
+/**
+ * Get localized style name
+ */
+function getStyleName(chatId: number, style: PublicationStyle): string {
+  const language = getUserLanguage(chatId);
+  
+  const styleNames: Record<string, Record<PublicationStyle, string>> = {
+    ru: {
+      news: t(chatId, 'styleNews'),
+      analytical: t(chatId, 'styleAnalytical'),
+      tutorial: t(chatId, 'styleTutorial'),
+      opinion: t(chatId, 'styleOpinion'),
+    },
+    pl: {
+      news: t(chatId, 'styleNews'),
+      analytical: t(chatId, 'styleAnalytical'),
+      tutorial: t(chatId, 'styleTutorial'),
+      opinion: t(chatId, 'styleOpinion'),
+    },
+    en: {
+      news: t(chatId, 'styleNews'),
+      analytical: t(chatId, 'styleAnalytical'),
+      tutorial: t(chatId, 'styleTutorial'),
+      opinion: t(chatId, 'styleOpinion'),
+    },
+  };
+  
+  return styleNames[language]?.[style] || style;
 }
 
 // ============================================================================
@@ -309,6 +392,14 @@ export async function POST(request: NextRequest) {
         
         case '/queue':
           await handleQueue(chatId);
+          break;
+        
+        case '/style':
+        case '/style_news':
+        case '/style_analytical':
+        case '/style_tutorial':
+        case '/style_opinion':
+          await handleStyle(chatId, command);
           break;
         
         default:

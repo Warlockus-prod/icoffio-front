@@ -8,6 +8,8 @@
 
 import { translateArticleContent } from './ai-copywriting-service';
 import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
+import { getPublicationStyle, PublicationStyle } from './telegram-user-preferences';
+import { getOrGenerateImage } from './telegram-image-service';
 
 const BASE_URL = 'https://app.icoffio.com';
 
@@ -29,12 +31,39 @@ export interface DualLanguagePublishResult {
 }
 
 /**
+ * Get style parameters for article generation
+ */
+function getStyleParams(style: PublicationStyle): { targetWords: number; stylePrompt: string } {
+  const styleConfig = {
+    news: {
+      targetWords: 400,
+      stylePrompt: 'professional'
+    },
+    analytical: {
+      targetWords: 1000,
+      stylePrompt: 'professional'
+    },
+    tutorial: {
+      targetWords: 750,
+      stylePrompt: 'professional'
+    },
+    opinion: {
+      targetWords: 600,
+      stylePrompt: 'professional'
+    }
+  };
+  
+  return styleConfig[style] || styleConfig.analytical;
+}
+
+/**
  * Generate article in EN, translate to PL, publish both with images
  */
 export async function publishDualLanguageArticle(
   prompt: string,
   userTitle: string | undefined,
-  userCategory: string | undefined
+  userCategory: string | undefined,
+  chatId?: number
 ): Promise<DualLanguagePublishResult> {
   try {
     // Step 0: AI Category Detection and Title Generation
@@ -52,8 +81,22 @@ export async function publishDualLanguageArticle(
     const finalTitle = userTitle || optimizedTitle;
     const finalCategory = userCategory || detectedCategory;
 
+    // Get user's publication style if chatId provided
+    let userStyle: PublicationStyle = 'analytical';
+    let styleParams = getStyleParams(userStyle);
+    
+    if (chatId) {
+      try {
+        userStyle = await getPublicationStyle(chatId);
+        styleParams = getStyleParams(userStyle);
+        console.log(`[DualLang] Using user style: ${userStyle} (${styleParams.targetWords} words)`);
+      } catch (error) {
+        console.warn('[DualLang] Failed to get user style, using default:', error);
+      }
+    }
+
     // Step 1: Generate EN article
-    console.log(`[DualLang] Generating EN article...`);
+    console.log(`[DualLang] Generating EN article with style: ${userStyle}...`);
     
     const generateResponse = await fetch(`${BASE_URL}/api/admin/generate-article-content`, {
       method: 'POST',
@@ -63,8 +106,8 @@ export async function publishDualLanguageArticle(
         title: finalTitle,
         category: finalCategory,
         language: 'en',
-        targetWords: 600,
-        style: 'professional'
+        targetWords: styleParams.targetWords,
+        style: styleParams.stylePrompt
       }),
     });
 
@@ -218,50 +261,51 @@ async function insertImagesIntoContent(
       };
     }
 
-    // Генерируем 2 изображения с разными промптами
-    const [image1Response, image2Response] = await Promise.all([
-      fetch(`${BASE_URL}/api/admin/generate-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: 'unsplash',
-          title: smartPrompts.contentPrompts[0] || title,
-          excerpt: title,
-          category,
-          unsplashTags: smartPrompts.unsplashTags?.slice(0, 6) // Передаем теги
-        }),
-      }),
-      fetch(`${BASE_URL}/api/admin/generate-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: 'unsplash',
-          title: smartPrompts.contentPrompts[1] || `${category} perspective`,
-          excerpt: excerpt || title,
-          category,
-          unsplashTags: smartPrompts.unsplashTags?.slice(3, 9) // Другие теги для разнообразия
-        }),
-      })
-    ]);
-
-    const images = [];
+    // Генерируем 2 изображения с переиспользованием из библиотеки
+    const imagePrompts = [
+      smartPrompts.contentPrompts[0] || title,
+      smartPrompts.contentPrompts[1] || `${category} perspective`
+    ];
     
-    if (image1Response.ok) {
-      const data = await image1Response.json();
-      if (data.url) images.push(data.url);
-    }
+    const images = await Promise.all(
+      imagePrompts.map(async (prompt, index) => {
+        return await getOrGenerateImage(
+          prompt,
+          category,
+          async () => {
+            // Generate new image function
+            const response = await fetch(`${BASE_URL}/api/admin/generate-image`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                source: 'unsplash',
+                title: prompt,
+                excerpt: index === 0 ? title : excerpt || title,
+                category,
+                unsplashTags: smartPrompts.unsplashTags?.slice(index * 3, (index + 1) * 6) || []
+              }),
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              return data.url || '';
+            }
+            
+            throw new Error(`Image generation failed: ${response.statusText}`);
+          }
+        );
+      })
+    );
+    
+    // Filter out empty strings
+    const validImages = images.filter(url => url && url.length > 0);
 
-    if (image2Response.ok) {
-      const data = await image2Response.json();
-      if (data.url) images.push(data.url);
-    }
-
-    if (images.length === 0) {
+    if (validImages.length === 0) {
       console.warn('[DualLang] No images generated');
       return content;
     }
 
-    console.log(`[DualLang] Generated ${images.length} unique images`);
+    console.log(`[DualLang] Generated/reused ${validImages.length} images`);
 
     // Split content into paragraphs (by double newline)
     const paragraphs = content.split(/\n\n+/);
@@ -273,12 +317,12 @@ async function insertImagesIntoContent(
 
     // Insert first image after 30-40% of content (more text before image)
     const firstImagePosition = Math.floor(paragraphs.length * 0.35);
-    paragraphs.splice(firstImagePosition, 0, `\n![${title}](${images[0]})\n`);
+    paragraphs.splice(firstImagePosition, 0, `\n![${title}](${validImages[0]})\n`);
 
     // Insert second image after 70-80% of content (if we have second image)
-    if (images[1]) {
+    if (validImages[1]) {
       const secondImagePosition = Math.floor(paragraphs.length * 0.75);
-      paragraphs.splice(secondImagePosition, 0, `\n![${title} illustration](${images[1]})\n`);
+      paragraphs.splice(secondImagePosition, 0, `\n![${title} illustration](${validImages[1]})\n`);
     }
 
     return paragraphs.join('\n\n');

@@ -86,6 +86,15 @@ export const translations: Record<BotLanguage, {
   deleteError: string;
   invalidArticleUrl: string;
 
+  // Style command
+  styleCommand: string;
+  styleCurrent: string;
+  styleChanged: string;
+  styleNews: string;
+  styleAnalytical: string;
+  styleTutorial: string;
+  styleOpinion: string;
+
   // Inline buttons
   btnAddMore: string;
   btnPublishNow: string;
@@ -211,6 +220,24 @@ export const translations: Record<BotLanguage, {
     invalidArticleUrl: '❌ <b>Неверная ссылка</b>\n\n' +
                        'Ссылка должна быть в формате:\n' +
                        'https://app.icoffio.com/[язык]/article/[slug]',
+
+    // Style command
+    styleCommand: '🎨 <b>Выберите стиль публикации:</b>\n\n' +
+                  '📰 <b>Новостной</b> - краткие факты, 300-500 слов\n' +
+                  '📊 <b>Аналитический</b> - глубокий анализ, 800-1200 слов\n' +
+                  '📚 <b>Tutorial</b> - пошаговый гайд, 600-900 слов\n' +
+                  '💭 <b>Opinion</b> - личное мнение, 500-700 слов\n\n' +
+                  'Используйте команды:\n' +
+                  '/style_news - Новостной\n' +
+                  '/style_analytical - Аналитический\n' +
+                  '/style_tutorial - Tutorial\n' +
+                  '/style_opinion - Opinion',
+    styleCurrent: 'Текущий стиль: {style} ✅',
+    styleChanged: '✅ <b>Стиль изменен!</b>\n\n📝 Новый стиль: {style}',
+    styleNews: 'Новостной',
+    styleAnalytical: 'Аналитический',
+    styleTutorial: 'Tutorial',
+    styleOpinion: 'Opinion',
 
     // Inline buttons
     btnAddMore: '📝 Добавить еще',
@@ -339,6 +366,24 @@ export const translations: Record<BotLanguage, {
                        'Link powinien być w formacie:\n' +
                        'https://app.icoffio.com/[język]/article/[slug]',
 
+    // Style command
+    styleCommand: '🎨 <b>Wybierz styl publikacji:</b>\n\n' +
+                  '📰 <b>Nowości</b> - krótkie fakty, 300-500 słów\n' +
+                  '📊 <b>Analityczny</b> - głęboka analiza, 800-1200 słów\n' +
+                  '📚 <b>Tutorial</b> - przewodnik krok po kroku, 600-900 słów\n' +
+                  '💭 <b>Opinia</b> - osobista opinia, 500-700 słów\n\n' +
+                  'Użyj komend:\n' +
+                  '/style_news - Nowości\n' +
+                  '/style_analytical - Analityczny\n' +
+                  '/style_tutorial - Tutorial\n' +
+                  '/style_opinion - Opinia',
+    styleCurrent: 'Aktualny styl: {style} ✅',
+    styleChanged: '✅ <b>Styl zmieniony!</b>\n\n📝 Nowy styl: {style}',
+    styleNews: 'Nowości',
+    styleAnalytical: 'Analityczny',
+    styleTutorial: 'Tutorial',
+    styleOpinion: 'Opinia',
+
     // Inline buttons
     btnAddMore: '📝 Dodaj więcej',
     btnPublishNow: '✅ Opublikuj teraz',
@@ -465,6 +510,24 @@ export const translations: Record<BotLanguage, {
     invalidArticleUrl: '❌ <b>Invalid link</b>\n\n' +
                        'Link should be in format:\n' +
                        'https://app.icoffio.com/[language]/article/[slug]',
+
+    // Style command
+    styleCommand: '🎨 <b>Choose publication style:</b>\n\n' +
+                  '📰 <b>News</b> - concise facts, 300-500 words\n' +
+                  '📊 <b>Analytical</b> - in-depth analysis, 800-1200 words\n' +
+                  '📚 <b>Tutorial</b> - step-by-step guide, 600-900 words\n' +
+                  '💭 <b>Opinion</b> - personal opinion, 500-700 words\n\n' +
+                  'Use commands:\n' +
+                  '/style_news - News style\n' +
+                  '/style_analytical - Analytical style\n' +
+                  '/style_tutorial - Tutorial style\n' +
+                  '/style_opinion - Opinion style',
+    styleCurrent: 'Current style: {style} ✅',
+    styleChanged: '✅ <b>Style changed!</b>\n\n📝 New style: {style}',
+    styleNews: 'News',
+    styleAnalytical: 'Analytical',
+    styleTutorial: 'Tutorial',
+    styleOpinion: 'Opinion',
 
     // Inline buttons
     btnAddMore: '📝 Add more',

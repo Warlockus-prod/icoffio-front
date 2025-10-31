@@ -62,17 +62,22 @@ function getSupabase(): SupabaseClient | null {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
+    console.log('[Queue] 🔑 Checking Supabase credentials:', {
+      url: supabaseUrl ? '✅ SET' : '❌ MISSING',
+      key: supabaseServiceKey ? '✅ SET' : '❌ MISSING',
+    });
+    
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.warn('[Queue] Supabase not configured, using in-memory queue');
+      console.error('[Queue] ❌❌❌ CRITICAL: Supabase NOT configured! In-memory queue will NOT work in serverless!');
       supabaseAvailable = false;
       return null;
     }
     
     try {
       supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-      console.log('[Queue] Supabase client initialized');
+      console.log('[Queue] ✅ Supabase client initialized successfully');
     } catch (error) {
-      console.error('[Queue] Failed to initialize Supabase:', error);
+      console.error('[Queue] ❌ Failed to initialize Supabase:', error);
       supabaseAvailable = false;
       return null;
     }
@@ -116,6 +121,8 @@ class QueueService {
     const id = this.generateId();
     const supabase = getSupabase();
     
+    console.log(`[Queue] 📝 Adding job: ${id}, type: ${job.type}, supabase: ${!!supabase}`);
+    
     // Try Supabase first
     if (supabase) {
       try {
@@ -133,21 +140,23 @@ class QueueService {
           .single();
 
         if (!error) {
-          console.log(`[Queue] Job added to Supabase: ${id}`);
+          console.log(`[Queue] ✅ Job added to Supabase: ${id}`);
           this.processQueue().catch(err => 
             console.error('[Queue] Process queue error:', err)
           );
           return id;
         }
         
-        console.error('[Queue] Supabase insert failed:', error);
+        console.error('[Queue] ❌ Supabase insert failed:', error);
       } catch (err) {
-        console.error('[Queue] Supabase error:', err);
+        console.error('[Queue] ❌ Supabase error:', err);
       }
+    } else {
+      console.log('[Queue] ⚠️ Supabase NOT configured, using in-memory');
     }
     
     // Fallback to in-memory
-    console.log(`[Queue] Using in-memory queue for: ${id}`);
+    console.log(`[Queue] 💾 Using in-memory queue for: ${id}`);
     const newJob: QueueJob = {
       id,
       type: job.type,
@@ -159,6 +168,7 @@ class QueueService {
     };
     
     this.memoryQueue.push(newJob);
+    console.log(`[Queue] 📊 Memory queue size: ${this.memoryQueue.length}`);
     
     if (!this.isProcessing) {
       this.processQueue();
@@ -556,6 +566,8 @@ class QueueService {
   async getQueueStats() {
     const supabase = getSupabase();
     
+    console.log(`[Queue] 📊 Getting stats, supabase: ${!!supabase}, memory: ${this.memoryQueue.length}`);
+    
     // Try Supabase first
     if (supabase) {
       try {
@@ -564,6 +576,7 @@ class QueueService {
           .select('status');
 
         if (!error && data) {
+          console.log(`[Queue] 📊 Supabase stats: ${data.length} total jobs`);
           return {
             total: data.length,
             pending: data.filter(j => j.status === 'pending').length,
@@ -572,12 +585,15 @@ class QueueService {
             failed: data.filter(j => j.status === 'failed').length,
           };
         }
+        
+        console.error('[Queue] ❌ Supabase getQueueStats error:', error);
       } catch (err) {
-        console.error('[Queue] Supabase getQueueStats error:', err);
+        console.error('[Queue] ❌ Supabase getQueueStats exception:', err);
       }
     }
     
     // Fallback to memory
+    console.log(`[Queue] 💾 Memory stats: ${this.memoryQueue.length} total jobs`);
     return {
       total: this.memoryQueue.length,
       pending: this.memoryQueue.filter(j => j.status === 'pending').length,

@@ -16,6 +16,196 @@
 
 ---
 
+## [7.13.0] - 2025-10-31 - TELEGRAM BOT IMPROVEMENTS: Style + Image Library + Analytics Fix 🎨🖼️📊
+
+**MINOR RELEASE** - Publication styles, Image reuse library, and Analytics fix
+
+### ✨ Added - Publication Style System
+
+**1. User Preferences Management**
+- ✅ `lib/telegram-user-preferences.ts` - User preferences system
+- ✅ Supabase storage с in-memory fallback
+- ✅ Поддержка сохранения стиля публикации
+
+**2. `/style` Command**
+- ✅ `/style` - показать меню выбора стиля
+- ✅ `/style_news` - новостной стиль (300-500 слов)
+- ✅ `/style_analytical` - аналитический стиль (800-1200 слов)
+- ✅ `/style_tutorial` - tutorial стиль (600-900 слов)
+- ✅ `/style_opinion` - opinion стиль (500-700 слов)
+- ✅ Multi-language support (RU, PL, EN)
+
+**3. Style Integration**
+- ✅ AI генерация использует выбранный стиль
+- ✅ Разные targetWords для разных стилей
+- ✅ Сохранение стиля между сессиями
+
+**Файлы:**
+- `lib/telegram-user-preferences.ts` (новый)
+- `supabase/migrations/20251031_telegram_user_preferences.sql` (новый)
+- `lib/telegram-i18n.ts` (обновлен)
+- `app/api/telegram/webhook/route.ts` (обработка /style)
+- `lib/dual-language-publisher.ts` (использование стиля)
+
+### ✨ Added - Image Library System
+
+**1. Image Reuse Library**
+- ✅ `lib/telegram-image-service.ts` - Image library service
+- ✅ Поиск похожих изображений по keywords и category
+- ✅ Автоматическое сохранение новых изображений
+- ✅ Переиспользование существующих изображений
+
+**2. Smart Image Matching**
+- ✅ Извлечение keywords из title и category
+- ✅ Поиск по GIN индексу (массив keywords)
+- ✅ Сортировка по usage_count и last_used_at
+- ✅ Минимальное совпадение: 2 keywords
+
+**3. Integration**
+- ✅ `dual-language-publisher` использует Image Library
+- ✅ Автоматический поиск перед генерацией
+- ✅ Экономия на генерации изображений
+
+**Файлы:**
+- `lib/telegram-image-service.ts` (новый)
+- `supabase/migrations/20251031_telegram_image_library.sql` (новый)
+- `lib/dual-language-publisher.ts` (интеграция)
+
+**Преимущества:**
+- 💰 Экономия на генерации изображений
+- 🖼️ Одинаковые изображения для похожих статей
+- 📊 Автоматическое управление библиотекой
+
+### 🐛 Fixed - Analytics Error
+
+**Проблема:**
+```
+[Supabase Analytics] Failed to get popular articles: TypeError: fetch failed
+```
+
+**Причина:** Materialized view `article_popularity` не был создан
+
+**Решение:**
+- ✅ Создан materialized view `article_popularity`
+- ✅ Расчет popularity_score на основе views и recency
+- ✅ Функция refresh_article_popularity() для обновления
+- ✅ Индексы для быстрого поиска
+
+**Файлы:**
+- `supabase/migrations/20251031_article_popularity_fix.sql` (новый)
+
+**Формула популярности:**
+```
+popularity_score = (total_views * 0.7) - (days_since_last_view * 0.3)
+```
+
+### 📊 Technical Details
+
+**Новые таблицы Supabase:**
+1. `telegram_user_preferences` - настройки пользователей
+2. `telegram_image_library` - библиотека изображений
+
+**Новые миграции:**
+- `20251031_telegram_user_preferences.sql`
+- `20251031_telegram_image_library.sql`
+- `20251031_article_popularity_fix.sql`
+
+**Новые файлы:**
+- `lib/telegram-user-preferences.ts` (209 строк)
+- `lib/telegram-image-service.ts` (230 строк)
+
+**Обновленные файлы:**
+- `lib/telegram-i18n.ts` (+30 строк переводов)
+- `app/api/telegram/webhook/route.ts` (+80 строк обработка /style)
+- `lib/dual-language-publisher.ts` (интеграция стиля + Image Library)
+- `lib/queue-service.ts` (передача chatId)
+
+### 🧪 Testing
+
+**Сценарий 1: Publication Style**
+```
+1. /style → показать меню
+2. /style_news → выбрать новостной стиль
+3. Отправить текст → статья будет 300-500 слов
+```
+
+**Сценарий 2: Image Reuse**
+```
+1. Отправить статью "AI в финансах"
+2. Система генерирует изображение
+3. Отправить вторую статью "AI в банках"
+4. Система находит похожее изображение → переиспользует
+```
+
+**Сценарий 3: Analytics**
+```
+1. Применить SQL миграцию article_popularity_fix.sql
+2. Проверить логи - ошибка должна исчезнуть
+3. getPopularArticles() должен работать
+```
+
+### 📝 Migration Instructions
+
+**Шаг 1: Применить SQL миграции**
+
+В Supabase SQL Editor выполнить:
+1. `supabase/migrations/20251031_telegram_user_preferences.sql`
+2. `supabase/migrations/20251031_telegram_image_library.sql`
+3. `supabase/migrations/20251031_article_popularity_fix.sql`
+
+**Шаг 2: Проверить**
+- Таблицы созданы в Supabase
+- Materialized view работает
+- Логи не показывают ошибки
+
+### 🎯 Results
+
+**До v7.13.0:**
+- ❌ Один стиль для всех статей
+- ❌ Новые изображения для каждой статьи
+- ❌ Analytics ошибка в логах
+
+**После v7.13.0:**
+- ✅ 4 стиля публикации (News, Analytical, Tutorial, Opinion)
+- ✅ Переиспользование изображений
+- ✅ Analytics работает без ошибок
+- ✅ Экономия на генерации
+
+**Build Status:**
+- ✅ TypeScript: 0 errors
+- ✅ Build: Success
+- ✅ All features: Working
+
+---
+
+## [7.12.2] - 2025-10-31 - Dual Language URLs in Notifications 🇬🇧🇵🇱
+
+**PATCH RELEASE** - Показ обеих ссылок (EN + PL) в Telegram уведомлениях
+
+### ✨ Added
+- Telegram уведомления теперь показывают обе ссылки:
+  - 🇬🇧 EN: https://app.icoffio.com/en/article/...
+  - 🇵🇱 PL: https://app.icoffio.com/pl/article/...
+
+### 📊 Changes
+- `lib/queue-service.ts` - обновлены уведомления для Supabase и Memory jobs
+
+---
+
+## [7.12.1] - 2025-10-31 - Enhanced Logging for Queue Debugging 🔍
+
+**PATCH RELEASE** - Улучшенное логирование для диагностики очереди
+
+### ✨ Added
+- Детальное логирование Supabase credentials проверки
+- Логирование добавления задач (Supabase vs Memory)
+- Логирование getQueueStats с деталями
+
+### 📊 Changes
+- `lib/queue-service.ts` - enhanced logging с эмодзи
+
+---
+
 ## [7.12.0] - 2025-10-30 - CRITICAL FIX: TIMEOUT PROTECTION ⏱️🛡️
 
 **MINOR RELEASE** - Добавлена защита от зависания задач в очереди

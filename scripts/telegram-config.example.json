@@ -1,0 +1,11 @@
+{
+  "telegram": {
+    "bot_token": "YOUR_BOT_TOKEN_FROM_BOTFATHER",
+    "secret_token": "YOUR_SECRET_TOKEN_ANY_RANDOM_STRING"
+  },
+  "supabase": {
+    "url": "https://dlellopouivlmbrmjhoz.supabase.co",
+    "service_role_key": "YOUR_SERVICE_ROLE_KEY"
+  }
+}
+

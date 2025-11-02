@@ -149,7 +149,9 @@ export async function publishDualLanguageArticle(
         category: finalCategory,
         language: 'en',
         author: 'Telegram Bot',
-        source: 'telegram-bot'
+        source: 'telegram-bot',
+        chatId: chatId || 0,
+        wordCount: enContent.wordCount || 0
       }),
     });
 
@@ -176,7 +178,9 @@ export async function publishDualLanguageArticle(
           category: finalCategory,
           language: 'pl',
           author: 'Telegram Bot',
-          source: 'telegram-bot'
+          source: 'telegram-bot',
+          chatId: chatId || 0,
+          wordCount: Math.round(plTranslation.translatedContent.split(/\s+/).length)
         }),
       });
 

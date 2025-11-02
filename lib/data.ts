@@ -161,40 +161,41 @@ async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promi
 
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
   try {
-    // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
+    // ✅ v7.14.0: Используем Supabase API
+    const response = await fetch(`https://app.icoffio.com/api/supabase-articles?lang=${locale}&limit=${limit}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 } // ISR кеширование
     });
     
     if (!response.ok) {
-      throw new Error(`WordPress API failed: ${response.status}`);
+      throw new Error(`Supabase API failed: ${response.status}`);
     }
     
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error(`WordPress API error: ${data.error}`);
+      throw new Error(`Supabase API error: ${data.error}`);
     }
     
-    // Преобразуем данные из WordPress API в формат Post
-    // Пустые строки для image заменяем на undefined для корректной работы fallback
-    const wpPosts: Post[] = data.articles.map((article: any) => ({
+    // Преобразуем данные из Supabase API в формат Post
+    const dbPosts: Post[] = data.articles.map((article: any) => ({
       slug: article.slug,
-      title: strip(article.title) || "Untitled",
-      excerpt: strip(article.excerpt),
+      title: article.title || "Untitled",
+      excerpt: article.excerpt || "",
       date: article.date,
       publishedAt: article.date,
       image: article.image && article.image.trim() !== '' ? article.image : '',
-      category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
+      category: article.category || { name: "General", slug: "general" },
       contentHtml: article.content || "",
+      content: article.content || "",
+      tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
     }));
 
     // Комбинируем с локальными статьями
-    return await combineArticles(wpPosts.slice(0, Math.floor(limit / 2)), locale);
+    return await combineArticles(dbPosts.slice(0, Math.floor(limit / 2)), locale);
   } catch (error) {
-    console.warn('Ошибка загрузки WordPress статей, используем только локальные:', error);
+    console.warn('Ошибка загрузки Supabase статей, используем только локальные:', error);
     
     // Fallback к только локальным статьям
     const localArticles = await getLocalArticles();
@@ -245,76 +246,82 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
     return localArticle;
   }
 
-  // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
+  // ✅ v7.14.0: Используем Supabase API вместо WordPress
   try {
-    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
-      method: 'GET',
+    const response = await fetch('https://app.icoffio.com/api/supabase-articles', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'get-by-slug', 
+        slug, 
+        language: locale 
+      }),
       next: { revalidate: 120 }
     });
     
     if (response.ok) {
       const data = await response.json();
       
-      if (data.success) {
-        // Ищем статью по slug
-        const article = data.articles.find((article: any) => article.slug === slug);
-        
-        if (article) {
-          return {
-            slug: article.slug,
-            title: strip(article.title),
-            excerpt: strip(article.excerpt),
-            date: article.date,
-            publishedAt: article.date,
-            image: article.image || "",
-            category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
-            contentHtml: article.content || "",
-          };
-        }
+      if (data.success && data.article) {
+        const article = data.article;
+        return {
+          slug: article.slug,
+          title: article.title,
+          excerpt: article.excerpt,
+          date: article.date,
+          publishedAt: article.date,
+          image: article.image || "",
+          category: article.category || { name: "General", slug: "general" },
+          contentHtml: article.content || "",
+          content: article.content || "",
+          tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
+        };
       }
     }
   } catch (error) {
-    console.warn('WordPress REST API unavailable, using only local articles:', error);
+    console.warn('Supabase API unavailable, using only local articles:', error);
   }
   
   return null;
 }
 
 export async function getRelated(cat: Category, excludeSlug: string, limit = 4): Promise<Post[]> {
+  // Detect language from slug
+  const locale = excludeSlug.endsWith('-pl') ? 'pl' : 'en';
+  
   try {
-    // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
-      method: 'GET',
+    // ✅ v7.14.0: Используем Supabase API
+    const response = await fetch('https://app.icoffio.com/api/supabase-articles', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'get-related',
+        category: cat.slug || cat.name,
+        excludeSlug,
+        language: locale,
+        limit
+      }),
       next: { revalidate: 120 }
     });
     
     if (response.ok) {
       const data = await response.json();
       
-      if (data.success) {
-        // Фильтруем по категории и исключаем текущую статью
-        return data.articles
-          .filter((article: any) => {
-            const articleCategory = article.categories?.nodes?.[0]?.slug;
-            return articleCategory === cat.slug && article.slug !== excludeSlug;
-          })
-          .slice(0, limit)
-          .map((article: any) => ({
-            slug: article.slug,
-            title: strip(article.title),
-            excerpt: strip(article.excerpt),
-            date: article.date,
-            publishedAt: article.date,
-            image: article.image || "",
-            category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
-            contentHtml: article.content || "",
-          }));
+      if (data.success && data.articles) {
+        return data.articles.map((article: any) => ({
+          slug: article.slug,
+          title: article.title,
+          excerpt: article.excerpt,
+          date: article.date,
+          publishedAt: article.date,
+          image: article.image || "",
+          category: article.category || cat,
+          contentHtml: "",
+        }));
       }
     }
   } catch (error) {
-    console.warn('WordPress REST API unavailable for getRelated:', error);
+    console.warn('Supabase API unavailable for getRelated:', error);
   }
   
   // Fallback к локальным статьям

@@ -16,10 +16,12 @@
 6. [API Endpoints](#api-endpoints)
 7. [База данных (Supabase)](#база-данных-supabase)
 8. [Deployment](#deployment)
-9. [Environment Variables](#environment-variables)
-10. [Правила разработки](#правила-разработки)
-11. [Документация](#документация)
-12. [История версий](#история-версий)
+9. [Configured Services & Domains](#configured-services--domains) ⭐ **НОВОЕ**
+10. [Connected Services](#connected-services) ⭐ **НОВОЕ**
+11. [Environment Variables](#environment-variables)
+12. [Правила разработки](#правила-разработки)
+13. [Документация](#документация)
+14. [История версий](#история-версий)
 
 ---
 
@@ -592,38 +594,215 @@ npm install
 
 ---
 
+## 🌐 CONFIGURED SERVICES & DOMAINS
+
+### Production URLs:
+
+| Service | URL | Status |
+|---------|-----|--------|
+| **Frontend** | https://app.icoffio.com | ✅ Active |
+| **Legacy WordPress** | https://icoffio.com | ⚠️ Deprecated (читается для старых статей) |
+| **API Base** | https://app.icoffio.com/api | ✅ Active |
+| **Admin Panel** | https://app.icoffio.com/en/admin | ✅ Active |
+
+### DNS Configuration:
+
+**Managed by:** Cloudflare DNS
+
+| Domain | Type | Points To |
+|--------|------|-----------|
+| `app.icoffio.com` | CNAME | `cname.vercel-dns.com` |
+| `icoffio.com` | A | WordPress hosting |
+| `www.icoffio.com` | CNAME | `icoffio.com` |
+
+---
+
+## 🔌 CONNECTED SERVICES
+
+### 1. Supabase (PostgreSQL Database)
+
+**Dashboard:** https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz
+
+**Project Details:**
+- Project ID: `dlellopouivlmbrmjhoz`
+- Region: `us-east-1`
+- Plan: Free → Pro (рекомендуется при > 10,000 статей)
+- Database: PostgreSQL 15
+
+**Активные таблицы:**
+- `published_articles` - основное хранилище статей (v7.14.0)
+- `telegram_jobs` - очередь задач
+- `telegram_user_preferences` - настройки пользователей бота
+- `telegram_image_library` - библиотека изображений
+- `article_views` - аналитика просмотров
+
+**Supabase URLs:**
+```
+API URL: https://dlellopouivlmbrmjhoz.supabase.co
+DB URL: postgresql://postgres:[PASSWORD]@db.dlellopouivlmbrmjhoz.supabase.co:5432/postgres
+```
+
+---
+
+### 2. Vercel (Hosting & Deployment)
+
+**Dashboard:** https://vercel.com/andreys-projects-a55f75b3/icoffio-front
+
+**Project Details:**
+- Team: andreys-projects-a55f75b3
+- Plan: Pro ($20/month) ✅ **UPGRADED**
+- Region: Washington, D.C. (iad1)
+- Framework: Next.js 14
+
+**Deployment:**
+- Production: `app.icoffio.com` (main branch)
+- Auto-deploy: ✅ Enabled
+- Build Command: `npm run build`
+- Function Timeout: 60s (Pro plan)
+
+**Environment Variables в Vercel:** ✅ Настроены для всех окружений (Production, Preview, Development)
+
+---
+
+### 3. OpenAI (AI Content Generation)
+
+**Dashboard:** https://platform.openai.com/
+
+**Используемые модели:**
+- `gpt-4-turbo-preview` - генерация статей
+- `gpt-4` - улучшение контента
+- `gpt-3.5-turbo` - переводы (экономичный)
+
+**API Endpoints используемые:**
+- `POST https://api.openai.com/v1/chat/completions`
+- `POST https://api.openai.com/v1/embeddings` (если нужен search)
+
+**Лимиты:**
+- Tier 1: $100/month
+- RPM: 500 requests/minute
+- TPM: 30,000 tokens/minute
+
+---
+
+### 4. Unsplash (Images API)
+
+**Dashboard:** https://unsplash.com/oauth/applications
+
+**Application Details:**
+- App Name: icoffio
+- Access Level: Production (не Demo)
+- Rate Limit: 5,000 requests/hour
+
+**API Endpoints:**
+- `GET /search/photos` - поиск изображений
+- `GET /photos/random` - случайное изображение
+
+---
+
+### 5. Telegram Bot API
+
+**Bot Management:** https://t.me/BotFather
+
+**Bot Details:**
+- Bot Name: icoffio Bot
+- Username: @icoffio_bot (пример, уточните актуальный)
+- Webhook URL: `https://app.icoffio.com/api/telegram/webhook`
+
+**Webhook Setup:**
+```bash
+# Установка webhook (уже настроено)
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://app.icoffio.com/api/telegram/webhook",
+    "secret_token": "<TELEGRAM_SECRET_TOKEN>"
+  }'
+```
+
+**Доступные команды:**
+- `/start` - приветствие
+- `/help` - справка
+- `/queue` - статус очереди
+- `/clear_queue` - очистить ошибки
+- `/style` - выбор стиля публикации
+- `/image_mode` - режим изображений
+
+---
+
+### 6. GitHub (Code Repository)
+
+**Repository:** https://github.com/Warlockus-prod/icoffio-front
+
+**Settings:**
+- Main branch: `main` (protected)
+- Auto-merge: Disabled (ручной review)
+- Branch protection: Enabled
+
+**GitHub Secrets (для Actions):**
+- `TELEGRAM_BOT_TOKEN` - для deploy notifications
+- `TELEGRAM_CHAT_ID` - куда слать уведомления
+
+---
+
 ## 🔐 ENVIRONMENT VARIABLES
+
+**⚠️ ВАЖНО:** Все переменные должны быть настроены в Vercel для всех окружений:
+- ✅ Production
+- ✅ Preview  
+- ✅ Development
 
 ### Supabase (Database):
 
 ```bash
+# Public (доступен на клиенте)
 NEXT_PUBLIC_SUPABASE_URL=https://dlellopouivlmbrmjhoz.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZWxsb3BvdWl2bG1icm1qaG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NDgxNTgsImV4cCI6MjA3NzIyNDE1OH0.kkWeZcXIzzVV0gUXkpIw2zhKplw4yKlIfT9xFmRrMJA
+
+# Server-only (только для API routes)
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZWxsb3BvdWl2bG1icm1qaG96Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY0ODE1OCwiZXhwIjoyMDc3MjI0MTU4fQ.PhxN0VQzOoHvOu0Io4odUi-wLcXT2clYO6oZH67P738
+
+# Альтернативные имена (для совместимости)
+SUPABASE_URL=https://dlellopouivlmbrmjhoz.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZWxsb3BvdWl2bG1icm1qaG96Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY0ODE1OCwiZXhwIjoyMDc3MjI0MTU4fQ.PhxN0VQzOoHvOu0Io4odUi-wLcXT2clYO6oZH67P738
 ```
 
 ### OpenAI (AI Generation):
 
 ```bash
 OPENAI_API_KEY=sk-proj-...
+# Получить: https://platform.openai.com/api-keys
 ```
 
 ### Unsplash (Images):
 
 ```bash
 UNSPLASH_ACCESS_KEY=...
+# Получить: https://unsplash.com/oauth/applications
 ```
 
 ### Telegram Bot:
 
 ```bash
 TELEGRAM_BOT_TOKEN=...
+# Получить: @BotFather в Telegram
+
 TELEGRAM_SECRET_TOKEN=...
+# Любая случайная строка для webhook security
 ```
 
 ### Next.js (Revalidation):
 
 ```bash
 REVALIDATE_SECRET=secret
+# Любая строка для защиты /api/revalidate endpoint
+```
+
+### Legacy WordPress (Optional - для чтения старых статей):
+
+```bash
+WORDPRESS_API_URL=https://icoffio.com
+# Используется только для чтения старых статей через GraphQL
+# В v7.14.0 НЕ используется для публикации!
 ```
 
 ---

@@ -208,18 +208,40 @@ class QueueService {
    * Process queue (Supabase or memory)
    */
   public async processQueue() {
+    console.log('[Queue] 🚀 processQueue() called');
+    
+    const supabase = getSupabase();
+    
+    // SERVERLESS FIX: Check database for processing jobs instead of in-memory flag
+    if (supabase) {
+      try {
+        // Check if any job is currently processing
+        const { data: processingJobs, error: procError } = await supabase
+          .from('telegram_jobs')
+          .select('id, created_at')
+          .eq('status', 'processing');
+        
+        if (procError) {
+          console.error('[Queue] Error checking processing jobs:', procError);
+        } else if (processingJobs && processingJobs.length > 0) {
+          console.log(`[Queue] ⏸️ Already ${processingJobs.length} job(s) processing, skipping`);
+          return;
+        }
+      } catch (err) {
+        console.error('[Queue] Error in processing check:', err);
+      }
+    }
+
+    // Old in-memory check (fallback for memory queue)
     if (this.isProcessing) {
-      console.log('[Queue] Already processing, scheduling retry in 3s');
-      setTimeout(() => this.processQueue(), 3000);
+      console.log('[Queue] In-memory isProcessing=true, skipping');
       return;
     }
 
     this.isProcessing = true;
-    console.log('[Queue] Starting queue processing...');
+    console.log('[Queue] ✅ Starting queue processing...');
 
     try {
-      const supabase = getSupabase();
-      
       // Try Supabase first
       if (supabase) {
         try {
@@ -231,23 +253,26 @@ class QueueService {
             .limit(10);
 
           if (error) {
-            console.error('[Queue] Supabase query error:', error);
+            console.error('[Queue] ❌ Supabase query error:', error);
           } else if (pendingJobs && pendingJobs.length > 0) {
-            console.log(`[Queue] Found ${pendingJobs.length} pending jobs in Supabase`);
+            console.log(`[Queue] 📋 Found ${pendingJobs.length} pending job(s) in Supabase`);
             await this.processSupabaseJob(pendingJobs[0] as QueueJob);
             
             // Continue processing remaining jobs
             this.isProcessing = false;
             if (pendingJobs.length > 1) {
-              setTimeout(() => this.processQueue(), 1000);
+              console.log(`[Queue] 🔄 ${pendingJobs.length - 1} more job(s) remaining, continuing...`);
+              setTimeout(() => this.processQueue(), 2000);
             }
             return;
           } else {
-            console.log('[Queue] No pending jobs in Supabase');
+            console.log('[Queue] ℹ️ No pending jobs in Supabase');
           }
         } catch (err) {
-          console.error('[Queue] Supabase processQueue error:', err);
+          console.error('[Queue] ❌ Supabase processQueue error:', err);
         }
+      } else {
+        console.log('[Queue] ⚠️ Supabase not available, checking memory queue...');
       }
       
       // Fallback to memory

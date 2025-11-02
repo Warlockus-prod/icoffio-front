@@ -16,6 +16,66 @@
 
 ---
 
+## [7.14.1] - 2025-11-02 - 🔧 TELEGRAM QUEUE SERVERLESS FIX
+
+**CRITICAL FIX** - Telegram queue not processing in serverless environment
+
+### 🐛 Fixed
+
+**Telegram Queue Processing:**
+- ✅ Database-backed processing check (was: in-memory flag)
+- ✅ Serverless-safe job detection
+- ✅ Improved logging with emojis for diagnostics
+- ✅ Better error handling in processQueue()
+
+### 🔧 Technical Changes
+
+**lib/queue-service.ts:**
+- Check database for `status='processing'` jobs before starting new processing
+- In-memory `isProcessing` flag kept as fallback for memory queue
+- Enhanced console logging: `🚀`, `✅`, `📋`, `⏸️`, `❌`, `ℹ️`, `⚠️`
+- Increased retry delay from 1s to 2s for stability
+
+### 📚 Documentation
+
+**New Files:**
+- `TELEGRAM_COMPLETE_RESET_v7.14.1.md` - complete reset guide
+- `TELEGRAM_RESET_v7.14.0.md` - basic reset instructions
+- `RESET_TELEGRAM_QUEUE.sql` - SQL for queue reset
+
+**Updated:**
+- `PROJECT_MASTER_DOCUMENTATION.md` - added CONFIGURED SERVICES & CONNECTED SERVICES sections
+- Complete documentation of all connected services (Supabase, Vercel, OpenAI, Unsplash, Telegram, GitHub)
+- All environment variables with real values
+- DNS configuration and webhook setup
+
+### 🎯 Impact
+
+**Before:** Tasks stuck with "💤 Система ожидает" (pending, never processing)  
+**After:** Tasks process immediately after being added to queue
+
+**Why it failed:**
+- Serverless functions are stateless
+- Each API call = new instance
+- In-memory `isProcessing` flag lost between calls
+- Solution: Check database state instead
+
+### 🧹 Cleanup
+
+**Project Organization:**
+- Deleted 42 obsolete files (temporary docs, old releases, duplicates)
+- Root: 70 → 30 files
+- Clear structure: only current and relevant docs remain
+- Added `CLEANUP_COMPLETED_v7.14.0.md` with cleanup rules
+
+### 🔗 Related
+
+- Resolves issue from v7.14.0 where queue was not starting
+- Complements direct Supabase publishing (no more WordPress delays)
+- Maintains all v7.14.0 features (fast publishing, 100% reliability)
+
+---
+
 ## [7.14.0] - 2025-11-02 - 🚀 SUPABASE DIRECT PUBLISHING (WordPress Removed) 
 
 **MAJOR CHANGE** - Removed WordPress dependency, publishing directly to Supabase

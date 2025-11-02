@@ -9,7 +9,6 @@
 import { translateArticleContent } from './ai-copywriting-service';
 import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
 import { getPublicationStyle, PublicationStyle } from './telegram-user-preferences';
-import { getOrGenerateImage } from './telegram-image-service';
 
 const BASE_URL = 'https://app.icoffio.com';
 
@@ -237,69 +236,39 @@ async function insertImagesIntoContent(
   category: string
 ): Promise<string> {
   try {
-    console.log(`[DualLang] Generating 2 unique images with SMART AI prompts...`);
+    console.log(`[DualLang] 🚀 FAST MODE: Getting 2 images from Unsplash (NO AI, NO cache)...`);
 
-    // ✨ НОВАЯ СИСТЕМА: Используем умные промпты через GPT-4
-    const { generateSmartImagePrompts } = await import('./smart-image-prompt-generator');
-    
-    let smartPrompts;
-    try {
-      smartPrompts = await generateSmartImagePrompts({
-        title,
-        content: content.substring(0, 1000), // Первые 1000 символов для анализа
-        excerpt,
-        category
-      });
+    // ⚡ ВАРИАНТ C: Только Unsplash, БЕЗ AI, БЕЗ библиотеки
+    // 2 параллельных запроса к Unsplash → 2-5 сек (было 10-30 сек)
+    const [image1Response, image2Response] = await Promise.all([
+      fetch(`${BASE_URL}/api/admin/generate-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'unsplash',
+          title: title,
+          excerpt: excerpt,
+          category: category
+        }),
+      }),
       
-      console.log('[DualLang] ✅ Smart prompts generated:', {
-        heroPrompt: smartPrompts.heroPrompt.substring(0, 50),
-        contentPrompts: smartPrompts.contentPrompts.length,
-        tags: smartPrompts.unsplashTags.length
-      });
-    } catch (error) {
-      console.warn('[DualLang] Smart prompts failed, using fallback:', error);
-      // Fallback если AI недоступен
-      smartPrompts = {
-        contentPrompts: [`${title} ${category}`, `${category} technology concept`],
-        unsplashTags: [category, ...title.split(' ').slice(0, 3)]
-      };
-    }
-
-    // Генерируем 2 изображения с переиспользованием из библиотеки
-    const imagePrompts = [
-      smartPrompts.contentPrompts[0] || title,
-      smartPrompts.contentPrompts[1] || `${category} perspective`
-    ];
-    
-    const images = await Promise.all(
-      imagePrompts.map(async (prompt, index) => {
-        return await getOrGenerateImage(
-          prompt,
-          category,
-          async () => {
-            // Generate new image function
-            const response = await fetch(`${BASE_URL}/api/admin/generate-image`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                source: 'unsplash',
-                title: prompt,
-                excerpt: index === 0 ? title : excerpt || title,
-                category,
-                unsplashTags: smartPrompts.unsplashTags?.slice(index * 3, (index + 1) * 6) || []
-              }),
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              return data.url || '';
-            }
-            
-            throw new Error(`Image generation failed: ${response.statusText}`);
-          }
-        );
+      fetch(`${BASE_URL}/api/admin/generate-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'unsplash',
+          title: `${category} technology concept`,
+          excerpt: excerpt || title,
+          category: category
+        }),
       })
-    );
+    ]);
+
+    // Extract URLs
+    const images = await Promise.all([
+      image1Response.ok ? image1Response.json().then(d => d.url || '') : '',
+      image2Response.ok ? image2Response.json().then(d => d.url || '') : ''
+    ]);
     
     // Filter out empty strings
     const validImages = images.filter(url => url && url.length > 0);

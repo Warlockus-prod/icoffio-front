@@ -215,16 +215,55 @@ class QueueService {
     // SERVERLESS FIX: Check database for processing jobs instead of in-memory flag
     if (supabase) {
       try {
-        // Check if any job is currently processing
+        // ⚠️ CRITICAL: First cleanup stuck jobs (> 2 minutes)
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const { data: stuckJobs } = await supabase
+          .from('telegram_jobs')
+          .select('id, created_at, retries, max_retries')
+          .eq('status', 'processing')
+          .lt('created_at', twoMinutesAgo);
+        
+        if (stuckJobs && stuckJobs.length > 0) {
+          console.log(`[Queue] 🧹 Found ${stuckJobs.length} stuck job(s), cleaning up...`);
+          
+          for (const job of stuckJobs) {
+            const canRetry = (job.retries || 0) < (job.max_retries || 3);
+            
+            if (canRetry) {
+              console.log(`[Queue] 🔄 Resetting stuck job ${job.id} for retry (${job.retries + 1}/${job.max_retries})`);
+              await supabase
+                .from('telegram_jobs')
+                .update({
+                  status: 'pending',
+                  retries: (job.retries || 0) + 1,
+                  error: 'Job stuck in processing, resetting for retry'
+                })
+                .eq('id', job.id);
+            } else {
+              console.log(`[Queue] ❌ Marking stuck job ${job.id} as failed (max retries reached)`);
+              await supabase
+                .from('telegram_jobs')
+                .update({
+                  status: 'failed',
+                  error: `Job timeout after ${job.retries} retries`,
+                  completed_at: new Date().toISOString()
+                })
+                .eq('id', job.id);
+            }
+          }
+        }
+        
+        // Now check if any FRESH job is currently processing (created in last 2 minutes)
         const { data: processingJobs, error: procError } = await supabase
           .from('telegram_jobs')
           .select('id, created_at')
-          .eq('status', 'processing');
+          .eq('status', 'processing')
+          .gte('created_at', twoMinutesAgo);
         
         if (procError) {
           console.error('[Queue] Error checking processing jobs:', procError);
         } else if (processingJobs && processingJobs.length > 0) {
-          console.log(`[Queue] ⏸️ Already ${processingJobs.length} job(s) processing, skipping`);
+          console.log(`[Queue] ⏸️ Already ${processingJobs.length} FRESH job(s) processing, skipping`);
           return;
         }
       } catch (err) {

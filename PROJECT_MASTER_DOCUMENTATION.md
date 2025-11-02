@@ -547,6 +547,82 @@ https://app.icoffio.com/en/admin
 
 ## 🚀 DEPLOYMENT
 
+### Архитектура Deploy:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Developer                                              │
+│  ↓                                                      │
+│  git commit → git push origin main                     │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│  GitHub Repository                                      │
+│  - Source code (WITHOUT secrets)                       │
+│  - GitHub Actions triggers                             │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│  GitHub Actions (optional)                              │
+│  - Run tests                                            │
+│  - Notify Telegram                                      │
+│  - Trigger custom workflows                             │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│  Vercel Auto-Deploy                                     │
+│  1. Detects push to main                               │
+│  2. Pulls code from GitHub                             │
+│  3. Injects environment variables (from Vercel)        │
+│  4. Builds: npm install → npm run build                │
+│  5. Deploys to edge network                            │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│  Production                                             │
+│  https://app.icoffio.com                               │
+│  - Next.js app with all secrets from Vercel env       │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 🔐 КРИТИЧЕСКИ ВАЖНО - ПРАВИЛА БЕЗОПАСНОСТИ:
+
+#### ✅ ЧТО ЗАГРУЖАЕМ В GITHUB:
+- ✅ Исходный код (`.ts`, `.tsx`, `.js`)
+- ✅ Конфигурацию (без секретов)
+- ✅ Документацию
+- ✅ `.env.example` (шаблоны без реальных токенов)
+- ✅ `.gitignore` (защищает sensitive files)
+
+#### ❌ ЧТО НИКОГДА НЕ ЗАГРУЖАЕМ В GITHUB:
+- ❌ `.env.local` (токены)
+- ❌ `telegram-config.json` (токены)
+- ❌ API keys, tokens, passwords
+- ❌ Private keys
+- ❌ Service role keys
+- ❌ Hardcoded credentials в коде
+
+#### 🔑 ГДЕ ХРАНЯТСЯ СЕКРЕТЫ:
+
+**ТОЛЬКО в Vercel Environment Variables:**
+```
+GitHub (code) → Vercel (code + env vars) → Production (running app)
+```
+
+**Vercel Dashboard:**
+```
+https://vercel.com/andreys-projects-a55f75b3/icoffio-front/settings/environment-variables
+```
+
+**Установлены для всех окружений:**
+- ✅ Production
+- ✅ Preview
+- ✅ Development
+
+**Все секреты инжектятся в runtime, НЕ в build time!**
+
+---
+
 ### Платформы:
 
 **Frontend & API:** Vercel  
@@ -572,18 +648,28 @@ npm install
 
 **Framework Preset:** Next.js
 
-### Deploy Flow:
+### Deploy Flow (детально):
 
 ```
-1. Git push to main branch
+1. Developer: git push origin main
    ↓
-2. GitHub triggers Vercel
+2. GitHub receives push
    ↓
-3. Vercel builds Next.js app
+3. Vercel webhook triggered (auto-deploy enabled)
    ↓
-4. Deploy to production (app.icoffio.com)
+4. Vercel clones repo from GitHub
    ↓
-5. ISR pages regenerate on-demand
+5. Vercel injects environment variables
+   ↓
+6. Vercel runs: npm install
+   ↓
+7. Vercel runs: npm run build
+   ↓
+8. Build artifacts uploaded to edge network
+   ↓
+9. Deploy to production (app.icoffio.com)
+   ↓
+10. ISR pages regenerate on-demand
 ```
 
 ### Environments:
@@ -591,6 +677,14 @@ npm install
 - **Production:** `app.icoffio.com` (main branch)
 - **Preview:** Auto для каждого PR
 - **Development:** `localhost:3000`
+
+### Security Best Practices:
+
+1. **Secrets только в Vercel** - НИКОГДА в Git
+2. **`.gitignore` защищает** - проверяйте перед commit
+3. **Code review** - проверяйте что нет токенов в PR
+4. **Environment variables** - для всех окружений
+5. **Rotate tokens** - если случайно закоммитили
 
 ---
 

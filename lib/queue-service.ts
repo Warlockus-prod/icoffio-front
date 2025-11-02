@@ -353,12 +353,12 @@ class QueueService {
 
       console.log(`[Queue] 🚀 Starting job: ${job.id} (type: ${job.type})`);
 
-      // ⏱️ ADD TIMEOUT: 180 seconds (3 minutes)
-      const TIMEOUT = 180000;
+      // ⏱️ ADD TIMEOUT: 50 seconds (LESS than Vercel 60s limit)
+      const TIMEOUT = 50000;
       const result = await Promise.race([
         this.processJob(job),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Job timeout after 3 minutes')), TIMEOUT)
+          setTimeout(() => reject(new Error('Job timeout after 50 seconds')), TIMEOUT)
         )
       ]);
       
@@ -457,12 +457,12 @@ class QueueService {
     console.log(`[Queue] 🚀 Starting memory job: ${job.id} (type: ${job.type})`);
     
     try {
-      // ⏱️ ADD TIMEOUT: 180 seconds (3 minutes)
-      const TIMEOUT = 180000;
+      // ⏱️ ADD TIMEOUT: 50 seconds (LESS than Vercel 60s limit)
+      const TIMEOUT = 50000;
       const result = await Promise.race([
         this.processJob(job),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Job timeout after 3 minutes')), TIMEOUT)
+          setTimeout(() => reject(new Error('Job timeout after 50 seconds')), TIMEOUT)
         )
       ]);
       

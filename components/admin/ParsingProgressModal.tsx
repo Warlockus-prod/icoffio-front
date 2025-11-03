@@ -6,6 +6,9 @@ interface ParsingProgressModalProps {
   isOpen: boolean;
   currentStep: 1 | 2 | 3 | 4;
   articleTitle?: string;
+  onClose?: () => void; // NEW: Allow manual close
+  isMinimized?: boolean; // NEW: Minimized state
+  onToggleMinimize?: () => void; // NEW: Toggle minimize
 }
 
 interface Step {
@@ -16,18 +19,27 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { id: 1, label: 'Parsing content from URL', icon: '🌐', estimatedTime: '5-8s' },
-  { id: 2, label: 'Translating to Polish', icon: '🌍', estimatedTime: '8-12s' },
-  { id: 3, label: 'Generating featured image', icon: '🎨', estimatedTime: '3-5s' },
-  { id: 4, label: 'Finalizing article', icon: '✨', estimatedTime: '2-3s' }
+  { id: 1, label: 'Parsing content from URL', icon: '🌐', estimatedTime: '10-15s' },
+  { id: 2, label: 'Translating to EN & PL', icon: '🌍', estimatedTime: '15-25s' },
+  { id: 3, label: 'Generating featured image', icon: '🎨', estimatedTime: '8-12s' },
+  { id: 4, label: 'Finalizing article', icon: '✨', estimatedTime: '3-5s' }
 ];
 
-export default function ParsingProgressModal({ isOpen, currentStep, articleTitle }: ParsingProgressModalProps) {
+export default function ParsingProgressModal({ 
+  isOpen, 
+  currentStep, 
+  articleTitle,
+  onClose,
+  isMinimized = false,
+  onToggleMinimize 
+}: ParsingProgressModalProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [localMinimized, setLocalMinimized] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setElapsedTime(0);
+      setLocalMinimized(false);
       return;
     }
 
@@ -41,40 +53,80 @@ export default function ParsingProgressModal({ isOpen, currentStep, articleTitle
   if (!isOpen) return null;
 
   const totalProgress = (currentStep / 4) * 100;
-  const estimatedTotal = '18-28 seconds';
+  const estimatedTotal = '36-57 seconds';
+  const minimized = isMinimized || localMinimized;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-8 shadow-2xl">
+    <div className="fixed bottom-6 right-6 z-50 transition-all duration-300">
+      <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-blue-500 transition-all duration-300 ${
+        minimized ? 'w-80' : 'w-[500px]'
+      }`}>
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-4 animate-pulse">📄</div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Processing Article
-          </h2>
-          {articleTitle && (
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              {articleTitle.substring(0, 60)}...
-            </p>
-          )}
+        <div className={`flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 ${
+          minimized ? 'pb-4' : ''
+        }`}>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="text-3xl animate-pulse">📄</div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Processing Article
+              </h3>
+              {!minimized && articleTitle && (
+                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                  {articleTitle}
+                </p>
+              )}
+              {minimized && (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Step {currentStep}/4 • {Math.round(totalProgress)}%
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setLocalMinimized(!localMinimized);
+                onToggleMinimize?.();
+              }}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              title={minimized ? "Expand" : "Minimize"}
+            >
+              {minimized ? '⬆️' : '⬇️'}
+            </button>
+          </div>
         </div>
 
-        {/* Overall Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <span>Overall Progress</span>
-            <span>{Math.round(totalProgress)}%</span>
+        {minimized && (
+          <div className="p-3">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out rounded-full"
+                style={{ width: `${totalProgress}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out rounded-full"
-              style={{ width: `${totalProgress}%` }}
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Steps */}
-        <div className="space-y-4 mb-8">
+        {!minimized && (
+          <div className="p-6 space-y-6">{/* Content wrapper */}
+
+            {/* Overall Progress Bar */}
+            <div>
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <span>Overall Progress</span>
+                <span>{Math.round(totalProgress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out rounded-full"
+                  style={{ width: `${totalProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-3">
           {STEPS.map((step) => {
             const isActive = step.id === currentStep;
             const isCompleted = step.id < currentStep;
@@ -83,7 +135,7 @@ export default function ParsingProgressModal({ isOpen, currentStep, articleTitle
             return (
               <div 
                 key={step.id}
-                className={`flex items-center gap-4 p-4 rounded-lg transition-all ${
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
                   isActive 
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500' 
                     : isCompleted
@@ -92,60 +144,62 @@ export default function ParsingProgressModal({ isOpen, currentStep, articleTitle
                 }`}
               >
                 {/* Icon */}
-                <div className={`text-3xl ${isActive ? 'animate-bounce' : ''}`}>
+                <div className={`text-2xl ${isActive ? 'animate-bounce' : ''}`}>
                   {isCompleted ? '✅' : step.icon}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className={`font-medium ${
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-medium truncate ${
                       isActive 
                         ? 'text-blue-700 dark:text-blue-300' 
                         : isCompleted
                         ? 'text-green-700 dark:text-green-300'
                         : 'text-gray-500 dark:text-gray-400'
                     }`}>
-                      Step {step.id}/4: {step.label}
+                      {step.id}. {step.label}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {step.estimatedTime}
                     </span>
                   </div>
                   
                   {/* Step Progress Bar */}
                   {isActive && (
-                    <div className="mt-2 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 overflow-hidden">
+                    <div className="mt-1.5 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1 overflow-hidden">
                       <div className="h-full bg-blue-500 animate-pulse w-3/4 rounded-full" />
                     </div>
                   )}
                 </div>
 
                 {/* Status Icon */}
-                <div className="text-2xl">
+                <div className="text-lg">
                   {isCompleted ? '✓' : isActive ? '⏳' : '○'}
                 </div>
               </div>
             );
           })}
-        </div>
-
-        {/* Footer Info */}
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-2">
-              <span>⏱️</span>
-              <span>Elapsed: {elapsedTime}s</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span>⏳</span>
-              <span>Est. Total: {estimatedTotal}</span>
+
+            {/* Footer Info */}
+            <div className="text-center space-y-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1.5">
+                  <span>⏱️</span>
+                  <span>{elapsedTime}s</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>⏳</span>
+                  <span>{estimatedTotal}</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                💡 You can continue adding more URLs while processing
+              </p>
             </div>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Please wait while we process your article with AI...
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -358,13 +358,13 @@ export const useAdminStore = create<AdminStore>()(
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           
-          // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController
+          // ✅ ИСПРАВЛЕНИЕ: Увеличенный таймаут для облачной обработки
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
-            adminLogger.warn('parsing', 'parse_timeout', 'URL parsing timeout (60s)', { jobId, url });
-            console.warn('⏰ Admin Store: Aborting URL parsing due to timeout (60s)');
+            adminLogger.warn('parsing', 'parse_timeout', 'URL parsing timeout (180s)', { jobId, url });
+            console.warn('⏰ Admin Store: Aborting URL parsing due to timeout (180s)');
             controller.abort();
-          }, 60000); // 60 секунд таймаут (уменьшено с 120)
+          }, 180000); // 180 секунд (3 минуты) для полной обработки с OpenAI
           
           const response = await fetch('/api/articles', {
             method: 'POST',
@@ -482,12 +482,12 @@ export const useAdminStore = create<AdminStore>()(
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           
-          // ✅ ИСПРАВЛЕНИЕ: Добавляем таймаут и AbortController (аналогично startParsing)
+          // ✅ ИСПРАВЛЕНИЕ: Увеличенный таймаут для облачной обработки
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
-            console.warn('⏰ Admin Store: Aborting text processing due to timeout (60s)');
+            console.warn('⏰ Admin Store: Aborting text processing due to timeout (180s)');
             controller.abort();
-          }, 60000); // 60 секунд таймаут (уменьшено с 120)
+          }, 180000); // 180 секунд (3 минуты) для полной обработки с OpenAI
           
           const response = await fetch('/api/articles', {
             method: 'POST',

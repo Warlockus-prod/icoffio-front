@@ -159,14 +159,15 @@ class UnifiedArticleService {
         }
       }
       
-      // 4. ПЕРЕВОД НА ВСЕ ЯЗЫКИ (через РЕАЛЬНЫЙ OpenAI Translation Service)
+      // 4. ПЕРЕВОД НА АНГЛИЙСКИЙ И ПОЛЬСКИЙ (ВСЕГДА ОБА ЯЗЫКА)
       let translations: Record<string, any> = {};
+      let finalArticleData = articleData; // По умолчанию используем оригинал
+      
       if (input.translateToAll !== false) {
         try {
-          console.log('🌍 Starting real translation process...');
+          console.log('🌍 Starting EN + PL translation process...');
           const baseSlug = this.generateSlug(articleData.title);
           
-          // Проверяем доступность translation service
           if (!translationService.isAvailable()) {
             console.warn('⚠️ Translation service unavailable, using fallback');
             warnings.push('Translation service unavailable - using original content');
@@ -179,40 +180,86 @@ class UnifiedArticleService {
               }
             };
           } else {
-            // РЕАЛЬНЫЕ ПЕРЕВОДЫ через OpenAI
-            const [plTitle, plContent, plExcerpt] = await Promise.all([
-              translationService.translateText({
-                content: articleData.title,
-                targetLanguage: 'pl',
-                contentType: 'title'
-              }),
-              translationService.translateText({
-                content: articleData.content,
-                targetLanguage: 'pl',
-                contentType: 'body'
-              }),
-              translationService.translateText({
-                content: articleData.excerpt || articleData.title.substring(0, 150),
-                targetLanguage: 'pl',
-                contentType: 'excerpt'
-              })
-            ]);
+            // Определяем исходный язык
+            const sourceLanguage = translationService.detectLanguage(articleData.content);
+            console.log(`🔍 Detected source language: ${sourceLanguage}`);
             
-            translations = {
-              pl: {
+            const needsEnTranslation = sourceLanguage !== 'en';
+            const needsPlTranslation = sourceLanguage !== 'pl';
+            
+            // ПЕРЕВОДИМ НА АНГЛИЙСКИЙ (если нужно)
+            if (needsEnTranslation) {
+              console.log('📝 Translating to English (will become primary article)...');
+              const [enTitle, enContent, enExcerpt] = await Promise.all([
+                translationService.translateText({
+                  content: articleData.title,
+                  targetLanguage: 'en',
+                  contentType: 'title'
+                }),
+                translationService.translateText({
+                  content: articleData.content,
+                  targetLanguage: 'en',
+                  contentType: 'body'
+                }),
+                translationService.translateText({
+                  content: articleData.excerpt || articleData.title.substring(0, 150),
+                  targetLanguage: 'en',
+                  contentType: 'excerpt'
+                })
+              ]);
+              
+              finalArticleData = {
+                ...articleData,
+                title: enTitle.translatedText,
+                content: enContent.translatedText,
+                excerpt: enExcerpt.translatedText
+              };
+              console.log('✅ English translation completed (now primary)');
+            }
+            
+            // ПЕРЕВОДИМ НА ПОЛЬСКИЙ (всегда нужен)
+            if (needsPlTranslation) {
+              console.log('📝 Translating to Polish...');
+              const [plTitle, plContent, plExcerpt] = await Promise.all([
+                translationService.translateText({
+                  content: finalArticleData.title,
+                  targetLanguage: 'pl',
+                  contentType: 'title'
+                }),
+                translationService.translateText({
+                  content: finalArticleData.content,
+                  targetLanguage: 'pl',
+                  contentType: 'body'
+                }),
+                translationService.translateText({
+                  content: finalArticleData.excerpt || finalArticleData.title.substring(0, 150),
+                  targetLanguage: 'pl',
+                  contentType: 'excerpt'
+                })
+              ]);
+              
+              translations.pl = {
                 title: plTitle.translatedText,
                 content: plContent.translatedText,
                 excerpt: plExcerpt.translatedText,
                 slug: `${baseSlug}-pl`
-              }
-            };
+              };
+              console.log('✅ Polish translation completed');
+            } else {
+              translations.pl = {
+                title: articleData.title,
+                content: articleData.content,
+                excerpt: articleData.excerpt || articleData.title.substring(0, 100),
+                slug: `${baseSlug}-pl`
+              };
+              console.log('✅ Source is already Polish, using original');
+            }
             
-            console.log('✅ Real translations created successfully');
+            console.log(`✅ Final result: EN (primary) + PL (translation)`);
           }
         } catch (error: any) {
           console.error('❌ Translation failed:', error);
           warnings.push(`Failed to create translations: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          // Fallback - используем оригинальный контент
           const baseSlug = this.generateSlug(articleData.title);
           translations = {
             pl: {
@@ -224,6 +271,9 @@ class UnifiedArticleService {
           };
         }
       }
+      
+      // Используем финальную (возможно переведенную на EN) версию как основную статью
+      articleData = finalArticleData;
       
       // 5. СОЗДАНИЕ ФИНАЛЬНОГО ОБЪЕКТА СТАТЬИ
       const processedArticle = this.createProcessedArticle(articleData, input, translations);

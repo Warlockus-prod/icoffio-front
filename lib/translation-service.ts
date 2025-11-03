@@ -178,33 +178,39 @@ Please provide ONLY the translation, without any additional comments or explanat
     }
   }
 
-  // Перевод на все поддерживаемые языки
+  // Перевод на все поддерживаемые языки (ТОЛЬКО EN и PL)
   async translateToAllLanguages(
     content: { title: string; excerpt: string; body: string },
     excludeLanguages: string[] = []
   ): Promise<Record<string, { title: string; excerpt: string; body: string }>> {
     
-    const supportedLanguages = ['en', 'pl', 'de', 'ro', 'cs'];
+    // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Поддерживаем ТОЛЬКО English и Polish
+    const supportedLanguages = ['en', 'pl'];
     const targetLanguages = supportedLanguages.filter(lang => !excludeLanguages.includes(lang));
     
-    console.log(`🌐 Начинаем перевод на языки: ${targetLanguages.map(lang => this.getLanguageName(lang)).join(', ')}`);
+    console.log(`🌐 Starting translation to languages: ${targetLanguages.map(lang => this.getLanguageName(lang)).join(', ')}`);
     
     const translations: Record<string, { title: string; excerpt: string; body: string }> = {};
 
-    // Переводим последовательно, чтобы не превысить rate limits
-    for (const language of targetLanguages) {
+    // Переводим параллельно для ускорения (EN и PL одновременно)
+    const translationPromises = targetLanguages.map(async (language) => {
       try {
-        translations[language] = await this.translateContent(content, language);
-        
-        // Небольшая задержка между запросами для соблюдения rate limits
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        const result = await this.translateContent(content, language);
+        return { language, result };
       } catch (error) {
-        console.error(`Ошибка перевода на ${language}:`, error);
-        translations[language] = content; // Fallback к оригинальному контенту
+        console.error(`❌ Translation error for ${language}:`, error);
+        return { language, result: content }; // Fallback к оригинальному контенту
       }
+    });
+
+    // Ждем все переводы одновременно
+    const results = await Promise.all(translationPromises);
+    
+    for (const { language, result } of results) {
+      translations[language] = result;
     }
 
+    console.log(`✅ Translations completed for: ${Object.keys(translations).join(', ')}`);
     return translations;
   }
 

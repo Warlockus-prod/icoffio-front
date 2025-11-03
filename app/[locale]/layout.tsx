@@ -208,8 +208,24 @@ export default function LocaleLayout({
               overflow: visible !important;
             }
             
-            article [data-hyb-ssp-ad-place] iframe,
-            article [data-hyb-ssp-ad-place] > div {
+            /* Специальные правила для широких баннеров */
+            [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
+            [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
+              width: 728px !important;
+              height: 90px !important;
+              max-width: none !important;
+            }
+            
+            [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
+            [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
+              width: 970px !important;
+              height: 250px !important;
+              max-width: none !important;
+            }
+            
+            /* Остальные баннеры - адаптивные */
+            article [data-hyb-ssp-ad-place]:not([data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"]):not([data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"]) iframe,
+            article [data-hyb-ssp-ad-place]:not([data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"]):not([data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"]) > div {
               max-width: 100% !important;
               width: 100% !important;
               height: auto !important;

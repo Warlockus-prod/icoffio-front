@@ -218,8 +218,9 @@ Please provide ONLY the translation, without any additional comments or explanat
   detectLanguage(text: string): string {
     const sample = text.toLowerCase().slice(0, 200);
     
-    // Простые паттерны для определения языка
+    // ✅ FIXED: Добавлен русский язык для правильного определения
     const patterns = {
+      ru: /\b(это|что|как|для|все|или|был|была|было|были|может|очень|только|через|которые|который)\b/g,
       en: /\b(the|and|or|is|are|was|were|have|has|will|would|could|should)\b/g,
       pl: /\b(że|jest|są|będzie|może|bardzo|tylko|przez|które|która)\b/g,
       de: /\b(der|die|das|und|oder|ist|sind|war|waren|haben|wird)\b/g,
@@ -238,6 +239,7 @@ Please provide ONLY the translation, without any additional comments or explanat
       }
     }
 
+    console.log(`🔍 Detected language: ${detectedLang} (${maxMatches} matches)`);
     return detectedLang;
   }
 }

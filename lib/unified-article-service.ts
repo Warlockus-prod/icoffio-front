@@ -248,7 +248,7 @@ class UnifiedArticleService {
                 title: plTitle.translatedText,
                 content: plContent.translatedText,
                 excerpt: plExcerpt.translatedText,
-                slug: `${baseSlug}-pl`
+                slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
               };
               console.log('✅ Polish translation completed');
             } else {
@@ -256,7 +256,7 @@ class UnifiedArticleService {
                 title: articleData.title,
                 content: articleData.content,
                 excerpt: articleData.excerpt || articleData.title.substring(0, 100),
-                slug: `${baseSlug}-pl`
+                slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
               };
               console.log('✅ Source is already Polish, using original');
             }
@@ -272,7 +272,7 @@ class UnifiedArticleService {
               title: articleData.title,
               content: articleData.content,
               excerpt: articleData.excerpt || articleData.title.substring(0, 100),
-              slug: `${baseSlug}-pl`
+              slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
             }
           };
         }
@@ -554,7 +554,7 @@ class UnifiedArticleService {
       title: articleData.title,
       content: articleData.content,
       excerpt: articleData.excerpt || articleData.content.substring(0, 200) + '...',
-      slug: `${this.generateSlug(articleData.title)}-en`, // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: основной язык EN (не RU)
+      slug: this.generateSlug(articleData.title), // ✅ БЕЗ суффикса -en для основного языка
       
       category: articleData.category,
       tags: articleData.tags || [articleData.category],
@@ -568,8 +568,8 @@ class UnifiedArticleService {
       
       translations,
       
-      // ✨ NEW: Staged processing
-      processingStage: input.stage === 'text-only' ? 'text' : 'final',
+      // ✨ FIXED: Правильная логика staged processing
+      processingStage: input.stage === 'text-only' ? 'text' : (input.generateImage !== false ? 'text' : 'final'),
       
       source: {
         type: input.url ? 'url' : (input.chatId ? 'telegram' : 'manual'),

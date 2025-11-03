@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
 import { getPopularArticles } from "@/lib/supabase-analytics";
 import { ArticleCard } from "@/components/ArticleCard";
+import { ArticlesList } from "@/components/ArticlesList"; // ✨ NEW
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
@@ -237,34 +238,24 @@ export default async function Page({ params }: { params: { locale: string } }) {
 
       {heroPosts && heroPosts.length > 0 && <Hero posts={heroPosts} locale={params.locale} />}
 
+      {/* ✨ NEW: Articles list with Newest/Popular tabs */}
       <div className="mx-auto max-w-6xl px-4">
-        <section className="py-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-2">{t.latestNews}</h2>
-            <p className="text-neutral-600 dark:text-neutral-300">{t.mostActualEvents}</p>
-          </div>
-          
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {posts.map((p) => (
-              <ArticleCard key={p.slug} post={p} locale={params.locale} />
-            ))}
-          </div>
+        <ArticlesList posts={posts} locale={params.locale} />
 
-          <div className="mt-12 text-center">
-            <Link 
-              href={`/${params.locale}/articles`}
-              className="group relative inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                {t.showMore}
-                <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </span>
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
-            </Link>
-          </div>
-        </section>
+        <div className="mt-12 text-center">
+          <Link 
+            href={`/${params.locale}/articles`}
+            className="group relative inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              {t.showMore}
+              <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </span>
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
+          </Link>
+        </div>
       </div>
 
       {/* SearchModalWrapper рендерится глобально в layout.tsx - не дублируем */}

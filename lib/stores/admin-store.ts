@@ -29,6 +29,35 @@ export interface Article {
   };
   selectedImageId?: string;
   publishedAt?: Date;
+  
+  // ✨ NEW: Staged Processing
+  processingStage?: 'text' | 'image-selection' | 'final';
+  imageOptions?: {
+    unsplash: ImageOption[];
+    aiGenerated: ImageOption[];
+  };
+}
+
+// ✨ NEW: Image Option for Selection Modal
+export interface ImageOption {
+  id: string;
+  url: string;
+  thumbnail?: string;
+  source: 'unsplash' | 'ai' | 'custom';
+  
+  // Unsplash specific
+  searchQuery?: string;
+  author?: string;
+  authorUrl?: string;
+  
+  // AI specific
+  prompt?: string;
+  model?: string;
+  
+  // Common
+  width?: number;
+  height?: number;
+  description?: string;
 }
 
 export interface UnsplashImage {
@@ -129,6 +158,13 @@ interface AdminStore {
   searchImages: (query: string) => Promise<void>;
   generateImage: (prompt: string) => Promise<void>;
   selectImage: (imageId: string) => void;
+  
+  // ✨ NEW: Staged Processing Actions
+  generateImageOptions: (articleId: string) => Promise<void>;
+  selectImageOption: (articleId: string, optionId: string) => void;
+  regenerateImageOptions: (articleId: string) => Promise<void>;
+  skipImageSelection: (articleId: string) => void;
+  setArticleStage: (articleId: string, stage: Article['processingStage']) => void;
   
   // Statistics Actions
   updateStatistics: () => Promise<void>;
@@ -324,6 +360,107 @@ export const useAdminStore = create<AdminStore>()(
         }
       },
 
+      // ✨ NEW: Staged Processing Actions
+      generateImageOptions: async (articleId: string) => {
+        const article = get().publishingQueue.find(a => a.id === articleId);
+        if (!article) {
+          console.error('Article not found:', articleId);
+          return;
+        }
+
+        try {
+          console.log('🎨 Generating image options for:', article.title);
+          
+          const response = await fetch('/api/articles/image-options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              articleId,
+              title: article.title,
+              category: article.category,
+              excerpt: article.excerpt
+            })
+          });
+
+          if (response.ok) {
+            const imageOptions = await response.json();
+            
+            // Update article with image options
+            set((state) => ({
+              publishingQueue: state.publishingQueue.map(a =>
+                a.id === articleId
+                  ? { ...a, imageOptions, processingStage: 'image-selection' as const }
+                  : a
+              )
+            }));
+
+            console.log('✅ Image options generated successfully');
+          }
+        } catch (error) {
+          console.error('Failed to generate image options:', error);
+        }
+      },
+
+      selectImageOption: (articleId: string, optionId: string) => {
+        set((state) => {
+          const article = state.publishingQueue.find(a => a.id === articleId);
+          if (!article || !article.imageOptions) return state;
+
+          // Find selected option from all options
+          const allOptions = [
+            ...article.imageOptions.unsplash,
+            ...article.imageOptions.aiGenerated
+          ];
+          const selectedOption = allOptions.find(opt => opt.id === optionId);
+
+          if (!selectedOption) return state;
+
+          // Apply selected image to article
+          return {
+            publishingQueue: state.publishingQueue.map(a =>
+              a.id === articleId
+                ? {
+                    ...a,
+                    image: selectedOption.url,
+                    selectedImageId: optionId,
+                    processingStage: 'final' as const
+                  }
+                : a
+            )
+          };
+        });
+
+        console.log(`✅ Image option ${optionId} selected for article ${articleId}`);
+      },
+
+      regenerateImageOptions: async (articleId: string) => {
+        console.log('🔄 Regenerating image options for:', articleId);
+        // Simply call generateImageOptions again - it will create new variants
+        await get().generateImageOptions(articleId);
+      },
+
+      skipImageSelection: (articleId: string) => {
+        set((state) => ({
+          publishingQueue: state.publishingQueue.map(a =>
+            a.id === articleId
+              ? { ...a, processingStage: 'final' as const, image: undefined }
+              : a
+          )
+        }));
+
+        console.log(`⏭️ Image selection skipped for article ${articleId}`);
+      },
+
+      setArticleStage: (articleId: string, stage: Article['processingStage']) => {
+        set((state) => ({
+          publishingQueue: state.publishingQueue.map(a =>
+            a.id === articleId
+              ? { ...a, processingStage: stage }
+              : a
+          )
+        }));
+      },
+
       // Statistics Actions
       updateStatistics: async () => {
         try {
@@ -372,7 +509,8 @@ export const useAdminStore = create<AdminStore>()(
             body: JSON.stringify({
               action: 'create-from-url',
               url,
-              category
+              category,
+              stage: 'text-only' // ✨ NEW: Request text-only processing (no image generation)
             }),
             signal: controller.signal
           });
@@ -496,7 +634,8 @@ export const useAdminStore = create<AdminStore>()(
               action: 'create-from-text',
               title,
               content,
-              category
+              category,
+              stage: 'text-only' // ✨ NEW: Request text-only processing (no image generation)
             }),
             signal: controller.signal
           });

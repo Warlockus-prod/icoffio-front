@@ -33,6 +33,9 @@ export interface ArticleInput {
   generateImage?: boolean;
   translateToAll?: boolean;
   publishToWordPress?: boolean;
+  
+  // ✨ NEW: Staged processing
+  stage?: 'text-only' | 'full'; // 'text-only' = только текст без изображений
 }
 
 export interface ProcessedArticle {
@@ -62,6 +65,9 @@ export interface ProcessedArticle {
     excerpt: string;
     slug: string;
   }>;
+  
+  // ✨ NEW: Staged processing
+  processingStage?: 'text' | 'image-selection' | 'final';
   
   // Источник
   source: {
@@ -122,8 +128,8 @@ class UnifiedArticleService {
         }
       }
       
-      // 3. ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ (уникальные изображения по категориям)
-      if (input.generateImage !== false) {
+      // 3. ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ (пропускаем если stage === 'text-only')
+      if (input.generateImage !== false && input.stage !== 'text-only') {
         try {
           // Уникальные изображения по категориям
           const categoryImages = {
@@ -561,6 +567,9 @@ class UnifiedArticleService {
       publishedAt: now,
       
       translations,
+      
+      // ✨ NEW: Staged processing
+      processingStage: input.stage === 'text-only' ? 'text' : 'final',
       
       source: {
         type: input.url ? 'url' : (input.chatId ? 'telegram' : 'manual'),

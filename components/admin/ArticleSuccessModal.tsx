@@ -4,6 +4,7 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { marked } from 'marked';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import ImageSelectionModal from './ImageSelectionModal';
 
 interface ArticleSuccessModalProps {
   article: Article;
@@ -25,13 +26,25 @@ export default function ArticleSuccessModal({ article, onClose }: ArticleSuccess
   const [isSaving, setIsSaving] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('journalistic');
   
+  // ✨ NEW: Staged processing states
+  const [showImageSelection, setShowImageSelection] = useState(false);
+  const [isGeneratingOptions, setIsGeneratingOptions] = useState(false);
+  
   // Editable fields
   const [editedTitle, setEditedTitle] = useState(article.title);
   const [editedExcerpt, setEditedExcerpt] = useState(article.excerpt || '');
   const [editedContent, setEditedContent] = useState(article.content);
   const [editedImage, setEditedImage] = useState(article.image || '');
   
-  const { removeJobFromQueue, addActivity, updateArticle } = useAdminStore();
+  const { 
+    removeJobFromQueue, 
+    addActivity, 
+    updateArticle,
+    generateImageOptions,
+    selectImageOption,
+    regenerateImageOptions,
+    skipImageSelection 
+  } = useAdminStore();
   
   // Detect source language
   const detectLanguage = (text: string): string => {
@@ -88,6 +101,36 @@ export default function ArticleSuccessModal({ article, onClose }: ArticleSuccess
     } catch (error) {
       toast.error('❌ Translation failed', { id: toastId });
     }
+  };
+
+  // ✨ NEW: Image selection handlers
+  const handleChooseImage = async () => {
+    setIsGeneratingOptions(true);
+    const toastId = toast.loading('🎨 Generating image options...');
+    
+    try {
+      await generateImageOptions(article.id);
+      toast.success('✅ Image options ready!', { id: toastId });
+      setShowImageSelection(true);
+    } catch (error) {
+      toast.error('❌ Failed to generate options', { id: toastId });
+    } finally {
+      setIsGeneratingOptions(false);
+    }
+  };
+
+  const handleSelectImage = (optionId: string) => {
+    selectImageOption(article.id, optionId);
+    setShowImageSelection(false);
+  };
+
+  const handleSkipImage = () => {
+    skipImageSelection(article.id);
+    setShowImageSelection(false);
+  };
+
+  const handleRegenerateOptions = async () => {
+    await regenerateImageOptions(article.id);
   };
 
   const handlePublish = async () => {
@@ -424,34 +467,103 @@ export default function ArticleSuccessModal({ article, onClose }: ArticleSuccess
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer - Staged Workflow */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
-            >
-              Close
-            </button>
+          {/* Stage 1: Text Ready - Choose Image or Skip */}
+          {article.processingStage === 'text' && (
+            <div className="space-y-3">
+              <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-3">
+                ✅ Text is ready! What's next?
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setActiveTab(activeTab === 'preview' ? 'edit' : 'preview')}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                {activeTab === 'preview' ? '✏️ Edit' : '👁️ Preview'}
-              </button>
-              
-              <button
-                onClick={handlePublish}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium shadow-lg shadow-green-500/50 transition-all"
-              >
-                🚀 Publish Now
-              </button>
+                <button
+                  onClick={handleSkipImage}
+                  className="flex-1 px-6 py-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors font-medium"
+                >
+                  ⏭️ Skip Image (Publish without image)
+                </button>
+                
+                <button
+                  onClick={handleChooseImage}
+                  disabled={isGeneratingOptions}
+                  className="flex-1 px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg font-medium shadow-lg shadow-purple-500/50 transition-all disabled:opacity-50"
+                >
+                  {isGeneratingOptions ? '⏳ Generating...' : '🎨 Choose Image'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Stage 2: Image Selection - Handled by separate modal */}
+          {article.processingStage === 'image-selection' && (
+            <div className="flex items-center justify-center">
+              <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+                🎨 Image selection in progress...
+              </div>
+            </div>
+          )}
+
+          {/* Stage 3: Final - Ready to Publish */}
+          {(article.processingStage === 'final' || !article.processingStage) && (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+
+              <div className="flex gap-3">
+                {article.image && (
+                  <button
+                    onClick={handleChooseImage}
+                    disabled={isGeneratingOptions}
+                    className="px-6 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50"
+                  >
+                    {isGeneratingOptions ? '⏳ Generating...' : '🔄 Change Image'}
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => setActiveTab(activeTab === 'preview' ? 'edit' : 'preview')}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  {activeTab === 'preview' ? '✏️ Edit' : '👁️ Preview'}
+                </button>
+                
+                <button
+                  onClick={handlePublish}
+                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium shadow-lg shadow-green-500/50 transition-all"
+                >
+                  🚀 Publish Now
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Image Selection Modal */}
+      {showImageSelection && article.imageOptions && (
+        <ImageSelectionModal
+          isOpen={showImageSelection}
+          articleId={article.id}
+          articleTitle={article.title}
+          unsplashOptions={article.imageOptions.unsplash || []}
+          aiOptions={article.imageOptions.aiGenerated || []}
+          onSelect={handleSelectImage}
+          onSkip={handleSkipImage}
+          onRegenerate={handleRegenerateOptions}
+          onClose={() => setShowImageSelection(false)}
+        />
+      )}
     </div>
   );
 }

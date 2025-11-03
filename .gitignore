@@ -48,6 +48,7 @@ update-vps.sh
 # Sensitive data
 pass.env
 scripts/telegram-config.json
+telegram-reset-config.json
 
 # Archive files
 *.tar.gz

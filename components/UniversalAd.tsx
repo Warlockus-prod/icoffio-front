@@ -68,8 +68,8 @@ export function UniversalAd({
   const getStyles = () => {
     const baseStyles = {
       width: '100%',
-      maxWidth: dimensions.width,
-      minHeight: dimensions.height,
+      maxWidth: dimensions?.width || 'auto',
+      minHeight: dimensions?.height || 'auto',
       display: 'block',
       backgroundColor: 'transparent',
       border: 'none',
@@ -80,8 +80,8 @@ export function UniversalAd({
       case 'sidebar':
         return {
           ...baseStyles,
-          width: dimensions.width,
-          height: dimensions.height,
+          width: dimensions?.width || '100%',
+          height: dimensions?.height || 'auto',
           margin: '0 auto 24px auto',
         };
       

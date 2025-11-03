@@ -1,9 +1,9 @@
 /**
- * Ad Placements Manager - Real-time управление рекламными местами
- * Система сохраняет изменения в localStorage для мгновенного применения
+ * Менеджер управления рекламными местами с сохранением в localStorage
+ * Позволяет включать/выключать рекламные места без изменения кода
  * 
- * @version 7.7.0
- * @date 2025-10-28
+ * @version 7.23.0
+ * @date 2025-01-13
  */
 
 import { AD_PLACEMENTS, AdPlacementConfig } from './adPlacements';
@@ -11,7 +11,8 @@ import { AD_PLACEMENTS, AdPlacementConfig } from './adPlacements';
 const STORAGE_KEY = 'icoffio_ad_placements_config';
 
 /**
- * Получить конфигурацию рекламных мест (из localStorage или дефолтную)
+ * Получить конфигурацию рекламных мест
+ * Сначала пытается загрузить из localStorage, затем использует дефолтную
  */
 export function getAdPlacements(): AdPlacementConfig[] {
   if (typeof window === 'undefined') {
@@ -19,175 +20,108 @@ export function getAdPlacements(): AdPlacementConfig[] {
   }
 
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Мержим с дефолтной конфигурацией на случай новых полей
-      return AD_PLACEMENTS.map(defaultAd => {
-        const savedAd = parsed.find((ad: AdPlacementConfig) => ad.id === defaultAd.id);
-        return savedAd ? { ...defaultAd, ...savedAd } : defaultAd;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      
+      // Мерджим с дефолтной конфигурацией (на случай если добавились новые PlaceID)
+      const merged = AD_PLACEMENTS.map(defaultAd => {
+        const storedAd = parsed.find((ad: AdPlacementConfig) => ad.id === defaultAd.id);
+        return storedAd || defaultAd;
       });
+
+      // Добавляем новые PlaceID из сохраненной конфигурации, которых нет в дефолтной
+      const newAds = parsed.filter((ad: AdPlacementConfig) => 
+        !AD_PLACEMENTS.find(defaultAd => defaultAd.id === ad.id)
+      );
+
+      return [...merged, ...newAds];
     }
   } catch (error) {
-    console.error('Error reading ad placements from localStorage:', error);
+    console.error('Failed to load ad placements from localStorage:', error);
   }
 
   return AD_PLACEMENTS;
 }
 
 /**
- * Сохранить конфигурацию в localStorage
+ * Сохранить конфигурацию рекламных мест
  */
-export function saveAdPlacements(placements: AdPlacementConfig[]): boolean {
+export function saveAdPlacements(placements: AdPlacementConfig[]): void {
   if (typeof window === 'undefined') {
-    return false;
+    return;
   }
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(placements));
-    // Диспатчим событие для обновления других компонентов
-    window.dispatchEvent(new CustomEvent('adPlacementsUpdated'));
-    return true;
+    console.log('✅ Ad placements configuration saved successfully');
   } catch (error) {
-    console.error('Error saving ad placements to localStorage:', error);
-    return false;
+    console.error('Failed to save ad placements to localStorage:', error);
   }
 }
 
 /**
- * Обновить одно рекламное место
+ * Обновить конкретное рекламное место
  */
-export function updateAdPlacement(id: string, updates: Partial<AdPlacementConfig>): boolean {
+export function updateAdPlacement(id: string, updates: Partial<AdPlacementConfig>): void {
   const placements = getAdPlacements();
-  const index = placements.findIndex(ad => ad.id === id);
-  
-  if (index === -1) {
-    return false;
-  }
-
-  placements[index] = { ...placements[index], ...updates };
-  return saveAdPlacements(placements);
+  const updated = placements.map(ad => 
+    ad.id === id ? { ...ad, ...updates } : ad
+  );
+  saveAdPlacements(updated);
 }
 
 /**
- * Toggle enabled/disabled для рекламного места
+ * Включить/выключить рекламное место
  */
-export function toggleAdPlacement(id: string): boolean {
-  const placements = getAdPlacements();
-  const ad = placements.find(ad => ad.id === id);
-  
-  if (!ad) {
-    return false;
-  }
-
-  return updateAdPlacement(id, { enabled: !ad.enabled });
+export function toggleAdPlacement(id: string, enabled: boolean): void {
+  updateAdPlacement(id, { enabled });
+  console.log(`${enabled ? '✅ Enabled' : '❌ Disabled'} ad placement: ${id}`);
 }
 
 /**
- * Изменить приоритет рекламного места
+ * Сбросить конфигурацию к дефолтной
  */
-export function updateAdPriority(id: string, priority: number): boolean {
-  if (priority < 1 || priority > 10) {
-    return false;
-  }
-
-  return updateAdPlacement(id, { priority });
-}
-
-/**
- * Добавить новое рекламное место
- */
-export function addAdPlacement(placement: AdPlacementConfig): boolean {
-  const placements = getAdPlacements();
-  
-  // Проверяем что ID уникален
-  if (placements.some(ad => ad.id === placement.id)) {
-    console.error('Ad placement with this ID already exists');
-    return false;
-  }
-
-  placements.push(placement);
-  return saveAdPlacements(placements);
-}
-
-/**
- * Удалить рекламное место
- */
-export function deleteAdPlacement(id: string): boolean {
-  const placements = getAdPlacements();
-  const filtered = placements.filter(ad => ad.id !== id);
-  
-  if (filtered.length === placements.length) {
-    return false; // ID не найден
-  }
-
-  return saveAdPlacements(filtered);
-}
-
-/**
- * Сбросить к дефолтной конфигурации
- */
-export function resetToDefaults(): boolean {
+export function resetAdPlacements(): void {
   if (typeof window === 'undefined') {
-    return false;
+    return;
   }
 
   try {
     localStorage.removeItem(STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent('adPlacementsUpdated'));
-    return true;
+    console.log('🔄 Ad placements configuration reset to default');
   } catch (error) {
-    console.error('Error resetting ad placements:', error);
-    return false;
+    console.error('Failed to reset ad placements:', error);
   }
 }
 
 /**
- * Проверить есть ли сохраненная конфигурация
+ * Получить статистику рекламных мест с учетом сохраненной конфигурации
  */
-export function hasCustomConfig(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return localStorage.getItem(STORAGE_KEY) !== null;
-}
-
-/**
- * Экспортировать конфигурацию в JSON
- */
-export function exportConfig(): string {
+export function getAdPlacementsStatsFromStorage() {
   const placements = getAdPlacements();
-  return JSON.stringify(placements, null, 2);
-}
-
-/**
- * Импортировать конфигурацию из JSON
- */
-export function importConfig(json: string): boolean {
-  try {
-    const placements = JSON.parse(json);
-    
-    // Валидация структуры
-    if (!Array.isArray(placements)) {
-      throw new Error('Invalid format: expected array');
+  
+  return {
+    total: placements.length,
+    enabled: placements.filter(ad => ad.enabled).length,
+    disabled: placements.filter(ad => !ad.enabled).length,
+    byType: {
+      display: placements.filter(ad => ad.format !== 'video').length,
+      video: placements.filter(ad => ad.format === 'video').length,
+    },
+    byDevice: {
+      desktop: placements.filter(ad => ad.device === 'desktop').length,
+      mobile: placements.filter(ad => ad.device === 'mobile').length,
+      both: placements.filter(ad => ad.device === 'both').length,
+    },
+    byStatus: {
+      stable: placements.filter(ad => ad.status === 'stable').length,
+      new: placements.filter(ad => ad.status === 'new').length,
+      testing: placements.filter(ad => ad.status === 'testing').length,
+    },
+    enabledByType: {
+      display: placements.filter(ad => ad.enabled && ad.format !== 'video').length,
+      video: placements.filter(ad => ad.enabled && ad.format === 'video').length,
     }
-
-    // Проверяем что все поля присутствуют
-    for (const ad of placements) {
-      if (!ad.id || !ad.placeId || !ad.format) {
-        throw new Error('Invalid ad placement structure');
-      }
-    }
-
-    return saveAdPlacements(placements);
-  } catch (error) {
-    console.error('Error importing config:', error);
-    return false;
-  }
+  };
 }
-
-
-
-
-

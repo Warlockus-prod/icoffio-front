@@ -18,6 +18,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
     { id: 'ai', name: 'AI & Machine Learning', icon: '🤖' },
     { id: 'apple', name: 'Apple & iOS', icon: '🍎' },
     { id: 'tech', name: 'Technology', icon: '⚙️' },
+    { id: 'news', name: 'News', icon: '📰' }, // ✨ NEW
     { id: 'digital', name: 'Digital & Trends', icon: '📱' }
   ];
 

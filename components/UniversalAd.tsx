@@ -18,9 +18,11 @@ export type AdFormat =
   | '320x100'   // Large Mobile Banner
   | '160x600'   // Wide Skyscraper
   // Display
-  | '320x480';  // Mobile Interstitial
+  | '320x480'   // Mobile Interstitial
+  // Video
+  | 'video';    // Video Advertising
 
-export type AdPlacement = 'inline' | 'sidebar' | 'mobile' | 'display';
+export type AdPlacement = 'inline' | 'sidebar' | 'mobile' | 'display' | 'video';
 
 interface UniversalAdProps {
   placeId: string;
@@ -30,7 +32,7 @@ interface UniversalAdProps {
   enabled?: boolean; // Управление показом через конфиг
 }
 
-const AD_DIMENSIONS: Record<AdFormat, { width: string; height: string }> = {
+const AD_DIMENSIONS: Partial<Record<AdFormat, { width: string; height: string }>> = {
   // Desktop Inline
   '728x90': { width: '728px', height: '90px' },
   '970x250': { width: '970px', height: '250px' },
@@ -43,6 +45,8 @@ const AD_DIMENSIONS: Record<AdFormat, { width: string; height: string }> = {
   '160x600': { width: '160px', height: '600px' },
   // Display
   '320x480': { width: '320px', height: '480px' },
+  // Video (handled by VideoPlayer component, placeholder dimensions)
+  'video': { width: '640px', height: '360px' },
 };
 
 export function UniversalAd({ 

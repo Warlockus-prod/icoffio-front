@@ -1,494 +1,337 @@
 'use client';
 
-/**
- * AdvertisingManager - Real-time система управления рекламными местами
- * Позволяет включать/выключать, менять приоритет, добавлять новые места
- * 
- * @version 7.7.0
- * @date 2025-10-28
- */
-
 import { useState, useEffect } from 'react';
-import { AD_PLACEMENTS, AdPlacementConfig } from '@/lib/config/adPlacements';
-import { 
+import { AdPlacementConfig } from '@/lib/config/adPlacements';
+import {
   getAdPlacements,
+  saveAdPlacements,
   toggleAdPlacement,
-  updateAdPriority,
-  updateAdPlacement,
-  addAdPlacement,
-  deleteAdPlacement,
-  resetToDefaults,
-  hasCustomConfig,
-  exportConfig,
-  importConfig
+  resetAdPlacements,
+  getAdPlacementsStatsFromStorage
 } from '@/lib/config/adPlacementsManager';
-import type { AdFormat, AdPlacement } from '@/components/UniversalAd';
 
 export default function AdvertisingManager() {
   const [placements, setPlacements] = useState<AdPlacementConfig[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState<'all' | 'desktop' | 'mobile'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [isCustomConfig, setIsCustomConfig] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importText, setImportText] = useState('');
-  
-  // Загрузка конфигурации
-  const loadPlacements = () => {
-    const loaded = getAdPlacements();
-    setPlacements(loaded);
-    setIsCustomConfig(hasCustomConfig());
-  };
+  const [filter, setFilter] = useState<'all' | 'display' | 'video'>('all');
+  const [deviceFilter, setDeviceFilter] = useState<'all' | 'desktop' | 'mobile' | 'both'>('all');
+  const [stats, setStats] = useState<ReturnType<typeof getAdPlacementsStatsFromStorage>>();
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load placements on mount
   useEffect(() => {
     loadPlacements();
-
-    // Слушаем события обновления
-    const handleUpdate = () => loadPlacements();
-    window.addEventListener('adPlacementsUpdated', handleUpdate);
-    return () => window.removeEventListener('adPlacementsUpdated', handleUpdate);
   }, []);
 
-  // Статистика
-  const stats = {
-    total: placements.length,
-    enabled: placements.filter(ad => ad.enabled).length,
-    disabled: placements.filter(ad => !ad.enabled).length,
-    new: placements.filter(ad => ad.status === 'new').length,
-    desktop: placements.filter(ad => ad.device === 'desktop').length,
-    mobile: placements.filter(ad => ad.device === 'mobile').length,
+  const loadPlacements = () => {
+    setIsLoading(true);
+    const loaded = getAdPlacements();
+    const loadedStats = getAdPlacementsStatsFromStorage();
+    setPlacements(loaded);
+    setStats(loadedStats);
+    setIsLoading(false);
   };
 
-  // Фильтрация
-  const getFilteredPlacements = () => {
-    let filtered = placements;
-    
-    if (selectedDevice !== 'all') {
-      filtered = filtered.filter(ad => 
-        ad.device === selectedDevice || ad.device === 'both'
-      );
-    }
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(ad =>
-        ad.name.toLowerCase().includes(query) ||
-        ad.description.toLowerCase().includes(query) ||
-        ad.placeId.toLowerCase().includes(query)
-      );
-    }
-    
-    return filtered.sort((a, b) => b.priority - a.priority);
+  const handleToggle = (id: string, currentEnabled: boolean) => {
+    toggleAdPlacement(id, !currentEnabled);
+    loadPlacements(); // Reload to reflect changes
   };
 
-  const filteredPlacements = getFilteredPlacements();
-
-  // Toggle enabled/disabled
-  const handleToggle = (id: string) => {
-    const success = toggleAdPlacement(id);
-    if (success) {
-      loadPlacements();
-      showToast('✅ Changes saved');
-    }
-  };
-
-  // Изменение приоритета
-  const handlePriorityChange = (id: string, priority: number) => {
-    const success = updateAdPriority(id, priority);
-    if (success) {
-      loadPlacements();
-    }
-  };
-
-  // Reset to defaults
   const handleReset = () => {
-    if (confirm('Are you sure? All changes will be reset to default configuration.')) {
-      const success = resetToDefaults();
-      if (success) {
-        loadPlacements();
-        showToast('✅ Configuration reset to defaults');
-      }
+    if (window.confirm('🔄 Сбросить все настройки рекламы к дефолтным?\n\nЭто восстановит стандартную конфигурацию всех рекламных мест.')) {
+      resetAdPlacements();
+      loadPlacements();
     }
   };
 
-  // Export
-  const handleExport = () => {
-    const config = exportConfig();
-    navigator.clipboard.writeText(config);
-    showToast('📋 Configuration copied to clipboard');
-    setShowExportModal(true);
+  const handleUpdatePriority = (id: string, newPriority: number) => {
+    const updated = placements.map(ad =>
+      ad.id === id ? { ...ad, priority: newPriority } : ad
+    );
+    saveAdPlacements(updated);
+    loadPlacements();
   };
 
-  // Import
-  const handleImport = () => {
-    try {
-      const success = importConfig(importText);
-      if (success) {
-        loadPlacements();
-        setShowImportModal(false);
-        setImportText('');
-        showToast('✅ Configuration imported');
-      } else {
-        showToast('❌ Error: invalid JSON format', true);
-      }
-    } catch (error) {
-      showToast('❌ Import error', true);
-    }
+  // Filter placements
+  const filteredPlacements = placements.filter(ad => {
+    const typeMatch = filter === 'all' || filter === 'display'; // video removed as not in AdFormat type
+    
+    const deviceMatch = deviceFilter === 'all' || ad.device === deviceFilter;
+    
+    return typeMatch && deviceMatch;
+  });
+
+  // Get icon for ad type
+  const getAdIcon = (format: string) => {
+    if (format === 'video') return '🎬';
+    if (format.includes('x')) return '📊';
+    return '💼';
   };
 
-  // Toast уведомления
-  const showToast = (message: string, isError = false) => {
-    // Простая реализация toast
-    const toast = document.createElement('div');
-    toast.textContent = message;
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 16px 24px;
-      background: ${isError ? '#ef4444' : '#10b981'};
-      color: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      z-index: 10000;
-      font-weight: 500;
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-  };
-
-  // Цвета для статусов
-  const getStatusBadge = (status: AdPlacementConfig['status']) => {
-    switch (status) {
-      case 'stable':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">✅ Stable</span>;
-      case 'new':
-        return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">🆕 New</span>;
-      case 'testing':
-        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">🧪 Testing</span>;
-    }
-  };
-
-  // Иконка устройства
+  // Get device icon
   const getDeviceIcon = (device: string) => {
-    switch (device) {
-      case 'desktop': return '🖥️';
-      case 'mobile': return '📱';
-      case 'both': return '🖥️📱';
-      default: return '📱';
-    }
+    if (device === 'desktop') return '💻';
+    if (device === 'mobile') return '📱';
+    return '📱💻';
   };
 
-  // Копировать код
-  const copyCode = (placeId: string, format: string, placement: string) => {
-    const code = `<UniversalAd 
-  placeId="${placeId}" 
-  format="${format}"
-  placement="${placement}"
-/>`;
-    navigator.clipboard.writeText(code);
-    showToast('📋 Code copied');
+  // Get status badge color
+  const getStatusColor = (status: string) => {
+    if (status === 'stable') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+    if (status === 'new') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📊</div>
+          <div className="text-gray-600 dark:text-gray-400">Loading ad placements...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
+      {/* Header with Stats */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              📊 Advertising Management {isCustomConfig && <span className="text-sm text-blue-600 dark:text-blue-400">(Custom Config)</span>}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Real-time management of all ad placements via localStorage
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              💰 Advertising Management
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Управление всеми рекламными местами VOX Display
             </p>
           </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setShowAddForm(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
-              ➕ Add Placement
-            </button>
-            <button 
-              onClick={handleExport}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              📤 Export
-            </button>
-            <button 
-              onClick={() => setShowImportModal(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-            >
-              📥 Import
-            </button>
-            {isCustomConfig && (
-              <button 
-                onClick={handleReset}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-              >
-                🔄 Reset
-              </button>
-            )}
-          </div>
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            🔄 Reset to Default
+          </button>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total Places</div>
+        {/* Stats Grid */}
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Places</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
+              <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                {stats.enabled} active
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Display Ads</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.byType.display}</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                {stats.enabledByType.display} active
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Video Ads</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.byType.video}</div>
+              <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                {stats.enabledByType.video} active
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Status</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">Online</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                VOX Active
+              </div>
+            </div>
           </div>
-          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-green-700 dark:text-green-400">{stats.enabled}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Enabled</div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.disabled}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Disabled</div>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats.new}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">New</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="🔍 Search by name, description or PlaceID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-            />
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</span>
+            <div className="flex gap-2">
+              {['all', 'display', 'video'].map(type => (
+                <button
+                  key={type}
+                  onClick={() => setFilter(type as any)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    filter === type
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {type === 'all' && '🎯 All'}
+                  {type === 'display' && '📊 Display'}
+                  {type === 'video' && '🎬 Video'}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSelectedDevice('all')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                selectedDevice === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setSelectedDevice('desktop')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                selectedDevice === 'desktop'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              🖥️ Desktop
-            </button>
-            <button
-              onClick={() => setSelectedDevice('mobile')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                selectedDevice === 'mobile'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              📱 Mobile
-            </button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Device:</span>
+            <div className="flex gap-2">
+              {['all', 'desktop', 'mobile', 'both'].map(device => (
+                <button
+                  key={device}
+                  onClick={() => setDeviceFilter(device as any)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    deviceFilter === device
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {device === 'all' && '🌐 All'}
+                  {device === 'desktop' && '💻 Desktop'}
+                  {device === 'mobile' && '📱 Mobile'}
+                  {device === 'both' && '📱💻 Both'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="ml-auto text-sm text-gray-600 dark:text-gray-400">
+            Showing {filteredPlacements.length} of {placements.length} placements
           </div>
         </div>
       </div>
 
-      {/* Список рекламных мест */}
-      <div className="space-y-4">
-        {filteredPlacements.map((ad) => (
-          <div
-            key={ad.id}
-            className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-2 transition-all ${
-              ad.enabled
-                ? 'border-green-300 dark:border-green-700'
-                : 'border-gray-200 dark:border-gray-700 opacity-60'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              {/* Основная информация */}
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {getDeviceIcon(ad.device)} {ad.name}
-                  </h3>
-                  {getStatusBadge(ad.status)}
-                  
-                  {/* Toggle Switch */}
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={ad.enabled}
-                      onChange={() => handleToggle(ad.id)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
-                    <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                      {ad.enabled ? '✅ Включено' : '⏸️ Отключено'}
-                    </span>
-                  </label>
-                </div>
+      {/* Placements List */}
+      <div className="grid grid-cols-1 gap-4">
+        {filteredPlacements.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center border border-gray-200 dark:border-gray-700">
+            <div className="text-4xl mb-4">🔍</div>
+            <div className="text-gray-600 dark:text-gray-400">
+              No ad placements found with current filters
+            </div>
+          </div>
+        ) : (
+          filteredPlacements
+            .sort((a, b) => b.priority - a.priority)
+            .map((ad) => (
+              <div
+                key={ad.id}
+                className={`bg-white dark:bg-gray-800 rounded-xl p-6 border-2 transition-all ${
+                  ad.enabled
+                    ? 'border-green-200 dark:border-green-800 shadow-sm'
+                    : 'border-gray-200 dark:border-gray-700 opacity-60'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  {/* Left Side - Info */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl">{getAdIcon(ad.format as string)}</div>
+                      <div>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                          {ad.name}
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {ad.description}
+                        </p>
+                      </div>
+                    </div>
 
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {ad.description}
-                </p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ad.status)}`}>
+                        {ad.status === 'stable' && '✅ Stable'}
+                        {ad.status === 'new' && '🆕 New'}
+                        {ad.status === 'testing' && '🧪 Testing'}
+                      </span>
+                      
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                        {getDeviceIcon(ad.device)} {ad.device}
+                      </span>
+                      
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                        📍 {ad.position}
+                      </span>
 
-                {/* Детали */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Format:</span>
-                    <div className="font-mono font-semibold text-gray-900 dark:text-white">{ad.format}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">PlaceID:</span>
-                    <div className="font-mono text-xs text-gray-900 dark:text-white truncate">{ad.placeId}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Position:</span>
-                    <div className="font-semibold text-gray-900 dark:text-white">{ad.position}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Location:</span>
-                    <div className="font-semibold text-gray-900 dark:text-white">{ad.location}</div>
-                  </div>
-                </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                        🎯 Priority: {ad.priority}
+                      </span>
+                    </div>
 
-                {/* Priority Slider */}
-                <div className="mb-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Priority: <span className="text-blue-600 dark:text-blue-400 font-bold">{ad.priority}/10</span>
-                    </label>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                      PlaceID: {ad.placeId}
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={ad.priority}
-                    onChange={(e) => handlePriorityChange(ad.id, parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                  />
+
+                  {/* Right Side - Controls */}
+                  <div className="flex flex-col gap-3 items-end">
+                    {/* Toggle Switch */}
+                    <button
+                      onClick={() => handleToggle(ad.id, ad.enabled)}
+                      className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
+                        ad.enabled
+                          ? 'bg-green-500 dark:bg-green-600'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                          ad.enabled ? 'translate-x-9' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+
+                    <div className="text-xs font-medium">
+                      {ad.enabled ? (
+                        <span className="text-green-600 dark:text-green-400">✅ Active</span>
+                      ) : (
+                        <span className="text-gray-600 dark:text-gray-400">❌ Disabled</span>
+                      )}
+                    </div>
+
+                    {/* Priority Adjuster */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleUpdatePriority(ad.id, Math.max(1, ad.priority - 1))}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        title="Decrease Priority"
+                      >
+                        ⬇️
+                      </button>
+                      <button
+                        onClick={() => handleUpdatePriority(ad.id, Math.min(10, ad.priority + 1))}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        title="Increase Priority"
+                      >
+                        ⬆️
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => copyCode(ad.placeId, ad.format, ad.placement)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                  title="Copy component code"
-                >
-                  📋 Code
-                </button>
-                <button
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                  title="Statistics (coming soon)"
-                  disabled
-                >
-                  📊 Stats
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+            ))
+        )}
       </div>
 
-      {/* Empty State */}
-      {filteredPlacements.length === 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-6 text-center">
-          <p className="text-yellow-800 dark:text-yellow-200">
-            ⚠️ No ad placements found with current filters
-          </p>
+      {/* Info Footer */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl">💡</div>
+          <div>
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+              Как работает управление рекламой
+            </h4>
+            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+              <li>• <strong>Toggle переключатель</strong> - включить/выключить рекламное место</li>
+              <li>• <strong>Priority стрелки</strong> - изменить приоритет показа (1-10)</li>
+              <li>• <strong>Reset to Default</strong> - восстановить исходную конфигурацию</li>
+              <li>• <strong>Настройки сохраняются</strong> в localStorage и применяются сразу</li>
+              <li>• <strong>Video реклама</strong> работает на обоих устройствах (Desktop & Mobile)</li>
+            </ul>
+          </div>
         </div>
-      )}
-
-      {/* Instructions */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-3">
-          ℹ️ How to Manage Advertising (v7.7.0)
-        </h3>
-        <ul className="space-y-2 text-blue-800 dark:text-blue-300">
-          <li><strong>Toggle switch:</strong> Enable/disable placement instantly</li>
-          <li><strong>Priority slider:</strong> Change priority from 1 to 10</li>
-          <li><strong>➕ Add Placement:</strong> Create new ad placement</li>
-          <li><strong>📤 Export:</strong> Export configuration to JSON</li>
-          <li><strong>📥 Import:</strong> Import configuration from JSON</li>
-          <li><strong>🔄 Reset:</strong> Reset to default settings</li>
-          <li><strong>💾 Auto-save:</strong> All changes saved to localStorage automatically</li>
-        </ul>
       </div>
-
-      {/* Export Modal */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowExportModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">📤 Export Configuration</h3>
-            <textarea
-              readOnly
-              value={exportConfig()}
-              className="w-full h-64 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
-            />
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(exportConfig());
-                  showToast('📋 Copied to clipboard');
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                📋 Copy
-              </button>
-              <button
-                onClick={() => setShowExportModal(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowImportModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">📥 Import Configuration</h3>
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Paste JSON configuration..."
-              className="w-full h-64 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
-            />
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={handleImport}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                ✅ Import
-              </button>
-              <button
-                onClick={() => {
-                  setShowImportModal(false);
-                  setImportText('');
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

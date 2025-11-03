@@ -209,23 +209,38 @@ export async function generateImageOptions(article: {
   title: string;
   category: string;
   excerpt?: string;
+}, config?: {
+  unsplashCount?: number;
+  aiCount?: number;
+  customQueries?: string[];
+  customPrompts?: string[];
 }): Promise<{
   unsplash: ImageOption[];
   aiGenerated: ImageOption[];
 }> {
   console.log('🎨 Generating image options for article:', article.title);
   
-  // 1. Генерируем поисковые запросы и промпты
-  const searchQueries = generateSearchQueries(article.title, article.category, article.excerpt);
-  const imagePrompts = generateImagePrompts(article.title, article.category, article.excerpt);
+  // 1. Определяем количество изображений
+  const unsplashCount = config?.unsplashCount ?? 3;
+  const aiCount = config?.aiCount ?? 2;
   
+  // 2. Генерируем или используем кастомные запросы/промпты
+  const searchQueries = config?.customQueries && config.customQueries.length > 0
+    ? config.customQueries.slice(0, unsplashCount)
+    : generateSearchQueries(article.title, article.category, article.excerpt).slice(0, unsplashCount);
+    
+  const imagePrompts = config?.customPrompts && config.customPrompts.length > 0
+    ? config.customPrompts.slice(0, aiCount)
+    : generateImagePrompts(article.title, article.category, article.excerpt).slice(0, aiCount);
+  
+  console.log(`📝 Generating ${unsplashCount} Unsplash + ${aiCount} AI images`);
   console.log('📝 Search queries:', searchQueries);
   console.log('📝 AI prompts:', imagePrompts);
   
-  // 2. Параллельно получаем Unsplash и генерируем AI изображения
+  // 3. Параллельно получаем Unsplash и генерируем AI изображения
   const [unsplashOptions, aiOptions] = await Promise.all([
-    fetchUnsplashOptions(searchQueries),
-    generateAIOptions(imagePrompts)
+    unsplashCount > 0 ? fetchUnsplashOptions(searchQueries) : Promise.resolve([]),
+    aiCount > 0 ? generateAIOptions(imagePrompts) : Promise.resolve([])
   ]);
   
   console.log(`✅ Generated ${unsplashOptions.length} Unsplash + ${aiOptions.length} AI options`);
@@ -243,13 +258,23 @@ export async function regenerateImageOptions(article: {
   title: string;
   category: string;
   excerpt?: string;
+}, config?: {
+  unsplashCount?: number;
+  aiCount?: number;
+  customQueries?: string[];
+  customPrompts?: string[];
 }): Promise<{
   unsplash: ImageOption[];
   aiGenerated: ImageOption[];
 }> {
   console.log('🔄 Regenerating image options for article:', article.title);
   
-  // Генерируем альтернативные запросы
+  // Если есть кастомная конфигурация - используем её
+  if (config) {
+    return generateImageOptions(article, config);
+  }
+  
+  // Иначе генерируем альтернативные запросы
   const alternativeQueries = [
     `${article.category} innovation`,
     extractKeywords(article.title, article.excerpt).slice(0, 3).join(' '),

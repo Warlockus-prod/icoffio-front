@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import ImageSelectionModal from './ImageSelectionModal';
+import ImageOptionsConfigModal, { type ImageGenerationConfig } from './ImageOptionsConfigModal';
 
 interface ArticleSuccessModalProps {
   article: Article;
@@ -28,7 +29,9 @@ export default function ArticleSuccessModal({ article, onClose }: ArticleSuccess
   
   // ✨ NEW: Staged processing states
   const [showImageSelection, setShowImageSelection] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [isGeneratingOptions, setIsGeneratingOptions] = useState(false);
+  const [imageGenConfig, setImageGenConfig] = useState<ImageGenerationConfig | null>(null);
   
   // Editable fields
   const [editedTitle, setEditedTitle] = useState(article.title);
@@ -105,10 +108,17 @@ export default function ArticleSuccessModal({ article, onClose }: ArticleSuccess
 
   // ✨ NEW: Image selection handlers
   const handleChooseImage = async () => {
+    // Показываем config modal для настройки
+    setShowConfigModal(true);
+  };
+
+  const handleGenerateWithConfig = async (config: ImageGenerationConfig) => {
+    setImageGenConfig(config);
     setIsGeneratingOptions(true);
-    const toastId = toast.loading('🎨 Generating image options...');
+    const toastId = toast.loading(`🎨 Generating ${config.unsplashCount + config.aiCount} image options...`);
     
     try {
+      // TODO: Передать config в generateImageOptions
       await generateImageOptions(article.id);
       toast.success('✅ Image options ready!', { id: toastId });
       setShowImageSelection(true);
@@ -549,6 +559,14 @@ export default function ArticleSuccessModal({ article, onClose }: ArticleSuccess
           )}
         </div>
       </div>
+
+      {/* Image Options Config Modal */}
+      <ImageOptionsConfigModal
+        isOpen={showConfigModal}
+        articleTitle={article.title}
+        onGenerate={handleGenerateWithConfig}
+        onClose={() => setShowConfigModal(false)}
+      />
 
       {/* Image Selection Modal */}
       {showImageSelection && article.imageOptions && (

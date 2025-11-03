@@ -156,6 +156,68 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     addedDate: '2025-10-28',
     status: 'new'
   },
+
+  // ==================== VIDEO ADVERTISING ====================
+  {
+    id: 'video-1',
+    placeId: '68f70a1c810d98e1a08f2740',
+    format: 'video' as any,
+    placement: 'video' as any,
+    name: 'Instream Article End',
+    description: 'Видео реклама в конце статьи (Desktop & Mobile)',
+    location: 'article',
+    position: 'content-bottom',
+    enabled: true,
+    priority: 10,
+    device: 'both',
+    addedDate: '2025-01-13',
+    status: 'new'
+  },
+  {
+    id: 'video-2',
+    placeId: '68f70a1c810d98e1a08f2741',
+    format: 'video' as any,
+    placement: 'video' as any,
+    name: 'Instream Article Middle',
+    description: 'Видео реклама в середине статьи (Desktop & Mobile)',
+    location: 'article',
+    position: 'content-middle',
+    enabled: true,
+    priority: 9,
+    device: 'both',
+    addedDate: '2025-01-13',
+    status: 'new'
+  },
+  {
+    id: 'video-3',
+    placeId: '68f70a1c810d98e1a08f2742',
+    format: 'video' as any,
+    placement: 'video' as any,
+    name: 'Outstream Sidebar',
+    description: 'Видео реклама в сайдбаре (Desktop)',
+    location: 'article',
+    position: 'sidebar-top',
+    enabled: true,
+    priority: 8,
+    device: 'desktop',
+    addedDate: '2025-01-13',
+    status: 'new'
+  },
+  {
+    id: 'video-4',
+    placeId: '68f70a1c810d98e1a08f2743',
+    format: 'video' as any,
+    placement: 'video' as any,
+    name: 'Outstream Mobile',
+    description: 'Видео реклама на мобильных (Mobile)',
+    location: 'article',
+    position: 'content-top',
+    enabled: true,
+    priority: 9,
+    device: 'mobile',
+    addedDate: '2025-01-13',
+    status: 'new'
+  },
 ];
 
 /**

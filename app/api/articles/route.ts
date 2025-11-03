@@ -730,41 +730,89 @@ async function handleArticlePublication(body: any, request: NextRequest) {
 
     console.log(`📤 Publishing article: ${article.title}`);
 
-    // Публикуем через WordPress Service
-    const publicationResult = await wordpressService.publishMultilingualArticle(
-      {
-        id: article.id || `article-${Date.now()}`,
-        title: article.title,
-        content: article.content,
-        excerpt: article.excerpt,
-        slug: article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
-        category: article.category || 'technology',
-        tags: ['imported', 'ai-processed'],
-        author: article.author || 'Admin',
-        language: 'ru',
-        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
-        publishedAt: new Date().toISOString()
-      },
-      article.translations
-    );
-
-    if (publicationResult.success) {
-      return NextResponse.json({
-        success: true,
-        message: `Статья "${article.title}" успешно опубликована`,
-        results: publicationResult.results,
-        summary: publicationResult.summary,
-        url: publicationResult.results.find(r => r.success)?.url
-      });
-    } else {
-      return NextResponse.json(
-        { 
-          error: 'Не удалось опубликовать статью',
-          details: publicationResult
-        },
-        { status: 500 }
-      );
+    // 1. КРИТИЧЕСКИ ВАЖНО: Добавляем статью в локальное runtime хранилище
+    // Это обеспечит немедленное отображение статьи на сайте
+    const { addRuntimeArticle } = require('@/lib/local-articles');
+    
+    const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const publishedAt = new Date().toISOString();
+    
+    // Публикуем АНГЛИЙСКУЮ версию (основную)
+    const enPost = {
+      slug: `${slug}-en`,
+      title: article.title,
+      excerpt: article.excerpt || article.title.substring(0, 150),
+      publishedAt,
+      image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+      category: { name: article.category || 'Technology', slug: article.category || 'tech' },
+      content: article.content,
+      author: article.author || 'AI Editorial Team',
+      tags: ['ai-processed', 'imported']
+    };
+    
+    addRuntimeArticle(enPost);
+    console.log(`✅ Added EN article to runtime: ${enPost.slug}`);
+    
+    // Публикуем ПОЛЬСКУЮ версию (если есть перевод)
+    if (article.translations && article.translations.pl) {
+      const plPost = {
+        slug: `${slug}-pl`,
+        title: article.translations.pl.title,
+        excerpt: article.translations.pl.excerpt || article.translations.pl.title.substring(0, 150),
+        publishedAt,
+        image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+        category: { name: article.category || 'Technology', slug: article.category || 'tech' },
+        content: article.translations.pl.content,
+        author: article.author || 'AI Editorial Team',
+        tags: ['ai-processed', 'imported', 'translated']
+      };
+      
+      addRuntimeArticle(plPost);
+      console.log(`✅ Added PL article to runtime: ${plPost.slug}`);
     }
+
+    // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (если доступен)
+    let wordpressPublished = false;
+    try {
+      const publicationResult = await wordpressService.publishMultilingualArticle(
+        {
+          id: article.id || `article-${Date.now()}`,
+          title: article.title,
+          content: article.content,
+          excerpt: article.excerpt,
+          slug: slug,
+          category: article.category || 'technology',
+          tags: ['imported', 'ai-processed'],
+          author: article.author || 'Admin',
+          language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
+          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+          publishedAt
+        },
+        article.translations
+      );
+      
+      wordpressPublished = publicationResult.success;
+      
+      if (publicationResult.success) {
+        console.log('✅ Also published to WordPress');
+      } else {
+        console.warn('⚠️ WordPress publication failed, but article is available locally');
+      }
+    } catch (wpError) {
+      console.warn('⚠️ WordPress unavailable, article published locally only');
+    }
+
+    // 3. Возвращаем успешный результат (статья доступна локально)
+    return NextResponse.json({
+      success: true,
+      message: `Article "${article.title}" successfully published`,
+      locallyPublished: true,
+      wordpressPublished,
+      urls: {
+        en: `/en/article/${slug}-en`,
+        pl: article.translations?.pl ? `/pl/article/${slug}-pl` : null
+      }
+    });
 
   } catch (error) {
     console.error('❌ Publication error:', error);

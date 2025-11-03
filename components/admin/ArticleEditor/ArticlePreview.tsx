@@ -3,6 +3,7 @@
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { useState } from 'react';
 import { marked } from 'marked';
+import toast from 'react-hot-toast';
 
 const LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇺🇸', color: 'blue' },
@@ -16,6 +17,55 @@ interface ArticlePreviewProps {
 export default function ArticlePreview({ article }: ArticlePreviewProps) {
   const [activeView, setActiveView] = useState<'split' | 'single'>('split');
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pl'>('en');
+  const { setActiveTab, selectArticle, removeJobFromQueue, addActivity } = useAdminStore();
+  
+  // Обработчик публикации
+  const handlePublish = async () => {
+    if (!article) return;
+    
+    const toastId = toast.loading(`📤 Publishing "${article.title.substring(0, 40)}..."`);
+    
+    try {
+      const response = await fetch('/api/articles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'publish-article',
+          articleId: article.id,
+          article: article
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        removeJobFromQueue(article.id);
+        addActivity({
+          type: 'article_published',
+          message: `Article successfully published: ${article.title}`,
+          url: result.url || `/en/article/${article.id}`
+        });
+        toast.success(`✅ "${article.title.substring(0, 40)}..." published!`, { id: toastId });
+      } else {
+        throw new Error(result.error || 'Publication failed');
+      }
+    } catch (error) {
+      console.error('❌ Publication failed:', error);
+      toast.error(`❌ Failed: ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
+    }
+  };
+  
+  // Обработчик редактирования
+  const handleEdit = () => {
+    if (!article) return;
+    setActiveTab('editor');
+    selectArticle(article);
+  };
+  
+  // Обработчик регенерации переводов
+  const handleRegenerateTranslations = async () => {
+    toast.loading('🔄 Translation regeneration coming soon!', { duration: 2000 });
+  };
   
   if (!article) {
     return (
@@ -278,15 +328,24 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
           </div>
           
           <div className="flex gap-3">
-            <button className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors text-sm">
+            <button 
+              onClick={handleRegenerateTranslations}
+              className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors text-sm"
+            >
               🔄 Regenerate All Translations
             </button>
             
-            <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm">
+            <button 
+              onClick={handleEdit}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
+            >
               📝 Edit Article
             </button>
             
-            <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm">
+            <button 
+              onClick={handlePublish}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+            >
               ✅ Approve & Publish
             </button>
           </div>

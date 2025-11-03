@@ -159,22 +159,69 @@ class UnifiedArticleService {
         }
       }
       
-      // 4. ПЕРЕВОД НА ВСЕ ЯЗЫКИ (временно упрощено)
+      // 4. ПЕРЕВОД НА ВСЕ ЯЗЫКИ (через РЕАЛЬНЫЙ OpenAI Translation Service)
       let translations: Record<string, any> = {};
       if (input.translateToAll !== false) {
         try {
-          // Создаем ТОЛЬКО переводы на поддерживаемые языки (PL, основная версия уже EN)
+          console.log('🌍 Starting real translation process...');
+          const baseSlug = this.generateSlug(articleData.title);
+          
+          // Проверяем доступность translation service
+          if (!translationService.isAvailable()) {
+            console.warn('⚠️ Translation service unavailable, using fallback');
+            warnings.push('Translation service unavailable - using original content');
+            translations = {
+              pl: {
+                title: articleData.title + ' (PL)',
+                content: articleData.content,
+                excerpt: articleData.excerpt || articleData.title.substring(0, 100),
+                slug: `${baseSlug}-pl`
+              }
+            };
+          } else {
+            // РЕАЛЬНЫЕ ПЕРЕВОДЫ через OpenAI
+            const [plTitle, plContent, plExcerpt] = await Promise.all([
+              translationService.translateText({
+                content: articleData.title,
+                targetLanguage: 'pl',
+                contentType: 'title'
+              }),
+              translationService.translateText({
+                content: articleData.content,
+                targetLanguage: 'pl',
+                contentType: 'body'
+              }),
+              translationService.translateText({
+                content: articleData.excerpt || articleData.title.substring(0, 150),
+                targetLanguage: 'pl',
+                contentType: 'excerpt'
+              })
+            ]);
+            
+            translations = {
+              pl: {
+                title: plTitle.translatedText,
+                content: plContent.translatedText,
+                excerpt: plExcerpt.translatedText,
+                slug: `${baseSlug}-pl`
+              }
+            };
+            
+            console.log('✅ Real translations created successfully');
+          }
+        } catch (error: any) {
+          console.error('❌ Translation failed:', error);
+          warnings.push(`Failed to create translations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Fallback - используем оригинальный контент
           const baseSlug = this.generateSlug(articleData.title);
           translations = {
             pl: {
-              title: this.translateTitle(articleData.title, 'pl'),
-              content: this.translateContent(articleData.content, 'pl'),
-              excerpt: this.translateTitle(articleData.excerpt || articleData.title.substring(0, 100), 'pl'),
-              slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: добавляем языковой суффикс
+              title: articleData.title,
+              content: articleData.content,
+              excerpt: articleData.excerpt || articleData.title.substring(0, 100),
+              slug: `${baseSlug}-pl`
             }
           };
-        } catch (error: any) {
-          warnings.push(`Failed to create translations: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       

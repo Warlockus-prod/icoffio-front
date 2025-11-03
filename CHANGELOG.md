@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [7.21.0] - 2025-01-13
+## [7.22.0] - 2025-01-13
 
 ### 🎬 Added - Video Advertising System
 - ✅ **NEW VIDEO PLACEID ACTIVATED:** All 4 video advertising places now active

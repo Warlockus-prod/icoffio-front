@@ -7,6 +7,7 @@ const CATEGORIES = [
   { id: 'ai', label: 'AI & Machine Learning', icon: '🤖', color: 'blue' },
   { id: 'apple', label: 'Apple & iOS', icon: '🍎', color: 'gray' },
   { id: 'tech', label: 'Technology', icon: '⚙️', color: 'green' },
+  { id: 'news', label: 'News', icon: '📰', color: 'red' },
   { id: 'digital', label: 'Digital & Trends', icon: '📱', color: 'purple' }
 ];
 
@@ -108,6 +109,7 @@ export default function URLInput() {
       blue: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300',
       gray: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300',
       green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300',
+      red: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300',
       purple: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300'
     };
     return colors[category as keyof typeof colors] || colors.blue;

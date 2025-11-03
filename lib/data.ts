@@ -160,12 +160,21 @@ async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promi
 }
 
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
+  // ✅ ПРИОРИТЕТ: Сначала проверяем runtime статьи (свежие, только что созданные)
+  const localArticles = await getLocalArticles();
+  const runtimeFiltered = filterArticlesByLanguage(localArticles, locale);
+  
+  // Если есть runtime статьи, показываем их первыми
+  if (runtimeFiltered.length > 0) {
+    console.log(`✅ Found ${runtimeFiltered.length} local/runtime articles for ${locale}`);
+  }
+  
   try {
-    // ✅ v7.14.0: Используем Supabase API
+    // ✅ v7.14.0: Используем Supabase API для старых статей
     const response = await fetch(`https://app.icoffio.com/api/supabase-articles?lang=${locale}&limit=${limit}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 120 } // ISR кеширование
+      next: { revalidate: 60 } // ✅ Уменьшен кеш до 60 сек для быстрого обновления
     });
     
     if (!response.ok) {
@@ -192,15 +201,20 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
       tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
     }));
 
-    // Комбинируем с локальными статьями
-    return await combineArticles(dbPosts.slice(0, Math.floor(limit / 2)), locale);
+    // ✅ ВАЖНО: Runtime статьи ПЕРВЫМИ, затем Supabase статьи
+    const combined = [...runtimeFiltered, ...dbPosts];
+    
+    // Удаляем дубликаты по slug (runtime имеют приоритет)
+    const unique = combined.filter((article, index, self) =>
+      index === self.findIndex((a) => a.slug === article.slug)
+    );
+    
+    return unique.slice(0, limit);
   } catch (error) {
     console.warn('Ошибка загрузки Supabase статей, используем только локальные:', error);
     
-    // Fallback к только локальным статьям
-    const localArticles = await getLocalArticles();
-    const filtered = filterArticlesByLanguage(localArticles, locale);
-    return filtered.slice(0, limit);
+    // Fallback к только локальным статьям (включая runtime)
+    return runtimeFiltered.slice(0, limit);
   }
 }
 

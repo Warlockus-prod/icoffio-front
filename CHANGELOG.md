@@ -16,6 +16,87 @@
 
 ---
 
+## [7.17.0] - 2025-11-03 - 🔧 Critical UX Fixes: Homepage, URLs & Categories
+
+**BUG FIXES** - Fixed critical issues with article display, URL generation, and category selection
+
+### 🐛 BUGS FIXED
+
+1. **Articles Now Show on Homepage!** ✅
+   - **Problem:** Published articles didn't appear on main page
+   - **Cause:** Runtime articles had no priority, 120s cache delay
+   - **Fix:** 
+     - Runtime articles now have PRIORITY (show first)
+     - Reduced cache from 120s → 60s
+     - Direct check of `getLocalArticles()` including runtime
+   - **Result:** New articles appear immediately on homepage
+
+2. **Russian Text in URLs Fixed** ✅
+   - **Problem:** URLs contained Cyrillic: `%D0%BB%D1%83%D1%87%D1%88%D0%B5-...`
+   - **Cause:** `generateSlug()` kept Cyrillic characters in slugs
+   - **Fix:**
+     - Added full Russian → Latin transliteration map
+     - Only `a-z0-9` characters allowed in slugs
+     - Fallback: `article-{timestamp}` if slug is empty
+   - **Result:** Clean English URLs: `google-android-luchshe-zashchischaet...`
+
+3. **News Category Added** ✅
+   - **Problem:** No "News" category in URL Parser
+   - **Fix:** Added `{ id: 'news', label: 'News', icon: '📰', color: 'red' }`
+   - **Result:** Full 5 categories: AI, Apple, Tech, News, Digital
+
+4. **Article Page 404 Auto-Fixed** ✅
+   - **Consequence:** Old Russian URLs won't work (by design)
+   - **Solution:** New articles have clean transliterated slugs
+   - **Impact:** All new articles accessible via proper URLs
+
+### 🔧 Technical Changes
+
+**Modified Files:**
+- `components/admin/URLParser/URLInput.tsx`
+  - Added News category with red color scheme
+  - Updated color map to include red
+
+- `lib/unified-article-service.ts`
+  - Complete rewrite of `generateSlug()` method
+  - Added 66-character transliteration map (Cyrillic → Latin)
+  - Only Latin characters allowed in output
+  - Extended slug limit to 60 characters
+
+- `lib/data.ts` → `getAllPosts()`
+  - Runtime articles now checked FIRST
+  - Reduced revalidate cache: 120s → 60s
+  - Runtime articles have priority over Supabase
+  - Proper deduplication (runtime wins)
+
+### 🎯 Impact
+
+**Before:**
+- ❌ Published articles invisible on homepage (2min delay)
+- ❌ Russian URLs: `%D0%BB%D1%83%D1%87%D1%88%D0%B5`
+- ❌ 404 errors on article pages
+- ❌ No News category
+
+**After:**
+- ✅ Articles visible immediately (runtime priority)
+- ✅ Clean URLs: `google-android-luchshe-zashchischaet`
+- ✅ All articles accessible
+- ✅ Full category set (5 categories)
+
+### 📝 Notes
+
+**URL Transliteration Examples:**
+- `Лучше` → `luchshe`
+- `Защищает` → `zashchischaet`
+- `Новости` → `novosti`
+
+**Runtime Article Priority:**
+```
+[New Runtime Articles] → [Supabase Articles] → [Local Articles]
+```
+
+---
+
 ## [7.16.0] - 2025-11-03 - 🚀 MAJOR FIX: Complete Publication System Overhaul
 
 **CRITICAL FIXES** - Multiple major bugs fixed in article creation and publication workflow

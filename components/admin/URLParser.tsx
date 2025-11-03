@@ -6,12 +6,16 @@ import TextInput from './URLParser/TextInput';
 import AIGenerate from './URLParser/AIGenerate';
 import ParsingQueue from './URLParser/ParsingQueue';
 import ArticleSuccessModal from './ArticleSuccessModal';
+import ParsingProgressModal from './ParsingProgressModal';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 
 export default function URLParser() {
   const [inputMode, setInputMode] = useState<'url' | 'text' | 'ai'>('url');
   const [successArticle, setSuccessArticle] = useState<Article | null>(null);
   const [prevReadyJobsLength, setPrevReadyJobsLength] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
+  const [progressStep, setProgressStep] = useState<1 | 2 | 3 | 4>(1);
+  const [progressTitle, setProgressTitle] = useState('');
   const { parsingQueue, statistics } = useAdminStore();
   
   const activeJobs = parsingQueue.filter(job => 
@@ -20,6 +24,36 @@ export default function URLParser() {
   
   const readyJobs = parsingQueue.filter(job => job.status === 'ready').length;
   const failedJobs = parsingQueue.filter(job => job.status === 'failed').length;
+
+  // Отслеживаем активные работы для прогресс-бара
+  useEffect(() => {
+    const activeJob = parsingQueue.find(job => 
+      ['parsing', 'ai_processing', 'translating', 'images'].includes(job.status)
+    );
+
+    if (activeJob) {
+      setShowProgress(true);
+      setProgressTitle(activeJob.url || 'Processing article');
+      
+      // Мапим статус на шаг (1-4)
+      switch (activeJob.status) {
+        case 'parsing':
+          setProgressStep(1);
+          break;
+        case 'ai_processing':
+        case 'translating':
+          setProgressStep(2);
+          break;
+        case 'images':
+          setProgressStep(3);
+          break;
+        default:
+          setProgressStep(4);
+      }
+    } else {
+      setShowProgress(false);
+    }
+  }, [parsingQueue]);
 
   // Отслеживаем новые готовые статьи
   useEffect(() => {
@@ -301,6 +335,22 @@ export default function URLParser() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showProgress && (
+        <ParsingProgressModal
+          isOpen={showProgress}
+          currentStep={progressStep}
+          articleTitle={progressTitle}
+        />
+      )}
+
+      {successArticle && (
+        <ArticleSuccessModal
+          article={successArticle}
+          onClose={() => setSuccessArticle(null)}
+        />
+      )}
     </div>
   );
 }

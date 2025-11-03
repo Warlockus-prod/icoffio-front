@@ -248,17 +248,24 @@ class UnifiedArticleService {
     let content = input.content || '';
     let category = input.category || 'tech';
     
-    // Если есть URL - извлекаем контент (EMERGENCY BYPASS для стабильности)
+    // Если есть URL - извлекаем РЕАЛЬНЫЙ контент через парсер
     if (input.url) {
       try {
-        // ВРЕМЕННОЕ РЕШЕНИЕ: создаем контент из URL без парсинга
-        const urlObj = new URL(input.url);
-        title = title || `Article from ${urlObj.hostname}`;
-        content = content || `Content extracted from ${input.url}\n\nThis is an automatically created article for admin panel testing.\n\nOriginal URL: ${input.url}`;
-        category = this.categorizeFromDomain(urlObj.hostname);
+        console.log(`🌐 Parsing content from URL: ${input.url}`);
+        const extractedContent = await this.extractContentFromUrl(input.url);
+        
+        title = extractedContent.title || title;
+        content = extractedContent.content || content;
+        category = input.category || extractedContent.category || this.categorizeFromDomain(new URL(input.url).hostname);
+        
+        console.log(`✅ Successfully extracted content:`, {
+          title: title.substring(0, 50) + '...',
+          contentLength: content.length,
+          category
+        });
       } catch (error) {
         console.error('❌ Critical error extracting content from URL:', error);
-        throw new Error(`Invalid URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Failed to parse URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
     

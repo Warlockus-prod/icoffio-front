@@ -16,6 +16,34 @@
 
 ---
 
+## [7.15.2] - 2025-11-03 - 🔴 CRITICAL FIX: Real URL Parsing Restored
+
+**HOTFIX** - Fixed critical bug where URL parsing was completely broken
+
+### 🔥 CRITICAL BUG FIX
+- **Fixed URL Parsing:** Removed "EMERGENCY BYPASS" that was creating fake content instead of parsing real URLs
+- **Real Content Extraction:** Now uses actual `urlParserService.extractContent()` to parse article content from URLs
+- **Previous Behavior:** System was showing "Content extracted from [URL]" placeholder text instead of real article content
+- **New Behavior:** System now correctly parses and extracts full article content, title, and category from URLs
+
+### 📝 Technical Details
+**Modified Files:**
+- `lib/unified-article-service.ts` → `prepareArticleData()` method
+  - Replaced fake content generation with real `extractContentFromUrl()` call
+  - Added detailed logging for parsing process
+  - Better error handling for failed URL parsing
+
+### 🎯 Impact
+- **Before:** Articles created from URLs had no real content (major workflow blocker) ❌
+- **After:** Articles are now properly parsed with full content, ready for editing and publishing ✅
+
+### 🔧 Changed
+- Modified `prepareArticleData()` to call `extractContentFromUrl()` instead of generating placeholder text
+- Improved logging for URL parsing process
+- Enhanced error messages for parsing failures
+
+---
+
 ## [7.15.1] - 2025-11-03 - 🌍 Complete EN Localization for Admin UI
 
 **BUGFIX** - Removed all remaining Russian text from admin panel UI

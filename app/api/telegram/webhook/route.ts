@@ -58,9 +58,17 @@ function verifyRequest(request: NextRequest): boolean {
   const secret = request.headers.get('x-telegram-bot-api-secret-token');
   const expectedSecret = process.env.TELEGRAM_BOT_SECRET;
   
-  if (expectedSecret && secret !== expectedSecret) {
-    console.warn('[Bot] Invalid secret token');
-    return false;
+  // ТОЛЬКО если expectedSecret задан в ENV, проверяем его
+  // Иначе пропускаем (для совместимости)
+  if (expectedSecret) {
+    if (secret !== expectedSecret) {
+      console.warn('[Bot] Invalid secret token - expected but not matched');
+      return false;
+    }
+    console.log('[Bot] ✅ Secret token verified');
+  } else {
+    // Нет expectedSecret - пропускаем проверку
+    console.log('[Bot] ⚠️ No TELEGRAM_BOT_SECRET configured, skipping verification');
   }
   
   return true;

@@ -194,8 +194,8 @@ export default async function Page({ params }: { params: { locale: string } }) {
       heroPosts = graphqlHeroPosts;
     }
     
-    // LATEST NEWS: Популярные статьи из Supabase
-    const popularSlugs = await getPopularArticles(12);
+    // LATEST NEWS: Популярные статьи из Supabase с фильтрацией по языку
+    const popularSlugs = await getPopularArticles(12, params.locale);
     
     if (popularSlugs.length > 0) {
       // Получаем все посты
@@ -209,16 +209,18 @@ export default async function Page({ params }: { params: { locale: string } }) {
       
       if (popularPosts.length > 0) {
         posts = popularPosts;
-        console.log('[Home Page] ✅ Showing popular articles:', popularPosts.length);
+        console.log(`[Home Page] ✅ Showing ${popularPosts.length} popular articles for ${params.locale}`);
       } else {
         // Если популярных не нашли, показываем последние
         const latestPosts = await getAllPosts(12, params.locale);
         if (latestPosts && latestPosts.length > 0) posts = latestPosts;
+        console.log(`[Home Page] ℹ️ No popular articles found for ${params.locale}, showing latest`);
       }
     } else {
       // Если Supabase пустой или недоступен, показываем последние
       const latestPosts = await getAllPosts(12, params.locale);
       if (latestPosts && latestPosts.length > 0) posts = latestPosts;
+      console.log(`[Home Page] ℹ️ Supabase unavailable for ${params.locale}, showing latest`);
     }
     
     if (graphqlCats && graphqlCats.length > 0) cats = graphqlCats;

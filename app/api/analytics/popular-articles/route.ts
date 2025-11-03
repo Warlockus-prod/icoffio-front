@@ -16,11 +16,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
+    const locale = searchParams.get('locale') || undefined; // Фильтр по языку: en или pl
 
     // Validate limit
     if (limit < 1 || limit > 100) {
       return NextResponse.json(
         { error: 'Limit must be between 1 and 100' },
+        { status: 400 }
+      );
+    }
+
+    // Validate locale
+    if (locale && !['en', 'pl'].includes(locale)) {
+      return NextResponse.json(
+        { error: 'Locale must be either "en" or "pl"' },
         { status: 400 }
       );
     }
@@ -45,12 +54,19 @@ export async function GET(request: NextRequest) {
       console.warn('[Popular Articles API] Failed to refresh materialized view:', err);
     }
 
-    // Get popular articles
-    const { data, error } = await supabase
+    // Get popular articles с фильтрацией по языку
+    let query = supabase
       .from('article_popularity')
       .select('article_slug, total_views, unique_views, last_viewed, popularity_score')
-      .order('popularity_score', { ascending: false })
-      .limit(limit);
+      .order('popularity_score', { ascending: false });
+    
+    // Фильтруем по языку если указан (для en и pl)
+    if (locale) {
+      query = query.like('article_slug', `%-${locale}`);
+      console.log(`[Popular Articles API] 🌍 Filtering for locale: ${locale}`);
+    }
+    
+    const { data, error } = await query.limit(limit);
 
     if (error) {
       console.error('[Popular Articles API] Supabase error:', error);

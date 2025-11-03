@@ -85,13 +85,21 @@ export async function trackArticleView(
 }
 
 /**
- * Получить популярные статьи
+ * Получить популярные статьи с фильтрацией по языку
  */
-export async function getPopularArticles(limit: number = 10): Promise<string[]> {
+export async function getPopularArticles(limit: number = 10, locale?: string): Promise<string[]> {
   // Check cache first (15 min TTL) - OPTIMIZATION to reduce DB calls
+  const cacheKey = locale ? `${locale}:${limit}` : `all:${limit}`;
   const now = Date.now();
+  
   if (popularArticlesCache && (now - popularArticlesCache.timestamp) < POPULAR_ARTICLES_CACHE_TTL) {
     console.log(`[Supabase Analytics] 💾 Using cached popular articles (${popularArticlesCache.data.length})`);
+    // Если есть locale, фильтруем по языковому суффиксу
+    if (locale) {
+      const filtered = popularArticlesCache.data.filter(slug => slug.endsWith(`-${locale}`));
+      console.log(`[Supabase Analytics] 🌍 Filtered for ${locale}: ${filtered.length} articles`);
+      return filtered.slice(0, limit);
+    }
     return popularArticlesCache.data.slice(0, limit);
   }
 
@@ -103,11 +111,20 @@ export async function getPopularArticles(limit: number = 10): Promise<string[]> 
     // Will be refreshed by scheduled Supabase function instead
     
     // Получаем популярные статьи
-    const { data, error } = await (client as any)
+    let query = (client as any)
       .from('article_popularity')
       .select('article_slug, total_views, popularity_score')
-      .order('popularity_score', { ascending: false })
-      .limit(limit);
+      .order('popularity_score', { ascending: false });
+    
+    // Фильтруем по языку если указан
+    if (locale) {
+      query = query.like('article_slug', `%-${locale}`);
+      console.log(`[Supabase Analytics] 🌍 Filtering popular articles for locale: ${locale}`);
+    }
+    
+    query = query.limit(limit);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[Supabase Analytics] Failed to get popular articles:', error.message);
@@ -116,13 +133,15 @@ export async function getPopularArticles(limit: number = 10): Promise<string[]> 
 
     const slugs = (data || []).map((row: any) => row.article_slug);
     
-    // Update cache
-    popularArticlesCache = {
-      data: slugs,
-      timestamp: now
-    };
+    // Update cache (кэшируем все статьи без фильтра)
+    if (!locale) {
+      popularArticlesCache = {
+        data: slugs,
+        timestamp: now
+      };
+    }
     
-    console.log(`[Supabase Analytics] ✅ Got ${slugs.length} popular articles (cached)`);
+    console.log(`[Supabase Analytics] ✅ Got ${slugs.length} popular articles${locale ? ` for ${locale}` : ''}`);
     return slugs;
   } catch (error) {
     console.error('[Supabase Analytics] Exception getting popular articles:', error);

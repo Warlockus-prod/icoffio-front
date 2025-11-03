@@ -370,6 +370,30 @@ export default function ContentEditor({ article, language = 'en' }: ContentEdito
               </div>
             </div>
 
+            {/* Current Image Preview (only for English/original) */}
+            {language === 'en' && editedContent.imageUrl && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Current Featured Image
+                </label>
+                <div className="relative group">
+                  <img
+                    src={editedContent.imageUrl}
+                    alt={editedContent.title}
+                    className="w-full h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <button
+                      onClick={() => handleChange('imageUrl', '')}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      🗑️ Remove Image
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Image Source Selector (only for English/original) */}
             {language === 'en' && (
               <ImageSourceSelector

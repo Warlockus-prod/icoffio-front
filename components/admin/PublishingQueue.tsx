@@ -5,6 +5,7 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { marked } from 'marked';
 import { ArticlesListSkeleton } from './LoadingStates';
 
 interface ReadyArticle extends Article {
@@ -347,7 +348,7 @@ export default function PublishingQueue() {
       {/* Preview Modal */}
       {previewArticle && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -355,19 +356,36 @@ export default function PublishingQueue() {
                 </h3>
                 <button
                   onClick={handleClosePreview}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl"
                 >
                   ✕
                 </button>
               </div>
               
-              <div className="prose dark:prose-invert max-w-none">
-                <h1>{previewArticle.title}</h1>
-                <p className="text-gray-600 dark:text-gray-400 italic">{previewArticle.excerpt}</p>
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              <div className="prose prose-lg dark:prose-invert max-w-none">
+                {/* Featured Image */}
+                {previewArticle.image && (
+                  <div className="mb-6">
+                    <img
+                      src={previewArticle.image}
+                      alt={previewArticle.title}
+                      className="w-full h-64 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+                
+                <h1 className="text-3xl font-bold mb-4">{previewArticle.title}</h1>
+                <p className="text-xl text-gray-600 dark:text-gray-400 italic mb-4">{previewArticle.excerpt}</p>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                   By {previewArticle.author} • {previewArticle.category}
                 </div>
-                <div dangerouslySetInnerHTML={{ __html: (previewArticle.content || '').replace(/\n/g, '<br>') }} />
+                
+                <div 
+                  className="prose-content"
+                  dangerouslySetInnerHTML={{ 
+                    __html: marked(previewArticle.content || '') 
+                  }} 
+                />
               </div>
               
               <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600 flex justify-end gap-3">
@@ -379,12 +397,22 @@ export default function PublishingQueue() {
                 </button>
                 <button
                   onClick={() => {
+                    useAdminStore.getState().setActiveTab('editor');
+                    useAdminStore.getState().selectArticle(previewArticle);
+                    handleClosePreview();
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  ✏️ Edit Article
+                </button>
+                <button
+                  onClick={() => {
                     handlePublishSingle(previewArticle);
                     handleClosePreview();
                   }}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                 >
-                  🚀 Publish This Article
+                  🚀 Publish Now
                 </button>
               </div>
             </div>

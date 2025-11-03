@@ -79,11 +79,11 @@ export default function ContentPromptManager() {
   };
 
   /**
-   * Копирование промпта в буфер обмена
+   * Copy prompt to clipboard
    */
   const handleCopyPrompt = (prompt: string) => {
     navigator.clipboard.writeText(prompt);
-    toast.success('📋 Промпт скопирован!');
+    toast.success('📋 Prompt copied!');
   };
 
   return (
@@ -91,36 +91,36 @@ export default function ContentPromptManager() {
       {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
-          📝 Управление промптами контента
+          📝 Content Prompts Management
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Настройте стили обработки текста для статей и Telegram бота
+          Configure text processing styles for articles and Telegram bot
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-          <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Всего шаблонов</p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total Templates</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {CONTENT_PROMPT_TEMPLATES.length}
           </p>
         </div>
         <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-          <p className="text-xs text-green-600 dark:text-green-400 font-medium">Активных</p>
+          <p className="text-xs text-green-600 dark:text-green-400 font-medium">Active</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {CONTENT_PROMPT_TEMPLATES.filter(t => t.enabled).length}
           </p>
         </div>
         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-          <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Дефолтный</p>
+          <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Default</p>
           <p className="text-base font-bold text-gray-900 dark:text-white">
             {CONTENT_PROMPT_TEMPLATES.find(t => t.isDefault)?.icon}{' '}
             {CONTENT_PROMPT_TEMPLATES.find(t => t.isDefault)?.name}
           </p>
         </div>
         <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
-          <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">Выбран</p>
+          <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">Selected</p>
           <p className="text-base font-bold text-gray-900 dark:text-white">
             {selectedTemplate.icon} {selectedTemplate.name}
           </p>
@@ -131,7 +131,7 @@ export default function ContentPromptManager() {
         {/* Left: Templates List */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Preset шаблоны
+            Preset Templates
           </h3>
 
           <div className="space-y-2">
@@ -176,7 +176,7 @@ export default function ContentPromptManager() {
         {/* Right: Selected Template Details */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Детали шаблона: {selectedTemplate.icon} {selectedTemplate.name}
+            Template Details: {selectedTemplate.icon} {selectedTemplate.name}
           </h3>
 
           {/* System Prompt */}
@@ -184,13 +184,13 @@ export default function ContentPromptManager() {
             <div className="bg-gray-50 dark:bg-gray-750 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-gray-900 dark:text-white">
-                  Системный промпт
+                  System Prompt
                 </h4>
                 <button
                   onClick={() => handleCopyPrompt(selectedTemplate.systemPrompt)}
                   className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  📋 Копировать
+                  📋 Copy
                 </button>
               </div>
             </div>
@@ -209,18 +209,18 @@ export default function ContentPromptManager() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        toast.success('Промпт сохранен!');
+                        toast.success('Prompt saved!');
                         setEditingPrompt(null);
                       }}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                      ✅ Сохранить
+                      ✅ Save
                     </button>
                     <button
                       onClick={() => setEditingPrompt(null)}
                       className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
                     >
-                      ✖️ Отмена
+                      ✖️ Cancel
                     </button>
                   </div>
                 </div>
@@ -233,31 +233,31 @@ export default function ContentPromptManager() {
                     onClick={() => setEditingPrompt(selectedTemplate.id)}
                     className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    ✏️ Редактировать
+                    ✏️ Edit
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Custom Prompt (для custom style) */}
+          {/* Custom Prompt (for custom style) */}
           {selectedTemplate.style === 'custom' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="bg-purple-50 dark:bg-purple-900/20 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <h4 className="font-semibold text-gray-900 dark:text-white">
-                  Кастомные инструкции
+                  Custom Instructions
                 </h4>
               </div>
               <div className="p-4">
                 <textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Введите ваши собственные инструкции для AI..."
+                  placeholder="Enter your custom AI instructions..."
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Эти инструкции будут добавлены к базовому промпту
+                  These instructions will be added to the base prompt
                 </p>
               </div>
             </div>
@@ -268,19 +268,19 @@ export default function ContentPromptManager() {
       {/* Testing Section */}
       <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          🧪 Тестирование промпта
+          🧪 Test Prompt
         </h3>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Исходный текст
+              Original Text
             </label>
             <textarea
               value={testText}
               onChange={(e) => setTestText(e.target.value)}
-              placeholder="Введите текст для тестирования промпта..."
+              placeholder="Enter text to test the prompt..."
               rows={10}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
@@ -289,7 +289,7 @@ export default function ContentPromptManager() {
           {/* Output */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Обработанный текст
+              Processed Text
             </label>
             <div className="w-full h-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 overflow-y-auto">
               {processedResult ? (

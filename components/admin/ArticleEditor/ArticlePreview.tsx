@@ -2,6 +2,7 @@
 
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { useState } from 'react';
+import { marked } from 'marked';
 
 const LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇺🇸', color: 'blue' },
@@ -95,6 +96,20 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-lg p-6">
           {hasTranslation && content ? (
             <div className="space-y-4">
+              {/* Featured Image */}
+              {article.image && (
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                    FEATURED IMAGE
+                  </label>
+                  <img
+                    src={article.image}
+                    alt={content.title}
+                    className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                  />
+                </div>
+              )}
+              
               {/* Title */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -120,10 +135,13 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
                   CONTENT PREVIEW
                 </label>
-                <div className="max-h-64 overflow-y-auto prose prose-sm dark:prose-invert">
-                  <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-6">
-                    {content.content.slice(0, 300)}...
-                  </div>
+                <div className="max-h-96 overflow-y-auto prose prose-sm dark:prose-invert bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                  <div 
+                    className="text-sm text-gray-700 dark:text-gray-300"
+                    dangerouslySetInnerHTML={{ 
+                      __html: marked(content.content.slice(0, 1000) + (content.content.length > 1000 ? '\n\n...' : '')) 
+                    }}
+                  />
                 </div>
               </div>
 
@@ -138,11 +156,23 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
               {/* Actions */}
               <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
                 <div className="flex gap-2">
-                  <button className="flex-1 px-3 py-2 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors">
+                  <button 
+                    onClick={() => {
+                      useAdminStore.getState().setActiveTab('editor');
+                      useAdminStore.getState().selectArticle(article);
+                    }}
+                    className="flex-1 px-3 py-2 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors"
+                  >
                     ✏️ Edit
                   </button>
-                  <button className="flex-1 px-3 py-2 text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors">
-                    👁️ Preview
+                  <button 
+                    onClick={() => {
+                      const url = `/${lang}/article/${article.id}`;
+                      window.open(url, '_blank');
+                    }}
+                    className="flex-1 px-3 py-2 text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
+                  >
+                    🔗 View
                   </button>
                 </div>
               </div>

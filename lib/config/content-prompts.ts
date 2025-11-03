@@ -34,8 +34,8 @@ export interface ContentPromptTemplate {
 export const CONTENT_PROMPT_TEMPLATES: ContentPromptTemplate[] = [
   {
     id: 'journalistic',
-    name: 'Публицистический стиль',
-    description: 'Переписать текст в публицистическом стиле для широкой аудитории',
+    name: 'Journalistic Style',
+    description: 'Rewrite text in journalistic style for wide audience',
     style: 'journalistic',
     icon: '📰',
     enabled: true,
@@ -56,8 +56,8 @@ Write in the same language as the input text.`
   },
   {
     id: 'as-is',
-    name: 'Оставить как есть',
-    description: 'Не изменять текст, использовать как есть',
+    name: 'Keep As Is',
+    description: 'Do not change text, use as is',
     style: 'as-is',
     icon: '✋',
     enabled: true,
@@ -74,8 +74,8 @@ This is a pass-through mode - preserve the author's original voice and style com
   },
   {
     id: 'seo-optimized',
-    name: 'SEO оптимизация',
-    description: 'Оптимизировать текст для поисковых систем',
+    name: 'SEO Optimized',
+    description: 'Optimize text for search engines',
     style: 'seo-optimized',
     icon: '🔍',
     enabled: true,
@@ -96,8 +96,8 @@ Write in the same language as the input text.`
   },
   {
     id: 'academic',
-    name: 'Академический стиль',
-    description: 'Переписать в академическом/научном стиле',
+    name: 'Academic Style',
+    description: 'Rewrite in academic/scientific style',
     style: 'academic',
     icon: '🎓',
     enabled: true,
@@ -118,8 +118,8 @@ Write in the same language as the input text.`
   },
   {
     id: 'casual',
-    name: 'Разговорный стиль',
-    description: 'Переписать в легком разговорном стиле',
+    name: 'Casual Style',
+    description: 'Rewrite in light conversational style',
     style: 'casual',
     icon: '💬',
     enabled: true,
@@ -140,8 +140,8 @@ Write in the same language as the input text.`
   },
   {
     id: 'technical',
-    name: 'Технический стиль',
-    description: 'Переписать в техническом стиле для специалистов',
+    name: 'Technical Style',
+    description: 'Rewrite in technical style for specialists',
     style: 'technical',
     icon: '⚙️',
     enabled: true,
@@ -162,8 +162,8 @@ Write in the same language as the input text.`
   },
   {
     id: 'custom',
-    name: 'Кастомный промпт',
-    description: 'Использовать свой собственный промпт',
+    name: 'Custom Prompt',
+    description: 'Use your own custom prompt',
     style: 'custom',
     icon: '✨',
     enabled: true,
@@ -243,17 +243,17 @@ export function getTelegramStyleButtons(): Array<{
 }> {
   return [
     {
-      text: '📰 Публицистический',
+      text: '📰 Journalistic',
       callback_data: 'style:journalistic',
       style: 'journalistic'
     },
     {
-      text: '✋ Оставить как есть',
+      text: '✋ Keep As Is',
       callback_data: 'style:as-is',
       style: 'as-is'
     },
     {
-      text: '✨ Свой промпт',
+      text: '✨ Custom Prompt',
       callback_data: 'style:custom',
       style: 'custom'
     }
@@ -269,7 +269,7 @@ export function getTelegramStyleButtonsExtended(): Array<{
   style: ContentProcessingStyle;
 }> {
   return getActivePromptTemplates()
-    .filter(t => t.style !== 'custom') // Кастомный отдельно
+    .filter(t => t.style !== 'custom') // Custom prompt separately
     .map(t => ({
       text: `${t.icon} ${t.name}`,
       callback_data: `style:${t.id}`,
@@ -277,7 +277,7 @@ export function getTelegramStyleButtonsExtended(): Array<{
     }))
     .concat([
       {
-        text: '✨ Свой промпт',
+        text: '✨ Custom Prompt',
         callback_data: 'style:custom',
         style: 'custom'
       }

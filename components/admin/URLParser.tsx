@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import URLInput from './URLParser/URLInput';
 import TextInput from './URLParser/TextInput';
 import AIGenerate from './URLParser/AIGenerate';
 import ParsingQueue from './URLParser/ParsingQueue';
-import { useAdminStore } from '@/lib/stores/admin-store';
+import ArticleSuccessModal from './ArticleSuccessModal';
+import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 
 export default function URLParser() {
   const [inputMode, setInputMode] = useState<'url' | 'text' | 'ai'>('url');
+  const [successArticle, setSuccessArticle] = useState<Article | null>(null);
+  const [prevReadyJobsLength, setPrevReadyJobsLength] = useState(0);
   const { parsingQueue, statistics } = useAdminStore();
   
   const activeJobs = parsingQueue.filter(job => 
@@ -17,6 +20,21 @@ export default function URLParser() {
   
   const readyJobs = parsingQueue.filter(job => job.status === 'ready').length;
   const failedJobs = parsingQueue.filter(job => job.status === 'failed').length;
+
+  // Отслеживаем новые готовые статьи
+  useEffect(() => {
+    if (readyJobs > prevReadyJobsLength) {
+      // Новая статья готова!
+      const latestReadyJob = parsingQueue
+        .filter(job => job.status === 'ready' && job.article)
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
+      
+      if (latestReadyJob && latestReadyJob.article) {
+        setSuccessArticle(latestReadyJob.article);
+      }
+    }
+    setPrevReadyJobsLength(readyJobs);
+  }, [readyJobs, parsingQueue, prevReadyJobsLength]);
 
   return (
     <div className="space-y-6">
@@ -210,6 +228,14 @@ export default function URLParser() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Article Success Modal */}
+      {successArticle && (
+        <ArticleSuccessModal
+          article={successArticle}
+          onClose={() => setSuccessArticle(null)}
+        />
       )}
 
       {/* Main Queue */}

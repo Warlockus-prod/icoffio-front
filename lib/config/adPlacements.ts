@@ -133,7 +133,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     description: '160x600 вертикальный баннер (Mobile Sidebar)',
     location: 'article',
     position: 'sidebar-top',
-    enabled: false, // Отключен по умолчанию, т.к. может быть навязчивым
+    enabled: true, // ✅ АКТИВИРОВАНО - пользователь добавил этот PlaceID
     priority: 6,
     device: 'mobile',
     addedDate: '2025-10-28',

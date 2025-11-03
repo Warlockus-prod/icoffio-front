@@ -28,8 +28,8 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
       data-hyb-ssp-ad-place={placeId}
       className={`vox-ad-container ${className}`}
       style={{
-        width: '100%',
-        maxWidth: dimensions.width,
+        width: format === '970x250' || format === '728x90' ? dimensions.width : '100%',
+        maxWidth: format === '970x250' || format === '728x90' ? 'none' : dimensions.width,
         minHeight: dimensions.height,
         margin: '20px auto',
         display: 'block',

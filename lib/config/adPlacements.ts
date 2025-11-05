@@ -130,10 +130,10 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     format: '160x600',
     placement: 'mobile',
     name: 'Wide Skyscraper Mobile',
-    description: '160x600 вертикальный баннер (Mobile) - ОТКЛЮЧЕН: конфликт с desktop sidebar',
+    description: '160x600 вертикальный баннер (Mobile) - в середине контента',
     location: 'article',
     position: 'content-middle',
-    enabled: false, // ОТКЛЮЧЕН: mobile баннер показывался в desktop sidebar (160px вместо 300px)
+    enabled: true, // ВКЛЮЧЕН: показывается только на mobile (фильтр device === 'mobile')
     priority: 6,
     device: 'mobile',
     addedDate: '2025-10-28',

@@ -80,8 +80,7 @@ export function UniversalAd({
       
       case 'mobile':
         return {
-          width: '100%',
-          maxWidth: dimensions?.width || '100%',
+          width: dimensions?.width || 'auto', // ФИКСИРОВАННАЯ ширина (320px, 160px)
           minHeight: dimensions?.height || 'auto',
           margin: '16px auto',
           display: 'block' as const,

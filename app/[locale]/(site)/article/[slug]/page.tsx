@@ -510,6 +510,7 @@ export default async function Article({ params }: { params: { locale: string; sl
   
   // Mobile баннеры
   const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
+  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile');
   const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
   const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
   
@@ -630,6 +631,18 @@ export default async function Article({ params }: { params: { locale: string; sl
                 <p className="text-neutral-600 dark:text-neutral-300">Content not available.</p>
               )}
             </div>
+
+            {/* Реклама в середине контента (content-middle) - Mobile ONLY (160x600) */}
+            {adsContentMiddleMobile.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="lg:hidden"
+              />
+            ))}
 
             {/* Реклама после контента (content-bottom) - Desktop */}
             {adsContentBottomDesktop.map((ad) => (

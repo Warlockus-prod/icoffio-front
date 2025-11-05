@@ -140,3 +140,4 @@ curl "https://app.icoffio.com/api/analytics/popular-articles?limit=10&locale=pl"
 **Статус:** ✅ READY FOR PRODUCTION  
 **Версия:** v7.14.1 (Language Filter Fix)
 
+

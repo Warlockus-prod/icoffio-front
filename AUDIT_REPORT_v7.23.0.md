@@ -275,3 +275,4 @@ slug: this.generateSlug(articleData.title) // БЕЗ суффикса для о�
 3. Monitor logs for any issues
 4. Integrate real popularity metrics (Phase 2)
 
+

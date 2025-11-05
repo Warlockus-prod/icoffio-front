@@ -83,29 +83,29 @@ export function UniversalAd({
         return {
           ...baseStyles,
           width: '100%',
-          maxWidth: '320px',
+          maxWidth: '100%', // Full sidebar width
           minHeight: dimensions?.height || 'auto',
-          margin: '0 0 20px 0',
+          margin: '0 0 24px 0', // Отступ только снизу
         };
       
       case 'mobile':
         return {
           ...baseStyles,
-          margin: '12px auto',
+          margin: '16px auto', // Средний отступ для mobile
           maxWidth: '100%',
         };
       
       case 'display':
         return {
           ...baseStyles,
-          margin: '8px auto',
+          margin: '16px auto',
           textAlign: 'center' as const,
         };
       
-      default: // inline
+      default: // inline (728x90)
         return {
           ...baseStyles,
-          margin: '8px auto',
+          margin: '20px auto', // Нормальный отступ сверху/снизу
           textAlign: 'center' as const,
         };
     }

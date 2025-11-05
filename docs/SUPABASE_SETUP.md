@@ -214,3 +214,4 @@ Supabase Free Plan:
 
 
 
+

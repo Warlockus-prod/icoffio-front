@@ -31,7 +31,7 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
         width: '100%',
         maxWidth: dimensions.width,
         minHeight: dimensions.height,
-        margin: '16px auto',
+        margin: '20px auto', // Нормальный отступ для inline баннеров
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getTranslation } from "@/lib/i18n";
+import { getTranslation, locales } from "@/lib/i18n";
 import { LanguageSelector } from "./LanguageSelector";
 import { useSearch } from "./SearchProvider";
 import { CategoryIcon } from "./CategoryIcon";
@@ -17,7 +17,7 @@ export function Header() {
   useEffect(() => {
     // Get locale from URL
     const pathLocale = window.location.pathname.split('/')[1];
-    const supportedLocales = ['en', 'pl', 'de', 'ro', 'cs'];
+    const supportedLocales = locales as readonly string[];
     
     if (supportedLocales.includes(pathLocale)) {
       setLocale(pathLocale);

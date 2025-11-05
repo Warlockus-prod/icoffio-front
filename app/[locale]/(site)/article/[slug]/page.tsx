@@ -505,6 +505,7 @@ export default async function Article({ params }: { params: { locale: string; sl
   const adsContentBottom = articleAds.filter(ad => ad.position === 'content-bottom');
   const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top');
   const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom');
+  const adsFooter = articleAds.filter(ad => ad.position === 'footer'); // Before Related Articles
   
   // Пробуем получить из GraphQL, если не получается - используем моки
   let post: Post | null = null;
@@ -550,7 +551,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
         {/* Main Content Grid: Article + Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
           
           {/* Main Article Content */}
           <article className="min-w-0">
@@ -684,6 +685,19 @@ export default async function Article({ params }: { params: { locale: string; sl
             
           </aside>
         </div>
+
+        {/* Реклама перед Related Articles (footer) - FULL WIDTH 970x250 */}
+        {adsFooter.map((ad) => (
+          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
+            <UniversalAd 
+              placeId={ad.placeId} 
+              format={ad.format}
+              placement={ad.placement}
+              enabled={ad.enabled}
+              className={ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}
+            />
+          </div>
+        ))}
 
         {/* Related Articles - Full Width */}
         <div className="mt-16">

@@ -45,6 +45,21 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     addedDate: '2025-01-13',
     status: 'stable'
   },
+  {
+    id: 'desktop-inline-2-before-related',
+    placeId: '63daa3c24d506e16acfd2a38',
+    format: '970x250',
+    placement: 'inline',
+    name: 'Large Leaderboard перед Related Articles',
+    description: '970x250 баннер перед блоком похожих статей (Desktop) - FULL WIDTH',
+    location: 'article',
+    position: 'footer',
+    enabled: true,
+    priority: 8,
+    device: 'desktop',
+    addedDate: '2025-01-13',
+    status: 'stable'
+  },
 
   // ==================== SIDEBAR ====================
   {

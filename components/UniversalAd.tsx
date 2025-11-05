@@ -66,47 +66,54 @@ export function UniversalAd({
   
   // Определяем стили в зависимости от типа размещения
   const getStyles = () => {
-    const baseStyles = {
-      width: '100%',
-      maxWidth: dimensions?.width || 'auto',
-      minHeight: dimensions?.height || 'auto',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'transparent',
-      border: 'none',
-      overflow: 'visible' as const,
-    };
-
     switch (placement) {
       case 'sidebar':
         return {
-          ...baseStyles,
           width: '100%',
-          maxWidth: '100%', // Full sidebar width
           minHeight: dimensions?.height || 'auto',
-          margin: '0 0 24px 0', // Отступ только снизу
+          margin: '0 0 24px 0',
+          display: 'block' as const,
+          backgroundColor: 'transparent',
+          border: 'none',
+          overflow: 'visible' as const,
         };
       
       case 'mobile':
         return {
-          ...baseStyles,
-          margin: '16px auto', // Средний отступ для mobile
-          maxWidth: '100%',
+          width: '100%',
+          maxWidth: dimensions?.width || '100%',
+          minHeight: dimensions?.height || 'auto',
+          margin: '16px auto',
+          display: 'block' as const,
+          backgroundColor: 'transparent',
+          border: 'none',
+          overflow: 'visible' as const,
         };
       
       case 'display':
         return {
-          ...baseStyles,
+          width: '100%',
+          maxWidth: dimensions?.width || 'auto',
+          minHeight: dimensions?.height || 'auto',
           margin: '16px auto',
+          display: 'block' as const,
           textAlign: 'center' as const,
+          backgroundColor: 'transparent',
+          border: 'none',
+          overflow: 'visible' as const,
         };
       
-      default: // inline (728x90)
+      default: // inline (728x90, 970x250)
         return {
-          ...baseStyles,
-          margin: '20px auto', // Нормальный отступ сверху/снизу
+          width: '100%',
+          maxWidth: dimensions?.width || 'auto',
+          minHeight: dimensions?.height || 'auto',
+          margin: '20px auto',
+          display: 'block' as const,
           textAlign: 'center' as const,
+          backgroundColor: 'transparent',
+          border: 'none',
+          overflow: 'visible' as const,
         };
     }
   };

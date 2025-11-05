@@ -73,7 +73,7 @@ export function UniversalAd({
       display: 'block',
       backgroundColor: 'transparent',
       border: 'none',
-      overflow: 'visible' as const,
+      overflow: 'hidden' as const,
     };
 
     switch (placement) {
@@ -82,27 +82,27 @@ export function UniversalAd({
           ...baseStyles,
           width: dimensions?.width || '100%',
           height: dimensions?.height || 'auto',
-          margin: '0 auto 24px auto',
+          margin: '0 auto 16px auto',
         };
       
       case 'mobile':
         return {
           ...baseStyles,
-          margin: '16px auto',
+          margin: '12px auto',
           maxWidth: '100%',
         };
       
       case 'display':
         return {
           ...baseStyles,
-          margin: '20px auto',
+          margin: '8px auto',
           textAlign: 'center' as const,
         };
       
       default: // inline
         return {
           ...baseStyles,
-          margin: '20px auto',
+          margin: '8px auto',
           textAlign: 'center' as const,
         };
     }

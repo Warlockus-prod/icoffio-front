@@ -28,15 +28,15 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
       data-hyb-ssp-ad-place={placeId}
       className={`vox-ad-container ${className}`}
       style={{
-        width: format === '970x250' || format === '728x90' ? dimensions.width : '100%',
-        maxWidth: format === '970x250' || format === '728x90' ? 'none' : dimensions.width,
+        width: '100%',
+        maxWidth: dimensions.width,
         minHeight: dimensions.height,
-        margin: '20px auto',
+        margin: '8px auto',
         display: 'block',
         backgroundColor: 'transparent',
         border: 'none',
         textAlign: 'center' as const,
-        overflow: 'visible'
+        overflow: 'hidden'
       }}
     >
       {/* {format} Display Ad Container - VOX заполнит контентом */}

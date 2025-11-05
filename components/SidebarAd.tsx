@@ -17,11 +17,11 @@ export function SidebarAd({ placeId, format, className = "" }: SidebarAdProps) {
       style={{
         width: dimensions.width,
         height: dimensions.height,
-        margin: '0 auto 24px auto',
+        margin: '0 auto 16px auto',
         display: 'block',
         backgroundColor: 'transparent',
         border: 'none',
-        overflow: 'visible'
+        overflow: 'hidden'
       }}
     >
       {/* {format} Sidebar Ad Container - VOX заполнит контентом */}

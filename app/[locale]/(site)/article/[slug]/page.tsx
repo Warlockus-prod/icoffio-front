@@ -589,7 +589,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                       format={ad.format}
                       placement={ad.placement}
                       enabled={ad.enabled}
-                      className="mb-6 lg:block hidden" // Скрываем на мобильных если это desktop-only
+                      className={ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}
                     />
                   ))}
 
@@ -620,7 +620,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className={`mt-8 ${ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}`}
+                className={ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}
               />
             ))}
 

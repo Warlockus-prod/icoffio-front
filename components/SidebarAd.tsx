@@ -16,9 +16,9 @@ export function SidebarAd({ placeId, format, className = "" }: SidebarAdProps) {
       className={`vox-sidebar-ad ${className}`}
       style={{
         width: '100%',
-        maxWidth: dimensions.width,
+        maxWidth: '320px',
         minHeight: dimensions.height,
-        margin: '0 0 24px 0',
+        margin: '0 0 20px 0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

@@ -83,9 +83,9 @@ export function UniversalAd({
         return {
           ...baseStyles,
           width: '100%',
-          maxWidth: dimensions?.width || '320px',
+          maxWidth: '320px',
           minHeight: dimensions?.height || 'auto',
-          margin: '0 0 24px 0',
+          margin: '0 0 20px 0',
         };
       
       case 'mobile':

@@ -51,10 +51,10 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     format: '970x250',
     placement: 'inline',
     name: 'Large Leaderboard в конце статьи',
-    description: '970x250 баннер в конце контента статьи (Desktop)',
+    description: '970x250 баннер в конце контента статьи (Desktop) - ОТКЛЮЧЕН: слишком широкий для колонки статьи',
     location: 'article',
     position: 'content-bottom',
-    enabled: true,
+    enabled: false, // ОТКЛЮЧЕН: 970px > 928px article column width
     priority: 8,
     device: 'desktop',
     addedDate: '2025-01-13',

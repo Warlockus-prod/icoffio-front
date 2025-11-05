@@ -500,12 +500,18 @@ export default async function Article({ params }: { params: { locale: string; sl
   // Получаем конфигурацию рекламных мест для статей
   const articleAds = getAdPlacementsByLocation('article');
   
-  // Разделяем по позициям для удобства
-  const adsContentTop = articleAds.filter(ad => ad.position === 'content-top');
-  const adsContentBottom = articleAds.filter(ad => ad.position === 'content-bottom');
-  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device !== 'mobile'); // Только desktop баннеры в sidebar
-  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device !== 'mobile'); // Только desktop баннеры в sidebar
-  const adsFooter = articleAds.filter(ad => ad.position === 'footer'); // Before Related Articles
+  // Разделяем по позициям И device для правильного отображения
+  // Desktop баннеры
+  const adsContentTopDesktop = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'desktop');
+  const adsContentBottomDesktop = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'desktop');
+  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device === 'desktop');
+  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device === 'desktop');
+  const adsFooterDesktop = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'desktop');
+  
+  // Mobile баннеры
+  const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
+  const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
+  const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
   
   // Пробуем получить из GraphQL, если не получается - используем моки
   let post: Post | null = null;
@@ -582,15 +588,27 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-                  {/* Реклама после заголовка (content-top) */}
-                  {adsContentTop.map((ad) => (
+                  {/* Реклама после заголовка (content-top) - Desktop */}
+                  {adsContentTopDesktop.map((ad) => (
                     <UniversalAd 
                       key={ad.id}
                       placeId={ad.placeId} 
                       format={ad.format}
                       placement={ad.placement}
                       enabled={ad.enabled}
-                      className={ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}
+                      className="lg:block hidden"
+                    />
+                  ))}
+                  
+                  {/* Реклама после заголовка (content-top) - Mobile */}
+                  {adsContentTopMobile.map((ad) => (
+                    <UniversalAd 
+                      key={ad.id}
+                      placeId={ad.placeId} 
+                      format={ad.format}
+                      placement={ad.placement}
+                      enabled={ad.enabled}
+                      className="lg:hidden"
                     />
                   ))}
 
@@ -613,15 +631,27 @@ export default async function Article({ params }: { params: { locale: string; sl
               )}
             </div>
 
-            {/* Реклама после контента (content-bottom) */}
-            {adsContentBottom.map((ad) => (
+            {/* Реклама после контента (content-bottom) - Desktop */}
+            {adsContentBottomDesktop.map((ad) => (
               <UniversalAd 
                 key={ad.id}
                 placeId={ad.placeId} 
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className={ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}
+                className="lg:block hidden"
+              />
+            ))}
+            
+            {/* Реклама после контента (content-bottom) - Mobile */}
+            {adsContentBottomMobile.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="lg:hidden"
               />
             ))}
 
@@ -686,15 +716,28 @@ export default async function Article({ params }: { params: { locale: string; sl
           </aside>
         </div>
 
-        {/* Реклама перед Related Articles (footer) - FULL WIDTH 970x250 */}
-        {adsFooter.map((ad) => (
+        {/* Реклама перед Related Articles (footer) - Desktop */}
+        {adsFooterDesktop.map((ad) => (
           <div key={ad.id} className="max-w-7xl mx-auto mt-12">
             <UniversalAd 
               placeId={ad.placeId} 
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className={ad.device === 'desktop' ? 'lg:block hidden' : ad.device === 'mobile' ? 'lg:hidden' : ''}
+              className="lg:block hidden"
+            />
+          </div>
+        ))}
+        
+        {/* Реклама перед Related Articles (footer) - Mobile */}
+        {adsFooterMobile.map((ad) => (
+          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
+            <UniversalAd 
+              placeId={ad.placeId} 
+              format={ad.format}
+              placement={ad.placement}
+              enabled={ad.enabled}
+              className="lg:hidden"
             />
           </div>
         ))}

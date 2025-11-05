@@ -503,8 +503,8 @@ export default async function Article({ params }: { params: { locale: string; sl
   // Разделяем по позициям для удобства
   const adsContentTop = articleAds.filter(ad => ad.position === 'content-top');
   const adsContentBottom = articleAds.filter(ad => ad.position === 'content-bottom');
-  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top');
-  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom');
+  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device !== 'mobile'); // Только desktop баннеры в sidebar
+  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device !== 'mobile'); // Только desktop баннеры в sidebar
   const adsFooter = articleAds.filter(ad => ad.position === 'footer'); // Before Related Articles
   
   // Пробуем получить из GraphQL, если не получается - используем моки

@@ -70,19 +70,22 @@ export function UniversalAd({
       width: '100%',
       maxWidth: dimensions?.width || 'auto',
       minHeight: dimensions?.height || 'auto',
-      display: 'block',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: 'transparent',
       border: 'none',
-      overflow: 'hidden' as const,
+      overflow: 'visible' as const,
     };
 
     switch (placement) {
       case 'sidebar':
         return {
           ...baseStyles,
-          width: dimensions?.width || '100%',
-          height: dimensions?.height || 'auto',
-          margin: '0 auto 16px auto',
+          width: '100%',
+          maxWidth: dimensions?.width || '320px',
+          minHeight: dimensions?.height || 'auto',
+          margin: '0 0 24px 0',
         };
       
       case 'mobile':

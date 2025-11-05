@@ -31,12 +31,13 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
         width: '100%',
         maxWidth: dimensions.width,
         minHeight: dimensions.height,
-        margin: '8px auto',
-        display: 'block',
+        margin: '16px auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: 'transparent',
         border: 'none',
-        textAlign: 'center' as const,
-        overflow: 'hidden'
+        overflow: 'visible'
       }}
     >
       {/* {format} Display Ad Container - VOX заполнит контентом */}

@@ -15,13 +15,16 @@ export function SidebarAd({ placeId, format, className = "" }: SidebarAdProps) {
       data-hyb-ssp-ad-place={placeId}
       className={`vox-sidebar-ad ${className}`}
       style={{
-        width: dimensions.width,
-        height: dimensions.height,
-        margin: '0 auto 16px auto',
-        display: 'block',
+        width: '100%',
+        maxWidth: dimensions.width,
+        minHeight: dimensions.height,
+        margin: '0 0 24px 0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: 'transparent',
         border: 'none',
-        overflow: 'hidden'
+        overflow: 'visible'
       }}
     >
       {/* {format} Sidebar Ad Container - VOX заполнит контентом */}

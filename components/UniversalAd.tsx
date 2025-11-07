@@ -70,7 +70,7 @@ export function UniversalAd({
       case 'sidebar':
         return {
           width: '100%',
-          minHeight: dimensions?.height || 'auto',
+          minHeight: '50px', // Минимальная высота для предотвращения "схлопывания"
           margin: '0 0 24px 0',
           display: 'block' as const,
           backgroundColor: 'transparent',
@@ -81,7 +81,7 @@ export function UniversalAd({
       case 'mobile':
         return {
           width: dimensions?.width || 'auto', // ФИКСИРОВАННАЯ ширина (320px, 160px)
-          minHeight: dimensions?.height || 'auto',
+          minHeight: '50px', // Минимальная высота
           margin: '16px auto',
           display: 'block' as const,
           backgroundColor: 'transparent',
@@ -93,7 +93,7 @@ export function UniversalAd({
         return {
           width: '100%',
           maxWidth: dimensions?.width || 'auto',
-          minHeight: dimensions?.height || 'auto',
+          minHeight: '100px', // Минимальная высота
           margin: '16px auto',
           display: 'block' as const,
           textAlign: 'center' as const,
@@ -106,7 +106,7 @@ export function UniversalAd({
         return {
           width: '100%',
           maxWidth: dimensions?.width || 'auto',
-          minHeight: dimensions?.height || 'auto',
+          minHeight: '90px', // Минимальная высота (728x90 стандарт)
           margin: '20px auto',
           display: 'block' as const,
           textAlign: 'center' as const,

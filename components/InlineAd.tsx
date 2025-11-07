@@ -30,7 +30,7 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
       style={{
         width: '100%',
         maxWidth: dimensions.width,
-        minHeight: dimensions.height,
+        minHeight: '90px', // Минимальная высота (стандарт 728x90)
         margin: '20px auto',
         display: 'block',
         textAlign: 'center',

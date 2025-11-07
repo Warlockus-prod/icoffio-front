@@ -16,12 +16,12 @@ export function SidebarAd({ placeId, format, className = "" }: SidebarAdProps) {
       className={`vox-sidebar-ad ${className}`}
       style={{
         width: '100%',
-        minHeight: dimensions.height, // VOX управляет высотой
+        // БЕЗ minHeight - VOX сам создаст нужную высоту
         margin: '0 0 24px 0',
-        display: 'inline-block',
+        display: 'block',
         backgroundColor: 'transparent',
         border: 'none',
-        overflow: 'hidden' // Скрывает пустые контейнеры
+        overflow: 'visible'
       }}
     >
       {/* {format} Sidebar Ad Container - VOX заполнит контентом */}

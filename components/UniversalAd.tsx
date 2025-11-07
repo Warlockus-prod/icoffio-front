@@ -70,49 +70,49 @@ export function UniversalAd({
       case 'sidebar':
         return {
           width: '100%',
-          minHeight: dimensions?.height || '250px', // VOX управляет высотой
+          // БЕЗ minHeight - VOX сам создаст нужную высоту
           margin: '0 0 24px 0',
-          display: 'inline-block' as const,
+          display: 'block' as const,
           backgroundColor: 'transparent',
           border: 'none',
-          overflow: 'hidden' as const, // Скрывает пустые контейнеры
+          overflow: 'visible' as const,
         };
       
       case 'mobile':
         return {
           width: dimensions?.width || 'auto', // ФИКСИРОВАННАЯ ширина (320px, 160px)
-          height: dimensions?.height || 'auto', // ФИКСИРОВАННАЯ высота
+          // БЕЗ height - VOX сам создаст нужную высоту
           margin: '16px auto',
-          display: 'inline-block' as const,
+          display: 'block' as const,
           backgroundColor: 'transparent',
           border: 'none',
-          overflow: 'hidden' as const, // Скрывает пустые контейнеры
+          overflow: 'visible' as const,
         };
       
       case 'display':
         return {
           width: '100%',
           maxWidth: dimensions?.width || 'auto',
-          minHeight: dimensions?.height || '250px', // VOX управляет высотой
+          // БЕЗ minHeight - VOX сам создаст нужную высоту
           margin: '16px auto',
-          display: 'inline-block' as const,
+          display: 'block' as const,
           textAlign: 'center' as const,
           backgroundColor: 'transparent',
           border: 'none',
-          overflow: 'hidden' as const, // Скрывает пустые контейнеры
+          overflow: 'visible' as const,
         };
       
       default: // inline (728x90, 970x250)
         return {
           width: '100%',
           maxWidth: dimensions?.width || 'auto',
-          minHeight: dimensions?.height || '90px', // VOX управляет высотой
+          // БЕЗ minHeight - VOX сам создаст нужную высоту
           margin: '20px auto',
-          display: 'inline-block' as const,
+          display: 'block' as const,
           textAlign: 'center' as const,
           backgroundColor: 'transparent',
           border: 'none',
-          overflow: 'hidden' as const, // Скрывает пустые контейнеры
+          overflow: 'visible' as const,
         };
     }
   };

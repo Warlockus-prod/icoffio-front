@@ -30,13 +30,13 @@ export function InlineAd({ placeId, format, className = "" }: InlineAdProps) {
       style={{
         width: '100%',
         maxWidth: dimensions.width,
-        minHeight: '90px', // Минимальная высота (стандарт 728x90)
+        minHeight: dimensions.height, // VOX управляет высотой
         margin: '20px auto',
-        display: 'block',
+        display: 'inline-block',
         textAlign: 'center',
         backgroundColor: 'transparent',
         border: 'none',
-        overflow: 'visible'
+        overflow: 'hidden' // Скрывает пустые контейнеры
       }}
     >
       {/* {format} Display Ad Container - VOX заполнит контентом */}

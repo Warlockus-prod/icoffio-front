@@ -36,7 +36,7 @@ export default function URLInput() {
     setUrl(inputUrl);
     
     if (inputUrl && !validateUrl(inputUrl)) {
-      setValidationError('Введите корректный URL (https://example.com)');
+      setValidationError('Enter a valid URL (https://example.com)');
     } else {
       setValidationError('');
     }
@@ -69,14 +69,14 @@ export default function URLInput() {
     e.preventDefault();
     
     if (!url || !validateUrl(url)) {
-      setValidationError('Введите корректный URL');
+      setValidationError('Enter a valid URL');
       return;
     }
 
     // Проверка на дублирование
     const isDuplicate = parsingQueue.some(job => job.url === url);
     if (isDuplicate) {
-      setValidationError('Этот URL уже добавлен в очередь');
+      setValidationError('This URL is already in the queue');
       return;
     }
 
@@ -86,7 +86,7 @@ export default function URLInput() {
       // Проверка доступности URL (опционально)
       const isAvailable = await checkUrlAvailability(url);
       if (!isAvailable) {
-        setValidationError('URL недоступен или не отвечает');
+        setValidationError('URL is unavailable or not responding');
         return;
       }
 
@@ -98,7 +98,7 @@ export default function URLInput() {
       setValidationError('');
       
     } catch (error) {
-      setValidationError('Ошибка при добавлении URL');
+      setValidationError('Error adding URL');
     } finally {
       setIsSubmitting(false);
     }
@@ -122,7 +122,7 @@ export default function URLInput() {
           🔗 Add URL to Parsing Queue
         </h3>
         <p className="text-gray-600 dark:text-gray-400 text-sm">
-          Добавьте URL статьи для автоматического парсинга, перевода и обработки
+          Add article URL for automatic parsing, translation and processing
         </p>
       </div>
 
@@ -193,7 +193,7 @@ export default function URLInput() {
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {parsingQueue.length > 0 && (
-              <span>📊 {parsingQueue.length} URL в очереди</span>
+              <span>📊 {parsingQueue.length} URLs in queue</span>
             )}
           </div>
           

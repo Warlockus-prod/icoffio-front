@@ -3,12 +3,14 @@ import { Suspense } from "react";
 import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
 import { getPopularArticles } from "@/lib/supabase-analytics";
 import { ArticleCard } from "@/components/ArticleCard";
-import { ArticlesList } from "@/components/ArticlesList"; // ✨ NEW
+import { ArticlesList } from "@/components/ArticlesList";
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSkeleton";
+import { UniversalAd } from "@/components/UniversalAd";
+import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 
@@ -53,26 +55,22 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     alternates: {
       canonical: process.env.NEXT_PUBLIC_SITE_URL,
       languages: {
-        'ru': '/ru',
         'en': '/en',
-        'pl': '/pl', 
-        'de': '/de',
-        'ro': '/ro',
-        'cs': '/cs',
+        'pl': '/pl',
       },
     },
   };
 }
 
-export const revalidate = 120;
+export const revalidate = 3600; // 1 hour
 
-// КАЧЕСТВЕННЫЙ КОНТЕНТ - ТЕХНОЛОГИЧЕСКИЕ СТАТЬИ
+// Categories for navigation
 const mockCategories = [
   { name: "AI", slug: "ai" },
   { name: "Apple", slug: "apple" },
   { name: "Digital", slug: "digital" },
   { name: "Tech", slug: "tech" },
-  { name: "News", slug: "news-2" }
+  { name: "News", slug: "news" }
 ];
 
 const mockPosts = [
@@ -138,7 +136,7 @@ const mockPosts = [
     excerpt: "Technology companies are pioneering eco-friendly solutions, from renewable energy data centers to biodegradable electronics.",
     image: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     imageAlt: "Green technology concept with renewable energy symbols and eco-friendly computing",
-    category: { name: "News", slug: "news-2" },
+    category: { name: "News", slug: "news" },
     publishedAt: "2025-01-11T16:20:00Z",
     content: ""
   },
@@ -180,7 +178,12 @@ const mockPosts = [
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
   
-  // Используем качественный контент вместо GraphQL
+  // Get homepage ads
+  const homepageAds = getAdPlacementsByLocation('homepage');
+  const adsDesktop = homepageAds.filter(ad => ad.device === 'desktop');
+  const adsMobile = homepageAds.filter(ad => ad.device === 'mobile');
+  
+  // Quality content fallback
   let heroPosts: any[] = mockPosts.slice(0, 3);
   let posts: any[] = mockPosts.slice(0, 9);
   let cats: any[] = mockCategories;
@@ -238,7 +241,31 @@ export default async function Page({ params }: { params: { locale: string } }) {
 
       {heroPosts && heroPosts.length > 0 && <Hero posts={heroPosts} locale={params.locale} />}
 
-      {/* ✨ NEW: Articles list with Newest/Popular tabs */}
+      {/* Homepage Ads - Desktop */}
+      {adsDesktop.map((ad) => (
+        <div key={ad.id} className="mx-auto max-w-6xl px-4 hidden lg:block">
+          <UniversalAd 
+            placeId={ad.placeId} 
+            format={ad.format}
+            placement={ad.placement}
+            enabled={ad.enabled}
+          />
+        </div>
+      ))}
+      
+      {/* Homepage Ads - Mobile */}
+      {adsMobile.map((ad) => (
+        <div key={ad.id} className="mx-auto max-w-6xl px-4 lg:hidden">
+          <UniversalAd 
+            placeId={ad.placeId} 
+            format={ad.format}
+            placement={ad.placement}
+            enabled={ad.enabled}
+          />
+        </div>
+      ))}
+
+      {/* Articles list with Newest/Popular tabs */}
       <div className="mx-auto max-w-6xl px-4">
         <ArticlesList posts={posts} locale={params.locale} />
 

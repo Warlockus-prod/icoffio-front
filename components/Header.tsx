@@ -32,7 +32,7 @@ export function Header() {
     { name: "Apple", href: `/${locale}/category/apple` },
     { name: "Digital", href: `/${locale}/category/digital` },
     { name: "Tech", href: `/${locale}/category/tech` },
-    { name: "News", href: `/${locale}/category/news-2` }
+    { name: "News", href: `/${locale}/category/news` }
   ];
 
   return (

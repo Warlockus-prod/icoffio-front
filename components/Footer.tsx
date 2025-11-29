@@ -53,29 +53,17 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
           {/* Legal section */}
           <div>
             <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
-              {locale === 'en' && 'Legal'}
-              {locale === 'ru' && 'Правовая информация'}
-              {locale === 'pl' && 'Informacje prawne'}
-              {locale === 'de' && 'Rechtliches'}
-              {locale === 'es' && 'Legal'}
+              {locale === 'pl' ? 'Informacje prawne' : 'Legal'}
             </h3>
             <ul className="space-y-2">
               <li>
                 <Link href={`/${locale}/privacy`} className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
-                  {locale === 'en' && 'Privacy Policy'}
-                  {locale === 'ru' && 'Политика конфиденциальности'}
-                  {locale === 'pl' && 'Polityka prywatności'}
-                  {locale === 'de' && 'Datenschutz'}
-                  {locale === 'es' && 'Política de privacidad'}
+                  {locale === 'pl' ? 'Polityka prywatności' : 'Privacy Policy'}
                 </Link>
               </li>
               <li>
                 <Link href={`/${locale}/cookies`} className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
-                  {locale === 'en' && 'Cookie Policy'}
-                  {locale === 'ru' && 'Политика cookies'}
-                  {locale === 'pl' && 'Polityka plików cookie'}
-                  {locale === 'de' && 'Cookie-Richtlinie'}
-                  {locale === 'es' && 'Política de cookies'}
+                  {locale === 'pl' ? 'Polityka plików cookie' : 'Cookie Policy'}
                 </Link>
               </li>
               <li>
@@ -83,11 +71,7 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
                   onClick={handleCookieSettings}
                   className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors text-left"
                 >
-                  🍪 {locale === 'en' && 'Cookie Settings'}
-                  {locale === 'ru' && 'Настройки cookies'}
-                  {locale === 'pl' && 'Ustawienia plików cookie'}
-                  {locale === 'de' && 'Cookie-Einstellungen'}
-                  {locale === 'es' && 'Configuración de cookies'}
+                  🍪 {locale === 'pl' ? 'Ustawienia plików cookie' : 'Cookie Settings'}
                 </button>
               </li>
             </ul>

@@ -17,7 +17,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
 
-export const revalidate = 120;
+export const revalidate = 3600; // 1 hour
 
 // КАЧЕСТВЕННЫЙ КОНТЕНТ - ТЕХНОЛОГИЧЕСКИЕ СТАТЬИ С ТЕГАМИ И РАЗВЕРНУТЫМ КОНТЕНТОМ
 const mockPosts: Post[] = [

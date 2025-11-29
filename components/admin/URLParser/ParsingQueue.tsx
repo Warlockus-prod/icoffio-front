@@ -6,49 +6,49 @@ import { enUS } from 'date-fns/locale';
 
 const STATUS_CONFIG = {
   pending: {
-    label: 'В ожидании',
+    label: 'Pending',
     icon: '⏳',
     color: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
     progress: 0
   },
   parsing: {
-    label: 'Парсинг контента',
+    label: 'Parsing content',
     icon: '🔍',
     color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
     progress: 25
   },
   ai_processing: {
-    label: 'ИИ обработка',
+    label: 'AI Processing',
     icon: '🤖',
     color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
     progress: 50
   },
   translating: {
-    label: 'Перевод EN/PL',
+    label: 'Translating EN/PL',
     icon: '🌍',
     color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
     progress: 75
   },
   images: {
-    label: 'Подбор изображений',
+    label: 'Finding images',
     icon: '🖼️',
     color: 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
     progress: 90
   },
   ready: {
-    label: 'Готов к публикации',
+    label: 'Ready to publish',
     icon: '✅',
     color: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800',
     progress: 100
   },
   published: {
-    label: 'Опубликовано',
+    label: 'Published',
     icon: '📰',
     color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
     progress: 100
   },
   failed: {
-    label: 'Ошибка обработки',
+    label: 'Processing failed',
     icon: '❌',
     color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
     progress: 0
@@ -67,7 +67,7 @@ export default function ParsingQueue() {
   };
 
   const handleRemove = (jobId: string) => {
-    if (window.confirm('Удалить этот URL из очереди?')) {
+    if (window.confirm('Remove this URL from queue?')) {
       removeJobFromQueue(jobId);
     }
   };
@@ -77,7 +77,7 @@ export default function ParsingQueue() {
     const failedJobs = parsingQueue.filter(job => job.status === 'failed');
     if (failedJobs.length === 0) return;
     
-    if (window.confirm(`Удалить все ${failedJobs.length} ошибочных статей из очереди?`)) {
+    if (window.confirm(`Remove all ${failedJobs.length} failed articles from queue?`)) {
       failedJobs.forEach(job => removeJobFromQueue(job.id));
     }
   };
@@ -91,7 +91,7 @@ export default function ParsingQueue() {
     
     if (stuckJobs.length === 0) return;
     
-    if (window.confirm(`Перезапустить ${stuckJobs.length} зависших статей?`)) {
+    if (window.confirm(`Retry ${stuckJobs.length} stuck articles?`)) {
       stuckJobs.forEach(job => {
         updateJobStatus(job.id, 'failed', 0);
         setTimeout(() => {
@@ -100,11 +100,11 @@ export default function ParsingQueue() {
             // Для текстовых статей просто помечаем как failed с подробным сообщением
             updateJobStatus(job.id, 'failed', 0);
             // Добавляем сообщение об ошибке через activity
-            useAdminStore.getState().addActivity({
-              type: 'parsing_failed',
-              message: `Текстовая статья зависла более 5 минут: ${job.url.replace('text:', '')}`,
-              url: job.url
-            });
+              useAdminStore.getState().addActivity({
+                type: 'parsing_failed',
+                message: `Text article stuck for more than 5 minutes: ${job.url.replace('text:', '')}`,
+                url: job.url
+              });
           } else {
             handleRetry(job.id, job.url);
           }
@@ -119,10 +119,10 @@ export default function ParsingQueue() {
         <div className="text-center">
           <div className="text-4xl mb-4">📭</div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            Очередь парсинга пуста
+            Parsing queue is empty
           </h3>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            Добавьте URL статей для автоматической обработки
+            Add article URLs for automatic processing
           </p>
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function ParsingQueue() {
             📊 Parsing Queue
           </h3>
           <p className="text-gray-600 dark:text-gray-400 text-sm">
-            {parsingQueue.length} URL в обработке
+            {parsingQueue.length} URLs processing
           </p>
         </div>
         
@@ -159,7 +159,7 @@ export default function ParsingQueue() {
               <button
                 onClick={handleClearFailed}
                 className="px-3 py-2 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg border border-red-200 dark:border-red-800 transition-colors flex items-center gap-1"
-                title={`Удалить все ${parsingQueue.filter(job => job.status === 'failed').length} failed статей`}
+                title={`Remove all ${parsingQueue.filter(job => job.status === 'failed').length} failed articles`}
               >
                 🗑️ Clear Failed
               </button>
@@ -173,7 +173,7 @@ export default function ParsingQueue() {
               <button
                 onClick={handleForceRetryStuck}
                 className="px-3 py-2 text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40 rounded-lg border border-orange-200 dark:border-orange-800 transition-colors flex items-center gap-1"
-                title="Перезапустить зависшие статьи (>5 мин)"
+                title="Retry stuck articles (>5 min)"
               >
                 🔄 Fix Stuck
               </button>
@@ -223,7 +223,7 @@ export default function ParsingQueue() {
                     <button
                       onClick={() => handleRetry(job.id, job.url)}
                       className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors"
-                      title="Повторить"
+                      title="Retry"
                     >
                       🔄 Retry
                     </button>
@@ -232,7 +232,7 @@ export default function ParsingQueue() {
                   {job.status === 'ready' && (
                     <button
                       className="px-3 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
-                      title="Посмотреть результат"
+                      title="View result"
                     >
                       👁️ View
                     </button>
@@ -241,7 +241,7 @@ export default function ParsingQueue() {
                   <button
                     onClick={() => handleRemove(job.id)}
                     className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
-                    title="Удалить"
+                    title="Remove"
                   >
                     🗑️
                   </button>
@@ -309,7 +309,7 @@ export default function ParsingQueue() {
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              {parsingQueue.filter(job => job.status === 'ready').length} статей готовы к публикации
+              {parsingQueue.filter(job => job.status === 'ready').length} articles ready to publish
             </div>
             
             <div className="flex gap-2">
@@ -326,7 +326,7 @@ export default function ParsingQueue() {
               
               <button
                 onClick={() => {
-                  if (window.confirm('Очистить всю очередь?')) {
+                  if (window.confirm('Clear entire queue?')) {
                     parsingQueue.forEach(job => removeJobFromQueue(job.id));
                   }
                 }}

@@ -1,9 +1,11 @@
 import { getCategoryBySlug, getPostsByCategory, getCategorySlugs } from "@/lib/data";
 import { Container } from "@/components/Container";
 import { ArticleCard } from "@/components/ArticleCard";
+import { UniversalAd } from "@/components/UniversalAd";
+import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import { notFound } from "next/navigation";
 
-export const revalidate = 120;
+export const revalidate = 3600; // 1 hour
 
 // TEMPORARILY DISABLED until DNS stabilizes
 // export async function generateStaticParams() {
@@ -15,13 +17,13 @@ export const revalidate = 120;
 //   );
 // }
 
-// ✅ HIGH-QUALITY MOCK CONTENT (Fallback system)
+// Categories (fallback system)
 const mockCategories = [
   { name: "AI", slug: "ai" },
   { name: "Apple", slug: "apple" },
-  { name: "Games", slug: "games" },
+  { name: "Digital", slug: "digital" },
   { name: "Tech", slug: "tech" },
-  { name: "News", slug: "news-2" }
+  { name: "News", slug: "news" }
 ];
 
 const mockPosts = [
@@ -61,7 +63,7 @@ const mockPosts = [
     title: "Gaming Trends 2024: Next Generation Gaming",
     excerpt: "Discover the latest trends shaping the future of gaming including cloud gaming and AI-powered NPCs.",
     image: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=1200",
-    category: { name: "Games", slug: "games" },
+    category: { name: "Digital", slug: "digital" },
     publishedAt: "2025-01-12T14:30:00Z",
     content: ""
   },
@@ -81,7 +83,7 @@ const mockPosts = [
     title: "Tech News Weekly: Latest Innovations",
     excerpt: "Your weekly roundup of the most important technology news and breakthroughs.",
     image: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200",
-    category: { name: "News", slug: "news-2" },
+    category: { name: "News", slug: "news" },
     publishedAt: "2025-01-11T16:20:00Z",
     content: ""
   },
@@ -111,7 +113,7 @@ const mockPosts = [
     title: "Gaming VR & Metaverse 2024",
     excerpt: "Virtual reality gaming reaches new heights with immersive metaverse experiences.",
     image: "https://images.unsplash.com/photo-1617802690992-15d93263d3a9?q=80&w=1200",
-    category: { name: "Games", slug: "games" },
+    category: { name: "Digital", slug: "digital" },
     publishedAt: "2025-01-09T09:15:00Z",
     content: ""
   },
@@ -213,7 +215,7 @@ const mockPosts = [
     title: "Cloud Gaming Revolution: Play AAA Titles Anywhere",
     excerpt: "5G networks enable lag-free cloud gaming on mobile devices with console-quality graphics.",
     image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1200",
-    category: { name: "Games", slug: "games" },
+    category: { name: "Digital", slug: "digital" },
     publishedAt: "2025-01-04T15:20:00Z",
     content: ""
   },
@@ -230,7 +232,12 @@ const mockPosts = [
 ];
 
 export default async function CategoryPage({ params }: { params: { locale: string; slug: string } }) {
-  // ✅ FALLBACK SYSTEM: Start with high-quality mock data
+  // Get category page ads
+  const categoryAds = getAdPlacementsByLocation('category');
+  const adsDesktop = categoryAds.filter(ad => ad.device === 'desktop');
+  const adsMobile = categoryAds.filter(ad => ad.device === 'mobile');
+  
+  // Fallback system: Start with mock data
   let category: any = mockCategories.find(c => c.slug === params.slug);
   let posts: any[] = mockPosts.filter(p => p.category.slug === params.slug);
 
@@ -273,6 +280,30 @@ export default async function CategoryPage({ params }: { params: { locale: strin
           </div>
         )}
       </div>
+      
+      {/* Category Ads - Desktop */}
+      {adsDesktop.map((ad) => (
+        <div key={ad.id} className="mt-8 hidden lg:block">
+          <UniversalAd 
+            placeId={ad.placeId} 
+            format={ad.format}
+            placement={ad.placement}
+            enabled={ad.enabled}
+          />
+        </div>
+      ))}
+      
+      {/* Category Ads - Mobile */}
+      {adsMobile.map((ad) => (
+        <div key={ad.id} className="mt-8 lg:hidden">
+          <UniversalAd 
+            placeId={ad.placeId} 
+            format={ad.format}
+            placement={ad.placement}
+            enabled={ad.enabled}
+          />
+        </div>
+      ))}
     </Container>
   );
 }

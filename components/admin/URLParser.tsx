@@ -5,7 +5,7 @@ import URLInput from './URLParser/URLInput';
 import TextInput from './URLParser/TextInput';
 import AIGenerate from './URLParser/AIGenerate';
 import ParsingQueue from './URLParser/ParsingQueue';
-import ArticleSuccessModal from './ArticleSuccessModal';
+import ArticleCreatorModal from './ArticleCreatorModal';
 import ParsingProgressModal from './ParsingProgressModal';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 
@@ -264,9 +264,9 @@ export default function URLParser() {
         </div>
       )}
 
-      {/* Article Success Modal */}
+      {/* Article Creator Modal */}
       {successArticle && (
-        <ArticleSuccessModal
+        <ArticleCreatorModal
           article={successArticle}
           onClose={() => setSuccessArticle(null)}
         />
@@ -345,12 +345,6 @@ export default function URLParser() {
         />
       )}
 
-      {successArticle && (
-        <ArticleSuccessModal
-          article={successArticle}
-          onClose={() => setSuccessArticle(null)}
-        />
-      )}
     </div>
   );
 }

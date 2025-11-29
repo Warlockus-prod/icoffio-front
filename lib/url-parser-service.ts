@@ -175,24 +175,47 @@ class UrlParserService {
    * Извлечение основного контента
    */
   private extractMainContent($: cheerio.CheerioAPI, options: ParsingOptions): string {
-    // Удаляем нежелательные элементы
-    $('script, style, nav, footer, header, .nav, .menu, .sidebar, .ads, .advertisement, .social').remove();
-    $('iframe, embed, object').remove();
-    $('.comments, #comments, .comment').remove();
-    $('.related, .recommended, .more-articles').remove();
+    // 🧹 Удаляем нежелательные элементы (расширенный список)
+    const removeSelectors = [
+      'script', 'style', 'nav', 'footer', 'header', 'noscript',
+      '.nav', '.menu', '.sidebar', '.ads', '.advertisement', '.social',
+      'iframe', 'embed', 'object', 'video', 'audio',
+      '.comments', '#comments', '.comment', '.comment-section',
+      '.related', '.recommended', '.more-articles', '.related-posts',
+      '.cookie', '.cookies', '.consent', '.gdpr', '.privacy-banner',
+      '.newsletter', '.subscribe', '.signup', '.cta',
+      '.share', '.sharing', '.social-share', '.share-buttons',
+      '.breadcrumb', '.breadcrumbs', '.pagination',
+      '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
+      '.filter', '.sort', '.tabs', '.tab-list', // ✅ Фильтры и сортировки
+      '[data-testid]', // React test IDs
+      '.skeleton', '.loading', '.placeholder',
+      'button', 'form', 'select', 'input', // UI элементы
+    ];
+    
+    removeSelectors.forEach(selector => $(selector).remove());
 
     // Приоритетные селекторы для основного контента
     const contentSelectors = [
-      'article',
-      '.post-content',
+      // Стандартные статейные селекторы
+      'article .content',
+      'article .body',
       '.article-content',
-      '.entry-content', 
+      '.article-body',
+      '.post-content',
+      '.post-body',
+      '.entry-content',
+      '.story-content',
+      '.story-body',
+      // Общие селекторы
+      '[itemprop="articleBody"]',
+      '[role="article"]',
+      'article',
+      'main article',
       '.content',
       'main',
       '.main-content',
       '[role="main"]',
-      '.post-body',
-      '.story-body'
     ];
 
     let content = '';
@@ -202,21 +225,25 @@ class UrlParserService {
       const element = $(selector).first();
       if (element.length) {
         content = this.extractTextContent(element, $);
-        if (content.length > 200) {
+        // ✅ Проверяем качество контента
+        if (content.length > 200 && this.isQualityContent(content)) {
           break;
         }
       }
     }
 
     // Если не нашли через селекторы, берем все параграфы
-    if (!content || content.length < 200) {
+    if (!content || content.length < 200 || !this.isQualityContent(content)) {
       const paragraphs = $('p')
         .map((_, el) => $(el).text().trim())
         .get()
-        .filter(p => p.length > 30);
+        .filter(p => p.length > 50 && this.isQualityParagraph(p)); // ✅ Фильтруем мусор
       
       content = paragraphs.join('\n\n');
     }
+
+    // ✅ Финальная очистка контента от мусорных паттернов
+    content = this.cleanJunkPatterns(content);
 
     // Обрезаем контент если он слишком длинный
     if (content.length > options.maxContentLength!) {
@@ -224,6 +251,112 @@ class UrlParserService {
     }
 
     return this.cleanText(content) || 'Контент не найден';
+  }
+
+  /**
+   * ✅ Проверка качества контента (не UI-мусор)
+   */
+  private isQualityContent(content: string): boolean {
+    // Паттерны UI-мусора
+    const junkPatterns = [
+      /FilterSort/i,
+      /Switch cards/i,
+      /Show Media/i,
+      /Hide Media/i,
+      /Load more/i,
+      /View all/i,
+      /Sign in/i,
+      /Sign up/i,
+      /Log in/i,
+      /Subscribe/i,
+      /Newsletter/i,
+      /Cookie/i,
+      /Privacy Policy/i,
+      /Terms of Service/i,
+      /Accept all/i,
+      /Reject all/i,
+      /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}$/im, // Только даты
+    ];
+
+    // Если больше 30% контента - это повторяющиеся паттерны, это мусор
+    const contentLower = content.toLowerCase();
+    let junkScore = 0;
+    
+    junkPatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) {
+        junkScore += matches.length * 10;
+      }
+    });
+
+    // Проверяем соотношение мусора к контенту
+    const junkRatio = junkScore / content.length;
+    return junkRatio < 0.1; // Меньше 10% мусора
+  }
+
+  /**
+   * ✅ Проверка качества отдельного параграфа
+   */
+  private isQualityParagraph(text: string): boolean {
+    // Исключаем короткие тексты
+    if (text.length < 50) return false;
+    
+    // Исключаем UI-паттерны
+    const junkPhrases = [
+      'filter', 'sort', 'switch', 'cards', 'media',
+      'load more', 'view all', 'see more', 'read more',
+      'sign in', 'sign up', 'log in', 'log out',
+      'subscribe', 'newsletter', 'cookie', 'privacy',
+      'accept', 'reject', 'consent', 'agree'
+    ];
+    
+    const textLower = text.toLowerCase();
+    const junkCount = junkPhrases.filter(phrase => textLower.includes(phrase)).length;
+    
+    // Если текст содержит много UI-фраз, это не параграф статьи
+    return junkCount < 3;
+  }
+
+  /**
+   * ✅ Очистка контента от мусорных паттернов
+   */
+  private cleanJunkPatterns(content: string): string {
+    let cleaned = content;
+    
+    // Удаляем повторяющиеся паттерны
+    const junkPatterns = [
+      /FilterSortSwitch cards to show MediaSwitch cards to hide Media/gi,
+      /Switch cards to show Media/gi,
+      /Switch cards to hide Media/gi,
+      /Load more\s*/gi,
+      /View all\s*/gi,
+      /See more\s*/gi,
+      /Read more\s*/gi,
+      /Sign in\s*/gi,
+      /Sign up\s*/gi,
+      /Log in\s*/gi,
+      /Subscribe\s*/gi,
+      /Newsletter\s*/gi,
+      /Accept all cookies?\s*/gi,
+      /Reject all\s*/gi,
+      /Cookie settings?\s*/gi,
+      /Privacy Policy\s*/gi,
+      /Terms of (Service|Use)\s*/gi,
+      // Удаляем строки только с датами
+      /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}\s*$/gim,
+      // Удаляем короткие категории/теги в начале строк
+      /^(Product|Company|Research|Safety|Security|Publication)\s*$/gim,
+    ];
+    
+    junkPatterns.forEach(pattern => {
+      cleaned = cleaned.replace(pattern, '');
+    });
+    
+    // Удаляем множественные пробелы и переносы строк
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    cleaned = cleaned.replace(/\s{3,}/g, ' ');
+    
+    return cleaned.trim();
   }
 
   /**
@@ -474,6 +607,18 @@ class UrlParserService {
     
     if (errorKeywords.some(keyword => titleLower.includes(keyword))) {
       throw new Error('Страница содержит ошибку или недоступна');
+    }
+    
+    // ✅ Проверяем качество контента
+    if (!this.isQualityContent(content.content)) {
+      console.warn(`⚠️ Низкое качество контента с ${url} - возможно это SPA страница`);
+      // Не выбрасываем ошибку, но логируем предупреждение
+    }
+    
+    // ✅ Проверяем минимальное количество "нормальных" слов
+    const words = content.content.split(/\s+/).filter(w => w.length > 3);
+    if (words.length < 50) {
+      throw new Error('Контент содержит слишком мало текста (возможно SPA страница без SSR)');
     }
   }
 

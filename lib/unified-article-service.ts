@@ -129,39 +129,52 @@ class UnifiedArticleService {
       }
       
       // 3. ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ (пропускаем если stage === 'text-only')
+      // ✅ ИСПРАВЛЕНИЕ: Генерируем множественные опции изображений для выбора админом
+      let imageOptions: { unsplash: any[]; aiGenerated: any[] } | undefined;
+      
       if (input.generateImage !== false && input.stage !== 'text-only') {
         try {
-          // Уникальные изображения по категориям
-          const categoryImages = {
-            ai: [
-              'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1200&h=630&fit=crop', 
-              'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=1200&h=630&fit=crop'
-            ],
-            apple: [
-              'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=1200&h=630&fit=crop'
-            ],
-            tech: [
-              'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=1200&h=630&fit=crop'
-            ],
-            games: [
-              'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1556438064-2d7646166914?w=1200&h=630&fit=crop',
-              'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1200&h=630&fit=crop'
-            ]
-          };
+          console.log('🎨 Generating image options (3 Unsplash)...');
           
-          const categoryType = articleData.category as keyof typeof categoryImages;
-          const images = categoryImages[categoryType] || categoryImages.tech;
-          const randomImage = images[Math.floor(Math.random() * images.length)];
+          // Импортируем генератор опций изображений
+          const { generateImageOptions } = require('./image-options-generator');
           
-          articleData.image = randomImage;
+          // Генерируем 3 варианта из Unsplash (без AI для ускорения)
+          imageOptions = await generateImageOptions(
+            {
+              title: articleData.title,
+              category: articleData.category,
+              excerpt: articleData.excerpt
+            },
+            {
+              unsplashCount: 3,  // ✅ 3 картинки из Unsplash
+              aiCount: 0         // Отключаем AI генерацию (долго и дорого)
+            }
+          );
+          
+          // Автоматически выбираем первую картинку как временную
+          if (imageOptions && imageOptions.unsplash.length > 0) {
+            articleData.image = imageOptions.unsplash[0].url;
+            console.log('✅ Auto-selected first Unsplash image');
+          } else {
+            // Fallback если Unsplash не доступен
+            const categoryImages = {
+              ai: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
+              apple: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1200&h=630&fit=crop',
+              tech: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=1200&h=630&fit=crop',
+              games: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=1200&h=630&fit=crop'
+            };
+            const categoryType = articleData.category as keyof typeof categoryImages;
+            articleData.image = categoryImages[categoryType] || categoryImages.tech;
+            console.log('⚠️ Using fallback image (Unsplash unavailable)');
+          }
+          
+          console.log(`✅ Generated ${imageOptions?.unsplash.length || 0} Unsplash image options`);
         } catch (error: any) {
+          console.error('❌ Failed to generate image options:', error);
           warnings.push(`Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Fallback изображение
+          articleData.image = 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=1200&h=630&fit=crop';
         }
       }
       
@@ -283,6 +296,12 @@ class UnifiedArticleService {
       
       // 5. СОЗДАНИЕ ФИНАЛЬНОГО ОБЪЕКТА СТАТЬИ
       const processedArticle = this.createProcessedArticle(articleData, input, translations);
+      
+      // ✅ ИСПРАВЛЕНИЕ: Добавляем imageOptions в статью для выбора админом
+      if (imageOptions && (imageOptions.unsplash.length > 0 || imageOptions.aiGenerated.length > 0)) {
+        (processedArticle as any).imageOptions = imageOptions;
+        console.log(`✅ Article has ${imageOptions.unsplash.length + imageOptions.aiGenerated.length} image options available for selection`);
+      }
       
       // 6. СОХРАНЕНИЕ В ЛОКАЛЬНУЮ СИСТЕМУ (включая рантайм для сайта)
       await this.saveArticleLocally(processedArticle);

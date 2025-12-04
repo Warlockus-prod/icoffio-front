@@ -104,20 +104,41 @@ export default function PublishingQueue() {
         // Убираем из parsing queue
         removeJobFromQueue(article.id);
         
+        // ✅ ИСПРАВЛЕНИЕ: Показываем ссылки на обе языковые версии
+        const enUrl = result.urls?.en || result.url;
+        const plUrl = result.urls?.pl;
+        
         // Добавляем активность
         addActivity({
           type: 'article_published',
           message: `Статья успешно опубликована: ${article.title}`,
-          url: result.url || article.url
+          url: enUrl
         });
 
         console.log('✅ Article published successfully');
+        console.log('🔗 EN URL:', enUrl);
+        console.log('🔗 PL URL:', plUrl);
         
-        // Success toast
-        toast.success(`✅ "${article.title.substring(0, 40)}..." published successfully!`, {
-          id: toastId,
-          duration: 4000,
-        });
+        // Success toast с ссылкой
+        toast.success(
+          <div>
+            <div>✅ "{article.title.substring(0, 40)}..." опубликована!</div>
+            {enUrl && (
+              <a 
+                href={enUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs underline mt-1 block text-blue-600 hover:text-blue-800"
+              >
+                🔗 Открыть статью (EN)
+              </a>
+            )}
+          </div>, 
+          {
+            id: toastId,
+            duration: 6000,
+          }
+        );
       } else {
         throw new Error(result.error || 'Publication failed');
       }

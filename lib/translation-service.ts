@@ -120,11 +120,17 @@ Please provide ONLY the translation, without any additional comments or explanat
       }
 
       const data = await response.json();
-      const translatedText = data.choices?.[0]?.message?.content?.trim() || '';
+      let translatedText = data.choices?.[0]?.message?.content?.trim() || '';
 
       if (!translatedText) {
         throw new Error('Пустой ответ от API перевода');
       }
+
+      // ✅ ИСПРАВЛЕНИЕ: Удаляем лишние кавычки, которые GPT иногда добавляет
+      // Удаляем двойные кавычки в начале и конце
+      translatedText = translatedText.replace(/^["«»"„"]+|["«»"„"]+$/g, '');
+      // Удаляем одинарные кавычки в начале и конце (если они не часть текста)
+      translatedText = translatedText.replace(/^['\'`]+|['\'`]+$/g, '');
 
       return {
         translatedText,

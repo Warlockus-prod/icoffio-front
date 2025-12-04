@@ -337,6 +337,8 @@ async function handleUrlCreation(body: ApiRequest, request: NextRequest) {
           },
           input: { url }
         },
+        // ✅ ИСПРАВЛЕНИЕ: Передаем imageOptions для выбора нескольких картинок
+        imageOptions: (result.article as any).imageOptions || undefined,
         warnings: result.warnings
       });
     } else {
@@ -734,12 +736,25 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     // Это обеспечит немедленное отображение статьи на сайте
     const { addRuntimeArticle } = require('@/lib/local-articles');
     
-    const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    // ✅ ИСПРАВЛЕНИЕ: Генерируем slug без суффикса (одинаковый для всех языков)
+    const generateSlug = (title: string): string => {
+      return title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 60);
+    };
+    
+    const baseSlug = article.slug || generateSlug(article.title);
     const publishedAt = new Date().toISOString();
+    
+    console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
     // Публикуем АНГЛИЙСКУЮ версию (основную)
     const enPost = {
-      slug: `${slug}-en`,
+      slug: baseSlug, // ✅ БЕЗ суффикса -en
       title: article.title,
       excerpt: article.excerpt || article.title.substring(0, 150),
       publishedAt,
@@ -751,12 +766,12 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     };
     
     addRuntimeArticle(enPost);
-    console.log(`✅ Added EN article to runtime: ${enPost.slug}`);
+    console.log(`✅ Added EN article to runtime: /en/article/${enPost.slug}`);
     
     // Публикуем ПОЛЬСКУЮ версию (если есть перевод)
     if (article.translations && article.translations.pl) {
       const plPost = {
-        slug: `${slug}-pl`,
+        slug: baseSlug, // ✅ ТАКОЙ ЖЕ slug без суффикса
         title: article.translations.pl.title,
         excerpt: article.translations.pl.excerpt || article.translations.pl.title.substring(0, 150),
         publishedAt,
@@ -768,7 +783,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       };
       
       addRuntimeArticle(plPost);
-      console.log(`✅ Added PL article to runtime: ${plPost.slug}`);
+      console.log(`✅ Added PL article to runtime: /pl/article/${plPost.slug}`);
     }
 
     // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (если доступен)
@@ -780,7 +795,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
           title: article.title,
           content: article.content,
           excerpt: article.excerpt,
-          slug: slug,
+          slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
           category: article.category || 'technology',
           tags: ['imported', 'ai-processed'],
           author: article.author || 'Admin',
@@ -808,9 +823,10 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       message: `Article "${article.title}" successfully published`,
       locallyPublished: true,
       wordpressPublished,
+      url: `https://app.icoffio.com/en/article/${baseSlug}`, // ✅ Главная ссылка на английскую версию
       urls: {
-        en: `/en/article/${slug}-en`,
-        pl: article.translations?.pl ? `/pl/article/${slug}-pl` : null
+        en: `https://app.icoffio.com/en/article/${baseSlug}`, // ✅ БЕЗ суффикса
+        pl: article.translations?.pl ? `https://app.icoffio.com/pl/article/${baseSlug}` : null // ✅ ТАКОЙ ЖЕ slug
       }
     });
 

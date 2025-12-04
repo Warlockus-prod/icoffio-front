@@ -556,7 +556,10 @@ export const useAdminStore = create<AdminStore>()(
                   content: posts.pl.content,
                   excerpt: posts.pl.excerpt  
                 } : undefined
-              }
+              },
+              // ✅ ИСПРАВЛЕНИЕ: Сохраняем imageOptions для выбора нескольких картинок
+              imageOptions: result.imageOptions || undefined,
+              processingStage: result.imageOptions ? 'image-selection' : 'final'
             };
             
             get().updateJobStatus(jobId, 'ready', 100, article);

@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   };
 }
 
-export const revalidate = 3600; // 1 hour
+export const revalidate = 60; // 1 minute for testing (change to 3600 in production)
 
 // Categories for navigation
 const mockCategories = [
@@ -177,54 +177,58 @@ const mockPosts = [
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
   
-  // Quality content fallback
+  // Инициализация с моками как fallback
   let heroPosts: any[] = mockPosts.slice(0, 3);
   let posts: any[] = mockPosts.slice(0, 9);
   let cats: any[] = mockCategories;
   
-  // Попытка получить данные из GraphQL (если работает)
   try {
+    // 1. HERO: Топ 3 статьи из GraphQL
     const graphqlHeroPosts = await getTopPosts(3);
-    const graphqlCats = await getCategories(params.locale);
-    
-    // HERO: Последние статьи (как было)
     if (graphqlHeroPosts && graphqlHeroPosts.length > 0) {
       heroPosts = graphqlHeroPosts;
+      console.log(`[Home] ✅ Hero: ${graphqlHeroPosts.length} posts from GraphQL`);
     }
     
-    // LATEST NEWS: Популярные статьи из Supabase с фильтрацией по языку
+    // 2. CATEGORIES: Из GraphQL
+    const graphqlCats = await getCategories(params.locale);
+    if (graphqlCats && graphqlCats.length > 0) {
+      cats = graphqlCats;
+    }
+    
+    // 3. LATEST/POPULAR: Сначала пробуем популярные из Supabase
     const popularSlugs = await getPopularArticles(12, params.locale);
     
-    if (popularSlugs.length > 0) {
-      // Получаем все посты
-      const allPosts = await getAllPosts(50, params.locale);
-      
-      // Фильтруем по популярным slug'ам и сортируем по популярности
-      const popularPosts = popularSlugs
-        .map(slug => allPosts.find(p => p.slug === slug))
-        .filter(Boolean) // Убираем undefined
-        .slice(0, 9); // Максимум 9 постов
-      
-      if (popularPosts.length > 0) {
-        posts = popularPosts;
-        console.log(`[Home Page] ✅ Showing ${popularPosts.length} popular articles for ${params.locale}`);
+    // 4. Получаем ВСЕ статьи из GraphQL (независимо от Supabase)
+    const allPosts = await getAllPosts(20, params.locale);
+    
+    if (allPosts && allPosts.length > 0) {
+      if (popularSlugs && popularSlugs.length > 0) {
+        // Есть популярные - сортируем по ним
+        const popularPosts = popularSlugs
+          .map(slug => allPosts.find(p => p.slug === slug))
+          .filter(Boolean)
+          .slice(0, 9);
+        
+        if (popularPosts.length >= 3) {
+          posts = popularPosts;
+          console.log(`[Home] ✅ Showing ${popularPosts.length} POPULAR articles for ${params.locale}`);
+        } else {
+          // Мало популярных - показываем последние
+          posts = allPosts.slice(0, 9);
+          console.log(`[Home] ℹ️ Not enough popular, showing ${posts.length} LATEST for ${params.locale}`);
+        }
       } else {
-        // Если популярных не нашли, показываем последние
-        const latestPosts = await getAllPosts(12, params.locale);
-        if (latestPosts && latestPosts.length > 0) posts = latestPosts;
-        console.log(`[Home Page] ℹ️ No popular articles found for ${params.locale}, showing latest`);
+        // Supabase пустой - показываем последние из GraphQL
+        posts = allPosts.slice(0, 9);
+        console.log(`[Home] ℹ️ No Supabase data, showing ${posts.length} LATEST for ${params.locale}`);
       }
     } else {
-      // Если Supabase пустой или недоступен, показываем последние
-      const latestPosts = await getAllPosts(12, params.locale);
-      if (latestPosts && latestPosts.length > 0) posts = latestPosts;
-      console.log(`[Home Page] ℹ️ Supabase unavailable for ${params.locale}, showing latest`);
+      console.log(`[Home] ⚠️ No GraphQL posts for ${params.locale}, using mocks`);
     }
     
-    if (graphqlCats && graphqlCats.length > 0) cats = graphqlCats;
   } catch (error) {
-    console.error('GraphQL Error (using fallback content):', error);
-    // Используем качественные моки
+    console.error('[Home] ❌ Error fetching data, using mocks:', error);
   }
 
   return (

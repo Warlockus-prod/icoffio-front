@@ -531,20 +531,21 @@ export const useAdminStore = create<AdminStore>()(
             const storedArticles = localArticleStorage.convertApiResponseToArticle(result, 'url', url);
             localArticleStorage.saveArticles(storedArticles);
             
-            // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Создаем правильную структуру Article из API данных
+            // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Всегда используем EN как основную статью!
             const { posts, stats } = result.data;
-            const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
-            const primaryPost = posts[primaryLang];
             
-            // Формируем объект Article в нужном формате (используем первую сохраненную статью)
+            // ВСЕГДА берем английскую версию как основную (даже если парсили русскую)
+            const enPost = posts.en || posts[Object.keys(posts)[0]]; // Fallback на первый язык если EN нет
+            
+            // Формируем объект Article в нужном формате
             const firstStoredArticle = storedArticles[0];
             const article: Article = {
               id: firstStoredArticle.id,
-              title: stats.title,
-              content: primaryPost.content,
-              excerpt: stats.excerpt,
+              title: enPost.title,           // ✅ АНГЛИЙСКИЙ заголовок как основной!
+              content: enPost.content,       // ✅ АНГЛИЙСКИЙ контент как основной!
+              excerpt: enPost.excerpt,       // ✅ АНГЛИЙСКИЙ excerpt как основной!
               category: stats.category,
-              author: primaryPost.author || 'AI Assistant',
+              author: enPost.author || 'AI Assistant',
               translations: {
                 en: posts.en ? {
                   title: posts.en.title,
@@ -652,20 +653,21 @@ export const useAdminStore = create<AdminStore>()(
           const storedArticles = localArticleStorage.convertApiResponseToArticle(result, 'text');
           localArticleStorage.saveArticles(storedArticles);
           
-          // Создаем правильную структуру Article из API данных (аналогично startParsing)
+          // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Всегда используем EN как основную статью!
           const { posts, stats } = result.data;
-          const primaryLang = Object.keys(posts)[0]; // Первый язык (обычно ru)
-          const primaryPost = posts[primaryLang];
           
-          // Формируем объект Article в нужном формате (используем первую сохраненную статью)
+          // ВСЕГДА берем английскую версию как основную (даже если парсили русскую)
+          const enPost = posts.en || posts[Object.keys(posts)[0]]; // Fallback на первый язык если EN нет
+          
+          // Формируем объект Article в нужном формате
           const firstStoredArticle = storedArticles[0];
           const article: Article = {
             id: firstStoredArticle.id,
-            title: stats.title,
-            content: primaryPost.content,
-            excerpt: stats.excerpt,
+            title: enPost.title,           // ✅ АНГЛИЙСКИЙ заголовок как основной!
+            content: enPost.content,       // ✅ АНГЛИЙСКИЙ контент как основной!
+            excerpt: enPost.excerpt,       // ✅ АНГЛИЙСКИЙ excerpt как основной!
             category: stats.category,
-            author: primaryPost.author || 'AI Assistant',
+            author: enPost.author || 'AI Assistant',
             translations: {
               en: posts.en ? {
                 title: posts.en.title,

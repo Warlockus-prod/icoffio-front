@@ -222,17 +222,22 @@ Please provide ONLY the translation, without any additional comments or explanat
 
   // Определение языка текста (простая эвристика)
   detectLanguage(text: string): string {
-    const sample = text.toLowerCase().slice(0, 200);
+    const sample = text.toLowerCase().slice(0, 500); // Увеличен с 200 до 500 для лучшего определения
     
-    // ✅ FIXED: Добавлен русский язык для правильного определения
+    // ✅ FIXED: Расширенные паттерны для более точного определения
     const patterns = {
-      ru: /\b(это|что|как|для|все|или|был|была|было|были|может|очень|только|через|которые|который)\b/g,
-      en: /\b(the|and|or|is|are|was|were|have|has|will|would|could|should)\b/g,
-      pl: /\b(że|jest|są|będzie|może|bardzo|tylko|przez|które|która)\b/g,
-      de: /\b(der|die|das|und|oder|ist|sind|war|waren|haben|wird)\b/g,
-      ro: /\b(și|este|sunt|pentru|care|sau|mai|foarte|doar|prin)\b/g,
-      cs: /\b(je|jsou|byl|byla|bylo|bude|může|velmi|pouze|které)\b/g,
+      ru: /\b(это|что|как|для|все|или|был|была|было|были|может|очень|только|через|которые|который|который|которая|которое|более|если|когда|также|может|могут)\b/g,
+      en: /\b(the|and|or|is|are|was|were|have|has|will|would|could|should|this|that|with|from|they|been|their|there)\b/g,
+      pl: /\b(że|jest|są|będzie|może|bardzo|tylko|przez|które|która|który|które|oraz|jako|tego|dla)\b/g,
+      de: /\b(der|die|das|und|oder|ist|sind|war|waren|haben|wird|auch|nicht|sein|mit)\b/g,
+      ro: /\b(și|este|sunt|pentru|care|sau|mai|foarte|doar|prin|acest|acestă|astfel)\b/g,
+      cs: /\b(je|jsou|byl|byla|bylo|bude|může|velmi|pouze|které|také|jako|pro)\b/g,
     };
+
+    // Дополнительная проверка по кириллице для русского
+    const cyrillicCount = (sample.match(/[а-яА-ЯёЁ]/g) || []).length;
+    const totalChars = sample.replace(/\s/g, '').length;
+    const cyrillicPercentage = totalChars > 0 ? (cyrillicCount / totalChars) * 100 : 0;
 
     let maxMatches = 0;
     let detectedLang = 'en'; // default
@@ -245,7 +250,14 @@ Please provide ONLY the translation, without any additional comments or explanat
       }
     }
 
-    console.log(`🔍 Detected language: ${detectedLang} (${maxMatches} matches)`);
+    // ✅ КРИТИЧНО: Если найдено много кириллицы - это точно русский!
+    if (cyrillicPercentage > 30) {
+      detectedLang = 'ru';
+      console.log(`🔍 Detected language: RU (${cyrillicPercentage.toFixed(1)}% cyrillic)`);
+    } else {
+      console.log(`🔍 Detected language: ${detectedLang} (${maxMatches} matches, ${cyrillicPercentage.toFixed(1)}% cyrillic)`);
+    }
+    
     return detectedLang;
   }
 }

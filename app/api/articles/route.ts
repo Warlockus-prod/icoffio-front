@@ -575,6 +575,11 @@ async function checkAuthentication(request: NextRequest): Promise<{success: bool
 function formatPostsForAdmin(article: any): Record<string, any> {
   const posts: Record<string, any> = {};
   
+  // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Логирование для отладки
+  console.log('📋 formatPostsForAdmin - article language:', article.language);
+  console.log('📋 formatPostsForAdmin - article title:', article.title?.substring(0, 80));
+  console.log('📋 formatPostsForAdmin - translations available:', Object.keys(article.translations || {}));
+  
   // Основная статья (всегда EN теперь)
   posts.en = {
     slug: article.slug,
@@ -590,8 +595,10 @@ function formatPostsForAdmin(article: any): Record<string, any> {
     contentHtml: formatContentToHtml(article.content)
   };
   
+  console.log('📋 posts.en.title:', posts.en.title?.substring(0, 80));
+  
   // Переводы (только PL поддерживается)
-  for (const [lang, translation] of Object.entries(article.translations)) {
+  for (const [lang, translation] of Object.entries(article.translations || {})) {
     if (lang === 'pl') { // Только польский
       posts[lang] = {
         slug: (translation as any).slug,
@@ -606,9 +613,11 @@ function formatPostsForAdmin(article: any): Record<string, any> {
         content: (translation as any).content,
         contentHtml: formatContentToHtml((translation as any).content)
       };
+      console.log('📋 posts.pl.title:', posts[lang].title?.substring(0, 80));
     }
   }
   
+  console.log('📋 Final posts structure:', Object.keys(posts).join(', '));
   return posts;
 }
 

@@ -9,8 +9,6 @@ import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSkeleton";
-import { UniversalAd } from "@/components/UniversalAd";
-import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 
@@ -178,11 +176,6 @@ const mockPosts = [
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
   
-  // Get homepage ads
-  const homepageAds = getAdPlacementsByLocation('homepage');
-  const adsDesktop = homepageAds.filter(ad => ad.device === 'desktop');
-  const adsMobile = homepageAds.filter(ad => ad.device === 'mobile');
-  
   // Quality content fallback
   let heroPosts: any[] = mockPosts.slice(0, 3);
   let posts: any[] = mockPosts.slice(0, 9);
@@ -240,30 +233,6 @@ export default async function Page({ params }: { params: { locale: string } }) {
       </Container>
 
       {heroPosts && heroPosts.length > 0 && <Hero posts={heroPosts} locale={params.locale} />}
-
-      {/* Homepage Ads - Desktop */}
-      {adsDesktop.map((ad) => (
-        <div key={ad.id} className="mx-auto max-w-6xl px-4 hidden lg:block">
-          <UniversalAd 
-            placeId={ad.placeId} 
-            format={ad.format}
-            placement={ad.placement}
-            enabled={ad.enabled}
-          />
-        </div>
-      ))}
-      
-      {/* Homepage Ads - Mobile */}
-      {adsMobile.map((ad) => (
-        <div key={ad.id} className="mx-auto max-w-6xl px-4 lg:hidden">
-          <UniversalAd 
-            placeId={ad.placeId} 
-            format={ad.format}
-            placement={ad.placement}
-            enabled={ad.enabled}
-          />
-        </div>
-      ))}
 
       {/* Articles list with Newest/Popular tabs */}
       <div className="mx-auto max-w-6xl px-4">

@@ -1,8 +1,6 @@
 import { getCategoryBySlug, getPostsByCategory, getCategorySlugs } from "@/lib/data";
 import { Container } from "@/components/Container";
 import { ArticleCard } from "@/components/ArticleCard";
-import { UniversalAd } from "@/components/UniversalAd";
-import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import { notFound } from "next/navigation";
 
 export const revalidate = 3600; // 1 hour
@@ -232,11 +230,6 @@ const mockPosts = [
 ];
 
 export default async function CategoryPage({ params }: { params: { locale: string; slug: string } }) {
-  // Get category page ads
-  const categoryAds = getAdPlacementsByLocation('category');
-  const adsDesktop = categoryAds.filter(ad => ad.device === 'desktop');
-  const adsMobile = categoryAds.filter(ad => ad.device === 'mobile');
-  
   // Fallback system: Start with mock data
   let category: any = mockCategories.find(c => c.slug === params.slug);
   let posts: any[] = mockPosts.filter(p => p.category.slug === params.slug);
@@ -280,30 +273,6 @@ export default async function CategoryPage({ params }: { params: { locale: strin
           </div>
         )}
       </div>
-      
-      {/* Category Ads - Desktop */}
-      {adsDesktop.map((ad) => (
-        <div key={ad.id} className="mt-8 hidden lg:block">
-          <UniversalAd 
-            placeId={ad.placeId} 
-            format={ad.format}
-            placement={ad.placement}
-            enabled={ad.enabled}
-          />
-        </div>
-      ))}
-      
-      {/* Category Ads - Mobile */}
-      {adsMobile.map((ad) => (
-        <div key={ad.id} className="mt-8 lg:hidden">
-          <UniversalAd 
-            placeId={ad.placeId} 
-            format={ad.format}
-            placement={ad.placement}
-            enabled={ad.enabled}
-          />
-        </div>
-      ))}
     </Container>
   );
 }

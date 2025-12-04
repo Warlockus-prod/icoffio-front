@@ -9,6 +9,7 @@ import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSkeleton";
+import { UniversalAd } from "@/components/UniversalAd";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 
@@ -252,9 +253,27 @@ export default async function Page({ params }: { params: { locale: string } }) {
             <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
           </Link>
         </div>
-      </div>
 
-      {/* SearchModalWrapper рендерится глобально в layout.tsx - не дублируем */}
+        {/* Homepage Bottom Ad - Desktop (970x250 Large Leaderboard) */}
+        <div className="mt-16 hidden lg:block">
+          <UniversalAd 
+            placeId="63daa3c24d506e16acfd2a38"
+            format="970x250"
+            placement="inline"
+            enabled={true}
+          />
+        </div>
+        
+        {/* Homepage Bottom Ad - Mobile (320x100 Large Mobile Banner) */}
+        <div className="mt-12 lg:hidden">
+          <UniversalAd 
+            placeId="68f645bf810d98e1a08f272f"
+            format="320x100"
+            placement="mobile"
+            enabled={true}
+          />
+        </div>
+      </div>
     </>
   );
 }

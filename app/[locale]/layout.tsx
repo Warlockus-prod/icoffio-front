@@ -194,13 +194,29 @@ export default function LocaleLayout({
           </ToastProvider>
         </ThemeProvider>
 
-        {/* CSS для VOX Display рекламы - правильные размеры согласно документации */}
+        {/* CSS для VOX Display рекламы - v7.26.0: умные плейсхолдеры */}
         <style dangerouslySetInnerHTML={{
           __html: `
-            /* VOX контейнеры базовые настройки */
-            [data-hyb-ssp-ad-place] {
+            /* VOX контейнеры - скрыты по умолчанию пока реклама не загружена */
+            .vox-ad-container {
               position: relative !important;
               display: block !important;
+              background: transparent !important;
+              border: none !important;
+            }
+            
+            /* Загруженная реклама */
+            .vox-ad-loaded {
+              opacity: 1 !important;
+            }
+            
+            /* Загружающаяся реклама - скрыта */
+            .vox-ad-loading {
+              opacity: 0 !important;
+              max-height: 0 !important;
+              overflow: hidden !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             
             /* Контейнеры для статьи - адаптивные */
@@ -208,61 +224,50 @@ export default function LocaleLayout({
               overflow: visible !important;
             }
             
-            /* Специальные правила для широких баннеров */
-            [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
-            [data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
+            /* Desktop широкие баннеры - фиксированные размеры */
+            .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
+            .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
               width: 728px !important;
               height: 90px !important;
               max-width: none !important;
             }
             
-            [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
-            [data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
+            .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
+            .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
               width: 970px !important;
               height: 250px !important;
               max-width: none !important;
             }
             
-            /* Остальные баннеры - адаптивные */
-            article [data-hyb-ssp-ad-place]:not([data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"]):not([data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"]) iframe,
-            article [data-hyb-ssp-ad-place]:not([data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"]):not([data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"]) > div {
-              max-width: 100% !important;
-              width: 100% !important;
-              height: auto !important;
-            }
-            
-            /* Sidebar баннеры - фиксированные размеры согласно документации */
-            aside [data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
+            /* Sidebar баннеры - фиксированные размеры */
+            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
               width: 300px !important;
-              height: 250px !important;
             }
             
-            aside [data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
+            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
               width: 300px !important;
-              height: 600px !important;
             }
             
-            /* Mobile форматы - новые (2025-10-28) */
-            [data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
+            /* Mobile форматы */
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
               max-width: 320px !important;
-              min-height: 50px !important;
             }
             
-            [data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
               max-width: 160px !important;
-              min-height: 600px !important;
             }
             
-            [data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
               max-width: 320px !important;
-              min-height: 100px !important;
             }
             
-            /* Display форматы - новые (2025-10-28) */
-            [data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
+            /* Display форматы */
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
               max-width: 320px !important;
-              min-height: 480px !important;
             }
+            
+            /* Никаких минимальных высот - VOX сам определит размер */
+            /* Если реклама не загружена - места не занимает */
           `
         }} />
 
@@ -322,12 +327,27 @@ export default function LocaleLayout({
                   }
                   
                   try {
-                      // 1. In-Image реклама (для всех страниц)
-                      window._tx.integrateInImage({
-                          placeId: "63d93bb54d506e95f039e2e3",
-                          fetchSelector: true,
-                      });
-                      console.log('VOX: In-Image инициализирована');
+                      // 1. In-Image реклама (ТОЛЬКО для страниц статей)
+                      const isArticlePage = window.location.pathname.includes('/article/');
+                      
+                      if (isArticlePage) {
+                          window._tx.integrateInImage({
+                              placeId: "63d93bb54d506e95f039e2e3",
+                              fetchSelector: true,
+                              // Исключаем миниатюры в Related Articles и других карточках
+                              excludeSelectors: [
+                                  '.group img',           // ArticleCard миниатюры
+                                  '[class*="aspect-"] img', // Hero карточки
+                                  'nav img',              // Навигация
+                                  'header img',           // Хедер
+                                  'footer img',           // Футер
+                                  'a[href*="/article/"] img:not(.prose img):not(article > div > img)' // Миниатюры в ссылках
+                              ].join(', ')
+                          });
+                          console.log('VOX: In-Image инициализирована (только для статьи)');
+                      } else {
+                          console.log('VOX: In-Image пропущена - не страница статьи');
+                      }
                       
                       // 2. Display форматы (только для страниц где есть контейнеры)
                       const displayPlacements = [

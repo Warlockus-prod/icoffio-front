@@ -745,7 +745,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     // Это обеспечит немедленное отображение статьи на сайте
     const { addRuntimeArticle } = require('@/lib/local-articles');
     
-    // ✅ ИСПРАВЛЕНИЕ: Генерируем slug без суффикса (одинаковый для всех языков)
+    // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Генерируем slug С СУФФИКСАМИ (система требует!)
     const generateSlug = (title: string): string => {
       return title
         .toLowerCase()
@@ -762,8 +762,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
     // Публикуем АНГЛИЙСКУЮ версию (основную)
+    const enSlug = `${baseSlug}-en`; // ✅ ВОЗВРАЩАЕМ суффикс -en!
     const enPost = {
-      slug: baseSlug, // ✅ БЕЗ суффикса -en
+      slug: enSlug,
       title: article.title,
       excerpt: article.excerpt || article.title.substring(0, 150),
       publishedAt,
@@ -779,8 +780,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     
     // Публикуем ПОЛЬСКУЮ версию (если есть перевод)
     if (article.translations && article.translations.pl) {
+      const plSlug = `${baseSlug}-pl`; // ✅ ВОЗВРАЩАЕМ суффикс -pl!
       const plPost = {
-        slug: baseSlug, // ✅ ТАКОЙ ЖЕ slug без суффикса
+        slug: plSlug,
         title: article.translations.pl.title,
         excerpt: article.translations.pl.excerpt || article.translations.pl.title.substring(0, 150),
         publishedAt,
@@ -832,10 +834,10 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       message: `Article "${article.title}" successfully published`,
       locallyPublished: true,
       wordpressPublished,
-      url: `https://app.icoffio.com/en/article/${baseSlug}`, // ✅ Главная ссылка на английскую версию
+      url: `https://app.icoffio.com/en/article/${enSlug}`, // ✅ Ссылка с суффиксом -en
       urls: {
-        en: `https://app.icoffio.com/en/article/${baseSlug}`, // ✅ БЕЗ суффикса
-        pl: article.translations?.pl ? `https://app.icoffio.com/pl/article/${baseSlug}` : null // ✅ ТАКОЙ ЖЕ slug
+        en: `https://app.icoffio.com/en/article/${enSlug}`, // ✅ slug-name-en
+        pl: article.translations?.pl ? `https://app.icoffio.com/pl/article/${baseSlug}-pl` : null // ✅ slug-name-pl
       }
     });
 

@@ -195,7 +195,7 @@ class UnifiedArticleService {
                 title: articleData.title + ' (PL)',
                 content: articleData.content,
                 excerpt: articleData.excerpt || articleData.title.substring(0, 100),
-                slug: `${baseSlug}-pl`
+                slug: `${baseSlug}-pl` // ✅ С суффиксом
               }
             };
           } else {
@@ -268,7 +268,7 @@ class UnifiedArticleService {
                 title: plTitle.translatedText,
                 content: plContent.translatedText,
                 excerpt: plExcerpt.translatedText,
-                slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
+                slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl (система требует!)
               };
               console.log('✅ Polish translation completed');
               console.log(`📊 PL title: "${plTitle.translatedText.substring(0, 80)}..."`);
@@ -277,7 +277,7 @@ class UnifiedArticleService {
                 title: articleData.title,
                 content: articleData.content,
                 excerpt: articleData.excerpt || articleData.title.substring(0, 100),
-                slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
+                slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl
               };
               console.log('✅ Source is already Polish, using original');
             }
@@ -293,7 +293,7 @@ class UnifiedArticleService {
               title: articleData.title,
               content: articleData.content,
               excerpt: articleData.excerpt || articleData.title.substring(0, 100),
-              slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
+              slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: С суффиксом -pl
             }
           };
         }
@@ -580,13 +580,14 @@ class UnifiedArticleService {
   private createProcessedArticle(articleData: any, input: ArticleInput, translations: Record<string, any>): ProcessedArticle {
     const now = new Date().toISOString();
     const articleId = `article-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const baseSlug = this.generateSlug(articleData.title);
     
     return {
       id: articleId,
       title: articleData.title,
       content: articleData.content,
       excerpt: articleData.excerpt || articleData.content.substring(0, 200) + '...',
-      slug: this.generateSlug(articleData.title), // ✅ БЕЗ суффикса -en для основного языка
+      slug: `${baseSlug}-en`, // ✅ ИСПРАВЛЕНО: С суффиксом -en для основной статьи!
       
       category: articleData.category,
       tags: articleData.tags || [articleData.category],
@@ -617,9 +618,9 @@ class UnifiedArticleService {
    */
   private async saveArticleLocally(article: ProcessedArticle): Promise<void> {
     try {
-      // Сохраняем основную статью
+      // Сохраняем основную статью (EN с суффиксом -en)
       const mainPost: Post = {
-        slug: article.slug,
+        slug: article.slug, // Уже содержит -en суффикс
         title: article.title,
         excerpt: article.excerpt,
         publishedAt: article.publishedAt || article.createdAt,
@@ -633,12 +634,13 @@ class UnifiedArticleService {
       };
       
       addRuntimeArticle(mainPost);
+      console.log(`✅ Saved EN article: ${mainPost.slug}`);
       
-      // Сохраняем переводы
+      // Сохраняем переводы (PL с суффиксом -pl)
       for (const [lang, translation] of Object.entries(article.translations)) {
         const translatedPost: Post = {
           ...mainPost,
-          slug: translation.slug,
+          slug: translation.slug, // Уже содержит -pl суффикс
           title: translation.title,
           excerpt: translation.excerpt,
           content: translation.content,
@@ -646,6 +648,7 @@ class UnifiedArticleService {
         };
         
         addRuntimeArticle(translatedPost);
+        console.log(`✅ Saved ${lang.toUpperCase()} article: ${translatedPost.slug}`);
       }
       
       console.log(`✅ Статья сохранена локально: ${article.title}`);

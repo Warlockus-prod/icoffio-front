@@ -124,38 +124,39 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     addedDate: '2025-10-28',
     status: 'new'
   },
-  {
-    id: 'mobile-3',
-    placeId: '68f6451d810d98e1a08f2725',
-    format: '160x600',
-    placement: 'mobile',
-    name: 'Wide Skyscraper Mobile',
-    description: '160x600 вертикальный баннер (Mobile) - в середине контента',
-    location: 'article',
-    position: 'content-middle',
-    enabled: true, // ВКЛЮЧЕН: показывается только на mobile (фильтр device === 'mobile')
-    priority: 6,
-    device: 'mobile',
-    addedDate: '2025-10-28',
-    status: 'new'
-  },
+  // ОТКЛЮЧЕНО: 160x600 слишком большой вертикальный баннер - плохой UX
+  // {
+  //   id: 'mobile-3',
+  //   placeId: '68f6451d810d98e1a08f2725',
+  //   format: '160x600',
+  //   placement: 'mobile',
+  //   name: 'Wide Skyscraper Mobile',
+  //   description: '160x600 вертикальный баннер (Mobile) - ОТКЛЮЧЕН - слишком большой',
+  //   location: 'article',
+  //   position: 'content-middle',
+  //   enabled: false,
+  //   priority: 6,
+  //   device: 'mobile',
+  //   addedDate: '2025-10-28',
+  //   status: 'new'
+  // },
 
-  // ==================== DISPLAY ====================
-  {
-    id: 'display-1',
-    placeId: '68f63437810d98e1a08f26de',
-    format: '320x480',
-    placement: 'display',
-    name: 'Mobile Interstitial',
-    description: '320x480 fullscreen banner (Display)',
-    location: 'article',
-    position: 'content-middle',
-    enabled: true,
-    priority: 7,
-    device: 'mobile',
-    addedDate: '2025-10-28',
-    status: 'new'
-  },
+  // ОТКЛЮЧЕНО: 320x480 interstitial - слишком навязчивый
+  // {
+  //   id: 'display-1',
+  //   placeId: '68f63437810d98e1a08f26de',
+  //   format: '320x480',
+  //   placement: 'display',
+  //   name: 'Mobile Interstitial',
+  //   description: '320x480 fullscreen banner (Display) - ОТКЛЮЧЕН - плохой UX',
+  //   location: 'article',
+  //   position: 'content-middle',
+  //   enabled: false,
+  //   priority: 7,
+  //   device: 'mobile',
+  //   addedDate: '2025-10-28',
+  //   status: 'new'
+  // },
 
   // ==================== VIDEO ADVERTISING ====================
   // ОТКЛЮЧЕНЫ - требуют отдельной интеграции VOX Video

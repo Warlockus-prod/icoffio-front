@@ -6,14 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### 🎯 Major Admin Panel Fixes
 
-#### ✅ 1. FIXED TRANSLATIONS (EN + PL)
-- **Problem:** Articles stayed in Russian after parsing, translations didn't work
+#### ✅ 1. FIXED TRANSLATIONS (EN + PL) - **КРИТИЧНО!**
+- **Problem:** Articles stayed in Russian in editor, user had to manually check translations
 - **Solution:** 
-  - Auto-detect source language
-  - Translate to English (primary version)
+  - Auto-detect source language (RU/ES/any)
+  - Translate to English (becomes PRIMARY version)
   - Translate to Polish (secondary version)
-  - Parallel processing for speed
-- **Result:** All articles now in EN + PL with correct translations
+  - **Editor shows ENGLISH version** (not source language!)
+  - Source language not saved anywhere
+- **Result:** Russian article → auto-translated to EN + PL, editor shows ENGLISH
+- **File:** `lib/stores/admin-store.ts` lines 538-542 - always use `posts.en` as primary
 
 #### ✅ 2. REMOVED DOUBLE QUOTES IN TITLES
 - **Problem:** GPT added extra quotes in translated texts: `"Title of article"`

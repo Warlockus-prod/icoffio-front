@@ -202,9 +202,13 @@ class UnifiedArticleService {
             // Определяем исходный язык
             const sourceLanguage = translationService.detectLanguage(articleData.content);
             console.log(`🔍 Detected source language: ${sourceLanguage}`);
+            console.log(`📊 Original title: "${articleData.title.substring(0, 80)}..."`);
+            console.log(`📊 Original content length: ${articleData.content.length} chars`);
             
             const needsEnTranslation = sourceLanguage !== 'en';
             const needsPlTranslation = sourceLanguage !== 'pl';
+            
+            console.log(`🔄 Translation needed: EN=${needsEnTranslation}, PL=${needsPlTranslation}`);
             
             // ПЕРЕВОДИМ НА АНГЛИЙСКИЙ (если нужно)
             if (needsEnTranslation) {
@@ -231,9 +235,12 @@ class UnifiedArticleService {
                 ...articleData,
                 title: enTitle.translatedText,
                 content: enContent.translatedText,
-                excerpt: enExcerpt.translatedText
+                excerpt: enExcerpt.translatedText,
+                language: 'en' // ✅ КРИТИЧНО: Устанавливаем язык в 'en'!
               };
-              console.log('✅ English translation completed (now primary)');
+              console.log('✅ English translation completed (now primary, language=en)');
+              console.log(`📊 EN title: "${enTitle.translatedText.substring(0, 80)}..."`);
+              console.log(`📊 EN content length: ${enContent.translatedText.length} chars`);
             }
             
             // ПЕРЕВОДИМ НА ПОЛЬСКИЙ (всегда нужен)
@@ -264,6 +271,7 @@ class UnifiedArticleService {
                 slug: baseSlug // ✅ FIXED: NO -pl suffix, use same slug
               };
               console.log('✅ Polish translation completed');
+              console.log(`📊 PL title: "${plTitle.translatedText.substring(0, 80)}..."`);
             } else {
               translations.pl = {
                 title: articleData.title,
@@ -293,6 +301,11 @@ class UnifiedArticleService {
       
       // Используем финальную (возможно переведенную на EN) версию как основную статью
       articleData = finalArticleData;
+      
+      // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно устанавливаем язык в 'en'
+      // После перевода на английский, основная статья ВСЕГДА английская
+      articleData.language = 'en';
+      console.log('✅ Primary article language set to EN');
       
       // 5. СОЗДАНИЕ ФИНАЛЬНОГО ОБЪЕКТА СТАТЬИ
       const processedArticle = this.createProcessedArticle(articleData, input, translations);

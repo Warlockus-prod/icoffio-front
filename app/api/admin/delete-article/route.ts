@@ -10,8 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'edge';
 
 const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL || 'https://icoffio.com';
-const WP_USERNAME = process.env.WP_USERNAME;
-const WP_APP_PASSWORD = process.env.WP_APP_PASSWORD;
+// Поддерживаем оба варианта переменных окружения
+const WP_USERNAME = process.env.WP_USERNAME || process.env.WORDPRESS_USERNAME;
+const WP_APP_PASSWORD = process.env.WP_APP_PASSWORD || process.env.WORDPRESS_APP_PASSWORD;
 
 interface DeleteArticleRequest {
   slug: string;

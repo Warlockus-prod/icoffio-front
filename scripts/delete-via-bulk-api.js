@@ -5,7 +5,7 @@
  * Credentials берутся из Vercel environment variables
  */
 
-const API_BASE_URL = 'https://app.icoffio.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.icoffio.com';
 
 // Список slug статей для удаления
 const PROBLEMATIC_SLUGS = [
@@ -50,7 +50,7 @@ async function deleteArticlesViaBulkAPI() {
   try {
     console.log('📤 Отправляем запрос на удаление...\n');
     
-    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-delete-articles`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-delete-wordpress`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

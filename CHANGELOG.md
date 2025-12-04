@@ -33,13 +33,17 @@ All notable changes to this project will be documented in this file.
   - Save in `article.imageOptions` for admin selection
 - **Result:** Admin can choose from 3 image variants
 
-#### ✅ 4. FIXED PUBLICATION & LINKS
-- **Problem:** Links didn't work after publication, wrong slugs with -en/-pl suffixes
+#### ✅ 4. FIXED PUBLICATION & LINKS (404 ERRORS)
+- **Problem:** Articles returned 404 after publication
+- **Root Cause:** Removed -en/-pl suffixes, but routing system requires them!
 - **Solution:** 
-  - Same slug for both languages (NO suffixes)
-  - Proper runtime articles storage
-  - Correct URL formation: `/en/article/slug-name` and `/pl/article/slug-name`
+  - **RETURNED slug suffixes:** `-en` and `-pl` (mandatory for routing!)
+  - EN articles: `slug-name-en`
+  - PL articles: `slug-name-pl`
+  - System uses `article.slug.includes('-${locale}')` for filtering
 - **Result:** Working links for both language versions
+  - ✅ `/en/article/slug-name-en`
+  - ✅ `/pl/article/slug-name-pl`
 
 #### ✅ 5. ARTICLE EDITING
 - **Status:** Fully functional editor already implemented

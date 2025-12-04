@@ -2,6 +2,7 @@ import { getPostBySlug, getAllSlugs, getRelated } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
 import { Prose } from "@/components/Prose";
+import { ArticleContentWithAd } from "@/components/ArticleContentWithAd";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
@@ -589,7 +590,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-            {/* Hero Image - ПЕРВЫМ после заголовка */}
+            {/* Hero Image */}
             <div className="mb-8">
               <img 
                 src={post.image || fallback} 
@@ -598,40 +599,12 @@ export default async function Article({ params }: { params: { locale: string; sl
               />
             </div>
 
-            {/* Реклама ПОСЛЕ картинки (content-top) - Desktop */}
-            {adsContentTopDesktop.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="hidden lg:block my-6"
-              />
-            ))}
-            
-            {/* Реклама ПОСЛЕ картинки (content-top) - Mobile */}
-            {adsContentTopMobile.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="lg:hidden my-4"
-              />
-            ))}
-
-            {/* Article Content */}
-            <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
-              {post.content ? (
-                <div dangerouslySetInnerHTML={{ __html: renderContent(post.content) }} />
-              ) : post.contentHtml ? (
-                <Prose html={post.contentHtml} />
-              ) : (
-                <p className="text-neutral-600 dark:text-neutral-300">Content not available.</p>
-              )}
-            </div>
+            {/* Article Content with Mid-Content Ad */}
+            <ArticleContentWithAd 
+              content={post.content ? renderContent(post.content) : (post.contentHtml || '')}
+              adsDesktop={adsContentTopDesktop}
+              adsMobile={adsContentTopMobile}
+            />
 
             {/* Реклама в середине контента (content-middle) - Mobile ONLY (160x600) */}
             {adsContentMiddleMobile.map((ad) => (

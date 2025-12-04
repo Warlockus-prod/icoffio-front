@@ -589,30 +589,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-                  {/* Реклама после заголовка (content-top) - Desktop */}
-                  {adsContentTopDesktop.map((ad) => (
-                    <UniversalAd 
-                      key={ad.id}
-                      placeId={ad.placeId} 
-                      format={ad.format}
-                      placement={ad.placement}
-                      enabled={ad.enabled}
-                      className="lg:block hidden"
-                    />
-                  ))}
-                  
-                  {/* Реклама после заголовка (content-top) - Mobile */}
-                  {adsContentTopMobile.map((ad) => (
-                    <UniversalAd 
-                      key={ad.id}
-                      placeId={ad.placeId} 
-                      format={ad.format}
-                      placement={ad.placement}
-                      enabled={ad.enabled}
-                      className="lg:hidden"
-                    />
-                  ))}
-
+            {/* Hero Image - ПЕРВЫМ после заголовка */}
             <div className="mb-8">
               <img 
                 src={post.image || fallback} 
@@ -620,6 +597,30 @@ export default async function Article({ params }: { params: { locale: string; sl
                 className="w-full rounded-xl aspect-[16/9] object-cover" 
               />
             </div>
+
+            {/* Реклама ПОСЛЕ картинки (content-top) - Desktop */}
+            {adsContentTopDesktop.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="hidden lg:block my-6"
+              />
+            ))}
+            
+            {/* Реклама ПОСЛЕ картинки (content-top) - Mobile */}
+            {adsContentTopMobile.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="lg:hidden my-4"
+              />
+            ))}
 
             {/* Article Content */}
             <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">

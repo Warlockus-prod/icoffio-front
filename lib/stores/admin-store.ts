@@ -22,7 +22,8 @@ export interface Article {
   excerpt: string;
   category: string;
   author: string;
-  image?: string; // Article image URL (from DALL-E, Unsplash, or custom)
+  image?: string; // Primary article image URL
+  images?: string[]; // ✅ НОВОЕ: Дополнительные изображения (2-3 шт)
   translations: {
     en?: { title: string; content: string; excerpt: string };
     pl?: { title: string; content: string; excerpt: string };
@@ -161,7 +162,7 @@ interface AdminStore {
   
   // ✨ NEW: Staged Processing Actions
   generateImageOptions: (articleId: string) => Promise<void>;
-  selectImageOption: (articleId: string, optionId: string) => void;
+  selectImageOption: (articleId: string, optionIds: string[]) => void; // ✅ ИСПРАВЛЕНО: массив ID!
   regenerateImageOptions: (articleId: string) => Promise<void>;
   skipImageSelection: (articleId: string) => void;
   setArticleStage: (articleId: string, stage: Article['processingStage']) => void;
@@ -401,36 +402,46 @@ export const useAdminStore = create<AdminStore>()(
         }
       },
 
-      selectImageOption: (articleId: string, optionId: string) => {
+      selectImageOption: (articleId: string, optionIds: string[]) => {
         set((state) => {
           const article = state.publishingQueue.find(a => a.id === articleId);
           if (!article || !article.imageOptions) return state;
 
-          // Find selected option from all options
+          // Find all selected options
           const allOptions = [
             ...article.imageOptions.unsplash,
             ...article.imageOptions.aiGenerated
           ];
-          const selectedOption = allOptions.find(opt => opt.id === optionId);
+          const selectedOptions = allOptions.filter(opt => optionIds.includes(opt.id));
 
-          if (!selectedOption) return state;
+          if (selectedOptions.length === 0) return state;
 
-          // Apply selected image to article
+          // Используем первое изображение как основное, остальные сохраняем в images[]
+          const primaryImage = selectedOptions[0].url;
+          const additionalImages = selectedOptions.slice(1).map(opt => opt.url);
+
+          // Apply selected images to article
           return {
             publishingQueue: state.publishingQueue.map(a =>
               a.id === articleId
                 ? {
                     ...a,
-                    image: selectedOption.url,
-                    selectedImageId: optionId,
-                    processingStage: 'final' as const
+                    image: primaryImage,
+                    selectedImageId: optionIds[0],
+                    processingStage: 'final' as const,
+                    // ✅ НОВОЕ: Сохраняем дополнительные изображения
+                    images: additionalImages
                   }
                 : a
             )
           };
         });
 
-        console.log(`✅ Image option ${optionId} selected for article ${articleId}`);
+        console.log(`✅ ${optionIds.length} images selected for article ${articleId}`);
+        console.log(`   Primary: ${optionIds[0]}`);
+        if (optionIds.length > 1) {
+          console.log(`   Additional: ${optionIds.slice(1).join(', ')}`);
+        }
       },
 
       regenerateImageOptions: async (articleId: string) => {

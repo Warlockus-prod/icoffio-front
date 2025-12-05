@@ -10,7 +10,7 @@ interface ImageSelectionModalProps {
   articleTitle: string;
   unsplashOptions: ImageOption[];
   aiOptions: ImageOption[];
-  onSelect: (optionId: string) => void;
+  onSelect: (optionIds: string[]) => void; // ✅ ИСПРАВЛЕНО: принимаем массив ID!
   onSkip: () => void;
   onRegenerate: () => void;
   onClose: () => void;
@@ -27,22 +27,44 @@ export default function ImageSelectionModal({
   onRegenerate,
   onClose
 }: ImageSelectionModalProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set()); // ✅ ИСПРАВЛЕНО: Set для множественного выбора!
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSelect = async (optionId: string) => {
-    setSelectedId(optionId);
+  // ✅ ИСПРАВЛЕНО: Toggle выбора картинки (можно выбрать несколько)
+  const toggleImageSelection = (optionId: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(optionId)) {
+        newSet.delete(optionId); // Убираем если уже выбрана
+      } else {
+        if (newSet.size >= 3) {
+          toast.error('❌ Максимум 3 изображения!');
+          return prev;
+        }
+        newSet.add(optionId); // Добавляем
+      }
+      return newSet;
+    });
+  };
+
+  // Применить выбранные изображения
+  const handleApplySelection = async () => {
+    if (selectedIds.size === 0) {
+      toast.error('❌ Выберите хотя бы одно изображение!');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      onSelect(optionId);
-      toast.success('✅ Image selected successfully!');
+      onSelect(Array.from(selectedIds)); // Передаем массив выбранных ID
+      toast.success(`✅ ${selectedIds.size} изображений выбрано!`);
       setTimeout(() => onClose(), 500);
     } catch (error) {
-      console.error('Failed to select image:', error);
-      toast.error('❌ Failed to select image');
+      console.error('Failed to select images:', error);
+      toast.error('❌ Failed to select images');
     } finally {
       setIsLoading(false);
     }
@@ -78,10 +100,13 @@ export default function ImageSelectionModal({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                🎨 Choose Image
+                🎨 Выбери изображения (1-3 шт)
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                for: "{articleTitle.substring(0, 60)}{articleTitle.length > 60 ? '...' : ''}"
+                для статьи: "{articleTitle.substring(0, 60)}{articleTitle.length > 60 ? '...' : ''}"
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                💡 Кликай на картинки чтобы выбрать. Можно выбрать до 3 изображений.
               </p>
             </div>
             <button
@@ -109,9 +134,9 @@ export default function ImageSelectionModal({
                   <ImageCard
                     key={option.id}
                     option={option}
-                    isSelected={selectedId === option.id}
-                    onSelect={() => handleSelect(option.id)}
-                    isLoading={isLoading && selectedId === option.id}
+                    isSelected={selectedIds.has(option.id)} // ✅ ИСПРАВЛЕНО: проверяем в Set
+                    onSelect={() => toggleImageSelection(option.id)} // ✅ ИСПРАВЛЕНО: toggle вместо direct select
+                    isLoading={false}
                   />
                 ))}
               </div>
@@ -132,66 +157,52 @@ export default function ImageSelectionModal({
                   <ImageCard
                     key={option.id}
                     option={option}
-                    isSelected={selectedId === option.id}
-                    onSelect={() => handleSelect(option.id)}
-                    isLoading={isLoading && selectedId === option.id}
+                    isSelected={selectedIds.has(option.id)} // ✅ ИСПРАВЛЕНО
+                    onSelect={() => toggleImageSelection(option.id)} // ✅ ИСПРАВЛЕНО
+                    isLoading={false}
                   />
                 ))}
               </div>
             </div>
           )}
 
-          {/* No Image / Custom Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* No Image Option */}
-            <button
-              onClick={handleSkip}
-              disabled={isLoading}
-              className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex flex-col items-center justify-center h-full">
-                <div className="text-6xl mb-3">🚫</div>
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  No Image
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                  Continue without image
-                </p>
-              </div>
-            </button>
-
-            {/* Custom Upload Option */}
-            <div className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-              <div className="flex flex-col items-center justify-center h-full">
-                <div className="text-6xl mb-3">📤</div>
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  Upload Custom
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-3">
-                  Coming soon
-                </p>
-                <button
-                  disabled
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-sm"
-                >
-                  Not Available
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 flex justify-between items-center">
-          <button
-            onClick={handleRegenerate}
-            disabled={isLoading}
-            className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          >
-            🔄 Regenerate Options
-          </button>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {unsplashOptions.length + aiOptions.length} options available
+          <div className="flex gap-3">
+            <button
+              onClick={handleRegenerate}
+              disabled={isLoading}
+              className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+            >
+              🔄 Regenerate
+            </button>
+            <button
+              onClick={handleSkip}
+              disabled={isLoading}
+              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+            >
+              ⏭️ Skip
+            </button>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {selectedIds.size > 0 ? (
+                <span className="text-blue-600 dark:text-blue-400 font-medium">
+                  ✓ {selectedIds.size} выбрано (макс. 3)
+                </span>
+              ) : (
+                <span>{unsplashOptions.length + aiOptions.length} доступно</span>
+              )}
+            </div>
+            <button
+              onClick={handleApplySelection}
+              disabled={isLoading || selectedIds.size === 0}
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors text-sm"
+            >
+              {isLoading ? '⏳ Применяем...' : `✓ Применить (${selectedIds.size})`}
+            </button>
           </div>
         </div>
       </div>
@@ -227,21 +238,22 @@ function ImageCard({ option, isSelected, onSelect, isLoading }: ImageCardProps) 
           className="w-full h-full object-cover"
         />
         
-        {/* Overlay on Hover */}
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity flex items-center justify-center">
-          <button
-            onClick={onSelect}
-            disabled={isLoading}
-            className="opacity-0 group-hover:opacity-100 transition-opacity px-6 py-3 bg-white text-gray-900 rounded-lg font-semibold hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Selecting...' : '✓ Select'}
-          </button>
+        {/* Click overlay для выбора */}
+        <div 
+          onClick={onSelect}
+          className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-opacity cursor-pointer flex items-center justify-center"
+        >
+          {isSelected && (
+            <div className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold">
+              ✓ Выбрано
+            </div>
+          )}
         </div>
 
         {/* Selected Badge */}
         {isSelected && (
-          <div className="absolute top-2 right-2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-            ✓ Selected
+          <div className="absolute top-2 right-2 bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold shadow-lg">
+            ✓
           </div>
         )}
       </div>
@@ -294,13 +306,16 @@ function ImageCard({ option, isSelected, onSelect, isLoading }: ImageCardProps) 
           </div>
         )}
 
-        {/* Select Button (mobile) */}
+        {/* Select Button (mobile) - Toggle режим */}
         <button
           onClick={onSelect}
-          disabled={isLoading}
-          className="mt-3 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium md:hidden"
+          className={`mt-3 w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium md:hidden ${
+            isSelected 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
         >
-          {isLoading ? 'Selecting...' : isSelected ? '✓ Selected' : 'Select'}
+          {isSelected ? '✓ Выбрано' : 'Выбрать'}
         </button>
       </div>
     </div>

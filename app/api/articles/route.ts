@@ -741,8 +741,17 @@ async function handleArticlePublication(body: any, request: NextRequest) {
 
     console.log(`📤 Publishing article: ${article.title}`);
 
-    // 1. КРИТИЧЕСКИ ВАЖНО: Добавляем статью в локальное runtime хранилище
-    // Это обеспечит немедленное отображение статьи на сайте
+    // 1. КРИТИЧЕСКИ ВАЖНО: Сохраняем в Supabase для персистентности
+    // Runtime storage НЕ работает в serverless (каждый запрос на разных серверах!)
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase not configured');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const { addRuntimeArticle } = require('@/lib/local-articles');
     
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Генерируем slug С СУФФИКСАМИ (система требует!)
@@ -761,8 +770,50 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
-    // Публикуем АНГЛИЙСКУЮ версию (основную)
-    const enSlug = `${baseSlug}-en`; // ✅ ВОЗВРАЩАЕМ суффикс -en!
+    // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!
+    const enSlug = `${baseSlug}-en`;
+    const plSlug = `${baseSlug}-pl`;
+    
+    // Подготовка данных для Supabase
+    const supabaseData = {
+      chat_id: 0, // Admin panel
+      title: article.title,
+      slug_en: enSlug,
+      slug_pl: plSlug,
+      content_en: article.content,
+      content_pl: article.translations?.pl?.content || article.content,
+      excerpt_en: article.excerpt || article.title.substring(0, 150),
+      excerpt_pl: article.translations?.pl?.excerpt || article.excerpt,
+      image_url: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+      category: article.category || 'tech',
+      author: article.author || 'AI Editorial Team',
+      tags: Array.isArray(article.tags) ? article.tags : ['ai-processed', 'imported'],
+      word_count: Math.round((article.content?.split(/\s+/).length || 0)),
+      languages: article.translations?.pl ? ['en', 'pl'] : ['en'],
+      source: 'admin-panel',
+      original_input: article.title,
+      meta_description: article.excerpt?.substring(0, 160),
+      published: true,
+      featured: false,
+      url_en: `https://app.icoffio.com/en/article/${enSlug}`,
+      url_pl: `https://app.icoffio.com/pl/article/${plSlug}`
+    };
+    
+    // Сохраняем в Supabase
+    const { data: savedArticle, error: saveError } = await supabase
+      .from('published_articles')
+      .insert([supabaseData])
+      .select()
+      .single();
+    
+    if (saveError) {
+      console.error('❌ Supabase save error:', saveError);
+      throw new Error(`Failed to save to database: ${saveError.message}`);
+    }
+    
+    console.log(`✅ Saved to Supabase: ID ${savedArticle.id}`);
+    
+    // Также добавляем в runtime для немедленного отображения
     const enPost = {
       slug: enSlug,
       title: article.title,
@@ -776,11 +827,10 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     };
     
     addRuntimeArticle(enPost);
-    console.log(`✅ Added EN article to runtime: /en/article/${enPost.slug}`);
+    console.log(`✅ Added EN to runtime: /en/article/${enPost.slug}`);
     
-    // Публикуем ПОЛЬСКУЮ версию (если есть перевод)
+    // Польская версия
     if (article.translations && article.translations.pl) {
-      const plSlug = `${baseSlug}-pl`; // ✅ ВОЗВРАЩАЕМ суффикс -pl!
       const plPost = {
         slug: plSlug,
         title: article.translations.pl.title,
@@ -794,7 +844,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       };
       
       addRuntimeArticle(plPost);
-      console.log(`✅ Added PL article to runtime: /pl/article/${plPost.slug}`);
+      console.log(`✅ Added PL to runtime: /pl/article/${plPost.slug}`);
     }
 
     // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (если доступен)

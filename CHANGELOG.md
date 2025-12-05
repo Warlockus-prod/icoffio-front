@@ -2,6 +2,91 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.5.0] - 2025-12-05 - 🤖 Telegram Bot Settings Integration
+
+### 🤖 TELEGRAM SETTINGS IN ADMIN PANEL
+**Управление настройками Telegram bot через админ панель**
+
+**Новая вкладка:** 🤖 Telegram - полный контроль над публикацией
+
+**Доступные настройки:**
+- 📝 **Content Style** (6 вариантов):
+  - 📰 Journalistic (default) - engaging, wide audience
+  - ✋ Keep As Is - минимальные изменения
+  - 🔍 SEO Optimized - keywords & structure
+  - 🎓 Academic - formal, scientific
+  - 💬 Casual - friendly, conversational
+  - ⚙️ Technical - detailed, precise
+
+- 🖼️ **Images Count** (0-3) - количество изображений
+- 📸 **Images Source** (Unsplash/AI/None) - источник
+- ✅ **Auto-publish** - публиковать сразу или сохранять как draft
+
+### 🗄️ SUPABASE MIGRATION
+**Расширена таблица:** `telegram_user_preferences`
+```sql
++ content_style VARCHAR(50) DEFAULT 'journalistic'
++ images_count INTEGER DEFAULT 2
++ images_source VARCHAR(20) DEFAULT 'unsplash'
++ auto_publish BOOLEAN DEFAULT true
+```
+
+### 📁 Новые файлы
+- `supabase/migrations/20251205_telegram_settings.sql` - миграция БД
+- `app/api/telegram/settings/route.ts` - API (GET/POST)
+- `components/admin/TelegramSettings.tsx` - React компонент (370 строк)
+- `lib/telegram-simple/settings-loader.ts` - загрузка настроек
+- `TELEGRAM_SETTINGS_v8.5.0.md` - полная документация
+
+### 🔧 Изменения
+- `lib/stores/admin-store.ts` - добавлен activeTab 'telegram-settings'
+- `components/admin/AdminLayout.tsx` - вкладка 🤖 Telegram
+- `app/[locale]/admin/page.tsx` - рендер <TelegramSettings />
+- `lib/telegram-simple/types.ts` - TelegramSettings interface
+- `app/api/telegram-simple/webhook/route.ts`:
+  - Загрузка настроек через loadTelegramSettings()
+  - Применение contentStyle к AI обработке
+  - Поддержка autoPublish (draft mode)
+  - Новая команда `/settings`
+- `lib/telegram-simple/content-processor.ts`:
+  - Параметр contentStyle в processText()
+  - getStyleInstructions() - 6 стилей
+- `lib/telegram-simple/publisher.ts`:
+  - Параметр autoPublish в publishArticle()
+  - Поддержка draft (published = false)
+
+### 🚀 TELEGRAM BOT COMMANDS
+- `/start` - Приветствие (обновлено, показывает v8.5)
+- `/help` - Справка (обновлено)
+- `/settings` - Показать текущие настройки ← **NEW!**
+
+### 🎯 WORKFLOW v8.5.0
+```
+Telegram → URL/текст
+    ↓
+⚙️ Загрузка настроек из БД (chatId)
+    ↓
+🤖 AI обработка (применяется contentStyle)
+    ↓
+🇵🇱 Перевод на PL
+    ↓
+💾 Публикация (published = autoPublish)
+    ↓
+✅ Уведомление (published или draft)
+```
+
+### ✅ TESTING
+- [x] API GET/POST /api/telegram/settings работает
+- [x] Settings сохраняются в Supabase
+- [x] Default settings fallback работает
+- [x] Telegram bot применяет настройки
+
+**Deployment:** v8.5.0  
+**Status:** ✅ READY FOR PRODUCTION  
+**Docs:** TELEGRAM_SETTINGS_v8.5.0.md
+
+---
+
 ## [8.4.0] - 2025-12-05 - 📝 Content Styles + Image Placement
 
 ### 📝 CONTENT STYLES (A)

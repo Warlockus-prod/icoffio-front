@@ -28,22 +28,25 @@ You are a professional tech article writer. Transform the following text into a 
 SOURCE TEXT:
 ${text}
 
-REQUIREMENTS:
+CRITICAL REQUIREMENTS:
+- **ALL OUTPUT MUST BE IN ENGLISH** (translate if source is in another language)
 - Write in clear, professional English
 - Target length: 400-600 words
 - Use proper Markdown formatting with ## headings
 - Make it informative and engaging
 - Focus on key points and insights
 - Add relevant context if needed
-${userTitle ? `- Use this title: "${userTitle}"` : '- Create an engaging title'}
+${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title'}
 
 OUTPUT FORMAT (JSON):
 {
-  "title": "Engaging article title",
-  "content": "Full article content in Markdown with ## headings",
-  "excerpt": "Brief 1-2 sentence summary (max 200 chars)",
+  "title": "Engaging article title IN ENGLISH",
+  "content": "Full article content in Markdown with ## headings IN ENGLISH",
+  "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH",
   "category": "One of: ai, tech, gadgets, software, hardware, internet, security"
 }
+
+IMPORTANT: If source text is in Russian, Chinese, or any other language - TRANSLATE EVERYTHING to English!
 
 Return ONLY valid JSON, no other text.
 `.trim();
@@ -78,9 +81,42 @@ Return ONLY valid JSON, no other text.
 
     const result = JSON.parse(content);
 
+    // Check if title contains non-English characters (Cyrillic, Chinese, etc.)
+    const title = result.title || userTitle || 'Untitled Article';
+    const hasNonEnglish = /[^\x00-\x7F]/g.test(title);
+    
+    let finalTitle = title;
+    
+    // If title has non-English characters, force translation
+    if (hasNonEnglish) {
+      console.log(`[TelegramSimple] ⚠️ Title contains non-English characters, translating...`);
+      try {
+        const translateResponse = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional translator. Translate titles to English accurately.',
+            },
+            {
+              role: 'user',
+              content: `Translate this title to English: "${title}"`,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 100,
+        });
+        
+        finalTitle = translateResponse.choices[0].message.content?.trim() || title;
+        console.log(`[TelegramSimple] ✅ Translated title: "${finalTitle}"`);
+      } catch (error) {
+        console.error('[TelegramSimple] Translation failed, using original:', error);
+      }
+    }
+
     // Validate and prepare article
     const article: ProcessedArticle = {
-      title: result.title || userTitle || 'Untitled Article',
+      title: finalTitle,
       content: result.content || text,
       excerpt: result.excerpt || result.content?.substring(0, 200) || 'No excerpt',
       category: validateCategory(result.category),

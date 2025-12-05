@@ -1,192 +1,209 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useRef } from 'react';
+/**
+ * 🖼️ OPTIMIZED IMAGE COMPONENT v8.2.1
+ * 
+ * Next.js Image с автоматическим blur placeholder
+ * - Progressive loading (blur → clear)
+ * - Lazy loading по умолчанию
+ * - Fallback для CORS ошибок
+ * - Автоматическая оптимизация через Next.js
+ */
+
+import Image from 'next/image';
+import { useState, useEffect } from 'react';
 
 interface OptimizedImageProps {
   src: string;
   alt: string;
   width?: number;
   height?: number;
+  fill?: boolean;
   className?: string;
   priority?: boolean;
   sizes?: string;
   quality?: number;
-  placeholder?: 'blur' | 'empty';
-  blurDataURL?: string;
+  blurDataUrl?: string;
+  onLoad?: () => void;
+  onError?: () => void;
 }
+
+// Стандартный blur placeholder (серый градиент)
+const DEFAULT_BLUR = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDBAMBAAAAAAAAAAAAAQIDAAQRBRIhMQYTQWH/xAAVAQEBAAAAAAAAAAAAAAAAAAADBP/EABkRAAIDAQAAAAAAAAAAAAAAAAABAhEhMf/aAAwDAQACEQMRAD8AyLT9Ps7qzgluIEkkZAxYjk5p3+P6f/QsP9pSlSbKdH//2Q==';
+
+// Проверяем, является ли URL внешним (не Vercel Blob)
+const isExternalUrl = (url: string): boolean => {
+  if (!url) return false;
+  return !url.includes('vercel-storage.com') && 
+         !url.includes('blob.vercel-storage.com') &&
+         !url.startsWith('/');
+};
 
 export function OptimizedImage({
   src,
   alt,
   width,
   height,
+  fill = false,
   className = '',
   priority = false,
-  sizes = '100vw',
-  quality = 75,
-  placeholder = 'blur',
-  blurDataURL
+  sizes,
+  quality = 85,
+  blurDataUrl,
+  onLoad,
+  onError
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [imageSrc, setImageSrc] = useState(src);
-  const [isInView, setIsInView] = useState(priority);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const [hasError, setHasError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState(src);
 
-  // Intersection Observer для lazy loading
+  // Сбрасываем состояние при изменении src
   useEffect(() => {
-    if (priority) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true);
-          observer.disconnect();
-        }
-      },
-      {
-        rootMargin: '50px', // Начинаем загрузку за 50px до попадания в область видимости
-      }
-    );
-
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [priority]);
-
-  // Функция для оптимизации URL изображений
-  const optimizeImageUrl = (url: string, width?: number, quality = 75): string => {
-    // Для Unsplash изображений
-    if (url.includes('unsplash.com')) {
-      const baseUrl = url.split('?')[0];
-      const params = new URLSearchParams();
-      
-      if (width) params.set('w', width.toString());
-      params.set('q', quality.toString());
-      params.set('auto', 'format');
-      params.set('fit', 'crop');
-      
-      return `${baseUrl}?${params.toString()}`;
-    }
-
-    // Для внутренних изображений - можно добавить логику для Next.js Image Optimization
-    if (url.startsWith('/') || url.includes(process.env.NEXT_PUBLIC_SITE_URL || '')) {
-      return url; // Next.js сам оптимизирует
-    }
-
-    return url;
-  };
-
-  // WebP fallback логика
-  const getWebPUrl = (url: string): string => {
-    if (url.includes('unsplash.com')) {
-      return optimizeImageUrl(url, width, quality) + '&fm=webp';
-    }
-    return url;
-  };
-
-  // Проверка поддержки WebP
-  const supportsWebP = () => {
-    if (typeof window === 'undefined') return false;
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
-  };
-
-  // Генерация blur placeholder
-  const generateBlurDataURL = () => {
-    if (blurDataURL) return blurDataURL;
-    
-    // Создаем простой blur placeholder
-    const svg = `
-      <svg width="400" height="225" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#e5e7eb;stop-opacity:1" />
-            <stop offset="50%" style="stop-color:#f3f4f6;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#e5e7eb;stop-opacity:1" />
-          </linearGradient>
-        </defs>
-        <rect width="400" height="225" fill="url(#grad)" />
-      </svg>
-    `;
-    
-    // Используем btoa для кодирования в base64 (browser-compatible)
-    return `data:image/svg+xml;base64,${typeof window !== 'undefined' ? btoa(svg) : ''}`;
-  };
-
-  // Обновляем src при изменении isInView
-  useEffect(() => {
-    if (isInView && !isLoaded) {
-      const webpUrl = supportsWebP() ? getWebPUrl(src) : optimizeImageUrl(src, width, quality);
-      setImageSrc(webpUrl);
-    }
-  }, [isInView, src, width, quality, isLoaded]);
+    setIsLoaded(false);
+    setHasError(false);
+    setCurrentSrc(src);
+  }, [src]);
 
   const handleLoad = () => {
     setIsLoaded(true);
+    onLoad?.();
   };
 
   const handleError = () => {
-    // Fallback к оригинальному изображению при ошибке
-    setImageSrc(optimizeImageUrl(src, width, quality));
+    setHasError(true);
+    onError?.();
+    
+    // Fallback на placeholder при ошибке
+    setCurrentSrc('/images/placeholder-article.jpg');
   };
 
+  // Определяем blur placeholder
+  const blur = blurDataUrl || DEFAULT_BLUR;
+
+  // Для внешних изображений (Unsplash и т.д.) используем unoptimized
+  // чтобы избежать проблем с domains
+  const isExternal = isExternalUrl(currentSrc);
+
+  if (fill) {
+    return (
+      <div className={`relative overflow-hidden ${className}`}>
+        {/* Blur placeholder background */}
+        {!isLoaded && !hasError && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center animate-pulse"
+            style={{ 
+              backgroundImage: `url(${blur})`,
+              filter: 'blur(20px)',
+              transform: 'scale(1.1)'
+            }}
+          />
+        )}
+        
+        <Image
+          src={currentSrc}
+          alt={alt}
+          fill
+          sizes={sizes || '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'}
+          quality={quality}
+          priority={priority}
+          className={`object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={handleLoad}
+          onError={handleError}
+          unoptimized={isExternal}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div 
-      ref={imgRef}
-      className={`relative overflow-hidden ${className}`}
-      style={{ width: width ? `${width}px` : 'auto', height: height ? `${height}px` : 'auto' }}
-    >
-      {/* Blur placeholder */}
-      {!isLoaded && placeholder === 'blur' && (
-        <img
-          src={generateBlurDataURL()}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover scale-110 filter blur-2xl"
+    <div className={`relative overflow-hidden ${className}`}>
+      {/* Blur placeholder background */}
+      {!isLoaded && !hasError && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center animate-pulse"
+          style={{ 
+            backgroundImage: `url(${blur})`,
+            filter: 'blur(20px)',
+            transform: 'scale(1.1)',
+            width: width || '100%',
+            height: height || '100%'
+          }}
         />
       )}
       
-      {/* Skeleton loader */}
-      {!isLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 animate-pulse" />
-      )}
-      
-      {/* Основное изображение */}
-      {isInView && (
-        <picture>
-          {/* WebP source для поддерживающих браузеров */}
-          {src.includes('unsplash.com') && (
-            <source 
-              srcSet={getWebPUrl(src)}
-              type="image/webp"
-              sizes={sizes}
-            />
-          )}
-          
-          <img
-            src={imageSrc}
-            alt={alt}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              isLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-            onLoad={handleLoad}
-            onError={handleError}
-            sizes={sizes}
-            loading={priority ? 'eager' : 'lazy'}
-          />
-        </picture>
-      )}
-
-      {/* Индикатор загрузки */}
-      {!isLoaded && isInView && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
+      <Image
+        src={currentSrc}
+        alt={alt}
+        width={width || 800}
+        height={height || 450}
+        sizes={sizes}
+        quality={quality}
+        priority={priority}
+        className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={handleLoad}
+        onError={handleError}
+        unoptimized={isExternal}
+      />
     </div>
   );
 }
+
+/**
+ * Компактная версия для карточек статей
+ */
+export function ArticleCardImage({
+  src,
+  alt,
+  className = '',
+  blurDataUrl
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  blurDataUrl?: string;
+}) {
+  return (
+    <OptimizedImage
+      src={src}
+      alt={alt}
+      fill
+      className={`aspect-[16/9] ${className}`}
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+      quality={80}
+      blurDataUrl={blurDataUrl}
+    />
+  );
+}
+
+/**
+ * Hero изображение для статей
+ */
+export function ArticleHeroImage({
+  src,
+  alt,
+  className = '',
+  blurDataUrl,
+  priority = true
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  blurDataUrl?: string;
+  priority?: boolean;
+}) {
+  return (
+    <OptimizedImage
+      src={src}
+      alt={alt}
+      fill
+      className={`aspect-[21/9] ${className}`}
+      sizes="100vw"
+      quality={90}
+      priority={priority}
+      blurDataUrl={blurDataUrl}
+    />
+  );
+}
+
+// Default export для совместимости
+export default OptimizedImage;

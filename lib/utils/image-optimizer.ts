@@ -270,3 +270,155 @@ export const OPTIMIZATION_PRESETS = {
   }
 };
 
+// ============================================================================
+// BLUR PLACEHOLDER GENERATION
+// ============================================================================
+
+/**
+ * Генерирует tiny blur placeholder для Progressive Image Loading
+ * Создаёт очень маленькое изображение (10x10) в base64
+ */
+export async function generateBlurPlaceholder(
+  file: File | Blob
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      try {
+        // Создаём очень маленький canvas (10x10 пикселей)
+        const canvas = document.createElement('canvas');
+        const size = 10;
+        canvas.width = size;
+        canvas.height = size;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Failed to get canvas context');
+        }
+        
+        // Рисуем изображение в маленьком размере
+        ctx.drawImage(img, 0, 0, size, size);
+        
+        // Конвертируем в base64 с низким качеством
+        const blurDataUrl = canvas.toDataURL('image/jpeg', 0.1);
+        
+        // Cleanup
+        URL.revokeObjectURL(objectUrl);
+        
+        console.log(`🌫️ Blur placeholder generated (${blurDataUrl.length} bytes)`);
+        resolve(blurDataUrl);
+        
+      } catch (error) {
+        URL.revokeObjectURL(objectUrl);
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image for blur generation'));
+    };
+    
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Генерирует blur placeholder из URL изображения
+ */
+export async function generateBlurFromUrl(imageUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Для CORS
+    
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const size = 10;
+        canvas.width = size;
+        canvas.height = size;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Failed to get canvas context');
+        }
+        
+        ctx.drawImage(img, 0, 0, size, size);
+        const blurDataUrl = canvas.toDataURL('image/jpeg', 0.1);
+        
+        resolve(blurDataUrl);
+      } catch (error) {
+        // Fallback для CORS ошибок
+        resolve(getDefaultBlurPlaceholder());
+      }
+    };
+    
+    img.onerror = () => {
+      // Fallback
+      resolve(getDefaultBlurPlaceholder());
+    };
+    
+    img.src = imageUrl;
+  });
+}
+
+/**
+ * Стандартный blur placeholder (серый градиент)
+ */
+export function getDefaultBlurPlaceholder(): string {
+  return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDBAMBAAAAAAAAAAAAAQIDAAQRBRIhMQYTQWH/xAAVAQEBAAAAAAAAAAAAAAAAAAADBP/EABkRAAIDAQAAAAAAAAAAAAAAAAABAhEhMf/aAAwDAQACEQMRAD8AyLT9Ps7qzgluIEkkZAxYjk5p3+P6f/QsP9pSlSbKdH//2Q==';
+}
+
+// ============================================================================
+// UPLOAD TO VERCEL BLOB
+// ============================================================================
+
+/**
+ * Загружает оптимизированное изображение в Vercel Blob
+ */
+export async function uploadToVercelBlob(
+  file: File,
+  options?: OptimizeOptions
+): Promise<{
+  url: string;
+  blurDataUrl: string;
+  size: number;
+  optimizedSize: number;
+}> {
+  // 1. Оптимизируем изображение
+  const optimized = await optimizeImage(file, options || OPTIMIZATION_PRESETS.content);
+  
+  // 2. Генерируем blur placeholder
+  const blurDataUrl = await generateBlurPlaceholder(file);
+  
+  // 3. Загружаем в Vercel Blob через API
+  const formData = new FormData();
+  formData.append('file', optimizedToFile(optimized, file.name));
+  
+  const response = await fetch('/api/upload-image', {
+    method: 'POST',
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Upload failed');
+  }
+  
+  const result = await response.json();
+  
+  console.log(`📤 Uploaded to Vercel Blob:`);
+  console.log(`   Original: ${(file.size / 1024).toFixed(1)}KB`);
+  console.log(`   Optimized: ${(optimized.optimizedSize / 1024).toFixed(1)}KB`);
+  console.log(`   URL: ${result.url}`);
+  
+  return {
+    url: result.url,
+    blurDataUrl,
+    size: file.size,
+    optimizedSize: optimized.optimizedSize
+  };
+}
+

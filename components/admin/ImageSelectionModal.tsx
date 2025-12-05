@@ -37,11 +37,15 @@ interface UploadedImage {
   id: string;
   file: File;
   preview: string;
-  optimizedUrl?: string;
+  uploadedUrl?: string; // URL в Vercel Blob после загрузки
+  blurDataUrl?: string; // Blur placeholder для Progressive loading
   size: number;
   originalSize: number;
   width?: number;
   height?: number;
+  isUploading?: boolean;
+  isUploaded?: boolean;
+  uploadError?: string;
 }
 
 const MAX_IMAGES = 5;
@@ -87,6 +91,43 @@ export default function ImageSelectionModal({
     });
   };
 
+  // ✅ Загрузка файла в Vercel Blob
+  const uploadToBlob = useCallback(async (uploadedImage: UploadedImage): Promise<UploadedImage> => {
+    try {
+      // Оптимизируем и загружаем
+      const formData = new FormData();
+      formData.append('file', uploadedImage.file);
+      
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      
+      const result = await response.json();
+      
+      return {
+        ...uploadedImage,
+        uploadedUrl: result.url,
+        blurDataUrl: result.blurDataUrl,
+        isUploading: false,
+        isUploaded: true
+      };
+    } catch (error) {
+      console.error('Upload error:', error);
+      return {
+        ...uploadedImage,
+        isUploading: false,
+        isUploaded: false,
+        uploadError: error instanceof Error ? error.message : 'Upload failed'
+      };
+    }
+  }, []);
+
   // ✅ Обработка загрузки файлов
   const handleFileUpload = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -110,19 +151,24 @@ export default function ImageSelectionModal({
         break;
       }
       
-      // Создаём preview и оптимизируем
+      // Создаём preview
       const preview = URL.createObjectURL(file);
       const img = new Image();
       
-      img.onload = () => {
-        const uploaded: UploadedImage = {
-          id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      img.onload = async () => {
+        const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Добавляем с флагом загрузки
+        const newImage: UploadedImage = {
+          id: uploadId,
           file,
           preview,
           size: file.size,
           originalSize: file.size,
           width: img.width,
-          height: img.height
+          height: img.height,
+          isUploading: true,
+          isUploaded: false
         };
         
         setUploadedImages(prev => {
@@ -130,15 +176,29 @@ export default function ImageSelectionModal({
             toast.error(`❌ Достигнут лимит ${MAX_IMAGES} изображений`);
             return prev;
           }
-          return [...prev, uploaded];
+          return [...prev, newImage];
         });
         
-        toast.success(`✅ ${file.name} загружен!`);
+        // Загружаем в Vercel Blob
+        const toastId = toast.loading(`📤 Загружаем ${file.name}...`);
+        
+        const uploaded = await uploadToBlob(newImage);
+        
+        // Обновляем состояние
+        setUploadedImages(prev => 
+          prev.map(img => img.id === uploadId ? uploaded : img)
+        );
+        
+        if (uploaded.isUploaded) {
+          toast.success(`✅ ${file.name} загружен в CDN!`, { id: toastId });
+        } else {
+          toast.error(`❌ Ошибка: ${uploaded.uploadError}`, { id: toastId });
+        }
       };
       
       img.src = preview;
     }
-  }, [totalSelected, selectedIds.size, uploadedImages.length]);
+  }, [totalSelected, selectedIds.size, uploadedImages.length, uploadToBlob]);
 
   // ✅ Drag & Drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {

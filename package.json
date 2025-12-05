@@ -1,7 +1,7 @@
 {
   "name": "icoffio-clone",
   "private": true,
-  "version": "8.2.0",
+  "version": "8.2.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -19,6 +19,7 @@
     "@tiptap/extension-placeholder": "^3.7.2",
     "@tiptap/react": "^3.7.2",
     "@tiptap/starter-kit": "^3.7.2",
+    "@vercel/blob": "^2.0.0",
     "cheerio": "^1.0.0-rc.12",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

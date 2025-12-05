@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.28.1] - 2025-12-05 - 🔥 Critical Fixes: Supabase + Multi-Image
+
+### 🔥 Critical Fixes
+
+#### ✅ 1. SUPABASE PERSISTENCE (Fixed 404 errors!)
+- **Problem:** Articles returned 404 because runtime storage is NOT persistent in serverless
+- **Root Cause:** Each Vercel request runs on different server instance
+- **Solution:** Save to Supabase `published_articles` table on publish
+- **Result:** Articles persist across all requests, no more 404!
+
+#### ✅ 2. MULTIPLE IMAGE SELECTION (1-3 images)
+- **Problem:** Could only select ONE image, needed 2-3
+- **Solution:** 
+  - Toggle mode: click image to add/remove
+  - Selected images shown with checkmark
+  - "Apply (N)" button shows count
+  - Max 3 images limit
+  - First image = primary, rest = additional
+- **Result:** Can select 2-3 images simultaneously!
+
+#### ✅ 3. PREVIEW SHOWS BOTH VERSIONS
+- **Problem:** Only showed EN version, needed to see both
+- **Solution:** Split View by default (EN + PL side-by-side)
+- **Result:** See both translations immediately!
+
+### 🔧 Modified Files
+- `app/api/articles/route.ts` - Supabase integration, slug suffixes
+- `components/admin/ImageSelectionModal.tsx` - Multi-select with Set<string>
+- `lib/stores/admin-store.ts` - images[] field, optionIds array
+
+### 📊 Testing
+- ✅ Build: SUCCESS
+- ✅ TypeScript: 0 errors
+- ✅ Deployed: Production
+
+---
+
 ## [7.28.0] - 2025-12-04 - 🔧 Admin Panel Complete Overhaul
 
 ### 🎯 Major Admin Panel Fixes

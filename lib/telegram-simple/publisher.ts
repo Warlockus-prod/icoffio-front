@@ -1,11 +1,12 @@
 /**
  * TELEGRAM SIMPLE - PUBLISHER
  * 
- * Публикация статей в Supabase
+ * Публикация статей в Supabase (EN + PL dual-language)
  */
 
 import { createClient } from '@supabase/supabase-js';
 import type { ProcessedArticle, PublishResult } from './types';
+import { translateToPolish } from './translator';
 
 /**
  * Get Supabase client
@@ -22,36 +23,47 @@ function getSupabase() {
 }
 
 /**
- * Publish article to Supabase
+ * Publish article to Supabase (EN + PL)
  */
 export async function publishArticle(
   article: ProcessedArticle,
   chatId: number
 ): Promise<PublishResult> {
-  console.log(`[TelegramSimple] 📤 Publishing article: "${article.title}"`);
+  console.log(`[TelegramSimple] 📤 Publishing dual-language: "${article.title}"`);
 
   try {
     const supabase = getSupabase();
     const slug = generateSlug(article.title);
     const now = new Date().toISOString();
 
-    // Prepare article data
+    // Step 1: Translate to Polish
+    console.log('[TelegramSimple] 🇵🇱 Translating to Polish...');
+    const polish = await translateToPolish(article);
+
+    // Step 2: Prepare article data for BOTH languages
     const articleData = {
       // Identity
       chat_id: chatId,
       job_id: `simple_${Date.now()}`,
       
-      // Content
+      // English content
       title: article.title,
       slug_en: `${slug}-en`,
       content_en: article.content,
       excerpt_en: article.excerpt,
+      url_en: `https://app.icoffio.com/en/article/${slug}-en`,
+      
+      // Polish content
+      slug_pl: `${slug}-pl`,
+      content_pl: polish.content,
+      excerpt_pl: polish.excerpt,
+      url_pl: `https://app.icoffio.com/pl/article/${slug}-pl`,
       
       // Metadata
       category: article.category,
       author: 'Telegram Bot Simple',
       word_count: article.wordCount,
-      languages: ['en'],
+      languages: ['en', 'pl'],
       
       // Status
       published: true,
@@ -60,16 +72,14 @@ export async function publishArticle(
       
       // Timestamps
       created_at: now,
-      
-      // URLs (will be generated)
-      url_en: `https://app.icoffio.com/en/article/${slug}-en`,
     };
 
-    // Insert into Supabase
+    // Step 3: Insert into Supabase (single row with both languages)
+    console.log('[TelegramSimple] 💾 Saving to Supabase...');
     const { data, error } = await supabase
       .from('published_articles')
       .insert(articleData)
-      .select('id, slug_en, url_en')
+      .select('id, slug_en, slug_pl, url_en, url_pl')
       .single();
 
     if (error) {
@@ -80,13 +90,22 @@ export async function publishArticle(
       throw new Error('No data returned from Supabase');
     }
 
-    console.log(`[TelegramSimple] ✅ Published: ID=${data.id}, slug=${data.slug_en}`);
+    console.log(`[TelegramSimple] ✅ Published dual-language:`);
+    console.log(`  🇬🇧 EN: ID=${data.id}, slug=${data.slug_en}`);
+    console.log(`  🇵🇱 PL: slug=${data.slug_pl}`);
 
     return {
       success: true,
-      id: data.id,
-      slug: data.slug_en,
-      url: data.url_en || `https://app.icoffio.com/en/article/${data.slug_en}`,
+      en: {
+        id: data.id,
+        slug: data.slug_en,
+        url: data.url_en || `https://app.icoffio.com/en/article/${data.slug_en}`,
+      },
+      pl: {
+        id: data.id, // Same ID, different slug
+        slug: data.slug_pl,
+        url: data.url_pl || `https://app.icoffio.com/pl/article/${data.slug_pl}`,
+      },
     };
 
   } catch (error: any) {
@@ -94,9 +113,8 @@ export async function publishArticle(
     
     return {
       success: false,
-      id: 0,
-      slug: '',
-      url: '',
+      en: { id: 0, slug: '', url: '' },
+      pl: { id: 0, slug: '', url: '' },
       error: error.message,
     };
   }
@@ -118,4 +136,3 @@ function generateSlug(title: string): string {
     // Limit length
     .substring(0, 60);
 }
-

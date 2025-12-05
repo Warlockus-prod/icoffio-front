@@ -141,26 +141,30 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================
-    // SEND SUCCESS NOTIFICATION
+    // SEND SUCCESS NOTIFICATION (DUAL-LANGUAGE)
     // ========================================
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     
     await sendTelegramMessage(
       chatId,
-      `✅ <b>ОПУБЛИКОВАНО!</b>\n\n` +
+      `✅ <b>ОПУБЛИКОВАНО НА ДВУХ ЯЗЫКАХ!</b>\n\n` +
       `📝 <b>Заголовок:</b>\n${article.title}\n\n` +
       `📊 <b>Статистика:</b>\n` +
       `• Слов: ${article.wordCount}\n` +
       `• Категория: ${article.category}\n` +
       `• Время: ${duration}s\n\n` +
-      `🔗 <b>Ссылка:</b>\n${result.url}\n\n` +
-      `✨ Статья опубликована и доступна на сайте!\n` +
-      `🎨 Можно отредактировать в админке: app.icoffio.com/en/admin`,
+      `🔗 <b>Ссылки:</b>\n` +
+      `🇬🇧 <b>EN:</b> ${result.en.url}\n` +
+      `🇵🇱 <b>PL:</b> ${result.pl.url}\n\n` +
+      `✨ Статья опубликована на сайте (2 языка)!\n` +
+      `🎨 Редактировать: app.icoffio.com/en/admin`,
       { disable_web_page_preview: false }
     );
 
-    console.log(`[TelegramSimple] ✅ SUCCESS (${duration}s): ${result.url}`);
+    console.log(`[TelegramSimple] ✅ SUCCESS (${duration}s):`);
+    console.log(`  🇬🇧 EN: ${result.en.url}`);
+    console.log(`  🇵🇱 PL: ${result.pl.url}`);
 
     return NextResponse.json({ ok: true, result });
 

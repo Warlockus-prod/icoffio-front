@@ -14,9 +14,16 @@ export interface ProcessedArticle {
 
 export interface PublishResult {
   success: boolean;
-  id: number;
-  slug: string;
-  url: string;
+  en: {
+    id: number;
+    slug: string;
+    url: string;
+  };
+  pl: {
+    id: number;
+    slug: string;
+    url: string;
+  };
   error?: string;
 }
 

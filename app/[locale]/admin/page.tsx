@@ -28,14 +28,24 @@ export default function AdminPage() {
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Check saved authentication on load via API
+  // Check saved authentication on load
   useEffect(() => {
     const checkAuth = async () => {
       if (typeof window !== 'undefined') {
+        // ✅ v8.4.2: Проверяем ОБА варианта авторизации
         const savedToken = localStorage.getItem('icoffio_admin_token');
+        const savedAuth = localStorage.getItem('icoffio_admin_auth');
+        
+        // 1. Если есть локальная авторизация - сразу авторизуем
+        if (savedAuth === 'authenticated') {
+          console.log('✅ Admin: Restored from local auth');
+          useAdminStore.setState({ isAuthenticated: true });
+          return;
+        }
+        
+        // 2. Если есть токен - валидируем через API
         if (savedToken) {
           try {
-            // Validate token via API
             const response = await fetch('/api/admin/auth', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -44,14 +54,20 @@ export default function AdminPage() {
             const result = await response.json();
             
             if (result.success && result.valid) {
+              console.log('✅ Admin: Token validated via API');
               useAdminStore.setState({ isAuthenticated: true });
             } else {
               // Token expired - clear it
+              console.log('⚠️ Admin: Token expired, clearing');
               localStorage.removeItem('icoffio_admin_token');
               localStorage.removeItem('icoffio_admin_auth');
             }
           } catch (error) {
             console.error('Token validation error:', error);
+            // На случай ошибки API - доверяем локальной авторизации если она есть
+            if (savedAuth === 'authenticated') {
+              useAdminStore.setState({ isAuthenticated: true });
+            }
           }
         }
       }

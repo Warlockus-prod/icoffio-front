@@ -26,31 +26,33 @@ function getOpenAI(): OpenAI {
  */
 export async function processText(
   text: string,
-  userTitle?: string
+  userTitle?: string,
+  contentStyle: string = 'journalistic'
 ): Promise<ProcessedArticle> {
-  console.log(`[TelegramSimple] 🤖 Processing with AI (${text.length} chars)...`);
+  console.log(`[TelegramSimple] 🤖 Processing with AI (${text.length} chars, style: ${contentStyle})...`);
 
   try {
+    // Get style-specific instructions
+    const styleInstructions = getStyleInstructions(contentStyle);
+    
     // Create prompt
     const prompt = `
-You are a professional tech article writer. Transform the following text into a well-structured, engaging article.
+You are a professional tech article writer. Transform the following text into a well-structured article.
 
 SOURCE TEXT:
 ${text}
 
 CRITICAL REQUIREMENTS:
 - **ALL OUTPUT MUST BE IN ENGLISH** (translate if source is in another language)
-- Write in clear, professional English
+- ${styleInstructions}
 - Target length: 400-600 words
 - Use proper Markdown formatting with ## headings
-- Make it informative and engaging
 - Focus on key points and insights
-- Add relevant context if needed
 ${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title'}
 
 OUTPUT FORMAT (JSON):
 {
-  "title": "Engaging article title IN ENGLISH",
+  "title": "Article title IN ENGLISH",
   "content": "Full article content in Markdown with ## headings IN ENGLISH",
   "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH",
   "category": "One of: ai, tech, gadgets, software, hardware, internet, security"
@@ -171,5 +173,21 @@ function validateCategory(category: string | undefined): string {
  */
 function countWords(text: string): number {
   return text.split(/\s+/).filter(word => word.length > 0).length;
+}
+
+/**
+ * Get style-specific instructions for AI (v8.5.0)
+ */
+function getStyleInstructions(style: string): string {
+  const styles: Record<string, string> = {
+    'journalistic': 'Write in engaging, professional journalistic style for wide audience. Clear, informative, and accessible.',
+    'keep_as_is': 'Keep the original writing style and tone. Make minimal changes, only fix grammar and formatting. Preserve the author\'s voice.',
+    'seo_optimized': 'Optimize for SEO: use keywords naturally, create descriptive headings, include relevant terms. Focus on search engine visibility.',
+    'academic': 'Write in formal, scientific academic style. Use precise terminology, cite concepts properly, maintain scholarly tone.',
+    'casual': 'Write in friendly, conversational casual style. Use simple language, be approachable and engaging. Like talking to a friend.',
+    'technical': 'Write in detailed, precise technical style. Use accurate terminology, explain technical concepts thoroughly, be comprehensive.',
+  };
+  
+  return styles[style] || styles['journalistic'];
 }
 

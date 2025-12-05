@@ -13,6 +13,7 @@ import { sendTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
 import { parseUrl } from '@/lib/telegram-simple/url-parser';
 import { processText } from '@/lib/telegram-simple/content-processor';
 import { publishArticle } from '@/lib/telegram-simple/publisher';
+import { loadTelegramSettings } from '@/lib/telegram-simple/settings-loader';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds max
@@ -53,14 +54,18 @@ export async function POST(request: NextRequest) {
       if (command === '/start') {
         await sendTelegramMessage(
           chatId,
-          `🤖 <b>Привет! Я icoffio Bot (Simple)</b>\n\n` +
+          `🤖 <b>Привет! Я icoffio Bot v8.5</b>\n\n` +
           `📝 <b>Что я умею:</b>\n` +
           `• Создавать статьи из текста\n` +
-          `• Парсить статьи по URL\n\n` +
+          `• Парсить статьи по URL\n` +
+          `• Публиковать на EN + PL 🇬🇧🇵🇱\n\n` +
           `💡 <b>Просто отправь:</b>\n` +
           `• URL статьи для парсинга\n` +
           `• Текст (минимум 100 символов)\n\n` +
-          `⚡ Обработка: ~10-15 секунд\n` +
+          `⚙️ <b>Команды:</b>\n` +
+          `/settings - Твои настройки\n` +
+          `/help - Справка\n\n` +
+          `⚡ Обработка: ~15-25 секунд\n` +
           `🚀 Начни прямо сейчас!`
         );
         return NextResponse.json({ ok: true });
@@ -72,15 +77,34 @@ export async function POST(request: NextRequest) {
           `📚 <b>Справка icoffio Bot</b>\n\n` +
           `<b>Как использовать:</b>\n` +
           `1. Отправь URL или текст\n` +
-          `2. Жди ~10-15 секунд\n` +
+          `2. Жди ~15-25 секунд\n` +
           `3. Получи ссылку на статью\n\n` +
           `<b>Минимальные требования:</b>\n` +
           `• Текст: минимум 100 символов\n` +
           `• URL: любая статья\n\n` +
+          `<b>Команды:</b>\n` +
+          `/settings - Текущие настройки\n` +
+          `/help - Эта справка\n\n` +
           `<b>Что получишь:</b>\n` +
-          `✅ Профессиональная статья\n` +
-          `✅ Опубликована на сайте\n` +
+          `✅ Профессиональная статья (EN + PL)\n` +
+          `✅ Обработка по твоим настройкам\n` +
           `✅ Готова к редактированию в админке`
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (command === '/settings') {
+        const settings = await loadTelegramSettings(chatId);
+        await sendTelegramMessage(
+          chatId,
+          `⚙️ <b>Ваши настройки публикации</b>\n\n` +
+          `📝 <b>Стиль:</b> ${getStyleLabel(settings.contentStyle)}\n` +
+          `🖼️ <b>Картинок:</b> ${settings.imagesCount}\n` +
+          `📸 <b>Источник:</b> ${settings.imagesSource === 'unsplash' ? 'Unsplash' : settings.imagesSource === 'ai' ? 'AI Generated' : 'Нет'}\n` +
+          `${settings.autoPublish ? '✅' : '📝'} <b>Публикация:</b> ${settings.autoPublish ? 'Автоматически' : 'Черновик'}\n\n` +
+          `💡 <b>Изменить настройки:</b>\n` +
+          `🔗 <a href="https://app.icoffio.com/en/admin">app.icoffio.com/en/admin</a>\n\n` +
+          `Откройте админ панель → вкладка "🤖 Telegram"`
         );
         return NextResponse.json({ ok: true });
       }
@@ -106,6 +130,19 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================
+    // LOAD USER SETTINGS (v8.5.0)
+    // ========================================
+    
+    console.log('[TelegramSimple] 📋 Loading user settings...');
+    const settings = await loadTelegramSettings(chatId);
+    console.log('[TelegramSimple] ⚙️ Settings:', {
+      contentStyle: settings.contentStyle,
+      imagesCount: settings.imagesCount,
+      imagesSource: settings.imagesSource,
+      autoPublish: settings.autoPublish,
+    });
+
+    // ========================================
     // PROCESS ARTICLE
     // ========================================
     
@@ -113,7 +150,9 @@ export async function POST(request: NextRequest) {
       chatId,
       `⏳ <b>Обрабатываю...</b>\n\n` +
       `${isUrl(text) ? '🔗 Парсю URL' : '📝 Обрабатываю текст'}\n` +
-      `⏱️ Примерно 10-15 секунд`
+      `📝 Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
+      `🖼️ Картинок: ${settings.imagesCount}\n` +
+      `⏱️ Примерно 15-25 секунд`
     );
 
     let article;
@@ -122,19 +161,19 @@ export async function POST(request: NextRequest) {
       // URL → Parse → Process
       console.log('[TelegramSimple] 🔗 Processing URL...');
       const parsed = await parseUrl(text);
-      article = await processText(parsed.content, parsed.title);
+      article = await processText(parsed.content, parsed.title, settings.contentStyle);
     } else {
       // Text → Process directly
       console.log('[TelegramSimple] 📝 Processing text...');
-      article = await processText(text);
+      article = await processText(text, undefined, settings.contentStyle);
     }
 
     // ========================================
-    // PUBLISH TO SUPABASE
+    // PUBLISH TO SUPABASE (with autoPublish setting)
     // ========================================
     
-    console.log('[TelegramSimple] 📤 Publishing...');
-    const result = await publishArticle(article, chatId);
+    console.log(`[TelegramSimple] 📤 ${settings.autoPublish ? 'Publishing' : 'Saving as draft'}...`);
+    const result = await publishArticle(article, chatId, settings.autoPublish);
 
     if (!result.success) {
       throw new Error(result.error || 'Publication failed');
@@ -146,18 +185,25 @@ export async function POST(request: NextRequest) {
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     
+    const statusEmoji = settings.autoPublish ? '✅' : '📝';
+    const statusText = settings.autoPublish ? 'ОПУБЛИКОВАНО' : 'СОХРАНЕНО КАК ЧЕРНОВИК';
+    const statusNote = settings.autoPublish 
+      ? '✨ Статья опубликована на сайте (2 языка)!'
+      : '💡 Черновик сохранен. Опубликуйте через админ панель.';
+    
     await sendTelegramMessage(
       chatId,
-      `✅ <b>ОПУБЛИКОВАНО НА ДВУХ ЯЗЫКАХ!</b>\n\n` +
+      `${statusEmoji} <b>${statusText}!</b>\n\n` +
       `📝 <b>Заголовок:</b>\n${article.title}\n\n` +
       `📊 <b>Статистика:</b>\n` +
+      `• Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
       `• Слов: ${article.wordCount}\n` +
       `• Категория: ${article.category}\n` +
       `• Время: ${duration}s\n\n` +
       `🔗 <b>Ссылки:</b>\n` +
       `🇬🇧 <b>EN:</b> ${result.en.url}\n` +
       `🇵🇱 <b>PL:</b> ${result.pl.url}\n\n` +
-      `✨ Статья опубликована на сайте (2 языка)!\n` +
+      `${statusNote}\n` +
       `🎨 Редактировать: app.icoffio.com/en/admin`,
       { disable_web_page_preview: false }
     );
@@ -212,6 +258,21 @@ export async function GET() {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   });
+}
+
+/**
+ * Get human-readable style label
+ */
+function getStyleLabel(style: string): string {
+  const labels: Record<string, string> = {
+    'journalistic': '📰 Journalistic',
+    'keep_as_is': '✋ Keep As Is',
+    'seo_optimized': '🔍 SEO',
+    'academic': '🎓 Academic',
+    'casual': '💬 Casual',
+    'technical': '⚙️ Technical',
+  };
+  return labels[style] || style;
 }
 
 /**

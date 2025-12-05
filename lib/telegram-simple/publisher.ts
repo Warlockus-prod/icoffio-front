@@ -27,9 +27,10 @@ function getSupabase() {
  */
 export async function publishArticle(
   article: ProcessedArticle,
-  chatId: number
+  chatId: number,
+  autoPublish: boolean = true
 ): Promise<PublishResult> {
-  console.log(`[TelegramSimple] 📤 Publishing dual-language: "${article.title}"`);
+  console.log(`[TelegramSimple] 📤 Publishing dual-language: "${article.title}" (autoPublish: ${autoPublish})`);
 
   try {
     const supabase = getSupabase();
@@ -74,8 +75,8 @@ export async function publishArticle(
       word_count: article.wordCount,
       languages: ['en', 'pl'],
       
-      // Status
-      published: true,
+      // Status (v8.5.0: respects autoPublish setting)
+      published: autoPublish,
       featured: false,
       source: 'telegram-simple',
       

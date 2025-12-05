@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.3.1] - 2025-12-05 - 👑 Super Admin + User Statistics
+
+### 👑 SUPER ADMIN SYSTEM
+**Super Admin:** Andrey (hardcoded)
+
+**Возможности:**
+- 📊 Статистика по пользователям
+- 🚫 Бан/разбан пользователей
+- 📅 Фильтр по периоду (today/week/month/all)
+- 👥 Список всех пользователей с активностью
+
+### 📊 USER STATISTICS
+- Общее количество действий
+- Количество публикаций
+- Последняя активность
+- Статус (Active/Banned)
+
+### 🚫 BAN SYSTEM
+- Забаненный пользователь не может войти
+- Проверка при вводе имени
+- Таблица `banned_users` в Supabase
+
+### 📁 Новые файлы
+- `app/api/activity-log/stats/route.ts` - API статистики
+- `app/api/activity-log/ban/route.ts` - API бана
+
+### 🔧 Изменения
+- `ActivityLog.tsx` - 2 вкладки (Activity Feed / Statistics)
+- `UsernamePrompt.tsx` - проверка бана при входе
+- `activity-logger.ts` - функции isSuperAdmin, getUsersStats, banUser
+
+---
+
 ## [8.3.0] - 2025-12-05 - 📊 Activity Logging System
 
 ### 📊 ACTIVITY LOG FEATURE

@@ -1,5 +1,5 @@
 /**
- * 📊 ACTIVITY LOGGER v8.3.0
+ * 📊 ACTIVITY LOGGER v8.3.1
  * 
  * Система логирования активности пользователей.
  * Отслеживает кто, когда и что сделал.
@@ -9,7 +9,22 @@
  * - telegram: Telegram Bot (@username)
  * - api: External API
  * - system: Автоматические действия
+ * 
+ * Super Admin: Andrey (hardcoded)
  */
+
+// ============================================================================
+// SUPER ADMIN CONFIG
+// ============================================================================
+
+export const SUPER_ADMIN_NAMES = ['Andrey', 'andrey', 'ANDREY'];
+
+export function isSuperAdmin(username: string | null): boolean {
+  if (!username) return false;
+  return SUPER_ADMIN_NAMES.some(name => 
+    name.toLowerCase() === username.toLowerCase()
+  );
+}
 
 // ============================================================================
 // TYPES
@@ -285,5 +300,104 @@ export function formatUserDisplay(entry: ActivityLogEntry): string {
     return '🤖 API';
   }
   return '⚙️ System';
+}
+
+// ============================================================================
+// USER STATISTICS
+// ============================================================================
+
+export interface UserStats {
+  user_name: string;
+  user_source: ActivitySource;
+  total_actions: number;
+  publish_count: number;
+  last_activity: string;
+  is_banned: boolean;
+}
+
+export type TimePeriod = 'today' | 'week' | 'month' | 'all';
+
+/**
+ * Получить статистику по всем пользователям
+ */
+export async function getUsersStats(period: TimePeriod = 'all'): Promise<UserStats[]> {
+  try {
+    const response = await fetch(`/api/activity-log/stats?period=${period}`);
+    if (!response.ok) throw new Error('Failed to fetch stats');
+    const data = await response.json();
+    return data.users || [];
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    return [];
+  }
+}
+
+// ============================================================================
+// USER MANAGEMENT (Super Admin Only)
+// ============================================================================
+
+const BANNED_USERS_KEY = 'icoffio_banned_users';
+
+/**
+ * Получить список забаненных пользователей из localStorage (fallback)
+ * Основные данные хранятся в Supabase
+ */
+export function getLocalBannedUsers(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const banned = localStorage.getItem(BANNED_USERS_KEY);
+    return banned ? JSON.parse(banned) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Проверить забанен ли пользователь
+ */
+export async function isUserBanned(username: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/activity-log/ban?username=${encodeURIComponent(username)}`);
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.banned || false;
+  } catch {
+    // Fallback to localStorage
+    return getLocalBannedUsers().includes(username.toLowerCase());
+  }
+}
+
+/**
+ * Забанить пользователя (только для Super Admin)
+ */
+export async function banUser(username: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/activity-log/ban', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, action: 'ban' })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error banning user:', error);
+    return false;
+  }
+}
+
+/**
+ * Разбанить пользователя (только для Super Admin)
+ */
+export async function unbanUser(username: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/activity-log/ban', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, action: 'unban' })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error unbanning user:', error);
+    return false;
+  }
 }
 

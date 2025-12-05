@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAdminUsername, setAdminUsername, hasAdminUsername } from '@/lib/activity-logger';
+import { getAdminUsername, setAdminUsername, hasAdminUsername, isUserBanned } from '@/lib/activity-logger';
 
 /**
- * 👤 USERNAME PROMPT v8.3.0
+ * 👤 USERNAME PROMPT v8.3.1
  * 
  * Запрашивает имя пользователя при первом входе в админку.
  * Сохраняется в localStorage для логирования активности.
+ * Проверяет не забанен ли пользователь.
  */
 
 interface UsernamePromptProps {
@@ -16,8 +17,9 @@ interface UsernamePromptProps {
 
 export default function UsernamePrompt({ onComplete }: UsernamePromptProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [username, setUsername] = useState('');
+  const [username, setUsernameState] = useState('');
   const [error, setError] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
 
   // Проверяем нужно ли показывать промпт
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function UsernamePrompt({ onComplete }: UsernamePromptProps) {
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const trimmedName = username.trim();
@@ -40,6 +42,23 @@ export default function UsernamePrompt({ onComplete }: UsernamePromptProps) {
       setError('Name must be at least 2 characters');
       return;
     }
+    
+    // Check if user is banned
+    setIsChecking(true);
+    setError('');
+    
+    try {
+      const banned = await isUserBanned(trimmedName);
+      if (banned) {
+        setError('🚫 This username is banned. Contact administrator.');
+        setIsChecking(false);
+        return;
+      }
+    } catch {
+      // Continue if check fails (graceful degradation)
+    }
+    
+    setIsChecking(false);
     
     // Сохраняем имя
     setAdminUsername(trimmedName);
@@ -79,12 +98,13 @@ export default function UsernamePrompt({ onComplete }: UsernamePromptProps) {
                   type="text"
                   value={username}
                   onChange={(e) => {
-                    setUsername(e.target.value);
+                    setUsernameState(e.target.value);
                     setError('');
                   }}
                   placeholder="e.g. John, admin@icoffio.com"
                   className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   autoFocus
+                  disabled={isChecking}
                 />
                 {error && (
                   <p className="mt-2 text-sm text-red-600 dark:text-red-400">
@@ -105,9 +125,10 @@ export default function UsernamePrompt({ onComplete }: UsernamePromptProps) {
           <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 rounded-b-2xl">
             <button
               type="submit"
-              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg transition-all"
+              disabled={isChecking}
+              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-semibold shadow-lg transition-all disabled:cursor-not-allowed"
             >
-              Continue to Admin Panel →
+              {isChecking ? '⏳ Checking...' : 'Continue to Admin Panel →'}
             </button>
           </div>
         </form>

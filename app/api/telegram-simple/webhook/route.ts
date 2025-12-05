@@ -146,13 +146,15 @@ export async function POST(request: NextRequest) {
     // PROCESS ARTICLE
     // ========================================
     
+    const estimatedTime = settings.imagesCount > 0 ? '20-35 секунд' : '15-25 секунд';
+    
     await sendTelegramMessage(
       chatId,
       `⏳ <b>Обрабатываю...</b>\n\n` +
       `${isUrl(text) ? '🔗 Парсю URL' : '📝 Обрабатываю текст'}\n` +
       `📝 Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
-      `🖼️ Картинок: ${settings.imagesCount}\n` +
-      `⏱️ Примерно 15-25 секунд`
+      `🖼️ Картинок: ${settings.imagesCount} ${settings.imagesCount > 0 ? `(${settings.imagesSource})` : ''}\n` +
+      `⏱️ Примерно ${estimatedTime}`
     );
 
     let article;
@@ -169,11 +171,19 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================
-    // PUBLISH TO SUPABASE (with autoPublish setting)
+    // PUBLISH TO SUPABASE (with autoPublish + images)
     // ========================================
     
     console.log(`[TelegramSimple] 📤 ${settings.autoPublish ? 'Publishing' : 'Saving as draft'}...`);
-    const result = await publishArticle(article, chatId, settings.autoPublish);
+    const result = await publishArticle(
+      article, 
+      chatId, 
+      settings.autoPublish,
+      {
+        imagesCount: settings.imagesCount,
+        imagesSource: settings.imagesSource,
+      }
+    );
 
     if (!result.success) {
       throw new Error(result.error || 'Publication failed');
@@ -191,6 +201,10 @@ export async function POST(request: NextRequest) {
       ? '✨ Статья опубликована на сайте (2 языка)!'
       : '💡 Черновик сохранен. Опубликуйте через админ панель.';
     
+    const imagesInfo = settings.imagesCount > 0 
+      ? `• Изображений: ${settings.imagesCount} (${settings.imagesSource})\n`
+      : '';
+    
     await sendTelegramMessage(
       chatId,
       `${statusEmoji} <b>${statusText}!</b>\n\n` +
@@ -198,6 +212,7 @@ export async function POST(request: NextRequest) {
       `📊 <b>Статистика:</b>\n` +
       `• Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
       `• Слов: ${article.wordCount}\n` +
+      `${imagesInfo}` +
       `• Категория: ${article.category}\n` +
       `• Время: ${duration}s\n\n` +
       `🔗 <b>Ссылки:</b>\n` +

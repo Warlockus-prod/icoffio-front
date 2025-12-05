@@ -1,12 +1,14 @@
 /**
- * TELEGRAM SIMPLE - PUBLISHER
+ * TELEGRAM SIMPLE - PUBLISHER v8.5.1
  * 
  * Публикация статей в Supabase (EN + PL dual-language)
+ * With image generation support
  */
 
 import { createClient } from '@supabase/supabase-js';
 import type { ProcessedArticle, PublishResult } from './types';
 import { translateToPolish } from './translator';
+import { insertImages, type ImageGenerationOptions } from './image-generator';
 
 /**
  * Get Supabase client
@@ -28,7 +30,8 @@ function getSupabase() {
 export async function publishArticle(
   article: ProcessedArticle,
   chatId: number,
-  autoPublish: boolean = true
+  autoPublish: boolean = true,
+  imageSettings?: { imagesCount: number; imagesSource: 'unsplash' | 'ai' | 'none' }
 ): Promise<PublishResult> {
   console.log(`[TelegramSimple] 📤 Publishing dual-language: "${article.title}" (autoPublish: ${autoPublish})`);
 
@@ -41,10 +44,36 @@ export async function publishArticle(
     console.log('[TelegramSimple] 🇵🇱 Translating to Polish...');
     const polish = await translateToPolish(article);
 
-    // Step 2: Prepare article data for BOTH languages
+    // Step 2: Insert images if requested (v8.5.1)
+    let finalContentEn = article.content;
+    let finalContentPl = polish.content;
+
+    if (imageSettings && imageSettings.imagesCount > 0 && imageSettings.imagesSource !== 'none') {
+      console.log(`[TelegramSimple] 🖼️ Generating ${imageSettings.imagesCount} images from ${imageSettings.imagesSource}...`);
+      
+      const imageOptions: ImageGenerationOptions = {
+        imagesCount: imageSettings.imagesCount,
+        imagesSource: imageSettings.imagesSource,
+        title: article.title,
+        excerpt: article.excerpt,
+        category: article.category,
+      };
+
+      // Insert images into both EN and PL content in parallel
+      [finalContentEn, finalContentPl] = await Promise.all([
+        insertImages(article.content, imageOptions),
+        insertImages(polish.content, imageOptions),
+      ]);
+
+      console.log('[TelegramSimple] ✅ Images inserted into content');
+    } else {
+      console.log('[TelegramSimple] ℹ️ No images requested');
+    }
+
+    // Step 3: Prepare article data for BOTH languages
     
     // Prepend Polish title as H1 to content (frontend will extract it)
-    const contentPlWithTitle = `# ${polish.title}\n\n${polish.content}`;
+    const contentPlWithTitle = `# ${polish.title}\n\n${finalContentPl}`;
     
     const articleData = {
       // Identity
@@ -54,13 +83,13 @@ export async function publishArticle(
       // Main title (English - used by EN articles and as fallback)
       title: article.title,
       
-      // English content
+      // English content (with images if requested)
       slug_en: `${slug}-en`,
-      content_en: article.content,
+      content_en: finalContentEn,
       excerpt_en: article.excerpt,
       url_en: `https://app.icoffio.com/en/article/${slug}-en`,
       
-      // Polish content (with title prepended as # heading)
+      // Polish content (with title prepended as # heading and images if requested)
       slug_pl: `${slug}-pl`,
       content_pl: contentPlWithTitle,
       excerpt_pl: polish.excerpt,
@@ -84,7 +113,7 @@ export async function publishArticle(
       created_at: now,
     };
 
-    // Step 3: Insert into Supabase (single row with both languages)
+    // Step 4: Insert into Supabase (single row with both languages)
     console.log('[TelegramSimple] 💾 Saving to Supabase...');
     const { data, error } = await supabase
       .from('published_articles')

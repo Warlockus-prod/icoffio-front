@@ -22,8 +22,9 @@ export interface Article {
   excerpt: string;
   category: string;
   author: string;
-  image?: string; // Primary article image URL
-  images?: string[]; // ✅ НОВОЕ: Дополнительные изображения (2-3 шт)
+  image?: string; // Primary article image URL (Hero)
+  images?: string[]; // ✅ v8.2.0: До 5 изображений (первое = hero, остальные в контент)
+  uploadedImages?: UploadedImageData[]; // ✅ v8.2.0: Загруженные с компьютера
   translations: {
     en?: { title: string; content: string; excerpt: string };
     pl?: { title: string; content: string; excerpt: string };
@@ -37,6 +38,17 @@ export interface Article {
     unsplash: ImageOption[];
     aiGenerated: ImageOption[];
   };
+}
+
+// ✅ v8.2.0: Тип для загруженных изображений
+export interface UploadedImageData {
+  id: string;
+  url: string; // data URL или blob URL
+  filename: string;
+  size: number;
+  width?: number;
+  height?: number;
+  optimized?: boolean;
 }
 
 // ✨ NEW: Image Option for Selection Modal
@@ -162,7 +174,7 @@ interface AdminStore {
   
   // ✨ NEW: Staged Processing Actions
   generateImageOptions: (articleId: string) => Promise<void>;
-  selectImageOption: (articleId: string, optionIds: string[]) => void; // ✅ ИСПРАВЛЕНО: массив ID!
+  selectImageOption: (articleId: string, optionIds: string[], uploadedImages?: UploadedImageData[]) => void; // ✅ v8.2.0: до 5 изображений + uploaded
   regenerateImageOptions: (articleId: string) => Promise<void>;
   skipImageSelection: (articleId: string) => void;
   setArticleStage: (articleId: string, stage: Article['processingStage']) => void;
@@ -429,23 +441,34 @@ export const useAdminStore = create<AdminStore>()(
         }
       },
 
-      selectImageOption: (articleId: string, optionIds: string[]) => {
+      selectImageOption: (articleId: string, optionIds: string[], uploadedImages?: UploadedImageData[]) => {
         set((state) => {
           const article = state.publishingQueue.find(a => a.id === articleId);
-          if (!article || !article.imageOptions) return state;
+          if (!article) return state;
 
-          // Find all selected options
-          const allOptions = [
-            ...article.imageOptions.unsplash,
-            ...article.imageOptions.aiGenerated
-          ];
-          const selectedOptions = allOptions.filter(opt => optionIds.includes(opt.id));
+          // Собираем все URL изображений
+          const allImageUrls: string[] = [];
+          
+          // 1. Добавляем выбранные из Unsplash/AI
+          if (article.imageOptions) {
+            const allOptions = [
+              ...article.imageOptions.unsplash,
+              ...article.imageOptions.aiGenerated
+            ];
+            const selectedOptions = allOptions.filter(opt => optionIds.includes(opt.id));
+            allImageUrls.push(...selectedOptions.map(opt => opt.url));
+          }
+          
+          // 2. Добавляем загруженные пользователем
+          if (uploadedImages && uploadedImages.length > 0) {
+            allImageUrls.push(...uploadedImages.map(img => img.url));
+          }
 
-          if (selectedOptions.length === 0) return state;
+          if (allImageUrls.length === 0) return state;
 
-          // Используем первое изображение как основное, остальные сохраняем в images[]
-          const primaryImage = selectedOptions[0].url;
-          const additionalImages = selectedOptions.slice(1).map(opt => opt.url);
+          // ✅ v8.2.0: Первое = Hero, остальные в контент (до 5 штук)
+          const primaryImage = allImageUrls[0];
+          const additionalImages = allImageUrls.slice(1, 5); // Макс 4 дополнительных (всего 5)
 
           // Apply selected images to article
           return {
@@ -454,20 +477,21 @@ export const useAdminStore = create<AdminStore>()(
                 ? {
                     ...a,
                     image: primaryImage,
-                    selectedImageId: optionIds[0],
+                    selectedImageId: optionIds[0] || uploadedImages?.[0]?.id,
                     processingStage: 'final' as const,
-                    // ✅ НОВОЕ: Сохраняем дополнительные изображения
-                    images: additionalImages
+                    images: additionalImages,
+                    uploadedImages: uploadedImages || []
                   }
                 : a
             )
           };
         });
 
-        console.log(`✅ ${optionIds.length} images selected for article ${articleId}`);
-        console.log(`   Primary: ${optionIds[0]}`);
-        if (optionIds.length > 1) {
-          console.log(`   Additional: ${optionIds.slice(1).join(', ')}`);
+        const totalCount = optionIds.length + (uploadedImages?.length || 0);
+        console.log(`✅ ${totalCount} images selected for article ${articleId}`);
+        console.log(`   🏆 Hero (1st): ${optionIds[0] || uploadedImages?.[0]?.id}`);
+        if (totalCount > 1) {
+          console.log(`   📄 Content (2-5): ${totalCount - 1} additional images`);
         }
       },
 

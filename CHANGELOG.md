@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.3.0] - 2025-12-05 - 📊 Activity Logging System
+
+### 📊 ACTIVITY LOG FEATURE
+**Новая вкладка:** Activity - отслеживание кто публиковал статьи
+
+**Функционал:**
+- 👤 Идентификация пользователя при первом входе (имя/email)
+- 📱 Автоматическое логирование из Telegram (@username)
+- 📊 Просмотр всей истории активности
+- 🔍 Фильтрация по источнику (Admin/Telegram)
+- 🔗 Ссылки на опубликованные статьи (EN + PL)
+
+### 🗄️ SUPABASE MIGRATION
+**Новая таблица:** `activity_logs`
+```sql
+- user_name, user_source (admin/telegram/api/system)
+- telegram_username, telegram_chat_id
+- action (publish/edit/delete/parse/login)
+- entity_type, entity_id, entity_title, entity_url
+- metadata (JSONB), created_at
+```
+
+### 📁 Новые файлы
+- `lib/activity-logger.ts` - сервис логирования
+- `app/api/activity-log/route.ts` - API endpoint
+- `components/admin/ActivityLog.tsx` - компонент вкладки
+- `components/admin/UsernamePrompt.tsx` - модалка для имени
+- `supabase/migrations/20251205_activity_logs.sql` - миграция
+
+### 🔧 Изменения
+- `AdminLayout.tsx` - добавлена вкладка Activity + отображение имени
+- `admin/page.tsx` - рендеринг ActivityLog
+- `admin-store.ts` - тип activeTab расширен
+- `PublishingQueue.tsx` - интеграция логирования при публикации
+
+### 🎯 Типы действий
+- `publish` - публикация статьи
+- `edit` - редактирование
+- `delete` - удаление
+- `parse` - парсинг URL
+- `login` / `logout` - вход/выход
+- `upload_image` - загрузка изображения
+
+---
+
 ## [8.2.2] - 2025-12-05 - 🔐 Admin Authentication Fix
 
 ### 🔐 ADMIN PANEL AUTHENTICATION

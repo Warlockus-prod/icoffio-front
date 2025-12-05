@@ -1,9 +1,11 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import Toast from './Toast';
 import MobileNav from './MobileNav';
+import UsernamePrompt, { ChangeUsernameButton } from './UsernamePrompt';
+import { getAdminUsername } from '@/lib/activity-logger';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -11,6 +13,14 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { activeTab, setActiveTab, logout } = useAdminStore();
+
+  const [adminUsername, setAdminUsername] = useState<string | null>(null);
+
+  // Получаем имя админа из localStorage
+  useEffect(() => {
+    const name = getAdminUsername();
+    setAdminUsername(name);
+  }, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', description: 'Statistics and overview' },
@@ -21,6 +31,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'images', label: 'Images', icon: '🖼️', description: 'Image gallery' },
     { id: 'advertising', label: 'Advertising', icon: '📊', description: 'Manage ad placements' },
     { id: 'content-prompts', label: 'Content Prompts', icon: '📝', description: 'Manage text processing styles' },
+    { id: 'activity', label: 'Activity', icon: '📊', description: 'User activity log' },
     { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings' }
   ] as const;
@@ -29,6 +40,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <>
       {/* Toast Notifications */}
       <Toast />
+      
+      {/* Username Prompt Modal - appears on first login */}
+      <UsernamePrompt onComplete={(name) => setAdminUsername(name)} />
       
       <div 
         className="flex h-screen bg-gray-50 dark:bg-gray-900"
@@ -131,11 +145,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               {/* User Menu */}
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">A</span>
+                  <span className="text-white text-sm font-medium">
+                    {adminUsername ? adminUsername.charAt(0).toUpperCase() : 'A'}
+                  </span>
                 </div>
                 <div className="hidden sm:block">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">Admin</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Administrator</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {adminUsername || 'Admin'}
+                  </div>
+                  <ChangeUsernameButton />
                 </div>
               </div>
             </div>

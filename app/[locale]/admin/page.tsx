@@ -13,6 +13,7 @@ import CleanupTool from '@/components/admin/CleanupTool';
 import ArticlesManager from '@/components/admin/ArticlesManager';
 import AdvertisingManager from '@/components/admin/AdvertisingManager';
 import ContentPromptManager from '@/components/admin/ContentPromptManager';
+import ActivityLog from '@/components/admin/ActivityLog';
 
 export default function AdminPage() {
   const { 
@@ -195,6 +196,8 @@ export default function AdminPage() {
         return <AdvertisingManager />;
       case 'content-prompts':
         return <ContentPromptManager />;
+      case 'activity':
+        return <ActivityLog />;
       case 'settings':
         return (
           <div className="space-y-6">

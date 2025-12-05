@@ -7,6 +7,7 @@ import { enUS } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { marked } from 'marked';
 import { ArticlesListSkeleton } from './LoadingStates';
+import { logAdminActivity } from '@/lib/activity-logger';
 
 interface ReadyArticle extends Article {
   parsedAt: Date;
@@ -108,11 +109,25 @@ export default function PublishingQueue() {
         const enUrl = result.urls?.en || result.url;
         const plUrl = result.urls?.pl;
         
-        // Добавляем активность
+        // Добавляем активность (локально)
         addActivity({
           type: 'article_published',
           message: `Added to queue: ${article.title}`,
           url: enUrl
+        });
+        
+        // 📊 Логируем в Activity Log (Supabase)
+        logAdminActivity('publish', {
+          entity_type: 'article',
+          entity_id: article.id,
+          entity_title: article.title,
+          entity_url: enUrl,
+          entity_url_pl: plUrl,
+          metadata: {
+            slug: result.slug,
+            category: article.category,
+            hasTranslations: !!article.translations?.pl
+          }
         });
 
         console.log('✅ Article added to publishing queue');

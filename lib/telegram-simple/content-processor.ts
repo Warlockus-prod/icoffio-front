@@ -7,9 +7,19 @@
 import OpenAI from 'openai';
 import type { ProcessedArticle } from './types';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to avoid build errors
+let openaiInstance: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+    openaiInstance = new OpenAI({ apiKey });
+  }
+  return openaiInstance;
+}
 
 /**
  * Process text with AI to create professional article
@@ -53,7 +63,7 @@ Return ONLY valid JSON, no other text.
 
     // Call OpenAI
     const startTime = Date.now();
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini', // Faster and cheaper than gpt-4
       messages: [
         {
@@ -91,7 +101,7 @@ Return ONLY valid JSON, no other text.
     if (hasNonEnglish) {
       console.log(`[TelegramSimple] ⚠️ Title contains non-English characters, translating...`);
       try {
-        const translateResponse = await openai.chat.completions.create({
+        const translateResponse = await getOpenAI().chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [
             {

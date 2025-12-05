@@ -49,12 +49,23 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   const [isPublishing, setIsPublishing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  // Editable fields
+  // Editable fields - ENGLISH
   const [title, setTitle] = useState(article.title);
   const [excerpt, setExcerpt] = useState(article.excerpt || '');
   const [content, setContent] = useState(article.content);
   const [category, setCategory] = useState(article.category);
   const [imageUrl, setImageUrl] = useState(article.image || '');
+  
+  // ✅ v8.2.0: Editable fields - POLISH
+  const [plTitle, setPlTitle] = useState(article.translations?.pl?.title || '');
+  const [plExcerpt, setPlExcerpt] = useState(article.translations?.pl?.excerpt || '');
+  const [plContent, setPlContent] = useState(article.translations?.pl?.content || '');
+  
+  // ✅ v8.2.0: Multiple images (up to 5)
+  const [selectedImages, setSelectedImages] = useState<string[]>(article.image ? [article.image] : []);
+  
+  // ✅ v8.2.0: Edit mode (single language or dual)
+  const [editMode, setEditMode] = useState<'dual' | 'en' | 'pl'>('dual');
   
   // Image selection state
   const [imageSearch, setImageSearch] = useState('');
@@ -106,19 +117,25 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   const handleSave = useCallback(() => {
     setIsSaving(true);
     
+    // ✅ v8.2.0: Save both languages + multiple images
     updateArticle({
       id: article.id,
       title,
       excerpt,
       content,
       category,
-      image: imageUrl
+      image: selectedImages[0] || imageUrl, // First image = hero
+      images: selectedImages.slice(1), // Rest = content images
+      translations: {
+        en: { title, content, excerpt },
+        pl: { title: plTitle, content: plContent, excerpt: plExcerpt }
+      }
     });
     
-    toast.success('✅ Changes saved!');
+    toast.success('✅ EN + PL saved!');
     setHasUnsavedChanges(false);
     setIsSaving(false);
-  }, [article.id, title, excerpt, content, category, imageUrl, updateArticle]);
+  }, [article.id, title, excerpt, content, category, imageUrl, selectedImages, plTitle, plContent, plExcerpt, updateArticle]);
 
   const handleSearchImages = async () => {
     if (!imageSearch.trim()) return;
@@ -237,6 +254,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     const toastId = toast.loading('📤 Publishing article...');
     
     try {
+      // ✅ v8.2.0: Publish with both languages + multiple images
       const response = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -249,7 +267,12 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
             excerpt,
             content,
             category,
-            image: imageUrl
+            image: selectedImages[0] || imageUrl,
+            images: selectedImages.slice(1),
+            translations: {
+              en: { title, content, excerpt },
+              pl: { title: plTitle, content: plContent, excerpt: plExcerpt }
+            }
           }
         })
       });
@@ -358,24 +381,43 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
         {/* ===== CONTENT ===== */}
         <div className="flex-1 overflow-y-auto">
           
-          {/* STAGE 1: EDITING */}
+          {/* STAGE 1: EDITING - DUAL LANGUAGE VIEW */}
           {stage === 'editing' && (
             <div className="p-6 space-y-6">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  📝 Title
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
-                  className="w-full px-4 py-3 text-xl font-bold border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  placeholder="Enter article title..."
-                />
+              {/* Edit Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  🌍 Dual-Language Editor
+                </h3>
+                <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                  <button
+                    onClick={() => setEditMode('dual')}
+                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
+                      editMode === 'dual' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    🔀 Split
+                  </button>
+                  <button
+                    onClick={() => setEditMode('en')}
+                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
+                      editMode === 'en' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    🇺🇸 EN
+                  </button>
+                  <button
+                    onClick={() => setEditMode('pl')}
+                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
+                      editMode === 'pl' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    🇵🇱 PL
+                  </button>
+                </div>
               </div>
 
-              {/* Category */}
+              {/* Category (shared) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   📁 Category
@@ -398,123 +440,230 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                 </div>
               </div>
 
-              {/* Excerpt */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  📄 Excerpt <span className={`font-normal ${excerpt.length > 150 ? 'text-orange-500' : 'text-gray-500'}`}>({excerpt.length}/160)</span>
-                </label>
-                <textarea
-                  value={excerpt}
-                  onChange={(e) => { setExcerpt(e.target.value.substring(0, 160)); setHasUnsavedChanges(true); }}
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                  placeholder="Short description for SEO and previews..."
-                />
-              </div>
+              {/* Dual Language Columns */}
+              <div className={`grid gap-6 ${editMode === 'dual' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {/* ENGLISH Column */}
+                {(editMode === 'dual' || editMode === 'en') && (
+                  <div className={`space-y-4 p-4 rounded-xl border-2 ${editMode === 'dual' ? 'border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
+                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold">
+                      <span className="text-xl">🇺🇸</span>
+                      <span>English</span>
+                      {title && <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">✓ Ready</span>}
+                    </div>
+                    
+                    {/* EN Title */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Title</label>
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
+                        className="w-full px-3 py-2 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500"
+                        placeholder="English title..."
+                      />
+                    </div>
+                    
+                    {/* EN Excerpt */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                        Excerpt <span className={excerpt.length > 150 ? 'text-orange-500' : ''}>({excerpt.length}/160)</span>
+                      </label>
+                      <textarea
+                        value={excerpt}
+                        onChange={(e) => { setExcerpt(e.target.value.substring(0, 160)); setHasUnsavedChanges(true); }}
+                        rows={2}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                        placeholder="English excerpt..."
+                      />
+                    </div>
+                    
+                    {/* EN Content */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Content</label>
+                      {(editMode === 'dual' || editMode === 'en') && (
+                        <>
+                          <div className="flex flex-wrap gap-1 p-2 bg-gray-50 dark:bg-gray-800 rounded-t-lg border border-b-0 border-gray-300 dark:border-gray-600">
+                            <button onClick={() => editor?.chain().focus().toggleBold().run()} className={`p-1.5 rounded text-xs ${editor?.isActive('bold') ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200'}`}><strong>B</strong></button>
+                            <button onClick={() => editor?.chain().focus().toggleItalic().run()} className={`p-1.5 rounded text-xs ${editor?.isActive('italic') ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200'}`}><em>I</em></button>
+                            <button onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className="p-1.5 rounded text-xs hover:bg-gray-200">H2</button>
+                            <button onClick={() => editor?.chain().focus().toggleBulletList().run()} className="p-1.5 rounded text-xs hover:bg-gray-200">• List</button>
+                          </div>
+                          <div className="border border-gray-300 dark:border-gray-600 rounded-b-lg bg-white dark:bg-gray-800 min-h-[200px]">
+                            <EditorContent editor={editor} />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length} words
+                    </div>
+                  </div>
+                )}
 
-              {/* Content Editor */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  ✍️ Content
-                </label>
-                
-                {/* Editor Toolbar */}
-                <div className="flex flex-wrap gap-1 p-2 bg-gray-50 dark:bg-gray-800 rounded-t-xl border-2 border-b-0 border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => editor?.chain().focus().toggleBold().run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('bold') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    <strong>B</strong>
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().toggleItalic().run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('italic') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    <em>I</em>
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('heading', { level: 2 }) ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    H2
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('heading', { level: 3 }) ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    H3
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('bulletList') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    • List
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('orderedList') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    1. List
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                    className={`p-2 rounded-lg ${editor?.isActive('blockquote') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  >
-                    " Quote
-                  </button>
-                  <div className="flex-1" />
-                  <button
-                    onClick={() => editor?.chain().focus().undo().run()}
-                    disabled={!editor?.can().undo()}
-                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
-                  >
-                    ↩️
-                  </button>
-                  <button
-                    onClick={() => editor?.chain().focus().redo().run()}
-                    disabled={!editor?.can().redo()}
-                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
-                  >
-                    ↪️
-                  </button>
-                </div>
-                
-                <div className="border-2 border-gray-200 dark:border-gray-700 rounded-b-xl bg-white dark:bg-gray-800">
-                  <EditorContent editor={editor} />
-                </div>
+                {/* POLISH Column */}
+                {(editMode === 'dual' || editMode === 'pl') && (
+                  <div className={`space-y-4 p-4 rounded-xl border-2 ${editMode === 'dual' ? 'border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10' : ''}`}>
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-semibold">
+                      <span className="text-xl">🇵🇱</span>
+                      <span>Polski</span>
+                      {plTitle && <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">✓ Ready</span>}
+                    </div>
+                    
+                    {/* PL Title */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Tytuł</label>
+                      <input
+                        type="text"
+                        value={plTitle}
+                        onChange={(e) => { setPlTitle(e.target.value); setHasUnsavedChanges(true); }}
+                        className="w-full px-3 py-2 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-green-500"
+                        placeholder="Polski tytuł..."
+                      />
+                    </div>
+                    
+                    {/* PL Excerpt */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                        Opis <span className={plExcerpt.length > 150 ? 'text-orange-500' : ''}>({plExcerpt.length}/160)</span>
+                      </label>
+                      <textarea
+                        value={plExcerpt}
+                        onChange={(e) => { setPlExcerpt(e.target.value.substring(0, 160)); setHasUnsavedChanges(true); }}
+                        rows={2}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                        placeholder="Polski opis..."
+                      />
+                    </div>
+                    
+                    {/* PL Content */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Treść</label>
+                      <textarea
+                        value={plContent}
+                        onChange={(e) => { setPlContent(e.target.value); setHasUnsavedChanges(true); }}
+                        rows={10}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
+                        placeholder="Polski treść artykułu..."
+                      />
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {plContent.split(/\s+/).filter(Boolean).length} słów
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* STAGE 2: IMAGES */}
+          {/* STAGE 2: IMAGES - MULTIPLE SELECTION + UPLOAD */}
           {stage === 'images' && (
             <div className="p-6 space-y-6">
-              {/* Current Image Preview */}
-              {imageUrl && (
-                <div className="relative rounded-xl overflow-hidden border-2 border-green-500">
-                  <img
-                    src={imageUrl}
-                    alt="Selected image"
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                    <span className="text-white font-medium">✅ Current Image</span>
-                    <button
-                      onClick={handleRemoveImage}
-                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
-                    >
-                      🗑️ Remove
-                    </button>
+              {/* Selected Images Preview */}
+              {selectedImages.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    ✅ Selected Images ({selectedImages.length}/5)
+                    <span className="text-xs font-normal text-gray-500">
+                      #1 = Hero, #2-5 = In content
+                    </span>
+                  </h3>
+                  <div className="grid grid-cols-5 gap-3">
+                    {selectedImages.map((url, index) => (
+                      <div key={url} className="relative rounded-xl overflow-hidden border-2 border-green-500 group">
+                        <img src={url} alt={`Selected ${index + 1}`} className="w-full h-24 object-cover" />
+                        <div className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${index === 0 ? 'bg-amber-500' : 'bg-blue-500'}`}>
+                          {index + 1}
+                        </div>
+                        <button
+                          onClick={() => setSelectedImages(prev => prev.filter(u => u !== url))}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                        >
+                          ✕
+                        </button>
+                        {index === 0 && (
+                          <div className="absolute bottom-0 inset-x-0 bg-amber-500 text-white text-[10px] text-center py-0.5 font-medium">
+                            HERO
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
+              {/* Upload from Computer */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                  📤 Upload from Computer
+                </h3>
+                <div
+                  className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-blue-500', 'bg-blue-100'); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-blue-500', 'bg-blue-100'); }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-blue-500', 'bg-blue-100');
+                    const files = e.dataTransfer.files;
+                    for (const file of Array.from(files)) {
+                      if (selectedImages.length >= 5) { toast.error('Max 5 images!'); break; }
+                      if (!file.type.startsWith('image/')) continue;
+                      const toastId = toast.loading(`📤 Uploading ${file.name}...`);
+                      try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                          setSelectedImages(prev => [...prev, result.url]);
+                          setImageUrl(selectedImages.length === 0 ? result.url : imageUrl);
+                          toast.success(`✅ Uploaded to CDN!`, { id: toastId });
+                        } else {
+                          toast.error(result.error || 'Upload failed', { id: toastId });
+                        }
+                      } catch { toast.error('Upload failed', { id: toastId }); }
+                    }
+                  }}
+                >
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files) return;
+                      for (const file of Array.from(files)) {
+                        if (selectedImages.length >= 5) { toast.error('Max 5 images!'); break; }
+                        const toastId = toast.loading(`📤 Uploading ${file.name}...`);
+                        try {
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                          const result = await res.json();
+                          if (result.success) {
+                            setSelectedImages(prev => [...prev, result.url]);
+                            if (selectedImages.length === 0) setImageUrl(result.url);
+                            toast.success(`✅ Uploaded to CDN!`, { id: toastId });
+                          } else {
+                            toast.error(result.error || 'Upload failed', { id: toastId });
+                          }
+                        } catch { toast.error('Upload failed', { id: toastId }); }
+                      }
+                    }}
+                  />
+                  <div className="text-4xl mb-2">📤</div>
+                  <p className="text-blue-700 dark:text-blue-300 font-medium">Drop files here or click to upload</p>
+                  <p className="text-xs text-gray-500 mt-1">JPG, PNG, WebP, GIF (max 10MB) • Auto-optimized for web</p>
+                </div>
+              </div>
+
               {/* Search Unsplash */}
               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-                  🔍 Search Unsplash
-                </h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">🔍 Search Unsplash</h3>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -524,11 +673,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                     className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                     placeholder="Search for images..."
                   />
-                  <button
-                    onClick={handleSearchImages}
-                    disabled={isLoadingImages}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
-                  >
+                  <button onClick={handleSearchImages} disabled={isLoadingImages} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
                     {isLoadingImages ? '⏳' : '🔍'} Search
                   </button>
                 </div>
@@ -536,9 +681,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
 
               {/* AI Generation */}
               <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-                  🤖 Generate with AI
-                </h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">🤖 Generate with AI</h3>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -547,95 +690,63 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                     className="flex-1 px-4 py-2 border border-purple-200 dark:border-purple-800 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                     placeholder="Describe the image you want..."
                   />
-                  <button
-                    onClick={handleGenerateAIImage}
-                    disabled={isGeneratingAI}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
-                  >
+                  <button onClick={handleGenerateAIImage} disabled={isGeneratingAI} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50">
                     {isGeneratingAI ? '⏳ Generating...' : '🎨 Generate'}
                   </button>
                 </div>
               </div>
 
-              {/* Custom URL */}
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-                  🔗 Custom URL
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={customImageUrl}
-                    onChange={(e) => setCustomImageUrl(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-green-200 dark:border-green-800 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <button
-                    onClick={handleAddCustomImage}
-                    disabled={!customImageUrl.trim()}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50"
-                  >
-                    ➕ Add
-                  </button>
-                </div>
-              </div>
-
-              {/* Image Grid */}
+              {/* Image Grid - Multi-select */}
               {imageOptions.length > 0 && (
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-                    📷 Available Images ({imageOptions.length})
+                    📷 Available Images - Click to add ({imageOptions.length})
                   </h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    {imageOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => handleSelectImage(option)}
-                        className={`group relative rounded-xl overflow-hidden border-2 transition-all ${
-                          imageUrl === option.url
-                            ? 'border-green-500 ring-2 ring-green-500/30'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-500'
-                        }`}
-                      >
-                        <img
-                          src={option.thumbnail || option.url}
-                          alt="Image option"
-                          className="w-full h-40 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                          <span className="text-white opacity-0 group-hover:opacity-100 transition-all font-medium">
-                            Select
-                          </span>
-                        </div>
-                        <div className="absolute top-2 right-2">
-                          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                            option.source === 'unsplash' ? 'bg-blue-500 text-white' :
-                            option.source === 'ai' ? 'bg-purple-500 text-white' :
-                            'bg-green-500 text-white'
-                          }`}>
-                            {option.source === 'unsplash' ? '📷' : option.source === 'ai' ? '🤖' : '🔗'}
-                          </span>
-                        </div>
-                        {imageUrl === option.url && (
-                          <div className="absolute top-2 left-2">
-                            <span className="px-2 py-1 rounded-lg text-xs font-medium bg-green-500 text-white">
-                              ✓ Selected
+                  <div className="grid grid-cols-4 gap-3">
+                    {imageOptions.map((option) => {
+                      const isSelected = selectedImages.includes(option.url);
+                      const selectionIndex = selectedImages.indexOf(option.url);
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedImages(prev => prev.filter(u => u !== option.url));
+                            } else if (selectedImages.length < 5) {
+                              setSelectedImages(prev => [...prev, option.url]);
+                              if (selectedImages.length === 0) setImageUrl(option.url);
+                            } else {
+                              toast.error('Max 5 images!');
+                            }
+                          }}
+                          className={`group relative rounded-xl overflow-hidden border-2 transition-all ${
+                            isSelected ? 'border-green-500 ring-2 ring-green-500/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-500'
+                          }`}
+                        >
+                          <img src={option.thumbnail || option.url} alt="Image option" className="w-full h-28 object-cover" />
+                          {isSelected && (
+                            <div className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${selectionIndex === 0 ? 'bg-amber-500' : 'bg-blue-500'}`}>
+                              {selectionIndex + 1}
+                            </div>
+                          )}
+                          <div className="absolute top-1 right-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              option.source === 'unsplash' ? 'bg-blue-500 text-white' : option.source === 'ai' ? 'bg-purple-500 text-white' : 'bg-green-500 text-white'
+                            }`}>
+                              {option.source === 'unsplash' ? '📷' : option.source === 'ai' ? '🤖' : '🔗'}
                             </span>
                           </div>
-                        )}
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* No Image Option */}
+              {/* Skip */}
               <div className="text-center py-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => setStage('preview')}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
-                >
-                  ⏭️ Skip image and continue to preview
+                <button onClick={() => setStage('preview')} className="text-gray-500 hover:text-gray-700 underline">
+                  ⏭️ Skip and continue to preview
                 </button>
               </div>
             </div>

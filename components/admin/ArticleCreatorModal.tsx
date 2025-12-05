@@ -39,6 +39,15 @@ const CATEGORIES = [
   { id: 'digital', label: 'Digital', icon: '📱', color: 'indigo' }
 ];
 
+// ✅ v8.4.0: Content Styles for regeneration
+const CONTENT_STYLES = [
+  { id: 'journalistic', label: 'Journalistic', icon: '📰' },
+  { id: 'seo-optimized', label: 'SEO Optimized', icon: '🔍' },
+  { id: 'academic', label: 'Academic', icon: '🎓' },
+  { id: 'casual', label: 'Casual', icon: '💬' },
+  { id: 'technical', label: 'Technical', icon: '⚙️' }
+];
+
 // ========== MAIN COMPONENT ==========
 
 export default function ArticleCreatorModal({ article, onClose, onPublish }: ArticleCreatorModalProps) {
@@ -71,6 +80,10 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   const [customImageUrl, setCustomImageUrl] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  
+  // ✅ v8.4.0: Style regeneration
+  const [showStylePicker, setShowStylePicker] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   
   // Store
   const { removeJobFromQueue, addActivity, updateArticle } = useAdminStore();
@@ -233,6 +246,63 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       });
       toast.success('🗑️ Article deleted');
       onClose();
+    }
+  };
+
+  // ✅ v8.4.0: Regenerate content with new style
+  const handleRegenerateStyle = async (styleId: string) => {
+    setIsRegenerating(true);
+    setShowStylePicker(false);
+    
+    const toastId = toast.loading(`🔄 Regenerating with ${styleId} style...`);
+    
+    try {
+      const response = await fetch('/api/admin/test-content-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: content,
+          style: styleId,
+          title: title
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.processedText) {
+        // Update English content
+        setContent(result.processedText);
+        if (editor) {
+          editor.commands.setContent(result.processedText);
+        }
+        
+        // Also regenerate Polish if exists
+        if (plContent) {
+          const plResponse = await fetch('/api/admin/test-content-prompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: plContent,
+              style: styleId,
+              title: plTitle
+            })
+          });
+          
+          const plResult = await plResponse.json();
+          if (plResult.success && plResult.processedText) {
+            setPlContent(plResult.processedText);
+          }
+        }
+        
+        setHasUnsavedChanges(true);
+        toast.success(`✅ Content regenerated with ${styleId} style!`, { id: toastId });
+      } else {
+        toast.error(result.error || 'Failed to regenerate', { id: toastId });
+      }
+    } catch (error) {
+      toast.error('Failed to regenerate content', { id: toastId });
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -405,6 +475,39 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                   🇵🇱 Polski
                   {plTitle && <span className="text-xs opacity-75">✓</span>}
                 </button>
+                
+                {/* ✅ v8.4.0: Style Regeneration */}
+                <div className="flex-1" />
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStylePicker(!showStylePicker)}
+                    disabled={isRegenerating}
+                    className="px-4 py-2.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isRegenerating ? '⏳ Regenerating...' : '🔄 Regenerate Style'}
+                  </button>
+                  
+                  {/* Style Picker Dropdown */}
+                  {showStylePicker && (
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                      <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2">
+                          Select new style
+                        </span>
+                      </div>
+                      {CONTENT_STYLES.map((style) => (
+                        <button
+                          key={style.id}
+                          onClick={() => handleRegenerateStyle(style.id)}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3"
+                        >
+                          <span className="text-xl">{style.icon}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{style.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Title */}

@@ -11,6 +11,7 @@ interface CopywritingRequest {
   targetAudience?: 'general' | 'tech-enthusiasts' | 'professionals' | 'gamers';
   language?: string;
   maxLength?: number;
+  systemPrompt?: string; // ✅ v8.4.0: Кастомный системный промпт из Content Prompts
 }
 
 interface CopywritingResponse {
@@ -225,11 +226,22 @@ ${platformSpecs[platform]}
   // Приватные методы
 
   private buildEnhancementPrompt(request: CopywritingRequest): string {
-    const { title, content, category, tone, targetAudience, language } = request;
+    const { title, content, category, tone, targetAudience, language, systemPrompt } = request;
 
-    return `
+    // ✅ v8.4.0: Если есть кастомный systemPrompt из Content Prompts - используем его
+    const styleInstructions = systemPrompt || `
 Ты опытный копирайтер технологического медиа icoffio.com. 
 Улучши эту статью, сделав её профессиональной и привлекательной для читателей.
+
+СТИЛЬ ПИСЬМА icoffio:
+- Информативный, но доступный
+- Фокус на пользе для читателя  
+- Современный технологический сленг
+- Конкретные факты и данные
+- Привлекательные заголовки`;
+
+    return `
+${styleInstructions}
 
 ИСХОДНЫЕ ДАННЫЕ:
 Заголовок: ${title}
@@ -239,22 +251,15 @@ ${platformSpecs[platform]}
 Целевая аудитория: ${targetAudience || 'general'}
 Язык: ${language || 'ru'}
 
-ТРЕБОВАНИЯ К УЛУЧШЕНИЮ:
-1. Сделай заголовок более привлекательным и SEO-оптимизированным (50-60 символов)
+ТРЕБОВАНИЯ К ВЫХОДНЫМ ДАННЫМ:
+1. Улучши заголовок (SEO-оптимизированный, 50-60 символов)
 2. Структурируй текст с подзаголовками и списками
-3. Добавь релевантную техническую информацию
-4. Улучши читабельность и вовлеченность
-5. Создай краткое описание (excerpt) до 200 символов
-6. Определи точную категорию: ai, apple, games, tech
-7. Добавь 5-8 релевантных тегов
-8. Создай мета-описание (150-160 символов)
+3. Создай краткое описание (excerpt) до 200 символов
+4. Определи категорию: ai, apple, games, tech
+5. Добавь 5-8 релевантных тегов
+6. Создай мета-описание (150-160 символов)
 
-СТИЛЬ ПИСЬМА icoffio:
-- Информативный, но доступный
-- Фокус на пользе для читателя  
-- Современный технологический сленг
-- Конкретные факты и данные
-- Привлекательные заголовки
+ВАЖНО: Пиши на том же языке, что и исходный контент!
 
 Верни результат в формате JSON:
 {

@@ -10,9 +10,13 @@ import { wordpressService } from './wordpress-service';
 import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
 import { formatContentToHtml } from './utils/content-formatter';
+import { getPromptTemplateByStyle, type ContentProcessingStyle } from './config/content-prompts';
 import type { Post } from './types';
 
 // ========== ИНТЕРФЕЙСЫ ==========
+
+// ✅ v8.4.0: Стили обработки контента
+export type ContentStyleType = 'journalistic' | 'as-is' | 'seo-optimized' | 'academic' | 'casual' | 'technical';
 
 export interface ArticleInput {
   // Источники данных
@@ -34,6 +38,9 @@ export interface ArticleInput {
   generateImage?: boolean;
   translateToAll?: boolean;
   publishToWordPress?: boolean;
+  
+  // ✅ v8.4.0: Стиль обработки контента
+  contentStyle?: ContentStyleType;
   
   // ✨ NEW: Staged processing
   stage?: 'text-only' | 'full'; // 'text-only' = только текст без изображений
@@ -120,13 +127,17 @@ class UnifiedArticleService {
       // 1. ИЗВЛЕЧЕНИЕ И ПОДГОТОВКА КОНТЕНТА
       let articleData = await this.prepareArticleData(input);
       
-      // 2. УЛУЧШЕНИЕ КОНТЕНТА (временно отключено для стабильности)
-      if (false && input.enhanceContent !== false) {
+      // 2. УЛУЧШЕНИЕ КОНТЕНТА (v8.4.0: включено с поддержкой стилей)
+      if (input.enhanceContent !== false && input.contentStyle !== 'as-is') {
         try {
-          articleData = await this.enhanceArticleContent(articleData);
+          console.log(`📝 Enhancing content with style: ${input.contentStyle || 'journalistic'}`);
+          articleData = await this.enhanceArticleContent(articleData, input.contentStyle);
         } catch (error: any) {
+          console.warn(`⚠️ Content enhancement failed, using original: ${error.message}`);
           warnings.push(`Failed to enhance content: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+      } else {
+        console.log(`📝 Skipping content enhancement (style: ${input.contentStyle || 'not set'})`);
       }
       
       // 3. ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ (пропускаем если stage === 'text-only')
@@ -477,22 +488,31 @@ class UnifiedArticleService {
   }
   
   /**
-   * Улучшение контента через AI
+   * Улучшение контента через AI с выбранным стилем
+   * v8.4.0: Поддержка разных стилей из Content Prompts
    */
-  private async enhanceArticleContent(articleData: any): Promise<any> {
+  private async enhanceArticleContent(articleData: any, contentStyle?: ContentStyleType): Promise<any> {
     if (!copywritingService.isAvailable()) {
       console.warn('⚠️ Copywriting service недоступен, пропускаем улучшение');
       return articleData;
     }
     
     try {
+      // ✅ v8.4.0: Получаем промпт для выбранного стиля
+      const styleTemplate = getPromptTemplateByStyle(contentStyle as ContentProcessingStyle || 'journalistic');
+      const tone = this.mapStyleToTone(contentStyle);
+      
+      console.log(`📝 Using style: ${styleTemplate?.name || 'journalistic'}`);
+      
       const enhanced = await copywritingService.enhanceContent({
         title: articleData.title,
         content: articleData.content,
         category: articleData.category,
-        tone: 'professional',
+        tone,
         targetAudience: 'tech-enthusiasts',
-        language: articleData.language
+        language: articleData.language,
+        // ✅ v8.4.0: Передаем системный промпт из шаблона
+        systemPrompt: styleTemplate?.systemPrompt
       });
       
       return {
@@ -506,6 +526,20 @@ class UnifiedArticleService {
     } catch (error) {
       console.error('❌ Ошибка улучшения контента:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Маппинг стиля контента на тон для copywritingService
+   */
+  private mapStyleToTone(style?: ContentStyleType): 'professional' | 'casual' | 'technical' | 'news' {
+    switch (style) {
+      case 'casual': return 'casual';
+      case 'technical': return 'technical';
+      case 'academic': return 'professional';
+      case 'seo-optimized': return 'professional';
+      case 'journalistic': return 'news';
+      default: return 'professional';
     }
   }
   

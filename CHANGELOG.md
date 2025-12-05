@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.4.0] - 2025-12-05 - 📝 Content Styles + Image Placement
+
+### 📝 CONTENT STYLES (A)
+**Выбор стиля обработки контента при парсинге URL**
+
+**Доступные стили:**
+- 📰 **Journalistic** - Engaging, wide audience (default)
+- ✋ **Keep As Is** - No changes to text
+- 🔍 **SEO Optimized** - Keywords & structure
+- 🎓 **Academic** - Formal, scientific
+- 💬 **Casual** - Friendly, conversational
+- ⚙️ **Technical** - Detailed, precise
+
+**Изменения:**
+- URLInput: добавлен выбор стиля "Writing Style"
+- admin-store: ParseJob теперь хранит contentStyle
+- unified-article-service: включена обработка стиля
+- copywriting-service: поддержка кастомных промптов
+- API /api/articles: передача contentStyle
+
+### 🖼️ IMAGE PLACEMENT (B)
+**Равномерная расстановка изображений по статье**
+
+- 1 изображение → главное (hero)
+- 2 изображения → hero + середина (после ~50% текста)
+- 3 изображения → hero + 33% + 66%
+- 4-5 изображений → равномерно по всему тексту
+- Изображения вставляются после абзацев, не разрывая текст
+
+### 🔄 STYLE REGENERATION (C)
+**Перегенерация стиля в редакторе**
+
+- Кнопка "🔄 Regenerate Style" в ArticleCreatorModal
+- Выбор нового стиля для существующего текста
+- Применяется к обоим языкам (EN + PL)
+
+---
+
 ## [8.3.1] - 2025-12-05 - 👑 Super Admin + User Statistics
 
 ### 👑 SUPER ADMIN SYSTEM

@@ -8,6 +8,8 @@ import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-
 import { wordpressService } from '@/lib/wordpress-service';
 // v7.30.0: Centralized content formatting utility
 import { formatContentToHtml, escapeHtml } from '@/lib/utils/content-formatter';
+// v8.4.0: Image placement utility
+import { placeImagesInContent } from '@/lib/utils/image-placer';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -285,7 +287,7 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
 /**
  * Создание статьи из URL (для админ панели)
  */
-async function handleUrlCreation(body: ApiRequest, request: NextRequest) {
+async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, request: NextRequest) {
   try {
     const url = body.url || body.data?.url;
     
@@ -296,12 +298,17 @@ async function handleUrlCreation(body: ApiRequest, request: NextRequest) {
       );
     }
 
+    // ✅ v8.4.0: Получаем стиль обработки контента
+    const contentStyle = body.contentStyle || body.data?.contentStyle || 'journalistic';
+    console.log(`📝 Content style requested: ${contentStyle}`);
+
     const articleInput: ArticleInput = {
       url,
       category: body.category || body.data?.category || 'tech',
+      contentStyle, // ✅ v8.4.0: Передаем стиль в сервис
       
       // Для админ панели - все возможности включены
-      enhanceContent: true,
+      enhanceContent: contentStyle !== 'as-is', // ✅ Если "Keep As Is" - не улучшаем
       generateImage: true,
       translateToAll: true,
       publishToWordPress: false // В админке пока отключаем автопубликацию
@@ -670,6 +677,44 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
+    // ✅ v8.4.0: Расстановка изображений в контенте
+    let contentEn = article.content;
+    let contentPl = article.translations?.pl?.content || article.content;
+    let heroImage = article.image;
+    
+    // Если есть массив изображений - расставляем их
+    const allImages: string[] = [];
+    if (article.image) allImages.push(article.image);
+    if (article.images && Array.isArray(article.images)) {
+      allImages.push(...article.images.filter((img: string) => img && img !== article.image));
+    }
+    
+    if (allImages.length > 0) {
+      console.log(`🖼️ Placing ${allImages.length} images in content`);
+      
+      // Расставляем изображения в английском контенте
+      const enResult = placeImagesInContent(contentEn, {
+        imageUrls: allImages,
+        title: article.title,
+        format: 'markdown'
+      });
+      contentEn = enResult.contentWithImages;
+      heroImage = enResult.heroImage || heroImage;
+      
+      console.log(`🖼️ EN: Hero + ${enResult.placements.length} images placed at ${enResult.placements.join('%, ')}%`);
+      
+      // Расставляем изображения в польском контенте
+      if (article.translations?.pl?.content) {
+        const plResult = placeImagesInContent(contentPl, {
+          imageUrls: allImages,
+          title: article.translations.pl.title || article.title,
+          format: 'markdown'
+        });
+        contentPl = plResult.contentWithImages;
+        console.log(`🖼️ PL: Hero + ${plResult.placements.length} images placed`);
+      }
+    }
+    
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!
     const enSlug = `${baseSlug}-en`;
     const plSlug = `${baseSlug}-pl`;
@@ -680,11 +725,11 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       title: article.title,
       slug_en: enSlug,
       slug_pl: plSlug,
-      content_en: article.content,
-      content_pl: article.translations?.pl?.content || article.content,
+      content_en: contentEn,
+      content_pl: contentPl,
       excerpt_en: article.excerpt || article.title.substring(0, 150),
       excerpt_pl: article.translations?.pl?.excerpt || article.excerpt,
-      image_url: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+      image_url: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
       category: article.category || 'tech',
       author: article.author || 'AI Editorial Team',
       tags: Array.isArray(article.tags) ? article.tags : ['ai-processed', 'imported'],
@@ -719,9 +764,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       title: article.title,
       excerpt: article.excerpt || article.title.substring(0, 150),
       publishedAt,
-      image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+      image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
       category: { name: article.category || 'Technology', slug: article.category || 'tech' },
-      content: article.content,
+      content: contentEn, // ✅ v8.4.0: Контент с изображениями
       author: article.author || 'AI Editorial Team',
       tags: ['ai-processed', 'imported']
     };
@@ -736,9 +781,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         title: article.translations.pl.title,
         excerpt: article.translations.pl.excerpt || article.translations.pl.title.substring(0, 150),
         publishedAt,
-        image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+        image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
         category: { name: article.category || 'Technology', slug: article.category || 'tech' },
-        content: article.translations.pl.content,
+        content: contentPl, // ✅ v8.4.0: Контент с изображениями
         author: article.author || 'AI Editorial Team',
         tags: ['ai-processed', 'imported', 'translated']
       };

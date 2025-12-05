@@ -4,6 +4,9 @@ import { adminLogger, createApiTimer } from '../admin-logger';
 import { localArticleStorage } from '../local-article-storage';
 
 // Types
+// Content processing styles (from content-prompts.ts)
+export type ContentStyleType = 'journalistic' | 'as-is' | 'seo-optimized' | 'academic' | 'casual' | 'technical';
+
 export interface ParseJob {
   id: string;
   url: string;
@@ -13,6 +16,8 @@ export interface ParseJob {
   endTime?: Date;
   error?: string;
   article?: Article;
+  contentStyle?: ContentStyleType; // ✅ v8.4.0: Стиль обработки контента
+  category?: string; // ✅ v8.4.0: Категория статьи
 }
 
 export interface Article {
@@ -156,7 +161,7 @@ interface AdminStore {
   setActiveTab: (tab: AdminStore['activeTab']) => void;
   
   // Parsing Actions
-  addUrlToQueue: (url: string, category: string) => void;
+  addUrlToQueue: (url: string, category: string, contentStyle?: ContentStyleType) => void;
   addTextToQueue: (title: string, content: string, category: string) => Promise<void>;
   updateJobStatus: (jobId: string, status: ParseJob['status'], progress?: number, articleData?: Article | null) => void;
   removeJobFromQueue: (jobId: string) => void;
@@ -274,8 +279,8 @@ export const useAdminStore = create<AdminStore>()(
       setActiveTab: (tab) => set({ activeTab: tab }),
 
       // Parsing Actions
-      addUrlToQueue: (url, category) => {
-        adminLogger.info('user', 'add_url', 'User added URL to parsing queue', { url, category });
+      addUrlToQueue: (url, category, contentStyle = 'journalistic') => {
+        adminLogger.info('user', 'add_url', 'User added URL to parsing queue', { url, category, contentStyle });
         
         const newJob: ParseJob = {
           id: Date.now().toString(),
@@ -283,6 +288,8 @@ export const useAdminStore = create<AdminStore>()(
           status: 'pending',
           progress: 0,
           startTime: new Date(),
+          contentStyle,
+          category,
         };
         
         set((state) => ({
@@ -296,7 +303,7 @@ export const useAdminStore = create<AdminStore>()(
         });
 
       // Trigger parsing via API
-      (get() as any).startParsing(newJob.id, url, category);
+      (get() as any).startParsing(newJob.id, url, category, contentStyle);
     },
 
     addTextToQueue: async (title, content, category) => {
@@ -562,9 +569,9 @@ export const useAdminStore = create<AdminStore>()(
       },
 
       // Private method for starting parsing
-      startParsing: async (jobId: string, url: string, category: string) => {
+      startParsing: async (jobId: string, url: string, category: string, contentStyle: ContentStyleType = 'journalistic') => {
         const timer = createApiTimer('parse_url');
-        adminLogger.info('parsing', 'parse_start', `Starting URL parsing: ${url}`, { jobId, url, category });
+        adminLogger.info('parsing', 'parse_start', `Starting URL parsing: ${url}`, { jobId, url, category, contentStyle });
         
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
@@ -584,6 +591,7 @@ export const useAdminStore = create<AdminStore>()(
               action: 'create-from-url',
               url,
               category,
+              contentStyle, // ✅ v8.4.0: Передаем стиль обработки
               stage: 'text-only' // ✨ NEW: Request text-only processing (no image generation)
             }),
             signal: controller.signal

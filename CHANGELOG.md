@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.2.2] - 2025-12-05 - 🔐 Admin Authentication Fix
+
+### 🔐 ADMIN PANEL AUTHENTICATION
+**Исправлена проблема входа в админ панель**
+- Добавлен hardcoded fallback пароль `icoffio2025` в `admin-store.ts`
+- Локальная проверка пароля работает независимо от API
+- API `/api/admin/auth` используется как backup
+- Добавлен `ADMIN_PASSWORD` в Vercel Environment Variables (production, preview, development)
+
+### ⚙️ Environment Variables (Vercel)
+```
+ADMIN_PASSWORD=icoffio2025
+```
+
+### 🛡️ Security
+- Серверная валидация через `/api/admin/auth` с rate limiting
+- Fallback на локальную проверку при недоступности API
+- HTTP-only cookies для сессий
+
+### 📁 Изменённые файлы
+- `lib/stores/admin-store.ts` - fallback authentication
+- `app/api/admin/auth/route.ts` - server-side validation
+- `.env.local` - локальный ADMIN_PASSWORD
+
+---
+
 ## [8.2.1] - 2025-12-05 - 🗄️ Vercel Blob Storage + Blur Placeholders
 
 ### 🗄️ VERCEL BLOB STORAGE

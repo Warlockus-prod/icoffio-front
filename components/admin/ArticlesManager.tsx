@@ -62,15 +62,62 @@ export default function ArticlesManager() {
   const loadArticles = async () => {
     setIsLoading(true);
     try {
-      // Статьи из админ localStorage
-      const adminArticles = localArticleStorage.getAllArticles();
-      
-      // Статические статьи
-      const staticArticles = await getLocalArticles();
-      
       const allArticles: ArticleItem[] = [];
       
-      // Конвертируем админские статьи
+      // 1. Статьи из Supabase (published)
+      try {
+        const response = await fetch('/api/supabase-articles?action=get-all&limit=100');
+        const result = await response.json();
+        
+        if (result.success && result.articles) {
+          result.articles.forEach((article: any) => {
+            // English version
+            if (article.slug_en) {
+              allArticles.push({
+                id: `supabase_${article.id}_en`,
+                title: article.title_en || article.title,
+                slug: article.slug_en,
+                category: article.category || 'tech',
+                language: 'en',
+                createdAt: article.created_at,
+                status: 'dynamic' as const,
+                url: `https://app.icoffio.com/en/article/${article.slug_en}`,
+                excerpt: article.excerpt_en || article.excerpt || '',
+                image: article.image_url || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+                author: article.author || 'icoffio Editorial Team',
+                views: article.views || Math.floor(Math.random() * 1000) + 50,
+                lastEdit: article.updated_at || article.created_at,
+                publishStatus: 'published' as const
+              });
+            }
+            
+            // Polish version
+            if (article.slug_pl) {
+              allArticles.push({
+                id: `supabase_${article.id}_pl`,
+                title: article.title_pl || article.title,
+                slug: article.slug_pl,
+                category: article.category || 'tech',
+                language: 'pl',
+                createdAt: article.created_at,
+                status: 'dynamic' as const,
+                url: `https://app.icoffio.com/pl/article/${article.slug_pl}`,
+                excerpt: article.excerpt_pl || article.excerpt || '',
+                image: article.image_url || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+                author: article.author || 'icoffio Editorial Team',
+                views: article.views || Math.floor(Math.random() * 1000) + 50,
+                lastEdit: article.updated_at || article.created_at,
+                publishStatus: 'published' as const
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to load Supabase articles:', error);
+      }
+      
+      // 2. Статьи из админ localStorage
+      const adminArticles = localArticleStorage.getAllArticles();
       adminArticles.forEach(article => {
         const language = article.slug.endsWith('-en') ? 'en' : 
                         article.slug.endsWith('-pl') ? 'pl' : 'unknown';
@@ -85,15 +132,16 @@ export default function ArticlesManager() {
           status: 'admin',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: article.image,
+          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
           author: article.author || 'icoffio Editorial Team',
-          views: Math.floor(Math.random() * 1000) + 50, // Simulate views
+          views: Math.floor(Math.random() * 1000) + 50,
           lastEdit: article.updatedAt || article.createdAt,
-          publishStatus: 'draft' as const // Admin articles are drafts by default
+          publishStatus: 'draft' as const
         });
       });
       
-      // Конвертируем статические статьи
+      // 3. Статические статьи
+      const staticArticles = await getLocalArticles();
       staticArticles.forEach((article: Post) => {
         const language = article.slug.endsWith('-en') ? 'en' : 
                         article.slug.endsWith('-pl') ? 'pl' : 'unknown';
@@ -104,15 +152,15 @@ export default function ArticlesManager() {
           slug: article.slug,
           category: typeof article.category === 'string' ? article.category : article.category.slug,
           language,
-          author: 'icoffio Editorial Team', // Static articles default author
-          views: Math.floor(Math.random() * 5000) + 100, // Simulate views for static
+          author: 'icoffio Editorial Team',
+          views: Math.floor(Math.random() * 5000) + 100,
           lastEdit: article.publishedAt || article.date || new Date().toISOString(),
           publishStatus: 'published' as const,
           createdAt: article.publishedAt || article.date || new Date().toISOString(),
           status: 'static',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: article.image
+          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800'
         });
       });
       
@@ -120,6 +168,9 @@ export default function ArticlesManager() {
       const uniqueArticles = allArticles.filter((article, index, self) => 
         index === self.findIndex(a => a.slug === article.slug)
       );
+      
+      // Сортируем по дате создания (новые сверху)
+      uniqueArticles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
       setArticles(uniqueArticles);
       updateStats(uniqueArticles);

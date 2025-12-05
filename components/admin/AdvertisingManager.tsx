@@ -37,7 +37,7 @@ export default function AdvertisingManager() {
   };
 
   const handleReset = () => {
-    if (window.confirm('🔄 Сбросить все настройки рекламы к дефолтным?\n\nЭто восстановит стандартную конфигурацию всех рекламных мест.')) {
+    if (window.confirm('🔄 Reset all ad settings to default?\n\nThis will restore the standard configuration of all ad placements.')) {
       resetAdPlacements();
       loadPlacements();
     }
@@ -102,7 +102,7 @@ export default function AdvertisingManager() {
               💰 Advertising Management
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Управление всеми рекламными местами VOX Display
+              Manage all VOX Display ad placements
             </p>
           </div>
           <button
@@ -320,14 +320,14 @@ export default function AdvertisingManager() {
           <div className="text-2xl">💡</div>
           <div>
             <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-              Как работает управление рекламой
+              How Ad Management Works
             </h4>
             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-              <li>• <strong>Toggle переключатель</strong> - включить/выключить рекламное место</li>
-              <li>• <strong>Priority стрелки</strong> - изменить приоритет показа (1-10)</li>
-              <li>• <strong>Reset to Default</strong> - восстановить исходную конфигурацию</li>
-              <li>• <strong>Настройки сохраняются</strong> в localStorage и применяются сразу</li>
-              <li>• <strong>Video реклама</strong> работает на обоих устройствах (Desktop & Mobile)</li>
+              <li>• <strong>Toggle switch</strong> - enable/disable ad placement</li>
+              <li>• <strong>Priority arrows</strong> - change display priority (1-10)</li>
+              <li>• <strong>Reset to Default</strong> - restore original configuration</li>
+              <li>• <strong>Settings are saved</strong> to localStorage and applied immediately</li>
+              <li>• <strong>Video ads</strong> work on both devices (Desktop & Mobile)</li>
             </ul>
           </div>
         </div>

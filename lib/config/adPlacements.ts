@@ -1,7 +1,7 @@
 /**
- * Централизованная конфигурация всех рекламных мест VOX Display
+ * Centralized configuration of all VOX Display ad placements
  * 
- * Управление: через админ-панель или прямое редактирование этого файла
+ * Management: via admin panel or direct editing of this file
  * @version 7.6.0
  * @date 2025-10-28
  */
@@ -25,8 +25,8 @@ export interface AdPlacementConfig {
 }
 
 /**
- * Все рекламные места в системе
- * ВАЖНО: Обновляйте это при добавлении новых PlaceID от VOX
+ * All ad placements in the system
+ * IMPORTANT: Update this when adding new PlaceIDs from VOX
  */
 export const AD_PLACEMENTS: AdPlacementConfig[] = [
   // ==================== DESKTOP INLINE ====================
@@ -35,8 +35,8 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     placeId: '63da9b577bc72f39bc3bfc68',
     format: '728x90',
     placement: 'inline',
-    name: 'Leaderboard после заголовка',
-    description: '728x90 баннер после заголовка статьи (Desktop)',
+    name: 'Leaderboard After Title',
+    description: '728x90 banner after article title (Desktop)',
     location: 'article',
     position: 'content-top',
     enabled: true,
@@ -50,8 +50,8 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     placeId: '63daa3c24d506e16acfd2a38',
     format: '970x250',
     placement: 'inline',
-    name: 'Large Leaderboard перед Related Articles',
-    description: '970x250 баннер перед блоком похожих статей (Desktop) - FULL WIDTH',
+    name: 'Large Leaderboard Before Related Articles',
+    description: '970x250 banner before related articles block (Desktop) - FULL WIDTH',
     location: 'article',
     position: 'footer',
     enabled: true,
@@ -67,8 +67,8 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     placeId: '63da9e2a4d506e16acfd2a36',
     format: '300x250',
     placement: 'sidebar',
-    name: 'Medium Rectangle сверху сайдбара',
-    description: '300x250 баннер в верхней части сайдбара (Desktop)',
+    name: 'Medium Rectangle Top Sidebar',
+    description: '300x250 banner in top sidebar area (Desktop)',
     location: 'article',
     position: 'sidebar-top',
     enabled: true,
@@ -82,8 +82,8 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     placeId: '63daa2ea7bc72f39bc3bfc72',
     format: '300x600',
     placement: 'sidebar',
-    name: 'Large Skyscraper снизу сайдбара',
-    description: '300x600 баннер в нижней части сайдбара (Desktop)',
+    name: 'Large Skyscraper Bottom Sidebar',
+    description: '300x600 banner in bottom sidebar area (Desktop)',
     location: 'article',
     position: 'sidebar-bottom',
     enabled: true,
@@ -100,7 +100,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     format: '320x50',
     placement: 'mobile',
     name: 'Mobile Banner Top',
-    description: '320x50 баннер в верхней части (Mobile)',
+    description: '320x50 banner at the top (Mobile)',
     location: 'article',
     position: 'header',
     enabled: true,
@@ -115,7 +115,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     format: '320x100',
     placement: 'mobile',
     name: 'Large Mobile Banner',
-    description: '320x100 баннер после контента (Mobile)',
+    description: '320x100 banner after content (Mobile)',
     location: 'article',
     position: 'content-bottom',
     enabled: true,
@@ -178,8 +178,8 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
 ];
 
 /**
- * Получить все активные рекламные места
- * Использует сохраненную конфигурацию из localStorage если есть
+ * Get all enabled ad placements
+ * Uses saved configuration from localStorage if available
  */
 export function getEnabledAdPlacements(): AdPlacementConfig[] {
   // Импортируем динамически чтобы избежать циклических зависимостей
@@ -195,8 +195,8 @@ export function getEnabledAdPlacements(): AdPlacementConfig[] {
 }
 
 /**
- * Получить рекламные места для конкретной локации
- * Использует сохраненную конфигурацию из localStorage если есть
+ * Get ad placements for a specific location
+ * Uses saved configuration from localStorage if available
  */
 export function getAdPlacementsByLocation(location: AdPlacementConfig['location']): AdPlacementConfig[] {
   return getEnabledAdPlacements()
@@ -205,7 +205,7 @@ export function getAdPlacementsByLocation(location: AdPlacementConfig['location'
 }
 
 /**
- * Получить рекламные места для конкретного устройства
+ * Get ad placements for a specific device
  */
 export function getAdPlacementsByDevice(device: 'desktop' | 'mobile'): AdPlacementConfig[] {
   return getEnabledAdPlacements()
@@ -214,14 +214,14 @@ export function getAdPlacementsByDevice(device: 'desktop' | 'mobile'): AdPlaceme
 }
 
 /**
- * Получить рекламное место по ID
+ * Get ad placement by ID
  */
 export function getAdPlacementById(id: string): AdPlacementConfig | undefined {
   return AD_PLACEMENTS.find(ad => ad.id === id);
 }
 
 /**
- * Получить рекламные места по позиции
+ * Get ad placements by position
  */
 export function getAdPlacementsByPosition(position: AdPlacementConfig['position']): AdPlacementConfig[] {
   return getEnabledAdPlacements()
@@ -230,7 +230,7 @@ export function getAdPlacementsByPosition(position: AdPlacementConfig['position'
 }
 
 /**
- * Статистика рекламных мест
+ * Ad placements statistics
  */
 export function getAdPlacementsStats() {
   return {

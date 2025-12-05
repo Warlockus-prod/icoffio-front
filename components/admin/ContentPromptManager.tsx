@@ -298,7 +298,7 @@ export default function ContentPromptManager() {
                 </p>
               ) : (
                 <p className="text-sm text-gray-400 dark:text-gray-500 italic">
-                  Результат появится здесь...
+                  Result will appear here...
                 </p>
               )}
             </div>
@@ -310,20 +310,20 @@ export default function ContentPromptManager() {
           disabled={isProcessing || !testText.trim()}
           className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all"
         >
-          {isProcessing ? '⏳ Обработка...' : '🚀 Тестировать промпт'}
+          {isProcessing ? '⏳ Processing...' : '🚀 Test Prompt'}
         </button>
       </div>
 
       {/* Usage Info */}
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
         <h4 className="font-semibold text-yellow-800 dark:text-yellow-400 mb-2">
-          ℹ️ Как это работает
+          ℹ️ How It Works
         </h4>
         <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
-          <li>• <strong>В админ-панели</strong>: выбирайте стиль при создании/редактировании статьи</li>
-          <li>• <strong>В Telegram боте</strong>: пользователи получают кнопки выбора стиля при отправке текста</li>
-          <li>• <strong>Кастомный промпт</strong>: позволяет ввести свои инструкции для уникальной обработки</li>
-          <li>• <strong>Тестирование</strong>: проверьте как работает промпт перед использованием</li>
+          <li>• <strong>In admin panel</strong>: choose style when creating/editing articles</li>
+          <li>• <strong>In Telegram bot</strong>: users get style selection buttons when sending text</li>
+          <li>• <strong>Custom prompt</strong>: allows entering custom instructions for unique processing</li>
+          <li>• <strong>Testing</strong>: check how the prompt works before using it</li>
         </ul>
       </div>
     </div>

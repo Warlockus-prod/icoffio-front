@@ -21,6 +21,13 @@ interface ReadyArticle extends Article {
   };
 }
 
+// Schedule data interface
+interface ScheduledPublish {
+  articleId: string;
+  scheduledTime: Date;
+  articleTitle: string;
+}
+
 export default function PublishingQueue() {
   const { parsingQueue, publishingQueue, removeJobFromQueue, updateJobStatus, addActivity } = useAdminStore();
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
@@ -28,6 +35,12 @@ export default function PublishingQueue() {
   const [previewArticle, setPreviewArticle] = useState<ReadyArticle | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'published' | 'failed'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Scheduler state
+  const [showScheduler, setShowScheduler] = useState<string | null>(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduledPublishes, setScheduledPublishes] = useState<ScheduledPublish[]>([]);
 
   // Получаем готовые к публикации статьи из parsing queue
   const readyForPublish = parsingQueue
@@ -52,12 +65,98 @@ export default function PublishingQueue() {
     setTimeout(() => {
       setIsLoading(false);
     }, 500);
+    
+    // Load scheduled publishes from localStorage
+    const savedSchedules = localStorage.getItem('icoffio_scheduled_publishes');
+    if (savedSchedules) {
+      try {
+        const parsed = JSON.parse(savedSchedules);
+        setScheduledPublishes(parsed.map((s: any) => ({
+          ...s,
+          scheduledTime: new Date(s.scheduledTime)
+        })));
+      } catch (e) {
+        console.error('Failed to load scheduled publishes:', e);
+      }
+    }
   }, []);
+  
+  // Check for scheduled publishes every minute
+  useEffect(() => {
+    const checkScheduled = () => {
+      const now = new Date();
+      const due = scheduledPublishes.filter(s => new Date(s.scheduledTime) <= now);
+      
+      if (due.length > 0) {
+        due.forEach(scheduled => {
+          const article = readyForPublish.find(a => a.id === scheduled.articleId);
+          if (article) {
+            toast.success(`⏰ Publishing scheduled article: ${scheduled.articleTitle}`);
+            handlePublishSingle(article);
+          }
+        });
+        
+        // Remove published from schedule
+        const remaining = scheduledPublishes.filter(s => new Date(s.scheduledTime) > now);
+        setScheduledPublishes(remaining);
+        localStorage.setItem('icoffio_scheduled_publishes', JSON.stringify(remaining));
+      }
+    };
+    
+    const interval = setInterval(checkScheduled, 60000); // Check every minute
+    checkScheduled(); // Initial check
+    
+    return () => clearInterval(interval);
+  }, [scheduledPublishes, readyForPublish]);
+  
+  // Handle schedule article
+  const handleScheduleArticle = (articleId: string, articleTitle: string) => {
+    if (!scheduleDate || !scheduleTime) {
+      toast.error('Please select date and time');
+      return;
+    }
+    
+    const scheduledTime = new Date(`${scheduleDate}T${scheduleTime}`);
+    
+    if (scheduledTime <= new Date()) {
+      toast.error('Scheduled time must be in the future');
+      return;
+    }
+    
+    const newSchedule: ScheduledPublish = {
+      articleId,
+      scheduledTime,
+      articleTitle
+    };
+    
+    const updated = [...scheduledPublishes.filter(s => s.articleId !== articleId), newSchedule];
+    setScheduledPublishes(updated);
+    localStorage.setItem('icoffio_scheduled_publishes', JSON.stringify(updated));
+    
+    toast.success(`📅 Scheduled for ${scheduledTime.toLocaleString()}`);
+    setShowScheduler(null);
+    setScheduleDate('');
+    setScheduleTime('');
+  };
+  
+  // Cancel scheduled publish
+  const handleCancelSchedule = (articleId: string) => {
+    const updated = scheduledPublishes.filter(s => s.articleId !== articleId);
+    setScheduledPublishes(updated);
+    localStorage.setItem('icoffio_scheduled_publishes', JSON.stringify(updated));
+    toast.success('Schedule cancelled');
+  };
+  
+  // Get scheduled time for article
+  const getScheduledTime = (articleId: string) => {
+    return scheduledPublishes.find(s => s.articleId === articleId);
+  };
 
   const stats = {
     total: readyForPublish.length,
     selected: selectedArticles.size,
-    publishing: isPublishing.size
+    publishing: isPublishing.size,
+    scheduled: scheduledPublishes.length
   };
 
   const handleSelectAll = () => {
@@ -234,8 +333,12 @@ export default function PublishingQueue() {
               <div className="text-xs text-gray-500 dark:text-gray-400">Selected</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.publishing}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.publishing}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Publishing</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.scheduled}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Scheduled</div>
             </div>
           </div>
         </div>
@@ -351,7 +454,7 @@ export default function PublishingQueue() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <button
                       onClick={() => handlePreview(article)}
                       className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors text-sm"
@@ -373,7 +476,69 @@ export default function PublishingQueue() {
                     >
                       {isPublishing.has(article.id) ? '⏳ Publishing...' : '🚀 Publish Now'}
                     </button>
+                    
+                    {/* Schedule Button */}
+                    {getScheduledTime(article.id) ? (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-lg text-sm">
+                          📅 {new Date(getScheduledTime(article.id)!.scheduledTime).toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => handleCancelSchedule(article.id)}
+                          className="px-2 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors text-sm"
+                          title="Cancel schedule"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowScheduler(showScheduler === article.id ? null : article.id)}
+                        className="px-3 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40 rounded-lg transition-colors text-sm"
+                      >
+                        ⏰ Schedule
+                      </button>
+                    )}
                   </div>
+                  
+                  {/* Scheduler Panel */}
+                  {showScheduler === article.id && (
+                    <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                      <h5 className="font-medium text-orange-800 dark:text-orange-300 mb-3">⏰ Schedule Publication</h5>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <input
+                          type="date"
+                          value={scheduleDate}
+                          onChange={(e) => setScheduleDate(e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="px-3 py-2 border border-orange-300 dark:border-orange-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                        />
+                        <input
+                          type="time"
+                          value={scheduleTime}
+                          onChange={(e) => setScheduleTime(e.target.value)}
+                          className="px-3 py-2 border border-orange-300 dark:border-orange-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                        />
+                        <button
+                          onClick={() => handleScheduleArticle(article.id, article.title)}
+                          disabled={!scheduleDate || !scheduleTime}
+                          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors text-sm"
+                        >
+                          ✅ Confirm
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowScheduler(null);
+                            setScheduleDate('');
+                            setScheduleTime('');
+                          }}
+                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

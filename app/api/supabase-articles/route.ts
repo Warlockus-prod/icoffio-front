@@ -62,9 +62,18 @@ export async function GET(request: Request) {
       throw new Error(`Supabase query failed: ${error.message}`);
     }
 
+    // ✅ v8.4.1: Удаляем дубликаты по slug ПЕРЕД трансформацией
+    const isEn = language === 'en';
+    const uniqueArticles = articles.filter((article: any, index: number, self: any[]) =>
+      index === self.findIndex((a: any) => 
+        (isEn ? a.slug_en : a.slug_pl) === (isEn ? article.slug_en : article.slug_pl)
+      )
+    );
+    
+    console.log(`[supabase-articles] Filtered ${articles.length} -> ${uniqueArticles.length} unique for ${language}`);
+
     // Transform to frontend format
-    const transformedArticles = articles.map((article: any) => {
-      const isEn = language === 'en';
+    const transformedArticles = uniqueArticles.map((article: any) => {
       const slug = isEn ? article.slug_en : article.slug_pl;
       const content = isEn ? article.content_en : article.content_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
@@ -184,7 +193,8 @@ export async function POST(request: Request) {
       // Get related articles by category
       const { category: articleCategory, excludeSlug, language: lang = 'en', limit = 4 } = body;
 
-      const { data: articles, error } = await supabase
+      // ✅ v8.4.1: Сначала пробуем найти по категории
+      let { data: articles, error } = await supabase
         .from('published_articles')
         .select('*')
         .eq('category', articleCategory)
@@ -193,11 +203,34 @@ export async function POST(request: Request) {
         .order('created_at', { ascending: false })
         .limit(limit);
 
+      // ✅ FALLBACK: Если по категории ничего нет - берём последние статьи любой категории
+      if (!error && (!articles || articles.length === 0)) {
+        console.log(`[get-related] No articles in category "${articleCategory}", falling back to latest`);
+        const fallback = await supabase
+          .from('published_articles')
+          .select('*')
+          .eq('published', true)
+          .not(lang === 'en' ? 'slug_en' : 'slug_pl', 'eq', excludeSlug)
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        
+        if (fallback.data) {
+          articles = fallback.data;
+        }
+      }
+
       if (error) {
         throw new Error(`Failed to get related articles: ${error.message}`);
       }
 
-      const transformedArticles = articles.map((article: any) => {
+      // ✅ Удаляем дубликаты по slug
+      const uniqueArticles = (articles || []).filter((article: any, index: number, self: any[]) =>
+        index === self.findIndex((a: any) => 
+          (lang === 'en' ? a.slug_en : a.slug_pl) === (lang === 'en' ? article.slug_en : article.slug_pl)
+        )
+      );
+
+      const transformedArticles = uniqueArticles.map((article: any) => {
         const isEn = lang === 'en';
         return {
           id: article.id.toString(),

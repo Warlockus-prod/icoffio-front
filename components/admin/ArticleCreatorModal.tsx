@@ -64,9 +64,6 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   // ✅ v8.2.0: Multiple images (up to 5)
   const [selectedImages, setSelectedImages] = useState<string[]>(article.image ? [article.image] : []);
   
-  // ✅ v8.2.0: Edit mode (single language or dual)
-  const [editMode, setEditMode] = useState<'dual' | 'en' | 'pl'>('dual');
-  
   // Image selection state
   const [imageSearch, setImageSearch] = useState('');
   const [imageOptions, setImageOptions] = useState<ImageOption[]>([]);
@@ -381,178 +378,189 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
         {/* ===== CONTENT ===== */}
         <div className="flex-1 overflow-y-auto">
           
-          {/* STAGE 1: EDITING - DUAL LANGUAGE VIEW */}
+          {/* STAGE 1: EDITING - LANGUAGE TABS (like Preview) */}
           {stage === 'editing' && (
             <div className="p-6 space-y-6">
-              {/* Edit Mode Toggle */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  🌍 Dual-Language Editor
-                </h3>
-                <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                  <button
-                    onClick={() => setEditMode('dual')}
-                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
-                      editMode === 'dual' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    🔀 Split
-                  </button>
-                  <button
-                    onClick={() => setEditMode('en')}
-                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
-                      editMode === 'en' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    🇺🇸 EN
-                  </button>
-                  <button
-                    onClick={() => setEditMode('pl')}
-                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
-                      editMode === 'pl' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    🇵🇱 PL
-                  </button>
-                </div>
+              {/* Language Tabs - Same style as Preview */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`px-6 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                    language === 'en'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  🇺🇸 English
+                  {title && <span className="text-xs opacity-75">✓</span>}
+                </button>
+                <button
+                  onClick={() => setLanguage('pl')}
+                  className={`px-6 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                    language === 'pl'
+                      ? 'bg-green-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  🇵🇱 Polski
+                  {plTitle && <span className="text-xs opacity-75">✓</span>}
+                </button>
               </div>
 
-              {/* Category (shared) */}
+              {/* Title */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  📁 Category
+                  📝 {language === 'en' ? 'Title' : 'Tytuł'}
                 </label>
-                <div className="grid grid-cols-6 gap-2">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => { setCategory(cat.id); setHasUnsavedChanges(true); }}
-                      className={`p-3 rounded-xl border-2 transition-all text-center ${
-                        category === cat.id
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400'
-                      }`}
-                    >
-                      <span className="text-xl">{cat.icon}</span>
-                      <div className="text-xs mt-1 font-medium">{cat.label}</div>
-                    </button>
-                  ))}
-                </div>
+                <input
+                  type="text"
+                  value={language === 'en' ? title : plTitle}
+                  onChange={(e) => {
+                    if (language === 'en') setTitle(e.target.value);
+                    else setPlTitle(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
+                  className="w-full px-4 py-3 text-xl font-bold border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder={language === 'en' ? 'Enter article title...' : 'Wpisz tytuł artykułu...'}
+                />
               </div>
 
-              {/* Dual Language Columns */}
-              <div className={`grid gap-6 ${editMode === 'dual' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                {/* ENGLISH Column */}
-                {(editMode === 'dual' || editMode === 'en') && (
-                  <div className={`space-y-4 p-4 rounded-xl border-2 ${editMode === 'dual' ? 'border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
-                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold">
-                      <span className="text-xl">🇺🇸</span>
-                      <span>English</span>
-                      {title && <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">✓ Ready</span>}
-                    </div>
-                    
-                    {/* EN Title */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Title</label>
-                      <input
-                        type="text"
-                        value={title}
-                        onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
-                        className="w-full px-3 py-2 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500"
-                        placeholder="English title..."
-                      />
-                    </div>
-                    
-                    {/* EN Excerpt */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">
-                        Excerpt <span className={excerpt.length > 150 ? 'text-orange-500' : ''}>({excerpt.length}/160)</span>
-                      </label>
-                      <textarea
-                        value={excerpt}
-                        onChange={(e) => { setExcerpt(e.target.value.substring(0, 160)); setHasUnsavedChanges(true); }}
-                        rows={2}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
-                        placeholder="English excerpt..."
-                      />
-                    </div>
-                    
-                    {/* EN Content */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Content</label>
-                      {(editMode === 'dual' || editMode === 'en') && (
-                        <>
-                          <div className="flex flex-wrap gap-1 p-2 bg-gray-50 dark:bg-gray-800 rounded-t-lg border border-b-0 border-gray-300 dark:border-gray-600">
-                            <button onClick={() => editor?.chain().focus().toggleBold().run()} className={`p-1.5 rounded text-xs ${editor?.isActive('bold') ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200'}`}><strong>B</strong></button>
-                            <button onClick={() => editor?.chain().focus().toggleItalic().run()} className={`p-1.5 rounded text-xs ${editor?.isActive('italic') ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200'}`}><em>I</em></button>
-                            <button onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className="p-1.5 rounded text-xs hover:bg-gray-200">H2</button>
-                            <button onClick={() => editor?.chain().focus().toggleBulletList().run()} className="p-1.5 rounded text-xs hover:bg-gray-200">• List</button>
-                          </div>
-                          <div className="border border-gray-300 dark:border-gray-600 rounded-b-lg bg-white dark:bg-gray-800 min-h-[200px]">
-                            <EditorContent editor={editor} />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length} words
-                    </div>
+              {/* Category (only for English) */}
+              {language === 'en' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    📁 Category
+                  </label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => { setCategory(cat.id); setHasUnsavedChanges(true); }}
+                        className={`p-3 rounded-xl border-2 transition-all text-center ${
+                          category === cat.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400'
+                        }`}
+                      >
+                        <span className="text-xl">{cat.icon}</span>
+                        <div className="text-xs mt-1 font-medium">{cat.label}</div>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* POLISH Column */}
-                {(editMode === 'dual' || editMode === 'pl') && (
-                  <div className={`space-y-4 p-4 rounded-xl border-2 ${editMode === 'dual' ? 'border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10' : ''}`}>
-                    <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-semibold">
-                      <span className="text-xl">🇵🇱</span>
-                      <span>Polski</span>
-                      {plTitle && <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">✓ Ready</span>}
-                    </div>
-                    
-                    {/* PL Title */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Tytuł</label>
-                      <input
-                        type="text"
-                        value={plTitle}
-                        onChange={(e) => { setPlTitle(e.target.value); setHasUnsavedChanges(true); }}
-                        className="w-full px-3 py-2 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-green-500"
-                        placeholder="Polski tytuł..."
-                      />
-                    </div>
-                    
-                    {/* PL Excerpt */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">
-                        Opis <span className={plExcerpt.length > 150 ? 'text-orange-500' : ''}>({plExcerpt.length}/160)</span>
-                      </label>
-                      <textarea
-                        value={plExcerpt}
-                        onChange={(e) => { setPlExcerpt(e.target.value.substring(0, 160)); setHasUnsavedChanges(true); }}
-                        rows={2}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
-                        placeholder="Polski opis..."
-                      />
-                    </div>
-                    
-                    {/* PL Content */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase">Treść</label>
-                      <textarea
-                        value={plContent}
-                        onChange={(e) => { setPlContent(e.target.value); setHasUnsavedChanges(true); }}
-                        rows={10}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
-                        placeholder="Polski treść artykułu..."
-                      />
-                    </div>
-                    
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {plContent.split(/\s+/).filter(Boolean).length} słów
-                    </div>
+              {/* Excerpt */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  📄 {language === 'en' ? 'Excerpt' : 'Opis'} 
+                  <span className={`font-normal ml-2 ${(language === 'en' ? excerpt : plExcerpt).length > 150 ? 'text-orange-500' : 'text-gray-500'}`}>
+                    ({(language === 'en' ? excerpt : plExcerpt).length}/160)
+                  </span>
+                </label>
+                <textarea
+                  value={language === 'en' ? excerpt : plExcerpt}
+                  onChange={(e) => {
+                    const val = e.target.value.substring(0, 160);
+                    if (language === 'en') setExcerpt(val);
+                    else setPlExcerpt(val);
+                    setHasUnsavedChanges(true);
+                  }}
+                  rows={3}
+                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                  placeholder={language === 'en' ? 'Short description for SEO and previews...' : 'Krótki opis do SEO i podglądów...'}
+                />
+              </div>
+
+              {/* Content Editor */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  ✍️ {language === 'en' ? 'Content' : 'Treść'}
+                </label>
+                
+                {/* Editor Toolbar */}
+                <div className="flex flex-wrap gap-1 p-2 bg-gray-50 dark:bg-gray-800 rounded-t-xl border-2 border-b-0 border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => editor?.chain().focus().toggleBold().run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('bold') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    <strong>B</strong>
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().toggleItalic().run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('italic') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    <em>I</em>
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('heading', { level: 2 }) ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    H2
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('heading', { level: 3 }) ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    H3
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('bulletList') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    • List
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('orderedList') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    1. List
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                    className={`p-2 rounded-lg ${editor?.isActive('blockquote') ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                  >
+                    " Quote
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => editor?.chain().focus().undo().run()}
+                    disabled={!editor?.can().undo()}
+                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    ↩️
+                  </button>
+                  <button
+                    onClick={() => editor?.chain().focus().redo().run()}
+                    disabled={!editor?.can().redo()}
+                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    ↪️
+                  </button>
+                </div>
+                
+                {/* WYSIWYG Editor for current language */}
+                {language === 'en' ? (
+                  <div className="border-2 border-gray-200 dark:border-gray-700 rounded-b-xl bg-white dark:bg-gray-800">
+                    <EditorContent editor={editor} />
                   </div>
+                ) : (
+                  <textarea
+                    value={plContent}
+                    onChange={(e) => { setPlContent(e.target.value); setHasUnsavedChanges(true); }}
+                    rows={15}
+                    className="w-full px-4 py-3 border-2 border-t-0 border-gray-200 dark:border-gray-700 rounded-b-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-y min-h-[400px] font-mono text-sm"
+                    placeholder="Wpisz treść artykułu po polsku..."
+                  />
                 )}
+                
+                {/* Word count */}
+                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  {language === 'en' 
+                    ? `${content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length} words`
+                    : `${plContent.split(/\s+/).filter(Boolean).length} słów`
+                  }
+                </div>
               </div>
             </div>
           )}

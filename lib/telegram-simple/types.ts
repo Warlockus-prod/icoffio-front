@@ -32,3 +32,24 @@ export interface ParsedUrl {
   content: string;
 }
 
+/**
+ * TELEGRAM SETTINGS v8.5.0
+ */
+export type ContentStyle = 
+  | 'journalistic'
+  | 'keep_as_is'
+  | 'seo_optimized'
+  | 'academic'
+  | 'casual'
+  | 'technical';
+
+export type ImagesSource = 'unsplash' | 'ai' | 'none';
+
+export interface TelegramSettings {
+  chatId: number;
+  contentStyle: ContentStyle;
+  imagesCount: number; // 0-3
+  imagesSource: ImagesSource;
+  autoPublish: boolean;
+}
+

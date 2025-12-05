@@ -14,6 +14,7 @@ import ArticlesManager from '@/components/admin/ArticlesManager';
 import AdvertisingManager from '@/components/admin/AdvertisingManager';
 import ContentPromptManager from '@/components/admin/ContentPromptManager';
 import ActivityLog from '@/components/admin/ActivityLog';
+import { TelegramSettings } from '@/components/admin/TelegramSettings';
 
 export default function AdminPage() {
   const { 
@@ -214,6 +215,8 @@ export default function AdminPage() {
         return <ContentPromptManager />;
       case 'activity':
         return <ActivityLog />;
+      case 'telegram':
+        return <TelegramSettings />;
       case 'settings':
         return (
           <div className="space-y-6">

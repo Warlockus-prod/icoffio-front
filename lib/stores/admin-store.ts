@@ -139,7 +139,7 @@ interface AdminStore {
   isLoading: boolean;
   
   // Current View
-  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity';
+  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity' | 'telegram';
   
   // Parsing Queue
   parsingQueue: ParseJob[];

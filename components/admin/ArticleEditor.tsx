@@ -320,7 +320,7 @@ export default function ArticleEditor() {
                       const result = await response.json();
                       
                       if (result.success) {
-                        alert(`✅ Статья "${selectedArticle.title}" успешно опубликована!`);
+                        alert(`✅ "${selectedArticle.title}" added to publishing queue!`);
                       } else {
                         throw new Error(result.error || 'Publication failed');
                       }

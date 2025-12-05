@@ -111,18 +111,18 @@ export default function PublishingQueue() {
         // Добавляем активность
         addActivity({
           type: 'article_published',
-          message: `Статья успешно опубликована: ${article.title}`,
+          message: `Added to queue: ${article.title}`,
           url: enUrl
         });
 
-        console.log('✅ Article published successfully');
+        console.log('✅ Article added to publishing queue');
         console.log('🔗 EN URL:', enUrl);
         console.log('🔗 PL URL:', plUrl);
         
-        // Success toast с ссылкой
+        // Success toast с ссылкой (EN + PL)
         toast.success(
           <div>
-            <div>✅ "{article.title.substring(0, 40)}..." опубликована!</div>
+            <div>✅ "{article.title.substring(0, 40)}..." added to queue!</div>
             {enUrl && (
               <a 
                 href={enUrl} 
@@ -130,7 +130,7 @@ export default function PublishingQueue() {
                 rel="noopener noreferrer"
                 className="text-xs underline mt-1 block text-blue-600 hover:text-blue-800"
               >
-                🔗 Открыть статью (EN)
+                🔗 Open article (EN)
               </a>
             )}
           </div>, 
@@ -146,7 +146,7 @@ export default function PublishingQueue() {
       console.error('❌ Publication failed:', error);
       addActivity({
         type: 'parsing_failed',
-        message: `Ошибка публикации: ${article.title}`,
+        message: `Publication error: ${article.title}`,
         url: article.url
       });
       
@@ -205,7 +205,7 @@ export default function PublishingQueue() {
               📤 Publishing Queue
             </h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm">
-              Управление готовыми к публикации статьями
+              Manage articles ready for publishing
             </p>
           </div>
           
@@ -331,7 +331,7 @@ export default function PublishingQueue() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span>🌍</span>
-                      <span>{Object.keys(article.translations || {}).length + 1} languages</span>
+                      <span>{Object.keys(article.translations || {}).length || 2} languages</span>
                     </div>
                   </div>
 

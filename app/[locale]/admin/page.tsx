@@ -25,26 +25,58 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Check saved authentication on load
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // Check saved authentication on load via API
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedAuth = localStorage.getItem('icoffio_admin_auth');
-      if (savedAuth === 'authenticated') {
-        // Simulate authentication without password check
-        useAdminStore.setState({ isAuthenticated: true });
+    const checkAuth = async () => {
+      if (typeof window !== 'undefined') {
+        const savedToken = localStorage.getItem('icoffio_admin_token');
+        if (savedToken) {
+          try {
+            // Validate token via API
+            const response = await fetch('/api/admin/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'validate', token: savedToken })
+            });
+            const result = await response.json();
+            
+            if (result.success && result.valid) {
+              useAdminStore.setState({ isAuthenticated: true });
+            } else {
+              // Token expired - clear it
+              localStorage.removeItem('icoffio_admin_token');
+              localStorage.removeItem('icoffio_admin_auth');
+            }
+          } catch (error) {
+            console.error('Token validation error:', error);
+          }
+        }
       }
-    }
+    };
+    
+    checkAuth();
   }, []);
 
-  // Handle authentication
-  const handleAuth = (e: React.FormEvent) => {
+  // Handle authentication - now async
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAuthenticating(true);
+    setError('');
     
-    if (authenticate(password)) {
-      setError('');
-      setPassword('');
-    } else {
-      setError('Invalid password');
+    try {
+      const success = await authenticate(password);
+      if (success) {
+        setError('');
+        setPassword('');
+      } else {
+        setError('Invalid password');
+      }
+    } catch (error) {
+      setError('Authentication error. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -95,9 +127,20 @@ export default function AdminPage() {
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg"
+                disabled={isAuthenticating}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                🚀 Login to Admin Panel
+                {isAuthenticating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Authenticating...
+                  </span>
+                ) : (
+                  '🚀 Login to Admin Panel'
+                )}
               </button>
             </form>
 

@@ -106,9 +106,9 @@ export default function ArticlesManager() {
           language,
           author: 'icoffio Editorial Team', // Static articles default author
           views: Math.floor(Math.random() * 5000) + 100, // Simulate views for static
-          lastEdit: article.publishedAt,
+          lastEdit: article.publishedAt || article.date || new Date().toISOString(),
           publishStatus: 'published' as const,
-          createdAt: article.publishedAt,
+          createdAt: article.publishedAt || article.date || new Date().toISOString(),
           status: 'static',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,

@@ -1,3 +1,10 @@
+/**
+ * 🏠 HOMEPAGE - icoffio v7.30.0
+ * 
+ * Main landing page with articles listing
+ * Mock data moved to lib/mock-data.ts for centralization
+ */
+
 import Link from "next/link";
 import { Suspense } from "react";
 import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
@@ -12,6 +19,8 @@ import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSk
 import { UniversalAd } from "@/components/UniversalAd";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
+// v7.30.0: Centralized mock data
+import { mockCategories, mockPostsShort as mockPosts } from "@/lib/mock-data";
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = getTranslation(params.locale as any);
@@ -63,116 +72,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 
 export const revalidate = 60; // 1 minute for testing (change to 3600 in production)
 
-// Categories for navigation
-const mockCategories = [
-  { name: "AI", slug: "ai" },
-  { name: "Apple", slug: "apple" },
-  { name: "Digital", slug: "digital" },
-  { name: "Tech", slug: "tech" },
-  { name: "News", slug: "news" }
-];
-
-const mockPosts = [
-  {
-    id: "1",
-    slug: "apple-vision-pro-2024-revolutionizing-spatial-computing",
-    title: "Apple Vision Pro 2024: Revolutionizing Spatial Computing",
-    excerpt: "Apple's groundbreaking mixed reality headset is transforming how we interact with digital content, offering unprecedented spatial computing capabilities.",
-    image: "https://images.unsplash.com/photo-1592659762303-90081d34b277?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Person using Apple Vision Pro mixed reality headset in a modern office environment",
-    category: { name: "Apple", slug: "apple" },
-    publishedAt: "2025-01-13T10:00:00Z",
-    content: ""
-  },
-  {
-    id: "2", 
-    slug: "ai-breakthrough-gpt5-understanding-multimodal-intelligence",
-    title: "AI Breakthrough: GPT-5 and the Future of Multimodal Intelligence",
-    excerpt: "The next generation of AI models promises unprecedented understanding across text, images, audio, and video, marking a new era in artificial intelligence.",
-    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Futuristic AI brain concept with neural networks and digital connections",
-    category: { name: "AI", slug: "ai" },
-    publishedAt: "2025-01-13T10:00:00Z",
-    content: ""
-  },
-  {
-    id: "3",
-    slug: "quantum-computing-breakthrough-ibm-1000-qubit-processor",
-    title: "Quantum Computing Breakthrough: IBM's 1000+ Qubit Processor",
-    excerpt: "IBM achieves a major milestone in quantum computing with their latest 1000+ qubit processor, bringing us closer to practical quantum applications.",
-    image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Quantum computer with glowing quantum bits and complex circuitry",
-    category: { name: "Tech", slug: "tech" },
-    publishedAt: "2025-01-12T14:30:00Z",
-    content: ""
-  },
-  {
-    id: "4",
-    slug: "metaverse-evolution-beyond-virtual-reality",
-    title: "The Metaverse Evolution: Beyond Virtual Reality",
-    excerpt: "From gaming worlds to digital workspaces, the metaverse is reshaping human interaction and creating new economic opportunities in virtual environments.",
-    image: "https://images.unsplash.com/photo-1617802690992-15d93263d3a9?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Virtual reality metaverse environment with digital avatars and futuristic landscapes",
-    category: { name: "Digital", slug: "digital" },
-    publishedAt: "2025-01-12T14:30:00Z",
-    content: ""
-  },
-  {
-    id: "5",
-    slug: "cybersecurity-2024-ai-powered-defense-systems",
-    title: "Cybersecurity 2024: AI-Powered Defense Systems",
-    excerpt: "Advanced AI systems are now protecting against sophisticated cyber threats, offering real-time threat detection and automated response capabilities.",
-    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Cybersecurity concept with digital locks, shield icons and data protection elements",
-    category: { name: "Tech", slug: "tech" },
-    publishedAt: "2025-01-11T16:20:00Z",
-    content: ""
-  },
-  {
-    id: "6",
-    slug: "sustainable-tech-green-computing-revolution",
-    title: "Sustainable Tech: The Green Computing Revolution",
-    excerpt: "Technology companies are pioneering eco-friendly solutions, from renewable energy data centers to biodegradable electronics.",
-    image: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Green technology concept with renewable energy symbols and eco-friendly computing",
-    category: { name: "News", slug: "news" },
-    publishedAt: "2025-01-11T16:20:00Z",
-    content: ""
-  },
-  {
-    id: "7",
-    slug: "neural-interfaces-brain-computer-connections",
-    title: "Neural Interfaces: The Future of Brain-Computer Connections",
-    excerpt: "Revolutionary brain-computer interfaces are enabling direct neural control of digital devices, opening new possibilities for human enhancement.",
-    image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Neural brain interface technology with brain scan and digital connectivity patterns",
-    category: { name: "AI", slug: "ai" },
-    publishedAt: "2025-01-10T12:45:00Z",
-    content: ""
-  },
-  {
-    id: "8",
-    slug: "web3-decentralized-internet-revolution",
-    title: "Web3: The Decentralized Internet Revolution",
-    excerpt: "Web3 technologies are creating a more open, user-controlled internet where privacy and data ownership take center stage.",
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Web3 blockchain technology concept with decentralized network connections",
-    category: { name: "Digital", slug: "digital" },
-    publishedAt: "2025-01-10T12:45:00Z",
-    content: ""
-  },
-  {
-    id: "9",
-    slug: "robotics-automation-manufacturing-transformation",
-    title: "Robotics & Automation: Manufacturing Transformation",
-    excerpt: "Advanced robotics and AI automation are revolutionizing manufacturing, creating smarter, more efficient production systems.",
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageAlt: "Advanced robotics and automation in modern smart manufacturing facility",
-    category: { name: "Tech", slug: "tech" },
-    publishedAt: "2025-01-09T09:15:00Z",
-    content: ""
-  }
-];
+// Mock data is now imported from lib/mock-data.ts (v7.30.0)
 
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);

@@ -139,8 +139,8 @@ interface AdminStore {
   statistics: Statistics;
   
   // Actions
-  authenticate: (password: string) => boolean;
-  logout: () => void;
+  authenticate: (password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   setActiveTab: (tab: AdminStore['activeTab']) => void;
   
   // Parsing Actions
@@ -197,26 +197,53 @@ export const useAdminStore = create<AdminStore>()(
       },
 
       // Authentication Actions
-      authenticate: (password: string) => {
-        const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'icoffio2025';
-        if (password === adminPassword) {
-          adminLogger.info('user', 'login_success', 'User successfully authenticated');
-          set({ isAuthenticated: true });
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('icoffio_admin_auth', 'authenticated');
+      // ✅ v7.29.0 SECURITY FIX: Password validation via server-side API only
+      authenticate: async (password: string) => {
+        try {
+          const response = await fetch('/api/admin/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'login', password })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success && result.token) {
+            adminLogger.info('user', 'login_success', 'User successfully authenticated via API');
+            set({ isAuthenticated: true });
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('icoffio_admin_token', result.token);
+              localStorage.setItem('icoffio_admin_auth', 'authenticated');
+            }
+            return true;
+          } else {
+            adminLogger.warn('user', 'login_failed', 'Failed authentication attempt');
+            return false;
           }
-          return true;
-        } else {
-          adminLogger.warn('user', 'login_failed', 'Failed authentication attempt', { password: '***' });
+        } catch (error) {
+          console.error('Authentication error:', error);
+          adminLogger.warn('user', 'login_error', 'Authentication request failed');
+          return false;
         }
-        return false;
       },
 
-      logout: () => {
+      logout: async () => {
+        try {
+          // Call server to invalidate session
+          await fetch('/api/admin/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'logout' })
+          });
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
+        
         adminLogger.info('user', 'logout', 'User logged out from admin panel');
         set({ isAuthenticated: false });
         if (typeof window !== 'undefined') {
           localStorage.removeItem('icoffio_admin_auth');
+          localStorage.removeItem('icoffio_admin_token');
         }
       },
 

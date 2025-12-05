@@ -155,7 +155,7 @@ async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promi
   
   // Сортируем по дате публикации (новые первыми)
   return uniqueArticles.sort((a, b) => 
-    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime()
   );
 }
 
@@ -466,7 +466,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
   const combinedPosts = [...localFiltered, ...wpPosts];
   
   // Сортируем по дате публикации (новые сверху)
-  combinedPosts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  combinedPosts.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
   
   return combinedPosts.slice(0, limit);
 }

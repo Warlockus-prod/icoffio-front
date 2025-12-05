@@ -11,7 +11,28 @@ export function LanguageSelector({ currentLocale }: { currentLocale: string }) {
 
   const switchLanguage = (newLocale: string) => {
     // Получаем текущий путь без локали
-    const currentPath = pathname.replace(/^\/[a-z]{2}/, '') || '/';
+    let currentPath = pathname.replace(/^\/[a-z]{2}/, '') || '/';
+    
+    // 🔧 v7.31.0 FIX: Handle article slug suffixes when switching languages
+    // Articles use -en/-pl suffixes for routing (e.g., my-article-en, my-article-pl)
+    if (currentPath.startsWith('/article/')) {
+      const slugMatch = currentPath.match(/\/article\/(.+)$/);
+      if (slugMatch) {
+        let slug = slugMatch[1];
+        
+        // Remove trailing slash if present
+        slug = slug.replace(/\/$/, '');
+        
+        // Replace language suffix: -en → -pl or -pl → -en
+        if (slug.endsWith(`-${currentLocale}`)) {
+          slug = slug.replace(new RegExp(`-${currentLocale}$`), `-${newLocale}`);
+          currentPath = `/article/${slug}`;
+        } else if (!slug.endsWith('-en') && !slug.endsWith('-pl')) {
+          // If no suffix, add the target language suffix
+          currentPath = `/article/${slug}-${newLocale}`;
+        }
+      }
+    }
     
     // Переходим на новый путь с новой локалью  
     router.push(`/${newLocale}${currentPath}`);

@@ -10,7 +10,7 @@ export function ArticleHero({ post, locale }: { post: Post; locale: string }) {
           {post.title}
         </h2>
         <p className="mt-2 text-neutral-700 max-w-prose">{post.excerpt}</p>
-        <div className="mt-4 text-sm text-neutral-500">{new Date(post.publishedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
+        <div className="mt-4 text-sm text-neutral-500">{new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
           day: 'numeric',
           month: 'long', 
           year: 'numeric'

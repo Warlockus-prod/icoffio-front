@@ -111,7 +111,7 @@ export function SearchModal({ isOpen, onClose, posts, locale }: SearchModalProps
                               {post.category.name}
                             </span>
                             <span className="text-xs text-neutral-500">
-                              {new Date(post.publishedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
+                              {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
                                 day: 'numeric',
                                 month: 'short', 
                                 year: 'numeric'

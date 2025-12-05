@@ -74,7 +74,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
           <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-200 font-medium">
             {post.category.name}
           </span>
-          <time>{formatDate(post.publishedAt)}</time>
+          <time>{formatDate(post.publishedAt || post.date || '')}</time>
         </div>
         
         <Link href={`/${locale}/article/${post.slug}`}>

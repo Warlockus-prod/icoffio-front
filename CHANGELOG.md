@@ -2,6 +2,105 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.32.0] - 2025-12-05 - 🔧 Navigation & Language Switching Fix
+
+### 🚨 CRITICAL FIX: Language Switching on Article Pages
+
+#### ✅ LanguageSelector Article Slug Fix
+- **Problem:** When switching languages on article page, URL kept the wrong slug suffix
+- **Example:** `/en/article/my-article-en` → switching to PL went to `/pl/article/my-article-en` (WRONG!)
+- **Solution:** LanguageSelector now detects article pages and replaces slug suffixes:
+  - `-en` → `-pl` when switching to Polish
+  - `-pl` → `-en` when switching to English
+- **File:** `components/LanguageSelector.tsx`
+
+### 📊 Metrics
+- Critical navigation bug fixed
+- Language switching now works correctly on all pages
+- Build: SUCCESS ✅
+
+---
+
+## [7.31.0] - 2025-12-05 - 🔧 Major Code Quality Audit ✅ BUILD SUCCESS
+
+### 🔴 ФАЗА 1: КРИТИЧЕСКИЕ ИСПРАВЛЕНИЯ БЕЗОПАСНОСТИ
+
+#### ✅ 1.1 SECURE AUTHENTICATION (Security Fix!)
+- **Problem:** Admin password hardcoded in client-side code (`icoffio2025`)
+- **Solution:** 
+  - Created new `/api/admin/auth` route for server-side validation
+  - Password only validated on server via `ADMIN_PASSWORD` env variable
+  - HTTP-only cookies for session management
+  - Token-based authentication with 24h expiration
+- **Files:** `app/api/admin/auth/route.ts`, `lib/stores/admin-store.ts`
+
+#### ✅ 1.2 UNIFIED CSS (Cleanup!)
+- **Problem:** Two `globals.css` files with duplicate styles
+- **Solution:** Merged `/app/globals.css` into `/styles/globals.css`
+- **Result:** Single source of truth for global styles
+
+#### ✅ 1.3 API RATE LIMITING (Security!)
+- **Problem:** No protection against brute-force or DDoS attacks
+- **Solution:** 
+  - Created `lib/api-rate-limiter.ts` with configurable limits
+  - Applied to auth endpoints (5 attempts / 15 min)
+  - Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+- **Result:** Protection against abuse
+
+### 🟠 ФАЗА 2: ОРГАНИЗАЦИЯ КОДА
+
+#### ✅ 2.1 CENTRALIZED MOCK DATA
+- **Problem:** 700+ lines of mock data duplicated in page files
+- **Solution:** Created `lib/mock-data.ts` with:
+  - `mockCategories` - category definitions
+  - `mockPostsShort` - for listings
+  - `mockPostsFull` - with full content
+  - Helper functions: `getMockPostBySlug`, `getRelatedMockPosts`
+- **Files affected:** `app/[locale]/(site)/page.tsx`, `app/[locale]/(site)/article/[slug]/page.tsx`
+
+#### ✅ 2.2 UNIFIED CONTENT FORMATTER
+- **Problem:** `formatContentToHtml` duplicated in 2 files
+- **Solution:** Created `lib/utils/content-formatter.ts` with:
+  - `formatContentToHtml()` - Markdown to HTML
+  - `escapeHtml()` - XSS protection
+  - `contentToPlainText()` - Strip HTML
+  - `generateExcerpt()` - Create excerpts
+  - `sanitizeHtml()` - Safe HTML filtering
+- **Files affected:** `lib/unified-article-service.ts`, `app/api/articles/route.ts`
+
+#### ✅ 2.3 VOX ADVERTISING MODULE
+- **Problem:** ~300 lines of VOX scripts inline in layout.tsx
+- **Solution:** Created `lib/vox-advertising.ts` with:
+  - `VOX_DISPLAY_PLACEMENTS` - placement configs
+  - `VOX_INLINE_CSS` - ad styles
+  - `VOX_INIT_SCRIPT` - initialization script
+  - Helper functions for format detection
+
+#### ✅ 2.4 IMPROVED TYPE DEFINITIONS
+- **Problem:** Heavy use of `any` type throughout codebase
+- **Solution:** Enhanced `lib/types.ts` with:
+  - `SupportedLanguage`, `ActiveLanguage` types
+  - `ApiResponse<T>`, `PaginatedResponse<T>` generics
+  - `AdminTab`, `AdminStatistics` types
+  - `ProcessingStage`, `ProcessedArticle` types
+  - `AdFormat`, `AdPlacement` types
+  - Utility types: `DeepPartial`, `WithRequired`, `StrictOmit`
+
+### 📊 Metrics
+- Lines of code removed from page files: ~800
+- New utility files created: 5
+- Security improvements: 3
+- Type definitions added: 20+
+
+### 🔧 New Files Created
+- `app/api/admin/auth/route.ts` - Secure auth API
+- `lib/api-rate-limiter.ts` - Rate limiting utility
+- `lib/mock-data.ts` - Centralized mock data
+- `lib/utils/content-formatter.ts` - Content formatting
+- `lib/vox-advertising.ts` - VOX ad configuration
+
+---
+
 ## [7.28.1] - 2025-12-05 - 🔥 Critical Fixes: Supabase + Multi-Image
 
 ### 🔥 Critical Fixes

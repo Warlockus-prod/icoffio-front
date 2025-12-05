@@ -38,9 +38,9 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
         }
         
         // Небольшой бонус за новизну (более новые статьи)
-        if (post.publishedAt) {
-          const postDate = new Date(post.publishedAt);
-          const currentDate = new Date(current.publishedAt);
+        if (post.publishedAt || post.date) {
+          const postDate = new Date(post.publishedAt || post.date || new Date());
+          const currentDate = new Date(current.publishedAt || current.date || new Date());
           const daysDifference = Math.abs((currentDate.getTime() - postDate.getTime()) / (1000 * 3600 * 24));
           if (daysDifference < 7) score += 1; // Бонус за статьи в пределах недели
         }
@@ -86,7 +86,7 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
                   </span>
                   {post.publishedAt && (
                     <time>
-                      {new Date(post.publishedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
+                      {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(locale === 'en' ? 'en-US' : 'pl-PL', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric'

@@ -169,14 +169,14 @@ export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearc
       }
       
       filteredResults = filteredResults.filter(post => 
-        new Date(post.publishedAt) >= cutoffDate
+        new Date(post.publishedAt || post.date || 0) >= cutoffDate
       );
     }
 
     // Сортировка
     if (filters.sortBy === 'date') {
       filteredResults.sort((a, b) => 
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+        new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime()
       );
     } else if (filters.sortBy === 'relevance' && filters.query) {
       filteredResults.sort((a, b) => ((b as SearchResult).score || 0) - ((a as SearchResult).score || 0));
@@ -364,7 +364,7 @@ export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearc
                         <span className="px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300">
                           {post.category.name}
                         </span>
-                        <time>{formatDate(post.publishedAt)}</time>
+                        <time>{formatDate(post.publishedAt || post.date || '')}</time>
                         {(post as SearchResult).score && (
                           <span className="text-blue-600 dark:text-blue-400">
                             Relevance: {(post as SearchResult).score}

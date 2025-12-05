@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
 import { wordpressService } from '@/lib/wordpress-service';
+// v7.30.0: Centralized content formatting utility
+import { formatContentToHtml, escapeHtml } from '@/lib/utils/content-formatter';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -621,110 +623,8 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   return posts;
 }
 
-/**
- * Форматирование контента в HTML с поддержкой Markdown (дублируется из UnifiedArticleService)
- */
-function formatContentToHtml(content: string): string {
-  if (!content || typeof content !== 'string') {
-    return '';
-  }
-  
-  return content
-    .split('\n\n')
-    .map(paragraph => paragraph.trim())
-    .filter(paragraph => paragraph.length > 0)
-    .map(paragraph => {
-      // Заголовки H1-H6
-      if (paragraph.startsWith('# ')) {
-        return `<h1>${escapeHtml(paragraph.substring(2))}</h1>`;
-      }
-      if (paragraph.startsWith('## ')) {
-        return `<h2>${escapeHtml(paragraph.substring(3))}</h2>`;
-      }
-      if (paragraph.startsWith('### ')) {
-        return `<h3>${escapeHtml(paragraph.substring(4))}</h3>`;
-      }
-      if (paragraph.startsWith('#### ')) {
-        return `<h4>${escapeHtml(paragraph.substring(5))}</h4>`;
-      }
-      
-      // Списки (маркированные)
-      if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
-        const items = paragraph.split('\n- ').map(item => item.startsWith('- ') ? item.substring(2) : item);
-        const listItems = items.map(item => `<li>${formatInlineElements(item)}</li>`).join('');
-        return `<ul>${listItems}</ul>`;
-      }
-      
-      // Нумерованные списки  
-      if (paragraph.match(/^\d+\.\s/)) {
-        const items = paragraph.split(/\n\d+\.\s/).filter(item => item.trim());
-        const firstItem = paragraph.match(/^\d+\.\s(.*)$/)?.[1];
-        if (firstItem) items.unshift(firstItem);
-        const listItems = items.map(item => `<li>${formatInlineElements(item)}</li>`).join('');
-        return `<ol>${listItems}</ol>`;
-      }
-      
-      // Цитаты
-      if (paragraph.startsWith('> ')) {
-        const quote = paragraph.replace(/^>\s?/gm, '');
-        return `<blockquote><p>${formatInlineElements(quote)}</p></blockquote>`;
-      }
-      
-      // Код блоки
-      if (paragraph.startsWith('```')) {
-        const lines = paragraph.split('\n');
-        const language = lines[0].substring(3).trim();
-        const code = lines.slice(1, -1).join('\n');
-        const langClass = language ? ` class="language-${language}"` : '';
-        return `<pre><code${langClass}>${escapeHtml(code)}</code></pre>`;
-      }
-      
-      // Разделители
-      if (paragraph.trim() === '---' || paragraph.trim() === '***') {
-        return '<hr>';
-      }
-      
-      // Обычные параграфы с inline форматированием
-      return `<p>${formatInlineElements(paragraph)}</p>`;
-    })
-    .join('\n');
-}
-
-/**
- * Форматирование inline элементов
- */
-function formatInlineElements(text: string): string {
-  // Сначала экранируем HTML символы
-  let formatted = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-    
-  // Затем применяем markdown форматирование
-  return formatted
-    // Жирный текст **bold**
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Курсив *italic*  
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Inline код `code`
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Ссылки [text](url)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    // Автоматические ссылки (только если не внутри других тегов)
-    .replace(/(?<!href=")(?<!href=&quot;)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-}
-
-/**
- * Экранирование HTML символов
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// ✅ v7.30.0: formatContentToHtml and escapeHtml moved to lib/utils/content-formatter.ts
+// This eliminates code duplication - now imported at the top of this file
 
 // ========== ПУБЛИКАЦИЯ СТАТЕЙ ==========
 

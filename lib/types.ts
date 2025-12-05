@@ -15,4 +15,5 @@ export type Post = {
   content?: string;
   contentHtml?: string;
   images?: string[]; // Дополнительные изображения для статьи
+  author?: string; // ✅ ДОБАВЛЕНО: Автор статьи
 };

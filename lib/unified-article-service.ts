@@ -630,25 +630,38 @@ class UnifiedArticleService {
           slug: article.category
         },
         content: article.content,
-        contentHtml: this.formatContentToHtml(article.content)
+        contentHtml: this.formatContentToHtml(article.content),
+        author: article.author || 'AI Editorial Team', // ✅ ИСПРАВЛЕНО: Добавлен author
+        tags: article.tags?.map(tag => ({ name: tag, slug: tag })) || [] // ✅ ИСПРАВЛЕНО: Добавлены tags
       };
       
       addRuntimeArticle(mainPost);
       console.log(`✅ Saved EN article: ${mainPost.slug}`);
+      console.log(`   Title: ${mainPost.title.substring(0, 60)}...`);
+      console.log(`   Content length: ${mainPost.content?.length || 0} chars`);
       
       // Сохраняем переводы (PL с суффиксом -pl)
       for (const [lang, translation] of Object.entries(article.translations)) {
         const translatedPost: Post = {
-          ...mainPost,
           slug: translation.slug, // Уже содержит -pl суффикс
           title: translation.title,
           excerpt: translation.excerpt,
+          publishedAt: article.publishedAt || article.createdAt,
+          image: article.image || '',
+          category: {
+            name: article.category,
+            slug: article.category
+          },
           content: translation.content,
-          contentHtml: this.formatContentToHtml(translation.content)
+          contentHtml: this.formatContentToHtml(translation.content),
+          author: article.author || 'AI Editorial Team', // ✅ ИСПРАВЛЕНО
+          tags: article.tags?.map(tag => ({ name: tag, slug: tag })) || [] // ✅ ИСПРАВЛЕНО
         };
         
         addRuntimeArticle(translatedPost);
         console.log(`✅ Saved ${lang.toUpperCase()} article: ${translatedPost.slug}`);
+        console.log(`   Title: ${translatedPost.title.substring(0, 60)}...`);
+        console.log(`   Content length: ${translatedPost.content?.length || 0} chars`);
       }
       
       console.log(`✅ Статья сохранена локально: ${article.title}`);

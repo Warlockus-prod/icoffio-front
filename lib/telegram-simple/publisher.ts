@@ -41,23 +41,32 @@ export async function publishArticle(
     const polish = await translateToPolish(article);
 
     // Step 2: Prepare article data for BOTH languages
+    
+    // Prepend Polish title as H1 to content (frontend will extract it)
+    const contentPlWithTitle = `# ${polish.title}\n\n${polish.content}`;
+    
     const articleData = {
       // Identity
       chat_id: chatId,
       job_id: `simple_${Date.now()}`,
       
-      // English content
+      // Main title (English - used by EN articles and as fallback)
       title: article.title,
+      
+      // English content
       slug_en: `${slug}-en`,
       content_en: article.content,
       excerpt_en: article.excerpt,
       url_en: `https://app.icoffio.com/en/article/${slug}-en`,
       
-      // Polish content
+      // Polish content (with title prepended as # heading)
       slug_pl: `${slug}-pl`,
-      content_pl: polish.content,
+      content_pl: contentPlWithTitle,
       excerpt_pl: polish.excerpt,
       url_pl: `https://app.icoffio.com/pl/article/${slug}-pl`,
+      
+      // Store Polish title in tags for easier retrieval
+      tags: [polish.title],
       
       // Metadata
       category: article.category,

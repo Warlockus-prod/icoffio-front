@@ -134,12 +134,32 @@ export async function POST(request: Request) {
       }
 
       const isEn = language === 'en' || article.slug_en === slug;
+      
+      // Extract Polish title from tags[0] or from content_pl first heading
+      let plTitle = article.title; // Fallback to English
+      let plContent = article.content_pl || '';
+      
+      if (!isEn && article.tags && article.tags.length > 0) {
+        plTitle = article.tags[0]; // Polish title stored in tags
+      } else if (!isEn && article.content_pl) {
+        // Try to extract from first # heading in content_pl
+        const headingMatch = article.content_pl.match(/^#\s+(.+)$/m);
+        if (headingMatch) {
+          plTitle = headingMatch[1];
+        }
+      }
+      
+      // Remove first # heading from Polish content (to avoid duplication)
+      if (!isEn && plContent) {
+        plContent = plContent.replace(/^#\s+.+\n\n?/m, '');
+      }
+      
       const transformedArticle = {
         id: article.id.toString(),
-        title: article.title,
+        title: isEn ? article.title : plTitle,
         slug: isEn ? article.slug_en : article.slug_pl,
         excerpt: isEn ? article.excerpt_en : article.excerpt_pl,
-        content: isEn ? article.content_en : article.content_pl,
+        content: isEn ? article.content_en : plContent,
         date: article.created_at,
         image: article.image_url || '',
         category: {

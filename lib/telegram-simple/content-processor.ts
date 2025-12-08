@@ -35,56 +35,65 @@ export async function processText(
     // Get style-specific instructions
     const styleInstructions = getStyleInstructions(contentStyle);
     
-    // Create prompt - v8.7.2: Comprehensive content adaptation
+    // Create prompt - v8.7.3: RADICAL content rewriting with examples
     const prompt = `
-You are a professional tech journalist creating an ORIGINAL ADAPTED article based on source material.
+You are a professional tech journalist. Your job is to READ source material and CREATE A COMPLETELY NEW ARTICLE about the same topic.
 
-YOUR TASK: Write a completely rewritten, professional article. NOT a copy, NOT a translation - a NEW article that covers the same topic.
+⚠️ CRITICAL: DO NOT COPY ANY PHRASES from the source. Every sentence must be YOUR OWN WORDS.
 
-SOURCE MATERIAL (use as reference only):
+SOURCE MATERIAL (for facts only):
+---
 ${text}
+---
 
-WRITING APPROACH:
-1. **REWRITE COMPLETELY** - Create fresh text in your own words
-2. **EXTRACT KEY FACTS** - What happened? Who? What? When? Why? Impact?
-3. **ADD CONTEXT** - Explain technical terms, provide background
-4. **STRUCTURE LOGICALLY** - Introduction → Key Points → Details → Conclusion
+YOUR MISSION:
+1. READ the source → EXTRACT key facts (who, what, when, where, why, impact)
+2. FORGET the exact wording → CREATE fresh sentences in your voice
+3. ADD professional context and analysis
+4. STRUCTURE logically: Intro → Key Points → Details → Impact
 5. ${styleInstructions}
 
-NEVER INCLUDE (these are website artifacts, not article content):
-- Subscription prompts ("subscribe", "follow us", "stay with us", "join our newsletter")
-- Social media calls ("share", "like", "repost", "follow on Twitter")
-- Source attributions ("Source:", "via:", "Источник:", "by [author name]")
-- Dates and timestamps (unless relevant to the story)
-- Author bios and signatures
-- Related articles suggestions
-- Comments or reactions counts
-- Any text that sounds like website UI, not article content
+❌ BAD EXAMPLE (copying):
+Source: "Stay with us on Google News! Subscribe to our channel!"
+Bad output: "Stay with us on Google News for more updates."
+
+✅ GOOD EXAMPLE (rewriting):
+Source: "New AI chatbot launched by Google. Stay with us!"
+Good output: "Google has unveiled a groundbreaking AI-powered chatbot designed to revolutionize digital conversations."
+
+FORBIDDEN CONTENT (pure website noise, NOT news):
+- Calls to action: "subscribe", "follow", "stay with us", "join", "share", "like"
+- Source credits: "via", "source:", "by [name]", "according to [site]"
+- UI elements: "read more", "comments (123)", "related:", "tags:"
+- Author info: bios, signatures, "written by"
+- Timestamps (unless part of the actual story)
+
+THINK: "If this phrase sounds like website UI or marketing copy rather than journalism - DON'T include it!"
 
 REQUIREMENTS:
-- **LANGUAGE: ENGLISH ONLY** (translate all content)
-- **LENGTH: 400-600 words** of pure article content
-- **FORMAT: Markdown** with ## headings (2-4 sections)
-- **TONE: Professional tech journalism**
-${userTitle ? `- **TITLE:** Use this as inspiration: "${userTitle}"` : '- **TITLE:** Create engaging headline from the core news'}
+- **LENGTH:** 400-600 words (pure article, no fluff)
+- **LANGUAGE:** English only (translate all foreign text)
+- **FORMAT:** Markdown with 2-4 ## headings
+- **STYLE:** Professional tech journalism
+- **TITLE:** ${userTitle ? `Create engaging version of: "${userTitle}"` : 'Create compelling headline from core facts'}
 
-OUTPUT (JSON only):
+OUTPUT (JSON only, nothing else):
 {
-  "title": "Compelling headline IN ENGLISH",
-  "content": "Full article in Markdown IN ENGLISH",
-  "excerpt": "1-2 sentence summary, max 160 chars",
+  "title": "Your rewritten headline IN ENGLISH",
+  "content": "Your completely rewritten article IN ENGLISH with ## headings",
+  "excerpt": "Your 1-2 sentence summary, max 160 chars",
   "category": "ai|tech|gadgets|software|hardware|internet|security"
 }
 `.trim();
 
-    // Call OpenAI
+    // Call OpenAI - v8.7.3: Enhanced for creative rewriting
     const startTime = Date.now();
     const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini', // Faster and cheaper than gpt-4
       messages: [
         {
           role: 'system',
-          content: 'You are a professional tech journalist. Output only valid JSON.',
+          content: 'You are a professional tech journalist who REWRITES content in your own words. NEVER copy phrases from source material. Create original, professional articles. Output only valid JSON.',
         },
         {
           role: 'user',
@@ -92,7 +101,7 @@ OUTPUT (JSON only):
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: 0.9, // Higher creativity for better rewriting
       max_tokens: 2000,
     });
 
@@ -106,6 +115,37 @@ OUTPUT (JSON only):
     }
 
     const result = JSON.parse(content);
+    
+    // ✅ v8.7.3: Post-processing cleanup for any remaining promotional text
+    let cleanedContent = result.content || '';
+    
+    // Remove common promotional patterns (case-insensitive)
+    const promotionalPatterns = [
+      /stay with us.*?[.!]/gi,
+      /follow us.*?[.!]/gi,
+      /subscribe.*?channel.*?[.!]/gi,
+      /join.*?newsletter.*?[.!]/gi,
+      /google news.*?[.!]/gi,
+      /будьте с нами.*?[.!]/gi,
+      /подпишитесь.*?[.!]/gi,
+      /источник:.*?[.!]/gi,
+      /via:.*?[.!]/gi,
+      /source:.*?[.!]/gi,
+      /written by.*?[.!]/gi,
+      /by \[.*?\]/gi,
+      /share this.*?[.!]/gi,
+      /like and.*?[.!]/gi,
+    ];
+    
+    for (const pattern of promotionalPatterns) {
+      cleanedContent = cleanedContent.replace(pattern, '');
+    }
+    
+    // Remove excessive whitespace and empty lines
+    cleanedContent = cleanedContent
+      .replace(/\n{3,}/g, '\n\n') // Max 2 newlines
+      .replace(/[ \t]+/g, ' ') // Single space
+      .trim();
 
     // Check if title contains non-English characters (Cyrillic, Chinese, etc.)
     const title = result.title || userTitle || 'Untitled Article';
@@ -140,13 +180,13 @@ OUTPUT (JSON only):
       }
     }
 
-    // Validate and prepare article
+    // Validate and prepare article - v8.7.3: Use cleaned content
     const article: ProcessedArticle = {
       title: finalTitle,
-      content: result.content || text,
-      excerpt: result.excerpt || result.content?.substring(0, 200) || 'No excerpt',
+      content: cleanedContent || text,
+      excerpt: result.excerpt || cleanedContent.substring(0, 200) || 'No excerpt',
       category: validateCategory(result.category),
-      wordCount: countWords(result.content || text),
+      wordCount: countWords(cleanedContent || text),
     };
 
     console.log(`[TelegramSimple] ✅ Article processed: "${article.title}" (${article.wordCount} words, ${article.category})`);

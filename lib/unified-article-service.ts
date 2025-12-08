@@ -11,6 +11,7 @@ import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
 import { formatContentToHtml } from './utils/content-formatter';
 import { getPromptTemplateByStyle, type ContentProcessingStyle } from './config/content-prompts';
+import { systemLogger } from './system-logger';
 import type { Post } from './types';
 
 // ========== ИНТЕРФЕЙСЫ ==========
@@ -113,13 +114,14 @@ class UnifiedArticleService {
   /**
    * 🎯 ГЛАВНАЯ ФУНКЦИЯ - Обработка статьи из любого источника
    */
-  async processArticle(input: ArticleInput): Promise<ProcessingResult> {
-    const timer = systemLogger.startTimer('content', 'process_article', 'Processing article');
+    async processArticle(input: ArticleInput): Promise<ProcessingResult> {
+    const startTime = Date.now();
+    const timer = systemLogger.startTimer('api', 'process_article', 'Processing article');
     const errors: string[] = [];
     const warnings: string[] = [];
     
     try {
-      await systemLogger.info('content', 'process_article', 'Starting article processing', {
+      await systemLogger.info('api', 'process_article', 'Starting article processing', {
         source: input.url ? 'url' : (input.chatId ? 'telegram' : 'manual'),
         title: input.title?.substring(0, 50),
         category: input.category,

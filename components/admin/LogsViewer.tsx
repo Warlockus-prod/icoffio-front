@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { adminLogger, LogEntry, LogFilter } from '@/lib/admin-logger';
+import SystemLogsViewer from './SystemLogsViewer';
+
+type LogsTab = 'local' | 'system';
 
 export default function LogsViewer() {
+  const [activeTab, setActiveTab] = useState<LogsTab>('system'); // По умолчанию системные
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState<LogFilter>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -104,8 +108,35 @@ export default function LogsViewer() {
     }
   };
 
+  // Tabs Component
+  const TabButton = ({ tab, label, icon }: { tab: LogsTab; label: string; icon: string }) => (
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${
+        activeTab === tab
+          ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-t-2 border-blue-500'
+          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+      }`}
+    >
+      <span>{icon}</span>
+      {label}
+    </button>
+  );
+
   return (
     <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+        <TabButton tab="system" label="System Logs (Supabase)" icon="🔍" />
+        <TabButton tab="local" label="Local Logs (Browser)" icon="💻" />
+      </div>
+      
+      {/* System Logs Tab */}
+      {activeTab === 'system' && <SystemLogsViewer />}
+      
+      {/* Local Logs Tab */}
+      {activeTab === 'local' && (
+        <>
       {/* Header с статистикой */}
       {stats && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -407,6 +438,8 @@ export default function LogsViewer() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

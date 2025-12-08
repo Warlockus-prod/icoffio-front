@@ -328,7 +328,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Version</div>
-                  <div className="text-gray-600 dark:text-gray-400">1.8.0</div>
+                  <div className="text-gray-600 dark:text-gray-400">8.6.0</div>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Environment</div>
@@ -336,7 +336,7 @@ export default function AdminPage() {
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Last Updated</div>
-                  <div className="text-gray-600 dark:text-gray-400">Oct 11, 2025</div>
+                  <div className="text-gray-600 dark:text-gray-400">Dec 8, 2025</div>
                 </div>
               </div>
             </div>

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { systemLogger } from '@/lib/system-logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -60,6 +61,8 @@ function generateSlug(title: string, language: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const timer = systemLogger.startTimer('api', 'publish_article', 'Publishing article');
+  
   try {
     const body: PublishRequest = await request.json();
     
@@ -81,6 +84,11 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!title || !content || !excerpt) {
+      await systemLogger.warn('api', 'publish_article', 'Missing required fields', { 
+        hasTitle: !!title, 
+        hasContent: !!content, 
+        hasExcerpt: !!excerpt 
+      });
       return NextResponse.json(
         { error: 'Missing required fields: title, content, excerpt' },
         { status: 400 }
@@ -88,6 +96,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Publish] Starting publication: ${title} (${language})`);
+    await systemLogger.info('api', 'publish_article', `Starting publication: ${title}`, { 
+      language, 
+      category, 
+      source,
+      contentLength: content?.length 
+    });
 
     const supabase = getSupabaseClient();
 
@@ -165,6 +179,16 @@ export async function POST(request: NextRequest) {
       console.warn('[Publish] ⚠️ Revalidation failed (non-critical):', revalidateError);
     }
 
+    // ✅ Log success
+    await timer.success('Article published successfully', {
+      articleId: insertedArticle.id,
+      title: insertedArticle.title,
+      slug,
+      language,
+      category: category || 'general',
+      url: postUrl,
+    });
+
     return NextResponse.json({
       success: true,
       published: true,
@@ -180,6 +204,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Publish] Error:', error);
+    
+    // ❌ Log error
+    await timer.error('Publication failed', {
+      errorMessage: error.message,
+    }, error.stack);
     
     return NextResponse.json(
       { 

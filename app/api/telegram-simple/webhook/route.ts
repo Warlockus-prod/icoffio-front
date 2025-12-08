@@ -14,6 +14,7 @@ import { parseUrl } from '@/lib/telegram-simple/url-parser';
 import { processText } from '@/lib/telegram-simple/content-processor';
 import { publishArticle } from '@/lib/telegram-simple/publisher';
 import { loadTelegramSettings } from '@/lib/telegram-simple/settings-loader';
+import { systemLogger } from '@/lib/system-logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds max
@@ -23,11 +24,16 @@ export const maxDuration = 60; // 60 seconds max
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const timer = systemLogger.startTimer('telegram', 'webhook', 'Processing Telegram message');
   
   try {
     // Parse update from Telegram
     const update = await request.json();
     console.log('[TelegramSimple] 📨 Webhook called');
+    
+    await systemLogger.info('telegram', 'webhook_received', 'Telegram webhook called', {
+      updateId: update.update_id,
+    });
 
     // Extract message
     const message = update.message || update.edited_message;
@@ -227,12 +233,30 @@ export async function POST(request: NextRequest) {
     console.log(`  🇬🇧 EN: ${result.en.url}`);
     console.log(`  🇵🇱 PL: ${result.pl.url}`);
 
+    // ✅ Log success to system logs
+    await timer.success('Article published successfully', {
+      chatId,
+      title: article.title,
+      contentStyle: settings.contentStyle,
+      imagesCount: settings.imagesCount,
+      autoPublish: settings.autoPublish,
+      enUrl: result.en.url,
+      plUrl: result.pl.url,
+      duration_seconds: duration,
+    });
+
     return NextResponse.json({ ok: true, result });
 
   } catch (error: any) {
     console.error('[TelegramSimple] ❌ ERROR:', error);
 
     const duration = Math.round((Date.now() - startTime) / 1000);
+
+    // ❌ Log error to system logs
+    await timer.error('Telegram processing failed', {
+      errorMessage: error.message,
+      duration_seconds: duration,
+    }, error.stack);
 
     // Try to send error notification
     try {

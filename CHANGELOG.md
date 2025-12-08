@@ -2,6 +2,85 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.0] - 2025-12-08 - 🔍 System Logging Infrastructure
+
+### 🔍 ЦЕНТРАЛИЗОВАННОЕ ЛОГИРОВАНИЕ
+**Полная система диагностики и мониторинга ошибок!**
+
+**Возможности:**
+- 📊 Логирование в Supabase (таблица `system_logs`)
+- 🔴 Уровни: error, warn, info, debug
+- 📍 Источники: api, telegram, admin, frontend, system
+- ⏱️ Измерение времени операций (duration_ms)
+- 🔗 Связывание логов через request_id
+- 📋 Stack traces для ошибок
+
+### 📁 Новые файлы
+- `lib/system-logger.ts` (450 строк)
+  - `systemLogger.error()` - логирование ошибок
+  - `systemLogger.warn()` - предупреждения
+  - `systemLogger.info()` - информация
+  - `systemLogger.debug()` - отладка
+  - `systemLogger.startTimer()` - таймер операций
+  - `systemLogger.getLogs()` - получение логов
+  - `systemLogger.getStats()` - статистика
+  - `systemLogger.cleanup()` - очистка старых
+- `app/api/system-logs/route.ts` - API endpoint
+- `components/admin/SystemLogsViewer.tsx` - UI компонент
+- `supabase/migrations/20251208_system_logs.sql` - миграция БД
+
+### 🔧 Интеграция логирования
+- `app/api/telegram-simple/webhook/route.ts` - Telegram webhook
+- `app/api/admin/parse-url/route.ts` - парсинг URL
+- `app/api/admin/publish-article/route.ts` - публикация статей
+
+### 📊 Admin Panel - Logs Viewer
+- **2 вкладки:** System Logs (Supabase) / Local Logs (Browser)
+- Фильтры: Level, Source, Period, Search
+- Real-time обновление (15 сек)
+- Детальный просмотр логов (модалка)
+- Статистика по уровням и источникам
+- Очистка старых логов (30 дней)
+
+### 📐 СТРУКТУРА ЛОГА
+```json
+{
+  "level": "error",
+  "source": "telegram",
+  "action": "publish_article",
+  "message": "Failed to publish",
+  "metadata": { "chatId": 123, "url": "..." },
+  "stack_trace": "Error at...",
+  "duration_ms": 5234,
+  "request_id": "req_1733..."
+}
+```
+
+### 🎯 WORKFLOW
+```
+API/Telegram/Admin → systemLogger.info/error()
+        ↓
+📦 Supabase (system_logs table)
+        ↓
+🖥️ Admin Panel → System Logs tab
+        ↓
+🔍 Filter → Find errors → Fix
+```
+
+**Deployment:** v8.6.0  
+**Status:** ✅ READY FOR PRODUCTION  
+**Migration:** Требуется выполнить SQL миграцию в Supabase
+
+---
+
+## [8.5.2] - 2025-12-05 - 🛠️ Admin Panel Improvements
+
+### 🛠️ ADMIN IMPROVEMENTS
+- Улучшения интерфейса админ панели
+- Синхронизация версий package.json ↔ git tags ↔ CHANGELOG
+
+---
+
 ## [8.5.1] - 2025-12-05 - 🖼️ Image Generation for Telegram Bot
 
 ### 🖼️ IMAGE GENERATION FULLY INTEGRATED

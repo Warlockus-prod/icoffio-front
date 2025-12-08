@@ -328,7 +328,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Version</div>
-                  <div className="text-gray-600 dark:text-gray-400">8.6.2</div>
+                  <div className="text-gray-600 dark:text-gray-400">8.7.4</div>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Environment</div>

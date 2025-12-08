@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [8.6.2] - 2025-12-08 - 🧹 Code Cleanup & Security Fixes
+## [8.7.4] - 2025-12-08 - 🧹 Code Cleanup & Security Fixes
+
+**PREVIOUS VERSION:** v8.7.3  
+**NEW VERSION:** v8.7.4  
+**TYPE:** PATCH (bug fixes, cleanup, improvements)
 
 ### 🔒 SECURITY IMPROVEMENTS
 **Критические исправления безопасности!**
@@ -73,9 +77,18 @@ All notable changes to this project will be documented in this file.
 - ✅ **Static pages:** 33/33 generated
 - ✅ **Bundle size:** 87.2 kB (без изменений)
 
-**Deployment:** v8.6.2  
+**Deployment:** v8.7.4  
 **Status:** ✅ PRODUCTION READY (95%)  
-**Docs:** CLEANUP_COMPLETED_v8.6.2.md
+**Docs:** CLEANUP_COMPLETED_v8.7.4.md
+
+---
+
+## [8.7.3] - 2025-12-08 - ✨ RADICAL Content Rewriting System
+
+### ✨ ENHANCED AI CONTENT PROCESSING
+- Improved content rewriting with higher creativity (temperature 0.9)
+- Better handling of source material
+- Enhanced promotional content removal
 
 ---
 

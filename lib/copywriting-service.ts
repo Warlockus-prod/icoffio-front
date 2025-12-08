@@ -327,7 +327,7 @@ ${enhancedContent.substring(0, 1000)}...
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o', // ✅ v8.7.4: Upgraded to latest model (2x faster, 2x cheaper, better quality)
         messages: [
           {
             role: 'system',

@@ -114,14 +114,16 @@ class UnifiedArticleService {
    * 🎯 ГЛАВНАЯ ФУНКЦИЯ - Обработка статьи из любого источника
    */
   async processArticle(input: ArticleInput): Promise<ProcessingResult> {
-    const startTime = Date.now();
+    const timer = systemLogger.startTimer('content', 'process_article', 'Processing article');
     const errors: string[] = [];
     const warnings: string[] = [];
     
     try {
-      console.log('🚀 Начинаем обработку статьи:', {
-        source: input.url ? 'URL' : (input.chatId ? 'Telegram' : 'Manual'),
-        title: input.title?.substring(0, 50) + '...',
+      await systemLogger.info('content', 'process_article', 'Starting article processing', {
+        source: input.url ? 'url' : (input.chatId ? 'telegram' : 'manual'),
+        title: input.title?.substring(0, 50),
+        category: input.category,
+        contentStyle: input.contentStyle
       });
 
       // 1. ИЗВЛЕЧЕНИЕ И ПОДГОТОВКА КОНТЕНТА

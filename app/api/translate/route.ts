@@ -76,7 +76,7 @@ Return the translation in JSON format.`;
     
     const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o", // ✅ v8.7.4: Upgraded to latest model
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }

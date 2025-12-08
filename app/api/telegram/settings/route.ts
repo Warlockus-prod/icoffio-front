@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const { chatId, contentStyle, imagesCount, imagesSource, autoPublish, interfaceLanguage } = body;
 
     // Валидация
-    if (!chatId) {
+    if (chatId === undefined || chatId === null) {
       return NextResponse.json(
         { error: 'chatId required' },
         { status: 400 }

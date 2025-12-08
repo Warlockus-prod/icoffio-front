@@ -52,18 +52,10 @@ class UrlParserService {
       const $ = cheerio.load(html);
       
       // 4. Извлекаем все необходимые данные
-      const rawContent = this.extractMainContent($, opts);
-      const rawTitle = this.extractTitle($);
-      const rawExcerpt = this.extractExcerpt($);
-      
-      // ✅ v8.6.4: Clean content from junk patterns at parsing stage
-      const cleanedContent = this.deepCleanContent(rawContent);
-      const cleanedTitle = this.cleanTitle(rawTitle);
-      
       const extractedContent: ExtractedContent = {
-        title: cleanedTitle,
-        content: cleanedContent,
-        excerpt: rawExcerpt ? this.generateProperExcerpt(rawExcerpt, cleanedContent) : undefined,
+        title: this.extractTitle($),
+        content: this.extractMainContent($, opts),
+        excerpt: this.extractExcerpt($),
         author: this.extractAuthor($),
         publishedAt: this.extractPublishDate($),
         image: this.extractMainImage($, url),
@@ -83,92 +75,6 @@ class UrlParserService {
       console.error(`❌ URL parsing error ${url}:`, error);
       throw new Error(`Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
-  
-  /**
-   * ✅ v8.6.4: Deep clean content from junk and formatting issues
-   */
-  private deepCleanContent(content: string): string {
-    if (!content) return '';
-    
-    let cleaned = content;
-    
-    // 1. Remove "Source: ..." lines at the end
-    cleaned = cleaned.replace(/\n*(?:Source|Источник|Źródło|Quelle|Sursă|Zdroj):\s*.+$/gim, '');
-    
-    // 2. Fix orphan hash symbols (keep valid markdown headings)
-    cleaned = cleaned.replace(/^#\s*$/gm, ''); // Lines with just #
-    cleaned = cleaned.replace(/(?<![#\w])#(?![#\s\w])/g, ''); // Orphan # in middle
-    
-    // 3. Ensure space after # in headings
-    cleaned = cleaned.replace(/^(#{1,6})([^\s#])/gm, '$1 $2');
-    
-    // 4. Remove empty headings
-    cleaned = cleaned.replace(/^#{1,6}\s*$/gm, '');
-    
-    // 5. Normalize whitespace
-    cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n');
-    cleaned = cleaned.replace(/\s{3,}/g, '  ');
-    
-    // 6. Clean each line
-    cleaned = cleaned.split('\n').map(line => line.trim()).join('\n');
-    
-    return cleaned.trim();
-  }
-  
-  /**
-   * ✅ v8.6.4: Clean title from quotes and special chars
-   */
-  private cleanTitle(title: string): string {
-    if (!title) return '';
-    return title
-      .replace(/^["'«»„"]+/, '')
-      .replace(/["'«»„"]+$/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-  
-  /**
-   * ✅ v8.6.4: Generate proper excerpt (max 160 chars, complete sentences)
-   */
-  private generateProperExcerpt(excerpt: string, content: string): string {
-    // Use excerpt if it's good
-    if (excerpt && excerpt.length > 50 && excerpt.length <= 160) {
-      return excerpt;
-    }
-    
-    // Generate from content
-    const text = (excerpt || content)
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/\*(.+?)\*/g, '$1')
-      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
-      .replace(/\n+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    if (text.length <= 160) return text;
-    
-    // Find last complete sentence
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    let result = '';
-    
-    for (const sentence of sentences) {
-      if ((result + sentence).length <= 160) {
-        result += sentence;
-      } else {
-        break;
-      }
-    }
-    
-    if (!result) {
-      // Fallback: truncate at word boundary
-      const truncated = text.substring(0, 157);
-      const lastSpace = truncated.lastIndexOf(' ');
-      result = (lastSpace > 120 ? truncated.substring(0, lastSpace) : truncated) + '...';
-    }
-    
-    return result.trim();
   }
 
   // ========== ПРИВАТНЫЕ МЕТОДЫ ==========

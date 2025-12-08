@@ -1,80 +1,39 @@
 /**
- * 🧹 CONTENT CLEANER v8.6.4
+ * 🧹 CONTENT CLEANER v8.6.5
  * 
- * Global utility for cleaning article content from:
- * - Orphan hash symbols (#)
- * - Source/Источник lines at the end
- * - Broken markdown formatting
- * - Excessive whitespace
+ * CONSERVATIVE content cleaning utility
+ * Only removes obvious junk, preserves all valid content
  */
 
 /**
- * Clean article content from junk patterns
+ * Clean article content - CONSERVATIVE approach
+ * Only removes clearly unwanted patterns
  */
 export function cleanArticleContent(content: string): string {
   if (!content) return '';
   
   let cleaned = content;
   
-  // 1. Remove "Source: ..." lines at the end (multiple languages)
-  cleaned = cleaned.replace(/\n*(?:Source|Источник|Źródło|Quelle|Sursă|Zdroj):\s*.+$/gim, '');
+  // 1. Remove "Source: ..." lines ONLY at the very end
+  cleaned = cleaned.replace(/\n{2,}(?:Source|Источник|Źródło):\s*[^\n]+\s*$/im, '');
   
-  // 2. Fix orphan hash symbols (# not followed by space and text = heading)
-  // Keep proper markdown headings like "## Title" but remove lone "#" or "# " without content
-  cleaned = cleaned.replace(/^#\s*$/gm, ''); // Lines with just #
-  cleaned = cleaned.replace(/(?<![#\w])#(?![#\s\w])/g, ''); // Orphan # in middle of text
+  // 2. Remove empty lines with just whitespace
+  cleaned = cleaned.replace(/^\s+$/gm, '');
   
-  // 3. Remove excessive hashes (more than 6 is never valid markdown)
-  cleaned = cleaned.replace(/#{7,}/g, '######');
+  // 3. Normalize excessive line breaks (max 2)
+  cleaned = cleaned.replace(/\n{4,}/g, '\n\n');
   
-  // 4. Fix heading formatting (ensure space after #)
-  cleaned = cleaned.replace(/^(#{1,6})([^\s#])/gm, '$1 $2');
-  
-  // 5. Remove empty markdown headings
-  cleaned = cleaned.replace(/^#{1,6}\s*$/gm, '');
-  
-  // 6. Normalize line breaks (max 2 consecutive)
-  cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n');
-  cleaned = cleaned.replace(/\n{3}/g, '\n\n');
-  
-  // 7. Remove trailing/leading whitespace from lines
-  cleaned = cleaned.split('\n').map(line => line.trim()).join('\n');
-  
-  // 8. Remove common junk patterns
-  const junkPatterns = [
-    /\[Image\]/gi,
-    /\[Photo\]/gi,
-    /\[Video\]/gi,
-    /Read more\.{3}$/gim,
-    /Continue reading\.{3}$/gim,
-    /Subscribe to our newsletter/gi,
-    /Sign up for updates/gi,
-    /Share this article/gi,
-    /Follow us on/gi,
-  ];
-  
-  junkPatterns.forEach(pattern => {
-    cleaned = cleaned.replace(pattern, '');
-  });
-  
-  // 9. Final cleanup
-  cleaned = cleaned.replace(/\s{3,}/g, '  ');
-  cleaned = cleaned.trim();
-  
-  return cleaned;
+  return cleaned.trim();
 }
 
 /**
- * Generate a proper SEO excerpt (max 160 chars, no truncated sentences)
+ * Generate SEO-friendly excerpt (max 160 chars, complete sentences)
  */
 export function generateSEOExcerpt(content: string, maxLength: number = 160): string {
   if (!content) return '';
   
-  // Clean the content first
-  let text = cleanArticleContent(content);
-  
-  // Remove markdown formatting
-  text = text
+  // Strip markdown
+  let text = content
     .replace(/^#{1,6}\s+/gm, '') // Remove headings
     .replace(/\*\*(.+?)\*\*/g, '$1') // Bold
     .replace(/\*(.+?)\*/g, '$1') // Italic
@@ -84,60 +43,44 @@ export function generateSEOExcerpt(content: string, maxLength: number = 160): st
     .replace(/\s+/g, ' ') // Multiple spaces
     .trim();
   
-  // If already short enough, return as is
-  if (text.length <= maxLength) {
-    return text;
-  }
+  if (text.length <= maxLength) return text;
   
   // Find last complete sentence within limit
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
   let excerpt = '';
   
   for (const sentence of sentences) {
-    if ((excerpt + sentence).length <= maxLength) {
-      excerpt += sentence;
+    const trimmedSentence = sentence.trim();
+    if ((excerpt + ' ' + trimmedSentence).trim().length <= maxLength) {
+      excerpt = (excerpt + ' ' + trimmedSentence).trim();
     } else {
       break;
     }
   }
   
-  // If no complete sentences fit, take first sentence (even if longer) or truncate smartly
-  if (!excerpt && sentences.length > 0) {
-    excerpt = sentences[0] || '';
-    if (excerpt && excerpt.length > maxLength) {
-      // Find last word boundary before maxLength
-      const truncated = excerpt.substring(0, maxLength);
-      const lastSpace = truncated.lastIndexOf(' ');
-      if (lastSpace > maxLength * 0.7) {
-        excerpt = truncated.substring(0, lastSpace) + '...';
-      } else {
-        excerpt = truncated + '...';
-      }
-    }
-  } else if (!excerpt) {
-    // Fallback: just truncate at word boundary
-    const truncated = text.substring(0, maxLength);
+  // If no complete sentences fit, truncate at word boundary
+  if (!excerpt) {
+    const truncated = text.substring(0, maxLength - 3);
     const lastSpace = truncated.lastIndexOf(' ');
-    if (lastSpace > maxLength * 0.7) {
+    if (lastSpace > maxLength * 0.6) {
       excerpt = truncated.substring(0, lastSpace) + '...';
     } else {
       excerpt = truncated + '...';
     }
   }
   
-  return excerpt.trim();
+  return excerpt;
 }
 
 /**
- * Clean title from quotes and special characters
+ * Clean title from unwanted quotes (conservative)
  */
 export function cleanTitle(title: string): string {
   if (!title) return '';
   
   return title
-    .replace(/^["'«»„"]+/, '') // Leading quotes
-    .replace(/["'«»„"]+$/, '') // Trailing quotes
-    .replace(/\s+/g, ' ')
+    .replace(/^[«»„"]+/, '') // Leading quotes only
+    .replace(/[«»„"]+$/, '') // Trailing quotes only
     .trim();
 }
 
@@ -146,4 +89,3 @@ export default {
   generateSEOExcerpt,
   cleanTitle
 };
-

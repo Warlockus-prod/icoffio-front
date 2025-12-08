@@ -281,38 +281,68 @@ export default function ArticlesManager() {
     setSelectedArticles(newSelected);
   };
 
-  // Массовое удаление
-  const handleBulkDelete = () => {
+  // Массовое удаление (включая Supabase)
+  const handleBulkDelete = async () => {
     const selectedCount = selectedArticles.size;
     const articlesToDelete = filteredArticles.filter(a => selectedArticles.has(a.id));
     const staticCount = articlesToDelete.filter(a => a.status === 'static').length;
     
     if (staticCount > 0) {
-      alert(`⚠️ Cannot delete static articles!\n\n${staticCount} of selected articles are static and cannot be deleted.\nOnly admin-created articles can be deleted.`);
+      alert(`⚠️ Cannot delete static articles!\n\n${staticCount} of selected articles are static and cannot be deleted.\nOnly admin-created and dynamic articles can be deleted.`);
       return;
     }
 
-    if (!window.confirm(`🗑️ Delete ${selectedCount} selected articles?\n\nThis action cannot be undone!\n\nContinue?`)) {
+    if (!window.confirm(`🗑️ Delete ${selectedCount} selected articles?\n\nThis will delete from:\n- Local storage\n- Supabase database\n\nThis action cannot be undone!\n\nContinue?`)) {
       return;
     }
 
     setIsLoading(true);
+    let deletedCount = 0;
+    let errors: string[] = [];
+    
     try {
-      const adminArticles = localArticleStorage.getAllArticles();
-      const adminIds = articlesToDelete
-        .filter(a => a.status === 'admin')
-        .map(a => a.id);
+      for (const article of articlesToDelete) {
+        // 1. Delete from Supabase (dynamic articles)
+        if (article.status === 'dynamic' || article.id.startsWith('supabase_')) {
+          const supabaseId = article.id.replace('supabase_', '');
+          try {
+            const response = await fetch('/api/admin/delete-supabase-article', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                articleId: !isNaN(Number(supabaseId)) ? Number(supabaseId) : undefined,
+                slug: article.slug 
+              })
+            });
+            const result = await response.json();
+            if (result.success) {
+              deletedCount++;
+              console.log(`✅ Deleted from Supabase: ${article.title}`);
+            } else {
+              errors.push(`${article.title}: ${result.error}`);
+            }
+          } catch (err) {
+            errors.push(`${article.title}: Network error`);
+          }
+        }
+        // 2. Delete from localStorage (admin articles)
+        else if (article.status === 'admin') {
+          localArticleStorage.deleteArticle(article.id);
+          deletedCount++;
+        }
+      }
       
-      // Удаляем по ID
-      const remaining = adminArticles.filter(article => !adminIds.includes(article.id));
-      localStorage.setItem('icoffio_admin_articles', JSON.stringify(remaining));
-      
-      adminLogger.info('user', 'bulk_delete_articles', `Bulk deleted ${selectedCount} articles`, { 
-        deletedIds: adminIds,
-        count: selectedCount 
+      adminLogger.info('user', 'bulk_delete_articles', `Bulk deleted ${deletedCount} articles`, { 
+        deletedCount,
+        errors: errors.length 
       });
       
-      alert(`✅ Successfully deleted ${selectedCount} articles!`);
+      if (errors.length > 0) {
+        alert(`⚠️ Deleted ${deletedCount} of ${selectedCount} articles.\n\nErrors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...and ${errors.length - 5} more` : ''}`);
+      } else {
+        alert(`✅ Successfully deleted ${deletedCount} articles!`);
+      }
+      
       setSelectedArticles(new Set());
       loadArticles();
     } catch (error) {

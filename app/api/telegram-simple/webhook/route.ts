@@ -15,6 +15,7 @@ import { processText } from '@/lib/telegram-simple/content-processor';
 import { publishArticle } from '@/lib/telegram-simple/publisher';
 import { loadTelegramSettings } from '@/lib/telegram-simple/settings-loader';
 import { systemLogger } from '@/lib/system-logger';
+import { getTranslations, getLanguageName, type BotLanguage } from '@/lib/telegram-simple/translations';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds max
@@ -51,28 +52,31 @@ export async function POST(request: NextRequest) {
     console.log(`[TelegramSimple] 💬 From chat ${chatId}: "${text.substring(0, 50)}..."`);
 
     // ========================================
+    // LOAD SETTINGS & TRANSLATIONS
+    // ========================================
+    
+    const settings = await loadTelegramSettings(chatId);
+    const t = getTranslations(settings.interfaceLanguage);
+    
+    console.log(`[TelegramSimple] 🌐 Language: ${settings.interfaceLanguage}, Style: ${settings.contentStyle}`);
+
+    // ========================================
     // HANDLE COMMANDS
     // ========================================
     
     if (text.startsWith('/')) {
-      const command = text.toLowerCase();
+      const command = text.toLowerCase().split(/\s/)[0]; // Только команда, без параметров
 
       if (command === '/start') {
         await sendTelegramMessage(
           chatId,
-          `🤖 <b>Привет! Я icoffio Bot v8.5</b>\n\n` +
-          `📝 <b>Что я умею:</b>\n` +
-          `• Создавать статьи из текста\n` +
-          `• Парсить статьи по URL\n` +
-          `• Публиковать на EN + PL 🇬🇧🇵🇱\n\n` +
-          `💡 <b>Просто отправь:</b>\n` +
-          `• URL статьи для парсинга\n` +
-          `• Текст (минимум 100 символов)\n\n` +
-          `⚙️ <b>Команды:</b>\n` +
-          `/settings - Твои настройки\n` +
-          `/help - Справка\n\n` +
-          `⚡ Обработка: ~15-25 секунд\n` +
-          `🚀 Начни прямо сейчас!`
+          `${t.welcome.title}\n\n` +
+          `${t.welcome.description}\n\n` +
+          `${t.welcome.howTo}\n\n` +
+          `${t.welcome.commands}\n` +
+          `${t.commands.settings}\n` +
+          `${t.commands.language}\n` +
+          `${t.commands.help}`
         );
         return NextResponse.json({ ok: true });
       }
@@ -80,44 +84,105 @@ export async function POST(request: NextRequest) {
       if (command === '/help') {
         await sendTelegramMessage(
           chatId,
-          `📚 <b>Справка icoffio Bot</b>\n\n` +
-          `<b>Как использовать:</b>\n` +
-          `1. Отправь URL или текст\n` +
-          `2. Жди ~15-25 секунд\n` +
-          `3. Получи ссылку на статью\n\n` +
-          `<b>Минимальные требования:</b>\n` +
-          `• Текст: минимум 100 символов\n` +
-          `• URL: любая статья\n\n` +
-          `<b>Команды:</b>\n` +
-          `/settings - Текущие настройки\n` +
-          `/help - Эта справка\n\n` +
-          `<b>Что получишь:</b>\n` +
-          `✅ Профессиональная статья (EN + PL)\n` +
-          `✅ Обработка по твоим настройкам\n` +
-          `✅ Готова к редактированию в админке`
+          `${t.help.title}\n\n` +
+          `${t.help.description}\n\n` +
+          `${t.help.urlExample}\n\n` +
+          `${t.help.textExample}\n\n` +
+          `${t.help.availableCommands}\n` +
+          `${t.commands.start}\n` +
+          `${t.commands.settings}\n` +
+          `${t.commands.language}\n` +
+          `${t.commands.help}`
         );
         return NextResponse.json({ ok: true });
       }
 
       if (command === '/settings') {
-        const settings = await loadTelegramSettings(chatId);
+        const styleLabel = t.styles[settings.contentStyle as keyof typeof t.styles] || settings.contentStyle;
+        const sourceLabel = settings.imagesSource === 'unsplash' ? 'Unsplash' : 
+                           settings.imagesSource === 'ai' ? 'AI' : 
+                           t.disabled;
+        
         await sendTelegramMessage(
           chatId,
-          `⚙️ <b>Ваши настройки публикации</b>\n\n` +
-          `📝 <b>Стиль:</b> ${getStyleLabel(settings.contentStyle)}\n` +
-          `🖼️ <b>Картинок:</b> ${settings.imagesCount}\n` +
-          `📸 <b>Источник:</b> ${settings.imagesSource === 'unsplash' ? 'Unsplash' : settings.imagesSource === 'ai' ? 'AI Generated' : 'Нет'}\n` +
-          `${settings.autoPublish ? '✅' : '📝'} <b>Публикация:</b> ${settings.autoPublish ? 'Автоматически' : 'Черновик'}\n\n` +
-          `💡 <b>Изменить настройки:</b>\n` +
-          `🔗 <a href="https://app.icoffio.com/en/admin">app.icoffio.com/en/admin</a>\n\n` +
-          `Откройте админ панель → вкладка "🤖 Telegram"`
+          `${t.settings.title}\n\n` +
+          `${t.settings.currentSettings}\n` +
+          `${t.settings.contentStyle}: ${styleLabel}\n` +
+          `${t.settings.images}: ${settings.imagesCount} (${sourceLabel})\n` +
+          `${t.settings.autoPublish}: ${settings.autoPublish ? t.enabled : t.disabled}\n` +
+          `${t.settings.language}: ${getLanguageName(settings.interfaceLanguage)}\n\n` +
+          `${t.settings.changeInAdmin}`
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (command === '/language') {
+        await sendTelegramMessage(
+          chatId,
+          `${t.languageSelection.title}\n\n` +
+          `${t.languageSelection.current}: ${getLanguageName(settings.interfaceLanguage)}\n\n` +
+          `${t.languageSelection.choose}`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '🇷🇺 Русский', callback_data: 'lang_ru' },
+                  { text: '🇬🇧 English', callback_data: 'lang_en' },
+                  { text: '🇵🇱 Polski', callback_data: 'lang_pl' },
+                ],
+              ],
+            },
+          }
         );
         return NextResponse.json({ ok: true });
       }
 
       // Unknown command
-      await sendTelegramMessage(chatId, '❓ Неизвестная команда. Используйте /help');
+      await sendTelegramMessage(chatId, `❓ ${t.error.generic}. ${t.commands.help}`);
       return NextResponse.json({ ok: true });
+    }
+
+    // ========================================
+    // HANDLE CALLBACK QUERY (Language selection)
+    // ========================================
+    
+    if (update.callback_query) {
+      const callbackQuery = update.callback_query;
+      const callbackChatId = callbackQuery.message.chat.id;
+      const callbackData = callbackQuery.data;
+
+      if (callbackData?.startsWith('lang_')) {
+        const newLang = callbackData.replace('lang_', '') as BotLanguage;
+        
+        // Save to database
+        const response = await fetch('https://app.icoffio.com/api/telegram/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...settings,
+            chatId: callbackChatId,
+            interfaceLanguage: newLang,
+          }),
+        });
+
+        if (response.ok) {
+          const newT = getTranslations(newLang);
+          await sendTelegramMessage(
+            callbackChatId,
+            `${newT.languageSelection.changed} ${getLanguageName(newLang)}! ✅\n\n` +
+            `${newT.commands.help}`
+          );
+        }
+
+        // Answer callback query to remove loading state
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: callbackQuery.id }),
+        });
+
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // ========================================
@@ -127,21 +192,18 @@ export async function POST(request: NextRequest) {
     if (text.length < 100 && !isUrl(text)) {
       await sendTelegramMessage(
         chatId,
-        `📝 <b>Текст слишком короткий</b>\n\n` +
-        `Минимум: 100 символов\n` +
-        `У вас: ${text.length} символов\n\n` +
-        `Или отправьте URL статьи для парсинга.`
+        `📝 <b>${t.error.title}</b>\n\n` +
+        `${t.error.generic}\n\n` +
+        `${t.error.tryAgain}`
       );
       return NextResponse.json({ ok: true });
     }
 
     // ========================================
-    // LOAD USER SETTINGS (v8.5.0)
+    // USER SETTINGS ALREADY LOADED ABOVE (v8.5.0)
     // ========================================
     
-    console.log('[TelegramSimple] 📋 Loading user settings...');
-    const settings = await loadTelegramSettings(chatId);
-    console.log('[TelegramSimple] ⚙️ Settings:', {
+    console.log('[TelegramSimple] ⚙️ Using loaded settings:', {
       contentStyle: settings.contentStyle,
       imagesCount: settings.imagesCount,
       imagesSource: settings.imagesSource,
@@ -152,15 +214,16 @@ export async function POST(request: NextRequest) {
     // PROCESS ARTICLE
     // ========================================
     
-    const estimatedTime = settings.imagesCount > 0 ? '20-35 секунд' : '15-25 секунд';
+    const estimatedTime = settings.imagesCount > 0 ? '20-35' : '15-25';
+    const styleLabel = t.styles[settings.contentStyle as keyof typeof t.styles] || settings.contentStyle;
     
     await sendTelegramMessage(
       chatId,
-      `⏳ <b>Обрабатываю...</b>\n\n` +
-      `${isUrl(text) ? '🔗 Парсю URL' : '📝 Обрабатываю текст'}\n` +
-      `📝 Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
-      `🖼️ Картинок: ${settings.imagesCount} ${settings.imagesCount > 0 ? `(${settings.imagesSource})` : ''}\n` +
-      `⏱️ Примерно ${estimatedTime}`
+      `${t.processing.title}\n\n` +
+      `${isUrl(text) ? t.processing.parsingUrl : t.processing.processingText}\n` +
+      `${t.processing.style}: ${styleLabel}\n` +
+      `${t.processing.images}: ${settings.imagesCount} ${settings.imagesCount > 0 ? `(${settings.imagesSource})` : ''}\n` +
+      `${t.processing.estimatedTime} ${estimatedTime} ${t.seconds}`
     );
 
     let article;
@@ -201,31 +264,33 @@ export async function POST(request: NextRequest) {
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     
-    const statusEmoji = settings.autoPublish ? '✅' : '📝';
-    const statusText = settings.autoPublish ? 'ОПУБЛИКОВАНО' : 'СОХРАНЕНО КАК ЧЕРНОВИК';
+    const statusEmoji = settings.autoPublish ? '✅' : '💾';
+    const statusText = settings.autoPublish ? t.success.published : t.success.savedAsDraft;
     const statusNote = settings.autoPublish 
-      ? '✨ Статья опубликована на сайте (2 языка)!'
-      : '💡 Черновик сохранен. Опубликуйте через админ панель.';
+      ? t.success.note.published
+      : t.success.note.draft;
     
     const imagesInfo = settings.imagesCount > 0 
-      ? `• Изображений: ${settings.imagesCount} (${settings.imagesSource})\n`
+      ? `${t.success.imagesCount}: ${settings.imagesCount} (${settings.imagesSource})\n`
       : '';
+    
+    // Use styleLabel defined earlier (line 218)
     
     await sendTelegramMessage(
       chatId,
       `${statusEmoji} <b>${statusText}!</b>\n\n` +
-      `📝 <b>Заголовок:</b>\n${article.title}\n\n` +
-      `📊 <b>Статистика:</b>\n` +
-      `• Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
-      `• Слов: ${article.wordCount}\n` +
+      `${t.success.title}\n${article.title}\n\n` +
+      `${t.success.statistics}\n` +
+      `${t.success.style}: ${styleLabel}\n` +
+      `${t.success.words}: ${article.wordCount}\n` +
       `${imagesInfo}` +
-      `• Категория: ${article.category}\n` +
-      `• Время: ${duration}s\n\n` +
-      `🔗 <b>Ссылки:</b>\n` +
+      `${t.success.category}: ${article.category}\n` +
+      `${t.success.time}: ${duration}s\n\n` +
+      `${t.success.links}\n` +
       `🇬🇧 <b>EN:</b> ${result.en.url}\n` +
       `🇵🇱 <b>PL:</b> ${result.pl.url}\n\n` +
       `${statusNote}\n` +
-      `🎨 Редактировать: app.icoffio.com/en/admin`,
+      `${t.success.editLink}: app.icoffio.com/en/admin`,
       { disable_web_page_preview: false }
     );
 
@@ -264,9 +329,13 @@ export async function POST(request: NextRequest) {
       const chatId = update.message?.chat?.id;
       
       if (chatId) {
+        // Load settings for error message language
+        const errorSettings = await loadTelegramSettings(chatId);
+        const errorT = getTranslations(errorSettings.interfaceLanguage);
+        
         await sendTelegramMessage(
           chatId,
-          `❌ <b>Ошибка обработки</b>\n\n` +
+          `❌ <b>${errorT.error.title}</b>\n\n` +
           `📋 ${error.message}\n\n` +
           `⏱️ Время: ${duration}s\n\n` +
           `Попробуйте еще раз или обратитесь к администратору.`

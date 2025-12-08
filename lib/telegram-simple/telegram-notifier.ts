@@ -13,6 +13,7 @@ export async function sendTelegramMessage(
   options?: {
     parse_mode?: 'HTML' | 'Markdown';
     disable_web_page_preview?: boolean;
+    reply_markup?: any; // Telegram inline keyboard markup
   }
 ): Promise<boolean> {
   try {
@@ -30,6 +31,7 @@ export async function sendTelegramMessage(
         text,
         parse_mode: options?.parse_mode || 'HTML',
         disable_web_page_preview: options?.disable_web_page_preview || false,
+        ...(options?.reply_markup && { reply_markup: options.reply_markup }),
       }),
     });
 

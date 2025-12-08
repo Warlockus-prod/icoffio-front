@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { systemLogger } from '@/lib/system-logger';
+import { generateSlug } from '@/lib/utils/slug-generator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -40,25 +41,7 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
-// Generate slug from title
-function generateSlug(title: string, language: string): string {
-  let slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .substring(0, 100);
-  
-  // Add language suffix
-  if (language === 'pl') {
-    slug += '-pl';
-  } else {
-    slug += '-en';
-  }
-  
-  return slug;
-}
+// ✅ v8.6.2: generateSlug() импортируется из lib/utils/slug-generator.ts
 
 export async function POST(request: NextRequest) {
   const timer = systemLogger.startTimer('api', 'publish_article', 'Publishing article');
@@ -105,8 +88,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseClient();
 
-    // Generate slug
-    const slug = generateSlug(title, language);
+    // Generate slug with language suffix
+    const slug = generateSlug(title, language as 'en' | 'pl');
 
     // Prepare article data
     const articleData: any = {

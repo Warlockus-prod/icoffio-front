@@ -10,6 +10,8 @@ import { wordpressService } from '@/lib/wordpress-service';
 import { formatContentToHtml, escapeHtml } from '@/lib/utils/content-formatter';
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
+// v8.6.2: Unified slug generator
+import { generateSlug } from '@/lib/utils/slug-generator';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -189,7 +191,7 @@ export async function GET(request: NextRequest) {
       'generate-article': 'POST /api/articles with action: create-from-url or create-from-text'
     },
     
-    supportedLanguages: ['ru', 'en', 'pl', 'de', 'ro', 'cs'],
+    supportedLanguages: ['en', 'pl'],
     supportedCategories: ['ai', 'apple', 'games', 'tech'],
     
     features: [
@@ -464,7 +466,7 @@ async function handleHealthCheck() {
         webhookSecret: !!process.env.N8N_WEBHOOK_SECRET
       },
       
-      supportedLanguages: ['ru', 'en', 'pl', 'de', 'ro', 'cs'],
+      supportedLanguages: ['en', 'pl'],
       supportedCategories: ['ai', 'apple', 'games', 'tech'],
       
       features: [
@@ -661,17 +663,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { addRuntimeArticle } = require('@/lib/local-articles');
     
-    // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Генерируем slug С СУФФИКСАМИ (система требует!)
-    const generateSlug = (title: string): string => {
-      return title
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .substring(0, 60);
-    };
-    
+    // ✅ v8.6.2: Используем унифицированный slug generator
     const baseSlug = article.slug || generateSlug(article.title);
     const publishedAt = new Date().toISOString();
     

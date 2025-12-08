@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { ProcessedArticle, PublishResult } from './types';
 import { translateToPolish } from './translator';
 import { insertImages, type ImageGenerationOptions } from './image-generator';
+import { generateSlug } from '@/lib/utils/slug-generator';
 
 /**
  * Get Supabase client
@@ -159,19 +160,4 @@ export async function publishArticle(
   }
 }
 
-/**
- * Generate URL-safe slug from title
- */
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    // Replace special characters with spaces
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    // Replace multiple spaces/hyphens with single hyphen
-    .replace(/[\s-]+/g, '-')
-    // Remove leading/trailing hyphens
-    .replace(/^-+|-+$/g, '')
-    // Limit length
-    .substring(0, 60);
-}
+// ✅ v8.6.2: generateSlug() теперь импортируется из lib/utils/slug-generator.ts

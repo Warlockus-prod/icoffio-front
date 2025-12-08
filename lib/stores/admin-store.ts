@@ -214,23 +214,10 @@ export const useAdminStore = create<AdminStore>()(
       },
 
       // Authentication Actions
-      // ✅ v7.32.1 - Simple password authentication with hardcoded fallback
+      // ✅ v8.6.2 - Secure API-only authentication (removed hardcoded password)
       authenticate: async (password: string) => {
-        // Primary password - always works
-        const ADMIN_PASSWORD = 'icoffio2025';
-        
-        // Simple local check first (most reliable)
-        if (password === ADMIN_PASSWORD) {
-          adminLogger.info('user', 'login_success', 'User successfully authenticated');
-          set({ isAuthenticated: true });
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('icoffio_admin_auth', 'authenticated');
-          }
-          return true;
-        }
-        
-        // If local check failed, try API as backup
         try {
+          // ✅ SECURE: Only API authentication (no hardcoded password!)
           const response = await fetch('/api/admin/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -248,12 +235,14 @@ export const useAdminStore = create<AdminStore>()(
             }
             return true;
           }
+          
+          adminLogger.warn('user', 'login_failed', 'Invalid password');
+          return false;
         } catch (error) {
-          console.error('API auth error (non-critical):', error);
+          console.error('API auth error:', error);
+          adminLogger.error('user', 'login_error', 'Authentication API error', { error: String(error) });
+          return false;
         }
-        
-        adminLogger.warn('user', 'login_failed', 'Invalid password');
-        return false;
       },
 
       logout: async () => {

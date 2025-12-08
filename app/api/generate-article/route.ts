@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         available: Boolean(process.env.OPENAI_API_KEY),
         message: 'Сервис генерации статей готов к работе',
-        supportedLanguages: ['en', 'pl', 'de', 'ro', 'cs'],
+        supportedLanguages: ['en', 'pl'],
         supportedCategories: ['ai', 'apple', 'games', 'tech']
       });
     }

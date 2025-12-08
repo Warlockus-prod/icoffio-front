@@ -108,7 +108,7 @@ export interface ProcessingResult {
 // ========== ОСНОВНОЙ СЕРВИС ==========
 
 class UnifiedArticleService {
-  private supportedLanguages = ['en', 'pl', 'de', 'ro', 'cs'];
+  private supportedLanguages = ['en', 'pl'];
   
   /**
    * 🎯 ГЛАВНАЯ ФУНКЦИЯ - Обработка статьи из любого источника

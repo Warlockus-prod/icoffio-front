@@ -51,11 +51,11 @@ export type ArticleCard = Pick<Post, 'slug' | 'title' | 'excerpt' | 'image' | 'i
 
 // ========== LANGUAGE TYPES ==========
 
-export type SupportedLanguage = 'en' | 'pl' | 'de' | 'ro' | 'cs' | 'ru';
+export type SupportedLanguage = 'en' | 'pl';
 export type ActiveLanguage = 'en' | 'pl'; // Languages actively supported in production
 
 export const ACTIVE_LANGUAGES: ActiveLanguage[] = ['en', 'pl'];
-export const ALL_SUPPORTED_LANGUAGES: SupportedLanguage[] = ['en', 'pl', 'de', 'ro', 'cs', 'ru'];
+export const ALL_SUPPORTED_LANGUAGES: SupportedLanguage[] = ['en', 'pl'];
 
 // ========== API TYPES ==========
 

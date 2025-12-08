@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
       imagesCount: data?.images_count ?? 2,
       imagesSource: data?.images_source || 'unsplash',
       autoPublish: data?.auto_publish ?? true,
+      interfaceLanguage: data?.interface_language || 'ru',
     };
 
     return NextResponse.json({ success: true, settings });
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: TelegramSettings = await request.json();
 
-    const { chatId, contentStyle, imagesCount, imagesSource, autoPublish } = body;
+    const { chatId, contentStyle, imagesCount, imagesSource, autoPublish, interfaceLanguage } = body;
 
     // Валидация
     if (!chatId) {
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
         images_count: imagesCount,
         images_source: imagesSource,
         auto_publish: autoPublish,
+        interface_language: interfaceLanguage || 'ru',
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'chat_id',
@@ -120,6 +122,7 @@ export async function POST(request: NextRequest) {
       imagesCount,
       imagesSource,
       autoPublish,
+      interfaceLanguage,
     });
 
     return NextResponse.json({
@@ -131,6 +134,7 @@ export async function POST(request: NextRequest) {
         imagesCount,
         imagesSource,
         autoPublish,
+        interfaceLanguage,
       },
     });
 

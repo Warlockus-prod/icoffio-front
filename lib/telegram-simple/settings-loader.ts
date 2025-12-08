@@ -34,6 +34,7 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
     imagesCount: 2,
     imagesSource: 'unsplash',
     autoPublish: true,
+    interfaceLanguage: 'ru',
   };
 
   if (!supabase) {
@@ -65,6 +66,7 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
       imagesCount: data.images_count ?? defaultSettings.imagesCount,
       imagesSource: data.images_source || defaultSettings.imagesSource,
       autoPublish: data.auto_publish ?? defaultSettings.autoPublish,
+      interfaceLanguage: data.interface_language || defaultSettings.interfaceLanguage,
     };
 
     console.log('[SettingsLoader] ✅ Loaded settings:', settings);

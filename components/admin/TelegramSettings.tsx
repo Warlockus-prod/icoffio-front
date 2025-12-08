@@ -38,6 +38,7 @@ export function TelegramSettings() {
     imagesCount: 2,
     imagesSource: 'unsplash',
     autoPublish: true,
+    interfaceLanguage: 'ru',
   });
 
   // Load settings on mount
@@ -48,12 +49,22 @@ export function TelegramSettings() {
 
   const loadDefaultSettings = async () => {
     try {
-      // For now, use default chat_id = 0 (admin settings)
-      // In future, can load from last Telegram user
-      const defaultChatId = 0;
-      setChatId(defaultChatId.toString());
+      // Get REAL chat_id from last published article
+      const articlesResponse = await fetch('/api/supabase-articles?limit=1&source=telegram-simple');
+      const articlesData = await articlesResponse.json();
       
-      const response = await fetch(`/api/telegram/settings?chatId=${defaultChatId}`);
+      let realChatId = 0;
+      
+      if (articlesData.articles && articlesData.articles.length > 0) {
+        realChatId = articlesData.articles[0].chat_id || 0;
+        console.log('[TelegramSettings] Found real chat_id:', realChatId);
+      } else {
+        console.warn('[TelegramSettings] No Telegram articles found, using default chat_id=0');
+      }
+      
+      setChatId(realChatId.toString());
+      
+      const response = await fetch(`/api/telegram/settings?chatId=${realChatId}`);
       const data = await response.json();
       
       if (data.success && data.settings) {

@@ -33,7 +33,7 @@ export interface ParsedUrl {
 }
 
 /**
- * TELEGRAM SETTINGS v8.5.0
+ * TELEGRAM SETTINGS v8.6.0
  */
 export type ContentStyle = 
   | 'journalistic'
@@ -45,11 +45,14 @@ export type ContentStyle =
 
 export type ImagesSource = 'unsplash' | 'ai' | 'none';
 
+export type BotLanguage = 'ru' | 'en' | 'pl';
+
 export interface TelegramSettings {
   chatId: number;
   contentStyle: ContentStyle;
   imagesCount: number; // 0-3
   imagesSource: ImagesSource;
   autoPublish: boolean;
+  interfaceLanguage: BotLanguage; // v8.6.0: RU/EN/PL bot interface
 }
 

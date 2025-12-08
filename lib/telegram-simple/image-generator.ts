@@ -88,15 +88,24 @@ async function generateImages(
 
   // Extract URLs
   const imageUrls: string[] = [];
-  for (const response of responses) {
+  for (let i = 0; i < responses.length; i++) {
+    const response = responses[i];
     if (response.ok) {
       const data = await response.json();
+      console.log(`[TelegramImages] Image ${i + 1} response:`, {
+        url: data.url?.substring(0, 50) + '...',
+        source: data.source,
+        cached: data.cached,
+      });
       if (data.url && data.url.length > 0) {
         imageUrls.push(data.url);
       }
+    } else {
+      console.error(`[TelegramImages] Image ${i + 1} failed:`, response.status, response.statusText);
     }
   }
 
+  console.log(`[TelegramImages] ✅ Generated ${imageUrls.length}/${count} images`);
   return imageUrls;
 }
 

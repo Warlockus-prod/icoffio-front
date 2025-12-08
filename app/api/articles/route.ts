@@ -719,26 +719,24 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     const enSlug = `${baseSlug}-en`;
     const plSlug = `${baseSlug}-pl`;
     
-    // ✅ v8.5.3: Очистка контента от мусора (# хеши, source текст)
-    const cleanContent = (content: string): string => {
-      if (!content) return '';
-      return content
-        // Удаляем строки типа "Source: ...", "Источник: ..." в конце
-        .replace(/\n*(?:Source|Источник|Źródło):\s*.*$/gim, '')
-        // Удаляем одиночные # которые не являются заголовками
-        .replace(/(?<!\#)\#(?!\#|\s*\w)/g, '')
-        // Исправляем множественные переносы строк
-        .replace(/\n{4,}/g, '\n\n\n')
-        .trim();
-    };
+    // ✅ v8.6.4: Improved content cleaning
+    const { cleanArticleContent, generateSEOExcerpt, cleanTitle } = require('@/lib/utils/content-cleaner');
     
-    // Очищаем контент
-    contentEn = cleanContent(contentEn);
-    contentPl = cleanContent(contentPl);
+    // Clean content from junk
+    contentEn = cleanArticleContent(contentEn);
+    contentPl = cleanArticleContent(contentPl);
     
-    // ✅ v8.5.3: Получаем польский заголовок
-    const titleEn = article.title;
-    const titlePl = article.translations?.pl?.title || article.title;
+    // ✅ v8.6.4: Clean titles and generate proper excerpts
+    const titleEn = cleanTitle(article.title);
+    const titlePl = cleanTitle(article.translations?.pl?.title || article.title);
+    
+    // Generate proper SEO excerpts (max 160 chars, no truncated sentences)
+    const excerptEn = article.excerpt && article.excerpt.length <= 160 
+      ? article.excerpt 
+      : generateSEOExcerpt(contentEn, 160);
+    const excerptPl = article.translations?.pl?.excerpt && article.translations.pl.excerpt.length <= 160
+      ? article.translations.pl.excerpt
+      : generateSEOExcerpt(contentPl, 160);
     
     // Подготовка данных для Supabase
     const supabaseData = {
@@ -750,8 +748,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       slug_pl: plSlug,
       content_en: contentEn,
       content_pl: contentPl,
-      excerpt_en: article.excerpt || article.title.substring(0, 150),
-      excerpt_pl: article.translations?.pl?.excerpt || article.excerpt,
+      excerpt_en: excerptEn,
+      excerpt_pl: excerptPl,
       image_url: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
       category: article.category || 'tech',
       author: article.author || 'AI Editorial Team',

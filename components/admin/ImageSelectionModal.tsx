@@ -171,19 +171,19 @@ export default function ImageSelectionModal({
     for (const file of fileArray) {
       // Проверка типа
       if (!ACCEPTED_TYPES.includes(file.type)) {
-        toast.error(`❌ Неподдерживаемый формат: ${file.name}`);
+        toast.error(`❌ Unsupported format: ${file.name}`);
         continue;
       }
       
       // Проверка размера
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`❌ Файл слишком большой: ${file.name} (макс. 10MB)`);
+        toast.error(`❌ File too large: ${file.name} (max 10MB)`);
         continue;
       }
       
       // Проверка лимита
       if (totalSelected + uploadedImages.length >= MAX_IMAGES) {
-        toast.error(`❌ Достигнут лимит ${MAX_IMAGES} изображений`);
+        toast.error(`❌ Limit of ${MAX_IMAGES} images reached`);
         break;
       }
       
@@ -216,7 +216,7 @@ export default function ImageSelectionModal({
         });
         
         // Загружаем в Vercel Blob
-        const toastId = toast.loading(`📤 Загружаем ${file.name}...`);
+        const toastId = toast.loading(`📤 Uploading ${file.name}...`);
         
         const uploaded = await uploadToBlob(newImage);
         
@@ -226,9 +226,9 @@ export default function ImageSelectionModal({
         );
         
         if (uploaded.isUploaded) {
-          toast.success(`✅ ${file.name} загружен в CDN!`, { id: toastId });
+          toast.success(`✅ ${file.name} uploaded to CDN!`, { id: toastId });
         } else {
-          toast.error(`❌ Ошибка: ${uploaded.uploadError}`, { id: toastId });
+          toast.error(`❌ Error: ${uploaded.uploadError}`, { id: toastId });
         }
       };
       
@@ -292,21 +292,21 @@ export default function ImageSelectionModal({
 
   const handleSkip = () => {
     onSkip();
-    toast.success('⏭️ Выбор изображений пропущен');
+    toast.success('⏭️ Image selection skipped');
     onClose();
   };
 
   const handleRegenerate = async () => {
     setIsLoading(true);
-    toast.loading('🔄 Генерируем новые варианты...');
+    toast.loading('🔄 Generating new options...');
     
     try {
       await onRegenerate();
       toast.dismiss();
-      toast.success('✅ Новые варианты готовы!');
+      toast.success('✅ New options ready!');
     } catch (error) {
       toast.dismiss();
-      toast.error('❌ Ошибка генерации');
+      toast.error('❌ Generation failed');
     } finally {
       setIsLoading(false);
     }
@@ -332,23 +332,23 @@ export default function ImageSelectionModal({
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                🖼️ Выбор изображений
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                🖼️ Select Images
                 <span className="text-sm font-normal bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                  до {MAX_IMAGES} шт
+                  up to {MAX_IMAGES}
                 </span>
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                для статьи: "{articleTitle.substring(0, 50)}{articleTitle.length > 50 ? '...' : ''}"
+                for article: "{articleTitle.substring(0, 50)}{articleTitle.length > 50 ? '...' : ''}"
               </p>
               <div className="flex items-center gap-4 mt-3 text-xs">
                 <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                   <span className="w-5 h-5 bg-amber-500 text-white rounded flex items-center justify-center font-bold">1</span>
-                  = Hero (заглавное)
+                  = Hero (main)
                 </span>
                 <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                   <span className="w-5 h-5 bg-gray-400 text-white rounded flex items-center justify-center font-bold">2-5</span>
-                  = В контенте статьи
+                  = In article content
                 </span>
               </div>
             </div>
@@ -427,7 +427,7 @@ export default function ImageSelectionModal({
               {unsplashOptions.length === 0 && (
                 <div className="col-span-3 text-center py-12 text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4 block">📷</span>
-                  Нет доступных изображений Unsplash
+                  No Unsplash images available
                 </div>
               )}
             </div>
@@ -449,7 +449,7 @@ export default function ImageSelectionModal({
               {aiOptions.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4 block">🤖</span>
-                  Нет AI-сгенерированных изображений
+                  No AI-generated images available
                 </div>
               )}
             </div>
@@ -634,13 +634,13 @@ export default function ImageSelectionModal({
                 />
                 <div className="text-5xl mb-4">📤</div>
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Перетащите файлы или кликните
+                  Drag files here or click to upload
                 </h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                  Поддерживаются: JPG, PNG, WebP, GIF (до 10MB)
+                  Supported: JPG, PNG, WebP, GIF (up to 10MB)
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400">
-                  💡 Изображения будут автоматически оптимизированы для web
+                  💡 Images will be automatically optimized for web
                 </p>
               </div>
 
@@ -648,7 +648,7 @@ export default function ImageSelectionModal({
               {uploadedImages.length > 0 && (
                 <div className="mt-6">
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Загруженные файлы ({uploadedImages.length})
+                    Uploaded files ({uploadedImages.length})
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {uploadedImages.map((img, index) => (
@@ -723,14 +723,14 @@ export default function ImageSelectionModal({
               disabled={isLoading}
               className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
-              🔄 Новые варианты
+              🔄 New Options
             </button>
             <button
               onClick={handleSkip}
               disabled={isLoading}
               className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
-              ⏭️ Пропустить
+              ⏭️ Skip
             </button>
           </div>
           
@@ -809,7 +809,7 @@ function ImageCard({ option, isSelected, selectionOrder, onSelect, disabled }: I
         {isSelected && (
           <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
             <div className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold shadow-lg">
-              ✓ Выбрано
+              ✓ Selected
             </div>
           </div>
         )}

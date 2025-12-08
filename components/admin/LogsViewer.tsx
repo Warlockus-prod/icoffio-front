@@ -95,7 +95,7 @@ export default function LogsViewer() {
       alert(`📥 Логи успешно экспортированы!\n\nФайл: ${filename}\nКоличество логов: ${logs.length}`);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('❌ Ошибка экспорта логов. Попробуйте еще раз.');
+      alert('❌ Log export failed. Please try again.');
     }
   };
 

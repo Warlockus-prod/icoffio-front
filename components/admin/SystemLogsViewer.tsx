@@ -82,7 +82,7 @@ export default function SystemLogsViewer() {
       }
     } catch (error) {
       console.error('Cleanup failed:', error);
-      alert('❌ Ошибка очистки логов');
+      alert('❌ Failed to clean logs');
     }
   };
   

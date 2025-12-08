@@ -326,7 +326,7 @@ export default function ArticleEditor() {
                       }
                     } catch (error) {
                       console.error('❌ Publication failed:', error);
-                      alert(`❌ Ошибка публикации: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                      alert(`❌ Publication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     }
                   }}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"

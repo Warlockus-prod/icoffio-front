@@ -37,7 +37,7 @@ export default function ContentPromptManager() {
    */
   const handleTestPrompt = async () => {
     if (!testText.trim()) {
-      toast.error('Введите текст для тестирования');
+      toast.error('Enter text to test');
       return;
     }
 
@@ -72,7 +72,7 @@ export default function ContentPromptManager() {
 
     } catch (error: any) {
       console.error('[ContentPromptManager] Test failed:', error);
-      toast.error(`❌ Ошибка: ${error.message}`, { id: 'test-prompt' });
+      toast.error(`❌ Error: ${error.message}`, { id: 'test-prompt' });
     } finally {
       setIsProcessing(false);
     }

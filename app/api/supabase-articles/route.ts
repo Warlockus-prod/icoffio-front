@@ -75,13 +75,26 @@ export async function GET(request: Request) {
     // Transform to frontend format
     const transformedArticles = uniqueArticles.map((article: any) => {
       const slug = isEn ? article.slug_en : article.slug_pl;
-      const content = isEn ? article.content_en : article.content_pl;
+      let content = isEn ? article.content_en : article.content_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
       
-      // ✅ v8.5.3: Use language-specific title
-      const title = isEn 
-        ? (article.title_en || article.title) 
-        : (article.title_pl || article.title);
+      // ✅ v8.7.1: Extract Polish title from tags[0] or first # heading in content_pl
+      let title = article.title; // Default: English title
+      
+      if (!isEn) {
+        // For Polish: try to get from tags[0] first
+        if (article.tags && article.tags.length > 0 && article.tags[0]) {
+          title = article.tags[0];
+        } else if (content) {
+          // Fallback: extract from first # heading in content_pl
+          const headingMatch = content.match(/^#\s+(.+)$/m);
+          if (headingMatch) {
+            title = headingMatch[1];
+            // Remove the heading from content to avoid duplication
+            content = content.replace(/^#\s+.+$/m, '').trim();
+          }
+        }
+      }
 
       return {
         id: article.id.toString(),

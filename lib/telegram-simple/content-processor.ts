@@ -44,11 +44,13 @@ ${text}
 
 CRITICAL REQUIREMENTS:
 - **ALL OUTPUT MUST BE IN ENGLISH** (translate if source is in another language)
+- **REMOVE ALL promotional text**: "stay with us", "google news", "subscribe", "follow us", "share", "like", "источник", "подпишитесь", "будьте с нами", etc.
+- **REMOVE ALL meta information**: author signatures, publication dates, source mentions, editorial notes
 - ${styleInstructions}
 - Target length: 400-600 words
 - Use proper Markdown formatting with ## headings
-- Focus on key points and insights
-${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title'}
+- Focus ONLY on the core information and key points
+${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title based ONLY on article content'}
 
 OUTPUT FORMAT (JSON):
 {

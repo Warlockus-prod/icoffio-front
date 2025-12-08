@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -127,14 +127,18 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
         placeholder: 'Start writing your article content...',
       }),
     ],
-    content: content,
+    content: language === 'en' ? content : plContent,
     onUpdate: ({ editor }) => {
       // Get clean HTML without empty paragraphs
       let html = editor.getHTML();
       // Clean up empty paragraphs that can cause formatting issues
       html = html.replace(/<p><\/p>/g, '').replace(/<p>\s*<\/p>/g, '');
-      // Save HTML directly - language handling done via effects
-      setContent(html);
+      // ✅ v8.6.6: Save to correct language variable
+      if (language === 'en') {
+        setContent(html);
+      } else {
+        setPlContent(html);
+      }
       setHasUnsavedChanges(true);
     },
     editorProps: {
@@ -151,29 +155,37 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
 
   // ===== EFFECTS =====
   
-  // ✅ v8.5.3: Track previous language to save content before switch
+  // ✅ v8.6.6: Refs for content to avoid stale closure issues
+  const contentRef = useRef(content);
+  const plContentRef = useRef(plContent);
+  
+  // Keep refs updated
+  useEffect(() => { contentRef.current = content; }, [content]);
+  useEffect(() => { plContentRef.current = plContent; }, [plContent]);
+  
+  // ✅ v8.6.6: Language switch - save and load correctly
   const [prevLanguage, setPrevLanguage] = useState<'en' | 'pl'>(language);
   
   useEffect(() => {
     if (editor && prevLanguage !== language) {
-      // Save current editor content to the PREVIOUS language
+      // Save current editor content to the PREVIOUS language using refs
       const currentHtml = editor.getHTML();
       if (prevLanguage === 'en') {
         setContent(currentHtml);
+        contentRef.current = currentHtml;
       } else {
         setPlContent(currentHtml);
+        plContentRef.current = currentHtml;
       }
       
-      // Load content for the NEW language
-      const newContent = language === 'en' ? content : plContent;
-      if (newContent) {
-        editor.commands.setContent(newContent);
-      } else {
-        editor.commands.setContent('<p></p>');
-      }
+      // Load content for the NEW language using refs (fresh values)
+      const newContent = language === 'en' ? contentRef.current : plContentRef.current;
+      editor.commands.setContent(newContent || '<p></p>');
       
       // Update previous language tracker
       setPrevLanguage(language);
+      
+      console.log(`🔄 Language switched: ${prevLanguage} → ${language}`);
     }
   }, [language, editor, prevLanguage]);
   

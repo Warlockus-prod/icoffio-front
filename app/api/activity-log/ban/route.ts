@@ -40,12 +40,19 @@ export async function GET(request: NextRequest) {
       .eq('username', username.toLowerCase())
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-      // Table might not exist
-      if (error.code === '42P01') {
-        return NextResponse.json({ success: true, banned: false, warning: 'Table not created' });
+    // Handle various error cases gracefully
+    if (error) {
+      // PGRST116 = no rows found (user not banned)
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ success: true, banned: false });
       }
-      throw error;
+      // 42P01 = table doesn't exist
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return NextResponse.json({ success: true, banned: false, tableExists: false });
+      }
+      // Any other error - assume user is not banned (fail open for UX)
+      console.warn('⚠️ Ban check warning:', error.message);
+      return NextResponse.json({ success: true, banned: false, warning: error.message });
     }
 
     return NextResponse.json({
@@ -56,10 +63,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Ban check error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    // Fail open - don't block users if there's an error
+    return NextResponse.json({ success: true, banned: false, error: 'Check failed' });
   }
 }
 
@@ -149,8 +154,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Ban API error:', error);
+    
+    // Check if table doesn't exist
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Ban system not configured. Run: CREATE TABLE banned_users (username VARCHAR(255) PRIMARY KEY, banned_at TIMESTAMPTZ DEFAULT NOW(), banned_by VARCHAR(255), reason TEXT);',
+        tableExists: false
+      }, { status: 503 });
+    }
+    
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

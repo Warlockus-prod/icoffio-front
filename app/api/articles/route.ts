@@ -656,7 +656,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase not configured');
-    }
+      }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { addRuntimeArticle } = require('@/lib/local-articles');
@@ -713,8 +713,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         contentPl = plResult.contentWithImages;
         console.log(`🖼️ PL: Hero + ${plResult.placements.length} images placed`);
       }
-    }
-    
+      }
+      
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!
     const enSlug = `${baseSlug}-en`;
     const plSlug = `${baseSlug}-pl`;
@@ -764,7 +764,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       url_en: `https://app.icoffio.com/en/article/${enSlug}`,
       url_pl: `https://app.icoffio.com/pl/article/${plSlug}`
     };
-    
+
     // Сохраняем в Supabase
     const { data: savedArticle, error: saveError } = await supabase
       .from('published_articles')

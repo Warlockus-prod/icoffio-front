@@ -604,27 +604,27 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
 
               {/* Category (only for English) */}
               {language === 'en' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    📁 Category
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => { setCategory(cat.id); setHasUnsavedChanges(true); }}
-                        className={`p-3 rounded-xl border-2 transition-all text-center ${
-                          category === cat.id
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400'
-                        }`}
-                      >
-                        <span className="text-xl">{cat.icon}</span>
-                        <div className="text-xs mt-1 font-medium">{cat.label}</div>
-                      </button>
-                    ))}
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  📁 Category
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => { setCategory(cat.id); setHasUnsavedChanges(true); }}
+                      className={`p-3 rounded-xl border-2 transition-all text-center ${
+                        category === cat.id
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      <span className="text-xl">{cat.icon}</span>
+                      <div className="text-xs mt-1 font-medium">{cat.label}</div>
+                    </button>
+                  ))}
                 </div>
+              </div>
               )}
 
               {/* Excerpt */}
@@ -733,8 +733,8 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                 
                 {/* WYSIWYG Editor for current language */}
                 {language === 'en' ? (
-                  <div className="border-2 border-gray-200 dark:border-gray-700 rounded-b-xl bg-white dark:bg-gray-800">
-                    <EditorContent editor={editor} />
+                <div className="border-2 border-gray-200 dark:border-gray-700 rounded-b-xl bg-white dark:bg-gray-800">
+                  <EditorContent editor={editor} />
                   </div>
                 ) : (
                   <textarea
@@ -776,12 +776,12 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                         <div className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${index === 0 ? 'bg-amber-500' : 'bg-blue-500'}`}>
                           {index + 1}
                         </div>
-                        <button
+                    <button
                           onClick={() => setSelectedImages(prev => prev.filter(u => u !== url))}
                           className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                        >
+                    >
                           ✕
-                        </button>
+                    </button>
                         {index === 0 && (
                           <div className="absolute bottom-0 inset-x-0 bg-amber-500 text-white text-[10px] text-center py-0.5 font-medium">
                             HERO
@@ -907,8 +907,8 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                       const isSelected = selectedImages.includes(option.url);
                       const selectionIndex = selectedImages.indexOf(option.url);
                       return (
-                        <button
-                          key={option.id}
+                      <button
+                        key={option.id}
                           onClick={() => {
                             if (isSelected) {
                               setSelectedImages(prev => prev.filter(u => u !== option.url));
@@ -919,24 +919,24 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                               toast.error('Max 5 images!');
                             }
                           }}
-                          className={`group relative rounded-xl overflow-hidden border-2 transition-all ${
+                        className={`group relative rounded-xl overflow-hidden border-2 transition-all ${
                             isSelected ? 'border-green-500 ring-2 ring-green-500/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-500'
-                          }`}
-                        >
+                        }`}
+                      >
                           <img src={option.thumbnail || option.url} alt="Image option" className="w-full h-28 object-cover" />
                           {isSelected && (
                             <div className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${selectionIndex === 0 ? 'bg-amber-500' : 'bg-blue-500'}`}>
                               {selectionIndex + 1}
-                            </div>
+                        </div>
                           )}
                           <div className="absolute top-1 right-1">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                               option.source === 'unsplash' ? 'bg-blue-500 text-white' : option.source === 'ai' ? 'bg-purple-500 text-white' : 'bg-green-500 text-white'
-                            }`}>
-                              {option.source === 'unsplash' ? '📷' : option.source === 'ai' ? '🤖' : '🔗'}
-                            </span>
-                          </div>
-                        </button>
+                          }`}>
+                            {option.source === 'unsplash' ? '📷' : option.source === 'ai' ? '🤖' : '🔗'}
+                          </span>
+                        </div>
+                      </button>
                       );
                     })}
                   </div>

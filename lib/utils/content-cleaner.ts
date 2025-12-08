@@ -1,11 +1,11 @@
 /**
- * 🧹 CONTENT CLEANER v8.6.6
+ * 🧹 CONTENT CLEANER v8.7.2
  * 
  * Clean promotional and junk text from articles
- * Works for multiple languages (EN, PL, RU, DE, ES)
+ * Supports: English (EN) and Polish (PL) only
  */
 
-// Promotional phrases to remove (all languages)
+// Promotional phrases to remove (EN + PL only)
 const PROMOTIONAL_PATTERNS = [
   // English
   /\n*(?:subscribe|follow us|join us|stay tuned|don't miss|get notified|sign up for|be the first|stay updated|stay connected|get the latest|join our community|become a member)[^\n]*$/gim,
@@ -18,16 +18,6 @@ const PROMOTIONAL_PATTERNS = [
   /\n*(?:tags?:|categories?:|filed under|posted in)[^\n]*$/gim,
   /\n*(?:copyright|all rights reserved|©)[^\n]*$/gim,
   
-  // Russian
-  /\n*(?:подписывайтесь|подпишитесь|подпишись|следите за|присоединяйтесь|будьте с нами|оставайтесь с нами)[^\n]*$/gim,
-  /\n*(?:поделитесь|поделиться|отправить|репост|лайк|нравится)[^\n]*$/gim,
-  /\n*(?:читайте также|похожие статьи|вам может понравиться|рекомендуем|смотрите также)[^\n]*$/gim,
-  /\n*(?:рассылка|новостная рассылка|получайте новости)[^\n]*$/gim,
-  /\n*(?:оставьте комментарий|напишите нам|ваше мнение|что думаете)[^\n]*$/gim,
-  /\n*(?:об авторе|автор статьи|написал)[^\n]*$/gim,
-  /\n*(?:теги|категории|рубрики)[^\n]*$/gim,
-  /\n*(?:источник|source)[^\n]*$/gim,
-  
   // Polish
   /\n*(?:subskrybuj|zapisz się|śledź nas|dołącz do nas|bądź na bieżąco|zostań z nami)[^\n]*$/gim,
   /\n*(?:udostępnij|podziel się|polub nas|obserwuj nas)[^\n]*$/gim,
@@ -37,16 +27,6 @@ const PROMOTIONAL_PATTERNS = [
   /\n*(?:o autorze|autor artykułu)[^\n]*$/gim,
   /\n*(?:tagi|kategorie)[^\n]*$/gim,
   /\n*(?:źródło)[^\n]*$/gim,
-  
-  // German
-  /\n*(?:abonnieren|folgen sie uns|bleiben sie dran|verpassen sie nicht)[^\n]*$/gim,
-  /\n*(?:teilen|gefällt mir|folgen auf)[^\n]*$/gim,
-  /\n*(?:ähnliche artikel|das könnte sie interessieren|mehr lesen)[^\n]*$/gim,
-  
-  // Spanish
-  /\n*(?:suscríbete|síguenos|únete|mantente informado)[^\n]*$/gim,
-  /\n*(?:compartir|me gusta|seguir en)[^\n]*$/gim,
-  /\n*(?:artículos relacionados|también te puede gustar|lee más)[^\n]*$/gim,
 ];
 
 // Social media links patterns
@@ -74,8 +54,8 @@ export function cleanArticleContent(content: string): string {
     cleaned = cleaned.replace(pattern, '');
   }
   
-  // 3. Remove "Source: ..." lines at the very end
-  cleaned = cleaned.replace(/\n{1,}(?:Source|Источник|Źródło|Quelle):\s*[^\n]+\s*$/im, '');
+  // 3. Remove "Source: ..." lines at the very end (EN + PL)
+  cleaned = cleaned.replace(/\n{1,}(?:Source|Źródło):\s*[^\n]+\s*$/im, '');
   
   // 4. Remove empty lines at end
   cleaned = cleaned.replace(/\n{2,}$/g, '\n');
@@ -133,14 +113,14 @@ export function generateSEOExcerpt(content: string, maxLength: number = 160): st
 }
 
 /**
- * Clean title from unwanted quotes (conservative)
+ * Clean title from unwanted quotes
  */
 export function cleanTitle(title: string): string {
   if (!title) return '';
   
   return title
-    .replace(/^[«»„"]+/, '') // Leading quotes only
-    .replace(/[«»„"]+$/, '') // Trailing quotes only
+    .replace(/^[«»„"]+/, '') // Leading quotes
+    .replace(/[«»„"]+$/, '') // Trailing quotes
     .trim();
 }
 

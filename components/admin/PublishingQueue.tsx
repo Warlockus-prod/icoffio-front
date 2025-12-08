@@ -267,7 +267,7 @@ export default function PublishingQueue() {
             )}
           </div>, 
           {
-            id: toastId,
+          id: toastId,
             duration: 6000,
           }
         );

@@ -413,44 +413,44 @@ export default function ImageSelectionModal({
         <div className="flex-1 overflow-y-auto p-6">
           {/* Unsplash Tab */}
           {activeTab === 'unsplash' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {unsplashOptions.map((option) => (
-                <ImageCard
-                  key={option.id}
-                  option={option}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {unsplashOptions.map((option) => (
+                  <ImageCard
+                    key={option.id}
+                    option={option}
                   isSelected={selectedIds.has(option.id)}
                   selectionOrder={getSelectionOrder(option.id)}
                   onSelect={() => toggleImageSelection(option.id)}
                   disabled={!selectedIds.has(option.id) && totalSelected >= MAX_IMAGES}
-                />
-              ))}
+                  />
+                ))}
               {unsplashOptions.length === 0 && (
                 <div className="col-span-3 text-center py-12 text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4 block">📷</span>
                   No Unsplash images available
-                </div>
+              </div>
               )}
             </div>
           )}
 
           {/* AI Tab */}
           {activeTab === 'ai' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {aiOptions.map((option) => (
-                <ImageCard
-                  key={option.id}
-                  option={option}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {aiOptions.map((option) => (
+                  <ImageCard
+                    key={option.id}
+                    option={option}
                   isSelected={selectedIds.has(option.id)}
                   selectionOrder={getSelectionOrder(option.id)}
                   onSelect={() => toggleImageSelection(option.id)}
                   disabled={!selectedIds.has(option.id) && totalSelected >= MAX_IMAGES}
-                />
-              ))}
+                  />
+                ))}
               {aiOptions.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4 block">🤖</span>
                   No AI-generated images available
-                </div>
+              </div>
               )}
             </div>
           )}
@@ -536,7 +536,7 @@ export default function ImageSelectionModal({
                             title="Remove"
                           >
                             ✕
-                          </button>
+            </button>
                         </div>
                       </div>
                     );
@@ -718,11 +718,11 @@ export default function ImageSelectionModal({
         {/* Footer */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="flex gap-3">
-            <button
-              onClick={handleRegenerate}
-              disabled={isLoading}
-              className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
+          <button
+            onClick={handleRegenerate}
+            disabled={isLoading}
+            className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
               🔄 New Options
             </button>
             <button
@@ -765,7 +765,7 @@ export default function ImageSelectionModal({
               ) : (
                 <>✓ Применить ({totalSelected})</>
               )}
-            </button>
+          </button>
           </div>
         </div>
       </div>
@@ -809,7 +809,7 @@ function ImageCard({ option, isSelected, selectionOrder, onSelect, disabled }: I
         {isSelected && (
           <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
             <div className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold shadow-lg">
-              ✓ Selected
+            ✓ Selected
             </div>
           </div>
         )}
@@ -820,20 +820,20 @@ function ImageCard({ option, isSelected, selectionOrder, onSelect, disabled }: I
             selectionOrder === 1 ? 'bg-amber-500' : 'bg-blue-500'
           }`}>
             {selectionOrder}
-          </div>
+      </div>
         )}
 
         {/* Source Badge */}
         <div className="absolute top-2 right-2">
           <span className={`px-2 py-1 rounded text-xs font-medium shadow ${
-            option.source === 'unsplash'
+              option.source === 'unsplash'
               ? 'bg-green-500 text-white'
               : 'bg-purple-500 text-white'
           }`}>
             {option.source === 'unsplash' ? '📷' : '🤖'}
           </span>
         </div>
-      </div>
+            </div>
 
       {/* Metadata */}
       <div className="p-3 bg-white dark:bg-gray-800">
@@ -841,7 +841,7 @@ function ImageCard({ option, isSelected, selectionOrder, onSelect, disabled }: I
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
             by {option.author}
           </p>
-        )}
+            )}
         {option.source === 'ai' && option.prompt && (
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
             {option.prompt.substring(0, 50)}...

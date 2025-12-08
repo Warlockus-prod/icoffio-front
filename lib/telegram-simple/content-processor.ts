@@ -35,34 +35,46 @@ export async function processText(
     // Get style-specific instructions
     const styleInstructions = getStyleInstructions(contentStyle);
     
-    // Create prompt
+    // Create prompt - v8.7.2: Comprehensive content adaptation
     const prompt = `
-You are a professional tech article writer. Transform the following text into a well-structured article.
+You are a professional tech journalist creating an ORIGINAL ADAPTED article based on source material.
 
-SOURCE TEXT:
+YOUR TASK: Write a completely rewritten, professional article. NOT a copy, NOT a translation - a NEW article that covers the same topic.
+
+SOURCE MATERIAL (use as reference only):
 ${text}
 
-CRITICAL REQUIREMENTS:
-- **ALL OUTPUT MUST BE IN ENGLISH** (translate if source is in another language)
-- **REMOVE ALL promotional text**: "stay with us", "google news", "subscribe", "follow us", "share", "like", "источник", "подпишитесь", "будьте с нами", etc.
-- **REMOVE ALL meta information**: author signatures, publication dates, source mentions, editorial notes
-- ${styleInstructions}
-- Target length: 400-600 words
-- Use proper Markdown formatting with ## headings
-- Focus ONLY on the core information and key points
-${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title based ONLY on article content'}
+WRITING APPROACH:
+1. **REWRITE COMPLETELY** - Create fresh text in your own words
+2. **EXTRACT KEY FACTS** - What happened? Who? What? When? Why? Impact?
+3. **ADD CONTEXT** - Explain technical terms, provide background
+4. **STRUCTURE LOGICALLY** - Introduction → Key Points → Details → Conclusion
+5. ${styleInstructions}
 
-OUTPUT FORMAT (JSON):
+NEVER INCLUDE (these are website artifacts, not article content):
+- Subscription prompts ("subscribe", "follow us", "stay with us", "join our newsletter")
+- Social media calls ("share", "like", "repost", "follow on Twitter")
+- Source attributions ("Source:", "via:", "Источник:", "by [author name]")
+- Dates and timestamps (unless relevant to the story)
+- Author bios and signatures
+- Related articles suggestions
+- Comments or reactions counts
+- Any text that sounds like website UI, not article content
+
+REQUIREMENTS:
+- **LANGUAGE: ENGLISH ONLY** (translate all content)
+- **LENGTH: 400-600 words** of pure article content
+- **FORMAT: Markdown** with ## headings (2-4 sections)
+- **TONE: Professional tech journalism**
+${userTitle ? `- **TITLE:** Use this as inspiration: "${userTitle}"` : '- **TITLE:** Create engaging headline from the core news'}
+
+OUTPUT (JSON only):
 {
-  "title": "Article title IN ENGLISH",
-  "content": "Full article content in Markdown with ## headings IN ENGLISH",
-  "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH",
-  "category": "One of: ai, tech, gadgets, software, hardware, internet, security"
+  "title": "Compelling headline IN ENGLISH",
+  "content": "Full article in Markdown IN ENGLISH",
+  "excerpt": "1-2 sentence summary, max 160 chars",
+  "category": "ai|tech|gadgets|software|hardware|internet|security"
 }
-
-IMPORTANT: If source text is in Russian, Chinese, or any other language - TRANSLATE EVERYTHING to English!
-
-Return ONLY valid JSON, no other text.
 `.trim();
 
     // Call OpenAI

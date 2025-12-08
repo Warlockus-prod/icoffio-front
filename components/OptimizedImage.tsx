@@ -136,14 +136,14 @@ export function OptimizedImage({
         alt={alt}
         width={width || 800}
         height={height || 450}
-        sizes={sizes}
+              sizes={sizes}
         quality={quality}
         priority={priority}
         className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-        onLoad={handleLoad}
-        onError={handleError}
+            onLoad={handleLoad}
+            onError={handleError}
         unoptimized={isExternal}
-      />
+          />
     </div>
   );
 }

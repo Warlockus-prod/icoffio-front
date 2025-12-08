@@ -89,9 +89,34 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   const { removeJobFromQueue, addActivity, updateArticle } = useAdminStore();
   
   // ===== TIPTAP EDITOR =====
+  // ✅ v8.5.3: Improved editor config to prevent formatting issues
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Improve paragraph handling
+        paragraph: {
+          HTMLAttributes: {
+            class: 'mb-4',
+          },
+        },
+        // Better heading handling
+        heading: {
+          levels: [2, 3, 4],
+          HTMLAttributes: {
+            class: 'font-bold',
+          },
+        },
+        // Preserve hard breaks
+        hardBreak: {
+          keepMarks: true,
+        },
+        // Code block improvements
+        codeBlock: {
+          HTMLAttributes: {
+            class: 'bg-gray-100 dark:bg-gray-800 rounded-lg p-4 my-4',
+          },
+        },
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -104,17 +129,54 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     ],
     content: content,
     onUpdate: ({ editor }) => {
-      setContent(editor.getHTML());
+      // Get clean HTML without empty paragraphs
+      let html = editor.getHTML();
+      // Clean up empty paragraphs that can cause formatting issues
+      html = html.replace(/<p><\/p>/g, '').replace(/<p>\s*<\/p>/g, '');
+      // Save HTML directly - language handling done via effects
+      setContent(html);
       setHasUnsavedChanges(true);
     },
     editorProps: {
       attributes: {
         class: 'prose prose-lg dark:prose-invert max-w-none focus:outline-none min-h-[400px] p-4',
       },
+      // Prevent weird behaviors on delete
+      handleKeyDown: (view, event) => {
+        // Let TipTap handle the delete normally
+        return false;
+      },
     },
   });
 
   // ===== EFFECTS =====
+  
+  // ✅ v8.5.3: Track previous language to save content before switch
+  const [prevLanguage, setPrevLanguage] = useState<'en' | 'pl'>(language);
+  
+  useEffect(() => {
+    if (editor && prevLanguage !== language) {
+      // Save current editor content to the PREVIOUS language
+      const currentHtml = editor.getHTML();
+      if (prevLanguage === 'en') {
+        setContent(currentHtml);
+      } else {
+        setPlContent(currentHtml);
+      }
+      
+      // Load content for the NEW language
+      const newContent = language === 'en' ? content : plContent;
+      if (newContent) {
+        editor.commands.setContent(newContent);
+      } else {
+        editor.commands.setContent('<p></p>');
+      }
+      
+      // Update previous language tracker
+      setPrevLanguage(language);
+    }
+  }, [language, editor, prevLanguage]);
+  
   useEffect(() => {
     // Auto-generate image search query from title
     if (title && !imageSearch) {
@@ -556,23 +618,38 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
               {/* Excerpt */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  📄 {language === 'en' ? 'Excerpt' : 'Opis'} 
-                  <span className={`font-normal ml-2 ${(language === 'en' ? excerpt : plExcerpt).length > 150 ? 'text-orange-500' : 'text-gray-500'}`}>
-                    ({(language === 'en' ? excerpt : plExcerpt).length}/160)
+                  📄 {language === 'en' ? 'Excerpt (SEO Description)' : 'Opis (SEO)'} 
+                  <span className={`font-normal ml-2 ${
+                    (language === 'en' ? excerpt : plExcerpt).length > 160 
+                      ? 'text-red-500' 
+                      : (language === 'en' ? excerpt : plExcerpt).length > 140 
+                        ? 'text-orange-500' 
+                        : 'text-green-500'
+                  }`}>
+                    ({(language === 'en' ? excerpt : plExcerpt).length} chars)
+                    {(language === 'en' ? excerpt : plExcerpt).length > 160 && ' ⚠️ Too long for SEO!'}
                   </span>
                 </label>
                 <textarea
                   value={language === 'en' ? excerpt : plExcerpt}
                   onChange={(e) => {
-                    const val = e.target.value.substring(0, 160);
+                    // No hard limit - allow full text, show warning instead
+                    const val = e.target.value;
                     if (language === 'en') setExcerpt(val);
                     else setPlExcerpt(val);
                     setHasUnsavedChanges(true);
                   }}
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                  placeholder={language === 'en' ? 'Short description for SEO and previews...' : 'Krótki opis do SEO i podglądów...'}
+                  rows={4}
+                  className={`w-full px-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 transition-all resize-none ${
+                    (language === 'en' ? excerpt : plExcerpt).length > 160 
+                      ? 'border-red-300 dark:border-red-700 focus:border-red-500' 
+                      : 'border-gray-200 dark:border-gray-700 focus:border-blue-500'
+                  }`}
+                  placeholder={language === 'en' ? 'Full description for article preview and SEO meta description...' : 'Pełny opis do podglądu artykułu i meta description SEO...'}
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  💡 Ideal: 140-160 characters for optimal SEO. Can be longer for full description.
+                </p>
               </div>
 
               {/* Content Editor */}

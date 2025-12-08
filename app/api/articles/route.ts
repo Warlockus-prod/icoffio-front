@@ -719,10 +719,33 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     const enSlug = `${baseSlug}-en`;
     const plSlug = `${baseSlug}-pl`;
     
+    // ✅ v8.5.3: Очистка контента от мусора (# хеши, source текст)
+    const cleanContent = (content: string): string => {
+      if (!content) return '';
+      return content
+        // Удаляем строки типа "Source: ...", "Источник: ..." в конце
+        .replace(/\n*(?:Source|Источник|Źródło):\s*.*$/gim, '')
+        // Удаляем одиночные # которые не являются заголовками
+        .replace(/(?<!\#)\#(?!\#|\s*\w)/g, '')
+        // Исправляем множественные переносы строк
+        .replace(/\n{4,}/g, '\n\n\n')
+        .trim();
+    };
+    
+    // Очищаем контент
+    contentEn = cleanContent(contentEn);
+    contentPl = cleanContent(contentPl);
+    
+    // ✅ v8.5.3: Получаем польский заголовок
+    const titleEn = article.title;
+    const titlePl = article.translations?.pl?.title || article.title;
+    
     // Подготовка данных для Supabase
     const supabaseData = {
       chat_id: 0, // Admin panel
-      title: article.title,
+      title: titleEn, // English title as main
+      title_en: titleEn,
+      title_pl: titlePl,
       slug_en: enSlug,
       slug_pl: plSlug,
       content_en: contentEn,

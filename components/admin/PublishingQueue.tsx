@@ -81,33 +81,51 @@ export default function PublishingQueue() {
     }
   }, []);
   
+  // ✅ v8.5.3: Track already published in this session to prevent duplicates
+  const [publishedInSession, setPublishedInSession] = useState<Set<string>>(new Set());
+  
   // Check for scheduled publishes every minute
   useEffect(() => {
     const checkScheduled = () => {
       const now = new Date();
-      const due = scheduledPublishes.filter(s => new Date(s.scheduledTime) <= now);
+      const due = scheduledPublishes.filter(s => {
+        const scheduledTime = new Date(s.scheduledTime);
+        // Only publish if time has passed AND article wasn't already published in this session
+        return scheduledTime <= now && !publishedInSession.has(s.articleId);
+      });
       
       if (due.length > 0) {
         due.forEach(scheduled => {
           const article = readyForPublish.find(a => a.id === scheduled.articleId);
           if (article) {
+            // Mark as published in session BEFORE calling publish
+            setPublishedInSession(prev => new Set([...prev, scheduled.articleId]));
             toast.success(`⏰ Publishing scheduled article: ${scheduled.articleTitle}`);
             handlePublishSingle(article);
           }
         });
         
-        // Remove published from schedule
-        const remaining = scheduledPublishes.filter(s => new Date(s.scheduledTime) > now);
+        // Remove all due schedules (regardless of whether article was found)
+        const dueIds = new Set(due.map(s => s.articleId));
+        const remaining = scheduledPublishes.filter(s => !dueIds.has(s.articleId));
         setScheduledPublishes(remaining);
         localStorage.setItem('icoffio_scheduled_publishes', JSON.stringify(remaining));
       }
     };
     
-    const interval = setInterval(checkScheduled, 60000); // Check every minute
-    checkScheduled(); // Initial check
+    // Check every minute, but NOT on initial render to prevent auto-publish on page load
+    const interval = setInterval(checkScheduled, 60000);
     
-    return () => clearInterval(interval);
-  }, [scheduledPublishes, readyForPublish]);
+    // Delayed initial check (3 seconds) to allow user to cancel if needed
+    const initialTimeout = setTimeout(() => {
+      checkScheduled();
+    }, 3000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialTimeout);
+    };
+  }, [scheduledPublishes, readyForPublish, publishedInSession]);
   
   // Handle schedule article
   const handleScheduleArticle = (articleId: string, articleTitle: string) => {

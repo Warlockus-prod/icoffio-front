@@ -66,7 +66,11 @@ export default function ArticlesManager() {
       
       // 1. Статьи из Supabase (published)
       try {
-        const response = await fetch('/api/supabase-articles?action=get-all&limit=100');
+        const response = await fetch('/api/supabase-articles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get-all', limit: 100 })
+        });
         const result = await response.json();
         
         if (result.success && result.articles) {

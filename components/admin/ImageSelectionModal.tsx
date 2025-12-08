@@ -63,31 +63,67 @@ export default function ImageSelectionModal({
   onRegenerate,
   onClose
 }: ImageSelectionModalProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Use ordered array instead of Set to maintain order
+  const [selectedOrder, setSelectedOrder] = useState<string[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [activeTab, setActiveTab] = useState<'unsplash' | 'ai' | 'upload'>('unsplash');
+  const [activeTab, setActiveTab] = useState<'unsplash' | 'ai' | 'upload' | 'selected'>('unsplash');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const totalSelected = selectedIds.size + uploadedImages.length;
+  const totalSelected = selectedOrder.length + uploadedImages.length;
+  
+  // Create a Set for quick lookup
+  const selectedIds = new Set(selectedOrder);
 
   if (!isOpen) return null;
 
   // ✅ Toggle выбора картинки
   const toggleImageSelection = (optionId: string) => {
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(optionId)) {
-        newSet.delete(optionId);
+    setSelectedOrder(prev => {
+      if (prev.includes(optionId)) {
+        // Remove
+        return prev.filter(id => id !== optionId);
       } else {
-        if (totalSelected >= MAX_IMAGES) {
-          toast.error(`❌ Максимум ${MAX_IMAGES} изображений!`);
+        // Add
+        if (prev.length + uploadedImages.length >= MAX_IMAGES) {
+          toast.error(`❌ Maximum ${MAX_IMAGES} images!`);
           return prev;
         }
-        newSet.add(optionId);
+        return [...prev, optionId];
       }
-      return newSet;
+    });
+  };
+  
+  // ✅ Move image up/down in order
+  const moveImage = (optionId: string, direction: 'up' | 'down') => {
+    setSelectedOrder(prev => {
+      const index = prev.indexOf(optionId);
+      if (index === -1) return prev;
+      
+      const newOrder = [...prev];
+      if (direction === 'up' && index > 0) {
+        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+      } else if (direction === 'down' && index < prev.length - 1) {
+        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      }
+      return newOrder;
+    });
+  };
+  
+  // ✅ Move uploaded image up/down
+  const moveUploadedImage = (imageId: string, direction: 'up' | 'down') => {
+    setUploadedImages(prev => {
+      const index = prev.findIndex(img => img.id === imageId);
+      if (index === -1) return prev;
+      
+      const newOrder = [...prev];
+      if (direction === 'up' && index > 0) {
+        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+      } else if (direction === 'down' && index < prev.length - 1) {
+        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      }
+      return newOrder;
     });
   };
 
@@ -172,8 +208,8 @@ export default function ImageSelectionModal({
         };
         
         setUploadedImages(prev => {
-          if (prev.length + selectedIds.size >= MAX_IMAGES) {
-            toast.error(`❌ Достигнут лимит ${MAX_IMAGES} изображений`);
+          if (prev.length + selectedOrder.length >= MAX_IMAGES) {
+            toast.error(`❌ Limit of ${MAX_IMAGES} images reached`);
             return prev;
           }
           return [...prev, newImage];
@@ -198,7 +234,7 @@ export default function ImageSelectionModal({
       
       img.src = preview;
     }
-  }, [totalSelected, selectedIds.size, uploadedImages.length, uploadToBlob]);
+  }, [totalSelected, selectedOrder.length, uploadedImages.length, uploadToBlob]);
 
   // ✅ Drag & Drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -235,19 +271,20 @@ export default function ImageSelectionModal({
   // ✅ Применить выбранные изображения
   const handleApplySelection = async () => {
     if (totalSelected === 0) {
-      toast.error('❌ Выберите хотя бы одно изображение!');
+      toast.error('❌ Select at least one image!');
       return;
     }
     
     setIsLoading(true);
     
     try {
-      onSelect(Array.from(selectedIds), uploadedImages);
-      toast.success(`✅ ${totalSelected} изображений выбрано!`);
+      // Pass ordered array (not Set) to maintain selection order
+      onSelect(selectedOrder, uploadedImages);
+      toast.success(`✅ ${totalSelected} images selected!`);
       setTimeout(() => onClose(), 500);
     } catch (error) {
       console.error('Failed to select images:', error);
-      toast.error('❌ Ошибка при выборе изображений');
+      toast.error('❌ Error selecting images');
     } finally {
       setIsLoading(false);
     }
@@ -277,9 +314,15 @@ export default function ImageSelectionModal({
 
   // Получить номер позиции для выбранного изображения
   const getSelectionOrder = (id: string): number | null => {
-    const allSelectedIds = [...Array.from(selectedIds), ...uploadedImages.map(img => img.id)];
+    const allSelectedIds = [...selectedOrder, ...uploadedImages.map(img => img.id)];
     const index = allSelectedIds.indexOf(id);
     return index >= 0 ? index + 1 : null;
+  };
+  
+  // Get all selected images info for reordering display
+  const getAllSelectedImages = () => {
+    const allOptions = [...unsplashOptions, ...aiOptions];
+    return selectedOrder.map(id => allOptions.find(opt => opt.id === id)).filter(Boolean);
   };
 
   return (
@@ -324,7 +367,7 @@ export default function ImageSelectionModal({
         <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
           <button
             onClick={() => setActiveTab('unsplash')}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'unsplash'
                 ? 'text-green-600 dark:text-green-400 border-b-2 border-green-500 bg-white dark:bg-gray-800'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -334,24 +377,36 @@ export default function ImageSelectionModal({
           </button>
           <button
             onClick={() => setActiveTab('ai')}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'ai'
                 ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500 bg-white dark:bg-gray-800'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            🤖 AI Generated ({aiOptions.length})
+            🤖 AI ({aiOptions.length})
           </button>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'upload'
                 ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500 bg-white dark:bg-gray-800'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            📤 Загрузка ({uploadedImages.length})
+            📤 Upload ({uploadedImages.length})
           </button>
+          {totalSelected > 0 && (
+            <button
+              onClick={() => setActiveTab('selected')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'selected'
+                  ? 'text-amber-600 dark:text-amber-400 border-b-2 border-amber-500 bg-white dark:bg-gray-800'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              ⭐ Selected ({totalSelected})
+            </button>
+          )}
         </div>
 
         {/* Content Area */}
@@ -395,6 +450,160 @@ export default function ImageSelectionModal({
                 <div className="col-span-2 text-center py-12 text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4 block">🤖</span>
                   Нет AI-сгенерированных изображений
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Selected Images Tab - for reordering */}
+          {activeTab === 'selected' && (
+            <div>
+              <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <h4 className="font-semibold text-amber-800 dark:text-amber-300 mb-2">📋 Reorder Selected Images</h4>
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Use ↑/↓ arrows to change order. Image #1 will be the Hero (main) image.
+                </p>
+              </div>
+              
+              {totalSelected === 0 ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <span className="text-4xl mb-4 block">📭</span>
+                  No images selected yet
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Selected from Unsplash/AI */}
+                  {selectedOrder.map((id, index) => {
+                    const option = [...unsplashOptions, ...aiOptions].find(opt => opt.id === id);
+                    if (!option) return null;
+                    
+                    const globalIndex = index;
+                    const isHero = globalIndex === 0 && uploadedImages.length === 0;
+                    
+                    return (
+                      <div 
+                        key={id}
+                        className={`flex items-center gap-4 p-4 rounded-lg border-2 ${
+                          isHero ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                        }`}
+                      >
+                        {/* Order Number */}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                          isHero ? 'bg-amber-500' : 'bg-blue-500'
+                        }`}>
+                          {globalIndex + 1}
+                        </div>
+                        
+                        {/* Thumbnail */}
+                        <img 
+                          src={option.thumbnail || option.url} 
+                          alt="" 
+                          className="w-20 h-14 object-cover rounded-lg"
+                        />
+                        
+                        {/* Info */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              option.source === 'unsplash' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {option.source === 'unsplash' ? '📷 Unsplash' : '🤖 AI'}
+                            </span>
+                            {isHero && <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">⭐ Hero</span>}
+                          </div>
+                          {option.author && <p className="text-xs text-gray-500 mt-1">by {option.author}</p>}
+                        </div>
+                        
+                        {/* Reorder Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => moveImage(id, 'up')}
+                            disabled={index === 0}
+                            className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveImage(id, 'down')}
+                            disabled={index === selectedOrder.length - 1}
+                            className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => toggleImageSelection(id)}
+                            className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 flex items-center justify-center"
+                            title="Remove"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Uploaded Images */}
+                  {uploadedImages.map((img, index) => {
+                    const globalIndex = selectedOrder.length + index;
+                    const isHero = globalIndex === 0;
+                    
+                    return (
+                      <div 
+                        key={img.id}
+                        className={`flex items-center gap-4 p-4 rounded-lg border-2 ${
+                          isHero ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                        }`}
+                      >
+                        {/* Order Number */}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                          isHero ? 'bg-amber-500' : 'bg-blue-500'
+                        }`}>
+                          {globalIndex + 1}
+                        </div>
+                        
+                        {/* Thumbnail */}
+                        <img 
+                          src={img.preview} 
+                          alt="" 
+                          className="w-20 h-14 object-cover rounded-lg"
+                        />
+                        
+                        {/* Info */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">📤 Uploaded</span>
+                            {isHero && <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">⭐ Hero</span>}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{img.file.name} • {(img.size / 1024).toFixed(0)}KB</p>
+                        </div>
+                        
+                        {/* Reorder Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => moveUploadedImage(img.id, 'up')}
+                            disabled={index === 0 && selectedOrder.length === 0}
+                            className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveUploadedImage(img.id, 'down')}
+                            disabled={index === uploadedImages.length - 1}
+                            className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => removeUploadedImage(img.id)}
+                            className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 flex items-center justify-center"
+                            title="Remove"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -455,9 +664,31 @@ export default function ImageSelectionModal({
                         
                         {/* Order Badge */}
                         <div className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg ${
-                          selectedIds.size + index === 0 ? 'bg-amber-500' : 'bg-blue-500'
+                          selectedOrder.length + index === 0 ? 'bg-amber-500' : 'bg-blue-500'
                         }`}>
-                          {selectedIds.size + index + 1}
+                          {selectedOrder.length + index + 1}
+                        </div>
+                        
+                        {/* Reorder Buttons */}
+                        <div className="absolute top-2 right-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {index > 0 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); moveUploadedImage(img.id, 'up'); }}
+                              className="w-6 h-6 bg-white/90 hover:bg-white rounded-full flex items-center justify-center text-gray-700 shadow"
+                              title="Move up"
+                            >
+                              ↑
+                            </button>
+                          )}
+                          {index < uploadedImages.length - 1 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); moveUploadedImage(img.id, 'down'); }}
+                              className="w-6 h-6 bg-white/90 hover:bg-white rounded-full flex items-center justify-center text-gray-700 shadow"
+                              title="Move down"
+                            >
+                              ↓
+                            </button>
+                          )}
                         </div>
                         
                         {/* Remove Button */}

@@ -77,10 +77,15 @@ export async function GET(request: Request) {
       const slug = isEn ? article.slug_en : article.slug_pl;
       const content = isEn ? article.content_en : article.content_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
+      
+      // ✅ v8.5.3: Use language-specific title
+      const title = isEn 
+        ? (article.title_en || article.title) 
+        : (article.title_pl || article.title);
 
       return {
         id: article.id.toString(),
-        title: article.title,
+        title: title,
         slug: slug,
         excerpt: excerpt || '',
         content: content || '',
@@ -124,6 +129,28 @@ export async function POST(request: Request) {
     const { action, slug, language } = body;
 
     const supabase = getSupabaseClient();
+    
+    // ✅ v8.5.3: Get all articles for admin panel
+    if (action === 'get-all') {
+      const limit = body.limit || 100;
+      
+      const { data: articles, error } = await supabase
+        .from('published_articles')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        throw new Error(`Failed to get all articles: ${error.message}`);
+      }
+
+      return NextResponse.json({
+        success: true,
+        articles: articles || [],
+        count: articles?.length || 0
+      });
+    }
 
     if (action === 'get-by-slug') {
       // Get specific article by slug
@@ -144,31 +171,24 @@ export async function POST(request: Request) {
 
       const isEn = language === 'en' || article.slug_en === slug;
       
-      // Extract Polish title from tags[0] or from content_pl first heading
-      let plTitle = article.title; // Fallback to English
-      let plContent = article.content_pl || '';
+      // ✅ v8.5.3: Use stored title_pl first, fallback to content extraction
+      let displayTitle = isEn 
+        ? (article.title_en || article.title) 
+        : (article.title_pl || article.title);
       
-      if (!isEn && article.tags && article.tags.length > 0) {
-        plTitle = article.tags[0]; // Polish title stored in tags
-      } else if (!isEn && article.content_pl) {
-        // Try to extract from first # heading in content_pl
-        const headingMatch = article.content_pl.match(/^#\s+(.+)$/m);
-        if (headingMatch) {
-          plTitle = headingMatch[1];
-        }
-      }
+      let displayContent = isEn ? article.content_en : article.content_pl;
       
-      // Remove first # heading from Polish content (to avoid duplication)
-      if (!isEn && plContent) {
-        plContent = plContent.replace(/^#\s+.+\n\n?/m, '');
+      // Clean content: remove first # heading if exists (avoid duplication with page title)
+      if (displayContent) {
+        displayContent = displayContent.replace(/^#\s+.+\n\n?/m, '');
       }
       
       const transformedArticle = {
         id: article.id.toString(),
-        title: isEn ? article.title : plTitle,
+        title: displayTitle,
         slug: isEn ? article.slug_en : article.slug_pl,
         excerpt: isEn ? article.excerpt_en : article.excerpt_pl,
-        content: isEn ? article.content_en : plContent,
+        content: displayContent || '',
         date: article.created_at,
         image: article.image_url || '',
         category: {
@@ -232,9 +252,14 @@ export async function POST(request: Request) {
 
       const transformedArticles = uniqueArticles.map((article: any) => {
         const isEn = lang === 'en';
+        // ✅ v8.5.3: Use language-specific title
+        const title = isEn 
+          ? (article.title_en || article.title) 
+          : (article.title_pl || article.title);
+          
         return {
           id: article.id.toString(),
-          title: article.title,
+          title: title,
           slug: isEn ? article.slug_en : article.slug_pl,
           excerpt: isEn ? article.excerpt_en : article.excerpt_pl,
           image: article.image_url || '',

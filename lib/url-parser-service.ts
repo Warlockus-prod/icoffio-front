@@ -27,10 +27,10 @@ export interface ParsingOptions {
 
 class UrlParserService {
   private defaultOptions: ParsingOptions = {
-    timeout: 25000, // Increased to 25s
-    maxContentLength: 100000, // Increased to 100KB
+    timeout: 15000, // 15 секунд (увеличено с 10)
+    maxContentLength: 50000, // 50KB текста
     includeImages: true,
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    userAgent: 'Mozilla/5.0 (compatible; IcoffioBot/1.0; +https://icoffio.com)'
   };
 
   /**
@@ -73,28 +73,7 @@ class UrlParserService {
       
     } catch (error) {
       console.error(`❌ URL parsing error ${url}:`, error);
-      
-      // ✅ v8.7.8: Better error details
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorName = error instanceof Error ? error.name : 'Error';
-      
-      console.error('❌ URL parsing error details:', {
-        url,
-        error: errorMessage,
-        errorName,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      
-      // ✅ v8.7.8: More descriptive error message
-      if (errorName === 'AbortError' || errorMessage.includes('timeout')) {
-        throw new Error(`URL parsing timeout: ${url} (site took too long to respond)`);
-      } else if (errorMessage.includes('HTTP 403') || errorMessage.includes('HTTP 404')) {
-        throw new Error(`URL not accessible: ${url} (site blocked access or page not found)`);
-      } else if (errorMessage.includes('fetch') || errorMessage.includes('ENOTFOUND')) {
-        throw new Error(`Network error: ${url} (site unreachable or DNS error)`);
-      } else {
-        throw new Error(`Failed to extract content from ${url}: ${errorMessage}`);
-      }
+      throw new Error(`Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -497,43 +476,21 @@ class UrlParserService {
     const selectors = [
       '[property="og:image"]',
       '[name="twitter:image"]',
-      'link[rel="image_src"]',
       '.featured-image img',
+      'article img',
       '.post-image img',
-      '.entry-image img',
-      'article img[src*="hero"]',
-      'article img[src*="featured"]',
-      '.main-image',
-      'header img',
-      'picture source[srcset]' // Support picture tags
+      '.main-image'
     ];
 
     for (const selector of selectors) {
       const element = $(selector).first();
       if (element.length) {
-        let src = element.attr('content') || element.attr('src') || element.attr('srcset') || element.attr('href');
-        
-        // Handle srcset (take the first URL)
-        if (src && src.includes(',')) {
-          src = src.split(',')[0].trim().split(' ')[0];
-        }
-
+        const src = element.attr('content') || element.attr('src');
         if (src) {
-           // Filter out common small icons/logos
-           if (src.includes('logo') || src.includes('icon') || src.includes('avatar')) continue;
-           
           return this.resolveUrl(src, baseUrl);
         }
       }
     }
-    
-    // Fallback: Find the first large image in article body
-    const firstBodyImg = $('article img').filter((_, el) => {
-        const src = $(el).attr('src');
-        return !!src && !src.includes('logo') && !src.includes('icon');
-    }).first().attr('src');
-
-    if (firstBodyImg) return this.resolveUrl(firstBodyImg, baseUrl);
 
     return undefined;
   }

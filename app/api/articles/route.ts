@@ -817,7 +817,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       slug_en: enSlug,
       slug_pl: plSlug,
       content_en: contentEn,
-      content_pl: contentPl ? `# ${titlePl}\n\n${contentPl}` : contentPl, // ✅ FIX #5: Prepend PL title as H1
+      content_pl: contentPl, // ✅ v8.7.7: NO markdown title - title is in title_pl field
       excerpt_en: excerptEn,
       excerpt_pl: excerptPl,
       image_url: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',

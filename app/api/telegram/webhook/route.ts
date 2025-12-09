@@ -4,14 +4,10 @@
  * https://app.icoffio.com/api/telegram/webhook
  */
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  POST as simplePost,
-  runtime as simpleRuntime,
-  maxDuration as simpleMaxDuration,
-} from '../../telegram-simple/webhook/route';
+import { POST as simplePost } from '../../telegram-simple/webhook/route';
 
-export const runtime = simpleRuntime;
-export const maxDuration = simpleMaxDuration;
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds max
 
 export async function POST(request: NextRequest) {
   return simplePost(request);

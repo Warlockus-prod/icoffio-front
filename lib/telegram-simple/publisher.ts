@@ -14,6 +14,51 @@ import { generateSlug } from '@/lib/utils/slug-generator';
 import { systemLogger } from '@/lib/system-logger';
 
 /**
+ * ✅ v8.7.7: Clean markdown from text but keep image markdown
+ * Removes all markdown syntax except image syntax ![alt](url)
+ */
+function cleanMarkdownKeepingImages(content: string): string {
+  if (!content) return '';
+  
+  // Step 1: Temporarily replace image markdown with placeholders
+  const imagePlaceholders: string[] = [];
+  let placeholderIndex = 0;
+  
+  const contentWithPlaceholders = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match) => {
+    imagePlaceholders.push(match);
+    return `__IMAGE_PLACEHOLDER_${placeholderIndex++}__`;
+  });
+  
+  // Step 2: Remove ALL markdown syntax from text
+  let cleaned = contentWithPlaceholders
+    .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers
+    .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+    .replace(/\*(.+?)\*/g, '$1') // Remove italic
+    .replace(/__(.+?)__/g, '$1') // Remove bold (__) - but keep our placeholders
+    .replace(/_(.+?)_/g, '$1') // Remove italic (_)
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links (but keep text)
+    .replace(/`(.+?)`/g, '$1') // Remove inline code
+    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+    .replace(/^[-*+]\s+/gm, '') // Remove list markers
+    .replace(/^\d+\.\s+/gm, '') // Remove numbered lists
+    .replace(/^>\s+/gm, '') // Remove blockquotes
+    .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
+    .replace(/[ \t]+/g, ' ') // Single space
+    .trim();
+  
+  // Step 3: Restore image markdown (before removing __ placeholders)
+  placeholderIndex = 0;
+  cleaned = cleaned.replace(/__IMAGE_PLACEHOLDER_(\d+)__/g, () => {
+    return imagePlaceholders[placeholderIndex++] || '';
+  });
+  
+  // Step 4: Remove any remaining __ placeholders (shouldn't happen, but safety)
+  cleaned = cleaned.replace(/__IMAGE_PLACEHOLDER_\d+__/g, '');
+  
+  return cleaned;
+}
+
+/**
  * Get Supabase client
  */
 function getSupabase() {
@@ -77,7 +122,7 @@ export async function publishArticle(
 
     // Step 2: Insert images if requested (v8.5.1)
     let finalContentEn = article.content;
-    let finalContentPl = polish.content;
+    let finalContentPl = polish.content; // ✅ v8.7.7: Initialize Polish content
     let heroImage: string | null = null; // ✅ FIX: Extract hero image from generated images
 
     if (imageSettings && imageSettings.imagesCount > 0 && imageSettings.imagesSource !== 'none') {
@@ -103,6 +148,10 @@ export async function publishArticle(
         insertImages(article.content, imageOptions),
         insertImages(polish.content, imageOptions),
       ]);
+
+      // ✅ v8.7.7: Clean markdown from Polish content AFTER images inserted
+      // Keep image markdown (![alt](url)) but remove text markdown
+      finalContentPl = cleanMarkdownKeepingImages(finalContentPl);
 
       // ✅ FIX: Extract first image URL from content as hero image
       const imageUrlMatch = finalContentEn.match(/!\[.*?\]\((https?:\/\/[^\s\)]+)\)/);
@@ -146,9 +195,8 @@ export async function publishArticle(
 
     // Step 3: Prepare article data for BOTH languages
     
-    // Prepend Polish title as H1 to content (frontend will extract it)
-    const contentPlWithTitle = `# ${polish.title}\n\n${finalContentPl}`;
-    
+    // ✅ v8.7.7: NO markdown in content - title is stored separately
+    // Don't prepend title as H1 - it's stored in title_pl field
     const articleData = {
       // Identity
       chat_id: chatId,
@@ -157,19 +205,23 @@ export async function publishArticle(
       // Main title (English - used by EN articles and as fallback)
       title: article.title,
       
+      // ✅ v8.7.7: Store titles separately for both languages
+      title_en: article.title,
+      title_pl: polish.title,
+      
       // English content (with images if requested)
       slug_en: `${slug}-en`,
       content_en: finalContentEn,
       excerpt_en: article.excerpt,
       url_en: `https://app.icoffio.com/en/article/${slug}-en`,
       
-      // Polish content (with title prepended as # heading and images if requested)
+      // Polish content (NO title prepended - title is in title_pl field)
       slug_pl: `${slug}-pl`,
-      content_pl: contentPlWithTitle,
+      content_pl: finalContentPl, // ✅ v8.7.7: Clean content without markdown title
       excerpt_pl: polish.excerpt,
       url_pl: `https://app.icoffio.com/pl/article/${slug}-pl`,
       
-      // Store Polish title in tags for easier retrieval
+      // Store Polish title in tags for backward compatibility
       tags: [polish.title],
       
       // Metadata

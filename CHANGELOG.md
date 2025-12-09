@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.7] - 2025-12-08 - 🔧 Polish Title & Markdown Fixes
+
+**PREVIOUS VERSION:** v8.7.6  
+**NEW VERSION:** v8.7.7  
+**TYPE:** PATCH (critical fixes for Polish content)
+
+### 🇵🇱 POLISH TITLE FIX
+
+**Проблема:** Польский заголовок показывался на английском языке  
+**Исправление:**
+- ✅ Добавлено поле `title_pl` в `publisher.ts` при сохранении в Supabase
+- ✅ Приоритет извлечения: `title_pl` → `tags[0]` → fallback
+- ✅ Убрано добавление заголовка как `# heading` в начало контента
+
+**Файлы:**
+- `lib/telegram-simple/publisher.ts` - добавлено `title_pl` в articleData
+- `app/api/supabase-articles/route.ts` - приоритет `title_pl` при извлечении
+- `app/api/articles/route.ts` - убрано добавление `# ${titlePl}` в content_pl
+
+### 🧹 MARKDOWN REMOVAL FIX
+
+**Проблема:** Markdown синтаксис (`#`, `**`, `*`) оставался в польском контенте  
+**Исправление:**
+- ✅ Создана функция `cleanMarkdownKeepingImages()` - удаляет markdown из текста, сохраняет markdown для изображений
+- ✅ Очистка выполняется ПОСЛЕ вставки изображений
+- ✅ Изображения сохраняются как `![alt](url)` (нужно для отображения)
+
+**Файлы:**
+- `lib/telegram-simple/publisher.ts` - функция `cleanMarkdownKeepingImages()`
+- Вызывается после `insertImages()` для польского контента
+
+### 🐛 BUILD FIX
+
+**Проблема:** Build ошибка - неправильный экспорт runtime  
+**Исправление:**
+- ✅ Исправлен экспорт `runtime` в `app/api/telegram/webhook/route.ts`
+
+**Файлы:**
+- `app/api/telegram/webhook/route.ts` - исправлен экспорт runtime
+
+### 📋 CHANGES SUMMARY
+
+**Modified Files:**
+- `lib/telegram-simple/publisher.ts` - title_pl + markdown cleanup
+- `app/api/supabase-articles/route.ts` - title_pl priority
+- `app/api/articles/route.ts` - removed markdown title prepend
+- `app/api/telegram/webhook/route.ts` - runtime fix
+- `package.json` - version updated to 8.7.7
+
+**Result:**
+- ✅ Польский заголовок теперь правильно на польском языке
+- ✅ Контент без markdown синтаксиса (кроме изображений)
+- ✅ Build успешен
+
+---
+
 ## [8.7.6] - 2025-12-08 - ✅ Content Generation Fixes & Polish Title Limit
 
 **PREVIOUS VERSION:** v8.7.5  

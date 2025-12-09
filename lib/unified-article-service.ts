@@ -437,7 +437,19 @@ class UnifiedArticleService {
         });
       } catch (error) {
         console.error('❌ Critical error extracting content from URL:', error);
-        throw new Error(`Failed to parse URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : '';
+        
+        // ✅ v8.7.8: Better error handling - log full details
+        console.error('❌ URL parsing error details:', {
+          url: input.url,
+          error: errorMessage,
+          stack: errorStack,
+          errorType: error instanceof Error ? error.constructor.name : typeof error
+        });
+        
+        // ✅ v8.7.8: More user-friendly error message
+        throw new Error(`Failed to parse URL ${input.url}: ${errorMessage}`);
       }
     }
     

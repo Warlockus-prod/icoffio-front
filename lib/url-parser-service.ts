@@ -73,7 +73,28 @@ class UrlParserService {
       
     } catch (error) {
       console.error(`❌ URL parsing error ${url}:`, error);
-      throw new Error(`Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // ✅ v8.7.8: Better error details
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorName = error instanceof Error ? error.name : 'Error';
+      
+      console.error('❌ URL parsing error details:', {
+        url,
+        error: errorMessage,
+        errorName,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      // ✅ v8.7.8: More descriptive error message
+      if (errorName === 'AbortError' || errorMessage.includes('timeout')) {
+        throw new Error(`URL parsing timeout: ${url} (site took too long to respond)`);
+      } else if (errorMessage.includes('HTTP 403') || errorMessage.includes('HTTP 404')) {
+        throw new Error(`URL not accessible: ${url} (site blocked access or page not found)`);
+      } else if (errorMessage.includes('fetch') || errorMessage.includes('ENOTFOUND')) {
+        throw new Error(`Network error: ${url} (site unreachable or DNS error)`);
+      } else {
+        throw new Error(`Failed to extract content from ${url}: ${errorMessage}`);
+      }
     }
   }
 

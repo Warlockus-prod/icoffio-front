@@ -2,12 +2,10 @@
  * TELEGRAM SIMPLE - CONTENT PROCESSOR
  * 
  * AI улучшение контента через OpenAI
- * ✅ v8.7.5: Full logging integration
  */
 
 import OpenAI from 'openai';
 import type { ProcessedArticle } from './types';
-import { systemLogger } from '@/lib/system-logger';
 
 // Lazy initialization to avoid build errors
 let openaiInstance: OpenAI | null = null;
@@ -31,13 +29,7 @@ export async function processText(
   userTitle?: string,
   contentStyle: string = 'journalistic'
 ): Promise<ProcessedArticle> {
-  const startTime = Date.now();
-  
-  await systemLogger.info('telegram', 'process_text', 'Starting AI content processing', {
-    textLength: text.length,
-    contentStyle,
-    hasUserTitle: !!userTitle,
-  });
+  console.log(`[TelegramSimple] 🤖 Processing with AI (${text.length} chars, style: ${contentStyle})...`);
 
   try {
     // Get style-specific instructions
@@ -81,26 +73,14 @@ THINK: "If this phrase sounds like website UI or marketing copy rather than jour
 REQUIREMENTS:
 - **LENGTH:** 400-600 words (pure article, no fluff)
 - **LANGUAGE:** English only (translate all foreign text)
-- **FORMAT:** Plain text with NO markdown syntax (NO #, NO **, NO *, NO markdown at all)
-- **STRUCTURE:** Use natural paragraph breaks. Create clear sections with smooth transitions between paragraphs.
-- **STYLE:** ${styleInstructions}
-- **CONTEXT PROCESSING:** Analyze the ENTIRE source material comprehensively. Understand the full context, implications, and relationships between facts. Don't just rewrite sentences - create a cohesive narrative that flows naturally.
+- **FORMAT:** Markdown with 2-4 ## headings
+- **STYLE:** Professional tech journalism
 - **TITLE:** ${userTitle ? `Create engaging version of: "${userTitle}"` : 'Create compelling headline from core facts'}
-
-CRITICAL FORMATTING RULES:
-- ❌ NO markdown headers (# ## ###)
-- ❌ NO markdown bold (**text**)
-- ❌ NO markdown italic (*text*)
-- ❌ NO markdown lists (- or *)
-- ✅ Use plain text paragraphs separated by double line breaks
-- ✅ Use natural language emphasis through word choice, not formatting
-- ✅ Create smooth transitions between ideas
-- ✅ Write in a flowing, narrative style appropriate for ${contentStyle} style
 
 OUTPUT (JSON only, nothing else):
 {
   "title": "Your rewritten headline IN ENGLISH",
-  "content": "Your completely rewritten article IN PLAIN TEXT (NO markdown, NO #, NO **, just paragraphs separated by \\n\\n)",
+  "content": "Your completely rewritten article IN ENGLISH with ## headings",
   "excerpt": "Your 1-2 sentence summary, max 160 chars",
   "category": "ai|tech|gadgets|software|hardware|internet|security"
 }
@@ -113,11 +93,7 @@ OUTPUT (JSON only, nothing else):
       messages: [
         {
           role: 'system',
-          content: `You are a professional tech journalist who REWRITES content in your own words. NEVER copy phrases from source material. Create original, professional articles in ${contentStyle} style. 
-
-CRITICAL: Output content as PLAIN TEXT only - NO markdown syntax (#, **, *, etc.). Use natural paragraph breaks (\\n\\n) to separate sections. Write in a flowing, narrative style that processes the entire context comprehensively.
-
-Output only valid JSON.`,
+          content: 'You are a professional tech journalist who REWRITES content in your own words. NEVER copy phrases from source material. Create original, professional articles. Output only valid JSON.',
         },
         {
           role: 'user',
@@ -130,47 +106,18 @@ Output only valid JSON.`,
     });
 
     const duration = Date.now() - startTime;
-    await systemLogger.info('telegram', 'process_text', 'AI response received', {
-      duration_ms: duration,
-      model: 'gpt-4o-mini',
-    });
+    console.log(`[TelegramSimple] ⚡ AI response received (${duration}ms)`);
 
     // Parse response
     const content = response.choices[0].message.content;
     if (!content) {
-      await systemLogger.error('telegram', 'process_text', 'Empty AI response', {});
       throw new Error('Empty AI response');
     }
 
     const result = JSON.parse(content);
     
-    await systemLogger.debug('telegram', 'process_text', 'AI response parsed', {
-      hasTitle: !!result.title,
-      hasContent: !!result.content,
-      hasExcerpt: !!result.excerpt,
-      hasCategory: !!result.category,
-    });
-    
-    // ✅ v8.7.6: Post-processing cleanup - remove ALL markdown syntax and promotional text
+    // ✅ v8.7.3: Post-processing cleanup for any remaining promotional text
     let cleanedContent = result.content || '';
-    
-    // ✅ v8.7.6: Remove ALL markdown syntax first
-    cleanedContent = cleanedContent
-      .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers (# ## ### #### ##### ######)
-      .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold (**text**)
-      .replace(/\*(.+?)\*/g, '$1') // Remove italic (*text*)
-      .replace(/__(.+?)__/g, '$1') // Remove bold (__text__)
-      .replace(/_(.+?)_/g, '$1') // Remove italic (_text_)
-      .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links [text](url) -> text
-      .replace(/`(.+?)`/g, '$1') // Remove inline code (`code`)
-      .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-      .replace(/^[-*+]\s+/gm, '') // Remove list markers (- * +)
-      .replace(/^\d+\.\s+/gm, '') // Remove numbered list markers (1. 2. 3.)
-      .replace(/^>\s+/gm, '') // Remove blockquote markers (>)
-      .replace(/^\|\s*.+\s*\|/gm, '') // Remove table rows (| col |)
-      .replace(/^---+$/gm, '') // Remove horizontal rules (---)
-      .replace(/<!--[\s\S]*?-->/g, '') // Remove HTML comments
-      .trim();
     
     // Remove common promotional patterns (case-insensitive)
     const promotionalPatterns = [
@@ -188,21 +135,16 @@ Output only valid JSON.`,
       /by \[.*?\]/gi,
       /share this.*?[.!]/gi,
       /like and.*?[.!]/gi,
-      /hello!.*?/gi, // ✅ v8.7.6: Remove casual greetings
-      /if you're interested.*?/gi, // ✅ v8.7.6: Remove casual phrases
-      /you might be wondering.*?/gi, // ✅ v8.7.6: Remove casual phrases
     ];
     
     for (const pattern of promotionalPatterns) {
       cleanedContent = cleanedContent.replace(pattern, '');
     }
     
-    // ✅ v8.7.6: Normalize paragraph breaks and whitespace
+    // Remove excessive whitespace and empty lines
     cleanedContent = cleanedContent
-      .replace(/\n{3,}/g, '\n\n') // Max 2 newlines (paragraph breaks)
+      .replace(/\n{3,}/g, '\n\n') // Max 2 newlines
       .replace(/[ \t]+/g, ' ') // Single space
-      .replace(/\n\s+/g, '\n') // Remove leading spaces on new lines
-      .replace(/\s+\n/g, '\n') // Remove trailing spaces before new lines
       .trim();
 
     // Check if title contains non-English characters (Cyrillic, Chinese, etc.)
@@ -247,29 +189,15 @@ Output only valid JSON.`,
       wordCount: countWords(cleanedContent || text),
     };
 
-    const totalDuration = Date.now() - startTime;
-    await systemLogger.info('telegram', 'process_text', 'Content processing completed', {
-      title: article.title,
-      wordCount: article.wordCount,
-      category: article.category,
-      duration_ms: totalDuration,
-    });
+    console.log(`[TelegramSimple] ✅ Article processed: "${article.title}" (${article.wordCount} words, ${article.category})`);
 
     return article;
 
   } catch (error: any) {
-    const duration = Date.now() - startTime;
-    await systemLogger.error('telegram', 'process_text', 'AI processing failed', {
-      error: error.message,
-      stack: error.stack,
-      duration_ms: duration,
-      textLength: text.length,
-    });
+    console.error('[TelegramSimple] ❌ AI processing error:', error.message);
     
     // Fallback: return original text with basic formatting
-    await systemLogger.warn('telegram', 'process_text', 'Using fallback (original text)', {
-      textLength: text.length,
-    });
+    console.log('[TelegramSimple] 📝 Using fallback (original text)');
     
     return {
       title: userTitle || 'Article from Telegram',
@@ -302,16 +230,16 @@ function countWords(text: string): number {
 }
 
 /**
- * Get style-specific instructions for AI (v8.7.6 - Enhanced)
+ * Get style-specific instructions for AI (v8.5.0)
  */
 function getStyleInstructions(style: string): string {
   const styles: Record<string, string> = {
-    'journalistic': `Write in engaging, professional journalistic style for wide audience. Clear, informative, and accessible. Process the ENTIRE context comprehensively - understand relationships between facts, implications, and broader significance. Create a cohesive narrative that flows naturally from introduction through key points to conclusion. Use smooth transitions between paragraphs.`,
-    'keep_as_is': `Keep the original writing style and tone. Make minimal changes, only fix grammar and formatting. Preserve the author's voice. Process the full context but maintain the original approach.`,
-    'seo_optimized': `Optimize for SEO: use keywords naturally, create descriptive sections, include relevant terms. Focus on search engine visibility. Process the entire context comprehensively and create a well-structured narrative that naturally incorporates SEO elements.`,
-    'academic': `Write in formal, scientific academic style. Use precise terminology, cite concepts properly, maintain scholarly tone. Process the full context analytically - examine relationships, implications, and theoretical frameworks. Create a structured, logical argument.`,
-    'casual': `Write in friendly, conversational casual style. Use simple language, be approachable and engaging. Like talking to a friend. Process the entire context but present it in an accessible, relatable way. Use natural transitions and friendly tone throughout.`,
-    'technical': `Write in detailed, precise technical style. Use accurate terminology, explain technical concepts thoroughly, be comprehensive. Process the entire context deeply - understand technical relationships, specifications, and implications. Create a thorough, well-structured technical narrative.`,
+    'journalistic': 'Write in engaging, professional journalistic style for wide audience. Clear, informative, and accessible.',
+    'keep_as_is': 'Keep the original writing style and tone. Make minimal changes, only fix grammar and formatting. Preserve the author\'s voice.',
+    'seo_optimized': 'Optimize for SEO: use keywords naturally, create descriptive headings, include relevant terms. Focus on search engine visibility.',
+    'academic': 'Write in formal, scientific academic style. Use precise terminology, cite concepts properly, maintain scholarly tone.',
+    'casual': 'Write in friendly, conversational casual style. Use simple language, be approachable and engaging. Like talking to a friend.',
+    'technical': 'Write in detailed, precise technical style. Use accurate terminology, explain technical concepts thoroughly, be comprehensive.',
   };
   
   return styles[style] || styles['journalistic'];

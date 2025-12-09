@@ -37,31 +37,12 @@ const SOCIAL_PATTERNS = [
 ];
 
 /**
- * Clean article content - remove promotional text and markdown syntax
- * ✅ v8.7.6: Enhanced to remove ALL markdown syntax
+ * Clean article content - remove promotional text
  */
 export function cleanArticleContent(content: string): string {
   if (!content) return '';
   
   let cleaned = content;
-  
-  // ✅ v8.7.6: Remove ALL markdown syntax first
-  cleaned = cleaned
-    .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers (# ## ### #### ##### ######)
-    .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold (**text**)
-    .replace(/\*(.+?)\*/g, '$1') // Remove italic (*text*)
-    .replace(/__(.+?)__/g, '$1') // Remove bold (__text__)
-    .replace(/_(.+?)_/g, '$1') // Remove italic (_text_)
-    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links [text](url) -> text
-    .replace(/`(.+?)`/g, '$1') // Remove inline code (`code`)
-    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-    .replace(/^[-*+]\s+/gm, '') // Remove list markers (- * +)
-    .replace(/^\d+\.\s+/gm, '') // Remove numbered list markers (1. 2. 3.)
-    .replace(/^>\s+/gm, '') // Remove blockquote markers (>)
-    .replace(/^\|\s*.+\s*\|/gm, '') // Remove table rows (| col |)
-    .replace(/^---+$/gm, '') // Remove horizontal rules (---)
-    .replace(/<!--[\s\S]*?-->/g, '') // Remove HTML comments
-    .trim();
   
   // 1. Remove promotional phrases (from end of article)
   for (const pattern of PROMOTIONAL_PATTERNS) {
@@ -76,25 +57,13 @@ export function cleanArticleContent(content: string): string {
   // 3. Remove "Source: ..." lines at the very end (EN + PL)
   cleaned = cleaned.replace(/\n{1,}(?:Source|Źródło):\s*[^\n]+\s*$/im, '');
   
-  // ✅ v8.7.6: Remove casual phrases that shouldn't be in professional articles
-  cleaned = cleaned.replace(/^Hello!.*?\n/gi, ''); // Remove "Hello!" at start
-  cleaned = cleaned.replace(/^If you're interested.*?\n/gi, ''); // Remove casual intros
-  cleaned = cleaned.replace(/^You might be wondering.*?\n/gi, ''); // Remove casual questions
-  
   // 4. Remove empty lines at end
   cleaned = cleaned.replace(/\n{2,}$/g, '\n');
   
   // 5. Normalize excessive line breaks (max 2)
   cleaned = cleaned.replace(/\n{4,}/g, '\n\n');
   
-  // ✅ v8.7.6: Normalize whitespace
-  cleaned = cleaned
-    .replace(/[ \t]+/g, ' ') // Single space
-    .replace(/\n\s+/g, '\n') // Remove leading spaces on new lines
-    .replace(/\s+\n/g, '\n') // Remove trailing spaces before new lines
-    .trim();
-  
-  return cleaned;
+  return cleaned.trim();
 }
 
 /**

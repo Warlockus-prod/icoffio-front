@@ -78,7 +78,7 @@ export async function GET(request: Request) {
       let content = isEn ? article.content_en : article.content_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
       
-      // ✅ v8.7.7: Extract Polish title - priority: title_pl > tags[0] > content heading
+      // ✅ v8.7.10: Extract Polish title - priority: title_pl > tags[0] > content heading
       let title = article.title; // Default: English title
       
       if (!isEn) {

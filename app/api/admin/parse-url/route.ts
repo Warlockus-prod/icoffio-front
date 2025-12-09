@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { urlParserService } from '@/lib/url-parser-service';
+import { enhancedUrlParserService } from '@/lib/enhanced-url-parser-service';
 import { systemLogger } from '@/lib/system-logger';
 
 export const runtime = 'nodejs';
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     console.log(`[Parse URL API] Parsing: ${url}`);
     await systemLogger.info('api', 'parse_url', `Starting URL parsing`, { url });
 
-    // Используем URL Parser Service (singleton instance)
-    const result = await urlParserService.extractContent(url);
+    // Используем Enhanced URL Parser Service с поддержкой JavaScript-сайтов
+    const result = await enhancedUrlParserService.extractContent(url);
 
     console.log(`[Parse URL API] Successfully parsed: ${result.title}`);
     

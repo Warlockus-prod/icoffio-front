@@ -1,9 +1,11 @@
 /**
  * 🌐 СЕРВИС ПАРСИНГА URL КОНТЕНТА
  * Извлекает заголовок, контент, изображения и метаданные с веб-страниц
+ * ✅ v8.7.9: Восстановлено логирование после отката
  */
 
 import * as cheerio from 'cheerio';
+import { systemLogger } from './system-logger';
 
 export interface ExtractedContent {
   title: string;
@@ -38,9 +40,15 @@ class UrlParserService {
    */
   async extractContent(url: string, options?: Partial<ParsingOptions>): Promise<ExtractedContent> {
     const opts = { ...this.defaultOptions, ...options };
+    const timer = systemLogger.startTimer('api', 'url_parser', `Parsing URL: ${url.substring(0, 80)}`);
     
     try {
       console.log(`🌐 Парсим URL: ${url}`);
+      await systemLogger.info('api', 'url_parser', 'Starting URL extraction', {
+        url: url.substring(0, 100),
+        timeout: opts.timeout,
+        maxLength: opts.maxContentLength
+      });
       
       // 1. Проверяем валидность URL
       this.validateUrl(url);
@@ -69,11 +77,26 @@ class UrlParserService {
       this.validateExtractedContent(extractedContent, url);
       
       console.log(`✅ Content extracted: ${extractedContent.title}`);
+      
+      await timer.success('URL parsed successfully', {
+        url: url.substring(0, 100),
+        title: extractedContent.title.substring(0, 80),
+        contentLength: extractedContent.content.length,
+        hasImage: !!extractedContent.image
+      });
+      
       return extractedContent;
       
     } catch (error) {
       console.error(`❌ URL parsing error ${url}:`, error);
-      throw new Error(`Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      await timer.error('URL parsing failed', {
+        url: url.substring(0, 100),
+        error: errorMessage
+      }, error instanceof Error ? error.stack : undefined);
+      
+      throw new Error(`Failed to extract content from ${url}: ${errorMessage}`);
     }
   }
 

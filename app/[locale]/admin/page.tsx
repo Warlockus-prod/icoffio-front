@@ -15,6 +15,7 @@ import AdvertisingManager from '@/components/admin/AdvertisingManager';
 import ContentPromptManager from '@/components/admin/ContentPromptManager';
 import ActivityLog from '@/components/admin/ActivityLog';
 import { TelegramSettings } from '@/components/admin/TelegramSettings';
+import SystemLogsViewer from '@/components/admin/SystemLogsViewer';
 
 export default function AdminPage() {
   const { 
@@ -208,7 +209,7 @@ export default function AdminPage() {
       case 'queue':
         return <PublishingQueue />;
       case 'logs':
-        return <LogsViewer />;
+        return <SystemLogsViewer />;
       case 'advertising':
         return <AdvertisingManager />;
       case 'content-prompts':

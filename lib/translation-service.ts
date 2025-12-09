@@ -51,9 +51,9 @@ class TranslationService {
     const languageName = this.getLanguageName(targetLanguage);
     
     const typeInstructions = {
-      title: 'This is an article title. Keep it engaging and SEO-friendly.',
-      excerpt: 'This is an article excerpt/description. Keep it informative and compelling.',
-      body: 'This is article content. Maintain the original structure, formatting, and technical accuracy.'
+      title: 'This is an article title. Keep it engaging and SEO-friendly. CRITICAL: Maximum 160 characters. Shorter is better for SEO.',
+      excerpt: 'This is an article excerpt/description. Keep it informative and compelling. Maximum 160 characters.',
+      body: 'This is article content. Maintain the original structure, formatting, and technical accuracy. Use PLAIN TEXT - NO markdown syntax (#, **, *, etc.). Use natural paragraph breaks instead of markdown headers.'
     };
 
     const instruction = typeInstructions[contentType as keyof typeof typeInstructions] || typeInstructions.body;
@@ -131,6 +131,55 @@ Please provide ONLY the translation, without any additional comments or explanat
       translatedText = translatedText.replace(/^["«»"„"]+|["«»"„"]+$/g, '');
       // Удаляем одинарные кавычки в начале и конце (если они не часть текста)
       translatedText = translatedText.replace(/^['\'`]+|['\'`]+$/g, '');
+
+      // ✅ v8.7.6: Ensure title is max 160 characters
+      if (contentType === 'title' && translatedText.length > 160) {
+        console.log(`[TranslationService] ⚠️ Translated title too long (${translatedText.length} chars), truncating to 160...`);
+        // Try to truncate at sentence boundary
+        const truncated = translatedText.substring(0, 157);
+        const lastPeriod = truncated.lastIndexOf('.');
+        const lastSpace = truncated.lastIndexOf(' ');
+        
+        if (lastPeriod > 120) {
+          translatedText = truncated.substring(0, lastPeriod + 1);
+        } else if (lastSpace > 120) {
+          translatedText = truncated.substring(0, lastSpace) + '...';
+        } else {
+          translatedText = truncated + '...';
+        }
+        
+        console.log(`[TranslationService] ✅ Title truncated: "${translatedText}" (${translatedText.length} chars)`);
+      }
+
+      // ✅ v8.7.6: Clean markdown from body content
+      if (contentType === 'body') {
+        translatedText = translatedText
+          .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers
+          .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+          .replace(/\*(.+?)\*/g, '$1') // Remove italic
+          .replace(/__(.+?)__/g, '$1') // Remove bold (__)
+          .replace(/_(.+?)_/g, '$1') // Remove italic (_)
+          .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links
+          .replace(/`(.+?)`/g, '$1') // Remove inline code
+          .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+          .replace(/^[-*+]\s+/gm, '') // Remove list markers
+          .replace(/^\d+\.\s+/gm, '') // Remove numbered lists
+          .replace(/^>\s+/gm, '') // Remove blockquotes
+          .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
+          .replace(/[ \t]+/g, ' ') // Single space
+          .trim();
+      }
+
+      // ✅ v8.7.6: Ensure excerpt is max 160 characters
+      if (contentType === 'excerpt' && translatedText.length > 160) {
+        const truncated = translatedText.substring(0, 157);
+        const lastPeriod = truncated.lastIndexOf('.');
+        if (lastPeriod > 100) {
+          translatedText = truncated.substring(0, lastPeriod + 1);
+        } else {
+          translatedText = truncated + '...';
+        }
+      }
 
       return {
         translatedText,

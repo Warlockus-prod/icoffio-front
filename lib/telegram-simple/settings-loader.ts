@@ -62,14 +62,37 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
 
     const settings: TelegramSettings = {
       chatId,
-      contentStyle: data.content_style || defaultSettings.contentStyle,
-      imagesCount: data.images_count ?? defaultSettings.imagesCount,
-      imagesSource: data.images_source || defaultSettings.imagesSource,
-      autoPublish: data.auto_publish ?? defaultSettings.autoPublish,
-      interfaceLanguage: data.interface_language || defaultSettings.interfaceLanguage,
+      contentStyle: (data.content_style || defaultSettings.contentStyle) as TelegramSettings['contentStyle'],
+      imagesCount: data.images_count !== null && data.images_count !== undefined 
+        ? Number(data.images_count) 
+        : defaultSettings.imagesCount,
+      imagesSource: (data.images_source || defaultSettings.imagesSource) as TelegramSettings['imagesSource'],
+      autoPublish: data.auto_publish !== null && data.auto_publish !== undefined
+        ? Boolean(data.auto_publish)
+        : defaultSettings.autoPublish,
+      interfaceLanguage: (data.interface_language || defaultSettings.interfaceLanguage) as TelegramSettings['interfaceLanguage'],
     };
 
-    console.log('[SettingsLoader] ✅ Loaded settings:', settings);
+    console.log('[SettingsLoader] ✅ Loaded settings from DB:', {
+      chatId: settings.chatId,
+      contentStyle: settings.contentStyle,
+      imagesCount: settings.imagesCount,
+      imagesSource: settings.imagesSource,
+      autoPublish: settings.autoPublish,
+      interfaceLanguage: settings.interfaceLanguage,
+    });
+    
+    // ✅ FIX: Validate settings values
+    if (settings.imagesCount < 0 || settings.imagesCount > 3) {
+      console.warn(`[SettingsLoader] ⚠️ Invalid imagesCount: ${settings.imagesCount}, using default: 2`);
+      settings.imagesCount = 2;
+    }
+    
+    if (!['unsplash', 'ai', 'none'].includes(settings.imagesSource)) {
+      console.warn(`[SettingsLoader] ⚠️ Invalid imagesSource: ${settings.imagesSource}, using default: unsplash`);
+      settings.imagesSource = 'unsplash';
+    }
+    
     return settings;
 
   } catch (error) {

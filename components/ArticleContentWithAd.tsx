@@ -63,7 +63,7 @@ export function ArticleContentWithAd({
       
       {/* Реклама в середине текста - Desktop */}
       {adsDesktop.map((ad) => (
-        <div key={ad.id} className="hidden lg:block my-8 not-prose">
+        <div key={ad.id} className="hidden md:block my-8 not-prose"> {/* ✅ v8.7.6: md:block вместо lg:block */}
           <UniversalAd 
             placeId={ad.placeId} 
             format={ad.format}
@@ -75,7 +75,7 @@ export function ArticleContentWithAd({
       
       {/* Реклама в середине текста - Mobile */}
       {adsMobile.map((ad) => (
-        <div key={ad.id} className="lg:hidden my-6 not-prose">
+        <div key={ad.id} className="md:hidden my-6 not-prose"> {/* ✅ v8.7.6: md:hidden вместо lg:hidden */}
           <UniversalAd 
             placeId={ad.placeId} 
             format={ad.format}

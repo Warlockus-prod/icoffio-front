@@ -27,10 +27,10 @@ export interface ParsingOptions {
 
 class UrlParserService {
   private defaultOptions: ParsingOptions = {
-    timeout: 15000, // 15 секунд (увеличено с 10)
-    maxContentLength: 50000, // 50KB текста
+    timeout: 25000, // Increased to 25s
+    maxContentLength: 100000, // Increased to 100KB
     includeImages: true,
-    userAgent: 'Mozilla/5.0 (compatible; IcoffioBot/1.0; +https://icoffio.com)'
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   };
 
   /**
@@ -476,21 +476,43 @@ class UrlParserService {
     const selectors = [
       '[property="og:image"]',
       '[name="twitter:image"]',
+      'link[rel="image_src"]',
       '.featured-image img',
-      'article img',
       '.post-image img',
-      '.main-image'
+      '.entry-image img',
+      'article img[src*="hero"]',
+      'article img[src*="featured"]',
+      '.main-image',
+      'header img',
+      'picture source[srcset]' // Support picture tags
     ];
 
     for (const selector of selectors) {
       const element = $(selector).first();
       if (element.length) {
-        const src = element.attr('content') || element.attr('src');
+        let src = element.attr('content') || element.attr('src') || element.attr('srcset') || element.attr('href');
+        
+        // Handle srcset (take the first URL)
+        if (src && src.includes(',')) {
+          src = src.split(',')[0].trim().split(' ')[0];
+        }
+
         if (src) {
+           // Filter out common small icons/logos
+           if (src.includes('logo') || src.includes('icon') || src.includes('avatar')) continue;
+           
           return this.resolveUrl(src, baseUrl);
         }
       }
     }
+    
+    // Fallback: Find the first large image in article body
+    const firstBodyImg = $('article img').filter((_, el) => {
+        const src = $(el).attr('src');
+        return !!src && !src.includes('logo') && !src.includes('icon');
+    }).first().attr('src');
+
+    if (firstBodyImg) return this.resolveUrl(firstBodyImg, baseUrl);
 
     return undefined;
   }

@@ -45,11 +45,16 @@ export default function PublishingQueue() {
   // Получаем готовые к публикации статьи из parsing queue
   const readyForPublish = parsingQueue
     .filter(job => job.status === 'ready' && job.article)
-    .map(job => ({
+    .map(job => {
+      // Safe date handling
+      const startTime = new Date(job.startTime);
+      const parsedAt = !isNaN(startTime.getTime()) ? startTime : new Date();
+      
+      return {
       ...job.article!,
-      id: job.id, // Override с job.id для уникальности
-      parsedAt: new Date(job.startTime),
-      processingTime: 25000, // Примерное время парсинга 25сек
+        id: job.id, // Override with job.id for uniqueness
+        parsedAt,
+        processingTime: 25000, // Approx 25s
       url: job.url,
       extractedMeta: {
         images: 1,
@@ -57,7 +62,8 @@ export default function PublishingQueue() {
         category: job.article!.category || 'tech',
         tags: ['parsed', 'ready']
       }
-    } as ReadyArticle));
+      } as ReadyArticle;
+    });
   
   // Initial loading simulation
   useEffect(() => {
@@ -206,13 +212,25 @@ export default function PublishingQueue() {
     try {
       console.log('🚀 Publishing article:', article.title);
       
+      // ✅ FIX: Ensure Polish title is passed correctly
+      // We check if we have a PL translation and pass its title in tags for the API to pick up
+      const polishTitle = article.translations?.pl?.title;
+      const tags = article.extractedMeta?.tags || [];
+      
+      if (polishTitle) {
+        tags.push(`pl_title:${polishTitle}`);
+      }
+
       const response = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'publish-article',
           articleId: article.id,
-          article: article
+          article: {
+            ...article,
+            tags: tags // Pass modified tags with PL title
+          }
         })
       });
 
@@ -226,14 +244,14 @@ export default function PublishingQueue() {
         const enUrl = result.urls?.en || result.url;
         const plUrl = result.urls?.pl;
         
-        // Добавляем активность (локально)
+          // Add activity (local)
         addActivity({
           type: 'article_published',
-          message: `Added to queue: ${article.title}`,
+          message: `Published: ${article.title}`,
           url: enUrl
         });
         
-        // 📊 Логируем в Activity Log (Supabase)
+        // 📊 Log to Activity Log (Supabase)
         logAdminActivity('publish', {
           entity_type: 'article',
           entity_id: article.id,
@@ -251,10 +269,10 @@ export default function PublishingQueue() {
         console.log('🔗 EN URL:', enUrl);
         console.log('🔗 PL URL:', plUrl);
         
-        // Success toast с ссылкой (EN + PL)
+        // Success toast with links (EN + PL)
         toast.success(
           <div>
-            <div>✅ "{article.title.substring(0, 40)}..." added to queue!</div>
+            <div>✅ "{article.title.substring(0, 40)}..." published!</div>
             {enUrl && (
               <a 
                 href={enUrl} 
@@ -263,6 +281,16 @@ export default function PublishingQueue() {
                 className="text-xs underline mt-1 block text-blue-600 hover:text-blue-800"
               >
                 🔗 Open article (EN)
+              </a>
+            )}
+            {plUrl && (
+              <a 
+                href={plUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs underline mt-1 block text-blue-600 hover:text-blue-800"
+              >
+                🔗 Open article (PL)
               </a>
             )}
           </div>, 

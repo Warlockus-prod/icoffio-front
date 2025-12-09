@@ -205,7 +205,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               adsMobile={adsContentTopMobile}
             />
 
-            {/* Mid-content ads - Mobile ONLY (160x600) */}
+            {/* Mid-content ads - Mobile ONLY (только мобильные устройства, не планшеты) */}
             {adsContentMiddleMobile.map((ad) => (
               <UniversalAd 
                 key={ad.id}
@@ -213,7 +213,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className="lg:hidden"
+                className="md:hidden" // ✅ v8.7.6: md:hidden вместо lg:hidden - только мобильные, не планшеты
               />
             ))}
 
@@ -225,7 +225,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className="lg:block hidden"
+                className="md:block hidden" // ✅ v8.7.6: md:block вместо lg:block - показываем на планшетах и десктопах
               />
             ))}
             
@@ -237,7 +237,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className="lg:hidden"
+                className="md:hidden" // ✅ v8.7.6: md:hidden вместо lg:hidden - только мобильные устройства
               />
             ))}
 
@@ -310,7 +310,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className="lg:block hidden"
+              className="md:block hidden" // ✅ v8.7.6: md:block вместо lg:block
             />
           </div>
         ))}
@@ -323,7 +323,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className="lg:hidden"
+              className="md:hidden" // ✅ v8.7.6: md:hidden вместо lg:hidden - только мобильные
             />
           </div>
         ))}

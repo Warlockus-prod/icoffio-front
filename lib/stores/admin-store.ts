@@ -287,7 +287,7 @@ export const useAdminStore = create<AdminStore>()(
 
         get().addActivity({
           type: 'url_added',
-          message: `URL добавлен в очередь парсинга: ${url}`,
+          message: `URL added to parsing queue: ${url}`,
           url
         });
 
@@ -298,7 +298,7 @@ export const useAdminStore = create<AdminStore>()(
     addTextToQueue: async (title, content, category) => {
       const newJob: ParseJob = {
         id: Date.now().toString(),
-        url: `text:${title.substring(0, 50)}...`, // Псевдо-URL для отображения
+        url: `text:${title.substring(0, 50)}...`, // Pseudo-URL for display
         status: 'pending',
         progress: 0,
         startTime: new Date(),
@@ -310,7 +310,7 @@ export const useAdminStore = create<AdminStore>()(
 
       get().addActivity({
         type: 'url_added',
-        message: `Текстовая статья добавлена в очередь: ${title}`,
+        message: `Text article added to queue: ${title}`,
         url: newJob.url
       });
 
@@ -637,7 +637,7 @@ export const useAdminStore = create<AdminStore>()(
             get().updateJobStatus(jobId, 'ready', 100, article);
             get().addActivity({
               type: 'parsing_completed',
-              message: `Статья успешно обработана: ${stats.title}`,
+              message: `Article successfully processed: ${stats.title}`,
               url
             });
             timer(); // End timer
@@ -651,30 +651,30 @@ export const useAdminStore = create<AdminStore>()(
             get().updateJobStatus(jobId, 'failed', 0);
             get().addActivity({
               type: 'parsing_failed', 
-              message: `Ошибка парсинга URL: ${url}`,
+              message: `URL parsing error: ${url}`,
               url
             });
             timer(); // End timer
           }
         } catch (error) {
-          // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок с подробными сообщениями
+          // ✅ FIX: Enhanced error handling with detailed messages
           console.error('❌ Admin Store: URL parsing failed:', error);
-          let errorMessage = `Ошибка парсинга URL: ${url}`;
+          let errorMessage = `URL parsing error: ${url}`;
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              errorMessage = `Таймаут парсинга URL (60s): ${url}`;
+              errorMessage = `URL parsing timeout (180s): ${url}`;
             } else if (error.message.includes('fetch')) {
-              errorMessage = `Сетевая ошибка при парсинге: ${url}`;
+              errorMessage = `Network error during parsing: ${url}`;
             } else {
-              errorMessage = `Ошибка парсинга: ${error.message}`;
+              errorMessage = `Parsing error: ${error.message}`;
             }
           }
           
-          // Обновляем статус с подробной ошибкой
+          // Update status with detailed error
           get().updateJobStatus(jobId, 'failed', 0);
           
-          // Находим job и сохраняем ошибку
+          // Find job and save error
           set((state) => ({
             parsingQueue: state.parsingQueue.map(job =>
               job.id === jobId

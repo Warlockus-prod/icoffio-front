@@ -12,6 +12,35 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+// ✅ v8.7.6: Lazy loading support
+const useIntersectionObserver = (
+  ref: React.RefObject<HTMLElement>,
+  options: IntersectionObserverInit = {}
+) => {
+  const [isIntersecting, setIsIntersecting] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsIntersecting(entry.isIntersecting);
+    }, {
+      rootMargin: '50px', // Start loading 50px before visible
+      threshold: 0.1,
+      ...options,
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [ref, options]);
+
+  return isIntersecting;
+};
+
 export type AdFormat = 
   // Desktop Inline
   | '728x90'    // Leaderboard
@@ -58,8 +87,21 @@ export function UniversalAd({
   enabled = true 
 }: UniversalAdProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const placeholderRef = useRef<HTMLDivElement>(null);
   const [isAdLoaded, setIsAdLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  
+  // ✅ v8.7.6: Lazy loading - используем placeholder для Intersection Observer
+  const isVisible = useIntersectionObserver(placeholderRef, {
+    rootMargin: '100px', // Начинаем загрузку за 100px до появления
+  });
+
+  useEffect(() => {
+    if (isVisible && !shouldLoad) {
+      setShouldLoad(true);
+    }
+  }, [isVisible, shouldLoad]);
   
   // Если реклама отключена через конфиг, не рендерим
   if (!enabled) {
@@ -68,8 +110,10 @@ export function UniversalAd({
 
   const dimensions = AD_DIMENSIONS[format];
 
-  // Наблюдаем за контейнером чтобы определить загрузилась ли реклама
+  // ✅ v8.7.6: Наблюдаем за контейнером только если нужно загружать (lazy loading)
   useEffect(() => {
+    if (!shouldLoad) return; // Не загружаем пока не видно
+    
     const container = containerRef.current;
     if (!container) return;
 
@@ -106,7 +150,7 @@ export function UniversalAd({
       observer.disconnect();
       clearTimeout(timeout);
     };
-  }, [format, placeId]);
+  }, [format, placeId, shouldLoad]);
 
   // Если ошибка загрузки - не показываем ничего
   if (hasError) {
@@ -156,14 +200,17 @@ export function UniversalAd({
         };
       
       default: // inline (728x90, 970x250)
+        // ✅ v8.7.6: Убираем maxWidth для широких баннеров чтобы не обрезались
+        const isWideBanner = format === '728x90' || format === '970x250';
         return {
           ...baseStyle,
-          width: '100%',
-          maxWidth: dimensions?.width || 'auto',
+          width: isWideBanner ? dimensions?.width || '100%' : '100%',
+          maxWidth: isWideBanner ? 'none' : (dimensions?.width || 'auto'), // Не ограничиваем широкие баннеры
           margin: isAdLoaded ? '20px auto' : '0 auto',
           display: 'block',
           textAlign: 'center',
           maxHeight: isAdLoaded ? 'none' : '0',
+          overflow: 'visible', // ✅ v8.7.6: Убираем обрезание
         };
     }
   };
@@ -176,6 +223,21 @@ export function UniversalAd({
     const loadedClass = isAdLoaded ? 'vox-ad-loaded' : 'vox-ad-loading';
     return `${base} ${typeClass} ${formatClass} ${loadedClass} ${className}`.trim();
   };
+
+  // ✅ v8.7.6: Lazy loading - показываем placeholder пока не видно
+  if (!shouldLoad) {
+    return (
+      <div 
+        ref={placeholderRef}
+        style={{ 
+          minHeight: dimensions?.height || '50px', // Минимальная высота для Intersection Observer
+          width: '100%',
+        }}
+        data-lazy-ad-placeholder={placeId}
+        data-ad-format={format}
+      />
+    );
+  }
 
   return (
     <div 

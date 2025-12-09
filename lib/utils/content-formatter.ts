@@ -24,68 +24,34 @@ export function escapeHtml(text: string): string {
 
 /**
  * Format plain text content to HTML with Markdown-like syntax support
- * 
- * Supported syntax:
- * - ## Header → <h2>Header</h2>
- * - ### Header → <h3>Header</h3>
- * - **bold** → <strong>bold</strong>
- * - *italic* → <em>italic</em>
- * - - item → <li>item</li> (in ul)
- * - 1. item → <li>item</li> (in ol)
- * - > quote → <blockquote>quote</blockquote>
- * - ``` code ``` → <pre><code>code</code></pre>
- * - [text](url) → <a href="url">text</a>
- * - Empty lines → paragraph breaks
+ * Uses 'marked' library for robust parsing
  */
+import { marked } from 'marked';
+
 export function formatContentToHtml(content: string): string {
   if (!content || typeof content !== 'string') {
     return '';
   }
-  
-  return content
-    // Headings
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+
+  try {
+    // Configure marked to handle line breaks correctly
+    marked.setOptions({
+      gfm: true,
+      breaks: true
+    });
+
+    // Parse markdown to HTML
+    // marked can return Promise if async options are used, but by default it's synchronous
+    // We cast to string because we aren't using async highlighting
+    const html = marked.parse(content) as string;
     
-    // Bold and italic
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    
-    // Lists (unordered)
-    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-    
-    // Lists (ordered)
-    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-    
-    // Blockquotes
-    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
-    
-    // Code blocks
-    .replace(/```([^`]+)```/g, '<pre><code>$1</code></pre>')
-    
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    
-    // Wrap consecutive <li> items in <ul>
-    .replace(/(<li>.*?<\/li>\n?)+/g, '<ul>$&</ul>')
-    
-    // Double line breaks to paragraphs
-    .replace(/\n\n+/g, '</p><p>')
-    
-    // Single line breaks within paragraphs
-    .replace(/\n(?!<)/g, '<br/>')
-    
-    // Wrap in paragraph tags
-    .replace(/^(?!<)/, '<p>')
-    .replace(/(?<!>)$/, '</p>')
-    
-    // Clean up empty paragraphs
-    .replace(/<p><\/p>/g, '')
-    .replace(/<p>\s*<\/p>/g, '');
+    return html;
+  } catch (error) {
+    console.error('Error parsing markdown:', error);
+    // Fallback to simple replacement if marked fails
+    return content
+      .replace(/\n/g, '<br/>');
+  }
 }
 
 /**

@@ -141,7 +141,13 @@ export default function ImageSelectionModal({
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
+        const errorMessage = error.error || 'Upload failed';
+        
+        if (errorMessage.includes('BLOB_READ_WRITE_TOKEN')) {
+          throw new Error('Server configuration error: BLOB_READ_WRITE_TOKEN missing');
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const result = await response.json();
@@ -760,10 +766,10 @@ export default function ImageSelectionModal({
               {isLoading ? (
                 <>
                   <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                  Применяем...
+                  Applying...
                 </>
               ) : (
-                <>✓ Применить ({totalSelected})</>
+                <>✓ Apply ({totalSelected})</>
               )}
           </button>
           </div>

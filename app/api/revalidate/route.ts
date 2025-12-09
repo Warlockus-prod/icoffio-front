@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const secretFromBody = body.secret;
     
-    const validTokens = [process.env.REVALIDATE_TOKEN, 'icoffio_revalidate_2025'].filter(Boolean);
+    const validTokens = [process.env.REVALIDATE_TOKEN].filter(Boolean);
     
     if (!validTokens.includes(secret || '') && !validTokens.includes(secretFromBody || '')) {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });

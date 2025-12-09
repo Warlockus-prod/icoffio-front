@@ -48,17 +48,27 @@ ${article.excerpt}
 
 REQUIREMENTS:
 - Translate to natural, professional Polish
-- Keep all Markdown formatting (##, **, lists, etc.)
+- ✅ CRITICAL: Title MUST be maximum 160 characters (for SEO)
+- ✅ CRITICAL: Content should be PLAIN TEXT - NO markdown syntax (#, **, *, etc.)
+- ✅ CRITICAL: Use natural paragraph breaks (\\n\\n) instead of markdown headers
 - Maintain technical terms appropriately
 - Keep the same structure and tone
-- Preserve all links and technical accuracy
+- Preserve technical accuracy
 
 OUTPUT FORMAT (JSON):
 {
-  "title": "Tytuł artykułu po polsku",
-  "content": "Pełna treść artykułu po polsku w Markdown",
-  "excerpt": "Krótkie podsumowanie po polsku (max 200 znaków)"
+  "title": "Tytuł artykułu po polsku (MAX 160 znaków!)",
+  "content": "Pełna treść artykułu po polsku w PLAIN TEXT (NO markdown, NO #, NO **)",
+  "excerpt": "Krótkie podsumowanie po polsku (max 160 znaków)"
 }
+
+CRITICAL FORMATTING RULES:
+- ❌ NO markdown headers (# ## ###)
+- ❌ NO markdown bold (**text**)
+- ❌ NO markdown italic (*text*)
+- ❌ NO markdown lists (- or *)
+- ✅ Use plain text paragraphs separated by double line breaks
+- ✅ Title: MAX 160 characters (shorter is better for SEO)
 
 Return ONLY valid JSON, no other text.
 `.trim();
@@ -69,7 +79,7 @@ Return ONLY valid JSON, no other text.
       messages: [
         {
           role: 'system',
-          content: 'You are a professional Polish translator specializing in technology articles.',
+          content: 'You are a professional Polish translator specializing in technology articles. CRITICAL: Title must be maximum 160 characters. Content must be PLAIN TEXT without markdown syntax (#, **, *, etc.). Use natural paragraph breaks instead of markdown headers.',
         },
         {
           role: 'user',
@@ -91,12 +101,64 @@ Return ONLY valid JSON, no other text.
 
     const result = JSON.parse(content);
 
-    console.log(`[TelegramSimple] ✅ Translated to Polish: "${result.title}"`);
+    // ✅ v8.7.6: Ensure title is max 160 characters
+    let polishTitle = result.title || article.title;
+    if (polishTitle.length > 160) {
+      console.log(`[TelegramSimple] ⚠️ Polish title too long (${polishTitle.length} chars), truncating to 160...`);
+      // Try to truncate at sentence boundary
+      const truncated = polishTitle.substring(0, 157);
+      const lastPeriod = truncated.lastIndexOf('.');
+      const lastSpace = truncated.lastIndexOf(' ');
+      
+      if (lastPeriod > 120) {
+        polishTitle = truncated.substring(0, lastPeriod + 1);
+      } else if (lastSpace > 120) {
+        polishTitle = truncated.substring(0, lastSpace) + '...';
+      } else {
+        polishTitle = truncated + '...';
+      }
+      
+      console.log(`[TelegramSimple] ✅ Title truncated: "${polishTitle}" (${polishTitle.length} chars)`);
+    }
+
+    // ✅ v8.7.6: Clean markdown from content
+    let polishContent = result.content || article.content;
+    
+    // Remove ALL markdown syntax
+    polishContent = polishContent
+      .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers
+      .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+      .replace(/\*(.+?)\*/g, '$1') // Remove italic
+      .replace(/__(.+?)__/g, '$1') // Remove bold (__)
+      .replace(/_(.+?)_/g, '$1') // Remove italic (_)
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links
+      .replace(/`(.+?)`/g, '$1') // Remove inline code
+      .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+      .replace(/^[-*+]\s+/gm, '') // Remove list markers
+      .replace(/^\d+\.\s+/gm, '') // Remove numbered lists
+      .replace(/^>\s+/gm, '') // Remove blockquotes
+      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
+      .replace(/[ \t]+/g, ' ') // Single space
+      .trim();
+
+    // ✅ v8.7.6: Ensure excerpt is max 160 characters
+    let polishExcerpt = result.excerpt || article.excerpt;
+    if (polishExcerpt.length > 160) {
+      const truncated = polishExcerpt.substring(0, 157);
+      const lastPeriod = truncated.lastIndexOf('.');
+      if (lastPeriod > 100) {
+        polishExcerpt = truncated.substring(0, lastPeriod + 1);
+      } else {
+        polishExcerpt = truncated + '...';
+      }
+    }
+
+    console.log(`[TelegramSimple] ✅ Translated to Polish: "${polishTitle}" (${polishTitle.length} chars)`);
 
     return {
-      title: result.title || article.title,
-      content: result.content || article.content,
-      excerpt: result.excerpt || article.excerpt,
+      title: polishTitle,
+      content: polishContent,
+      excerpt: polishExcerpt,
     };
 
   } catch (error: any) {

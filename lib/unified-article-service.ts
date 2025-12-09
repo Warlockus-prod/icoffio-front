@@ -168,13 +168,16 @@ class UnifiedArticleService {
             }
           );
           
-          // Автоматически выбираем первую картинку как временную
+          // Auto-select first Unsplash image as temporary default
           if (imageOptions && imageOptions.unsplash.length > 0) {
             articleData.image = imageOptions.unsplash[0].url;
             console.log('✅ Auto-selected first Unsplash image');
+          } else if (articleData.image) {
+            // ✅ Fix #1: Keep original extracted image if no Unsplash found
+            console.log('ℹ️ Using original extracted image');
           } else {
-            // Fallback если Unsplash не доступен
-          const categoryImages = {
+            // Fallback if Unsplash unavailable and no extracted image
+            const categoryImages = {
               ai: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=630&fit=crop',
               apple: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1200&h=630&fit=crop',
               tech: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=1200&h=630&fit=crop',
@@ -280,14 +283,32 @@ class UnifiedArticleService {
                 })
               ]);
               
+              // ✅ v8.7.6: Ensure Polish title is max 160 characters
+              let finalPlTitle = plTitle.translatedText;
+              if (finalPlTitle.length > 160) {
+                console.log(`⚠️ Polish title too long (${finalPlTitle.length} chars), truncating...`);
+                const truncated = finalPlTitle.substring(0, 157);
+                const lastPeriod = truncated.lastIndexOf('.');
+                const lastSpace = truncated.lastIndexOf(' ');
+                
+                if (lastPeriod > 120) {
+                  finalPlTitle = truncated.substring(0, lastPeriod + 1);
+                } else if (lastSpace > 120) {
+                  finalPlTitle = truncated.substring(0, lastSpace) + '...';
+                } else {
+                  finalPlTitle = truncated + '...';
+                }
+                console.log(`✅ Title truncated: "${finalPlTitle}" (${finalPlTitle.length} chars)`);
+              }
+
               translations.pl = {
-                title: plTitle.translatedText,
+                title: finalPlTitle,
                 content: plContent.translatedText,
                 excerpt: plExcerpt.translatedText,
                 slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl (система требует!)
               };
               console.log('✅ Polish translation completed');
-              console.log(`📊 PL title: "${plTitle.translatedText.substring(0, 80)}..."`);
+              console.log(`📊 PL title: "${finalPlTitle}" (${finalPlTitle.length} chars)`);
             } else {
               translations.pl = {
                 title: articleData.title,

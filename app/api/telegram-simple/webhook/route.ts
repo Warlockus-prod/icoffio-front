@@ -67,8 +67,16 @@ export async function POST(request: NextRequest) {
     if (text.startsWith('/')) {
       const command = text.toLowerCase().split(/\s/)[0]; // Только команда, без параметров
 
+      await systemLogger.info('telegram', 'command', 'Telegram command received', {
+        chatId,
+        command,
+        fullText: text.substring(0, 100),
+      });
+
       if (command === '/start') {
-        await sendTelegramMessage(
+        await systemLogger.info('telegram', 'command_start', 'Processing /start command', { chatId });
+        
+        const sent = await sendTelegramMessage(
           chatId,
           `${t.welcome.title}\n\n` +
           `${t.welcome.description}\n\n` +
@@ -78,11 +86,18 @@ export async function POST(request: NextRequest) {
           `${t.commands.language}\n` +
           `${t.commands.help}`
         );
+        
+        if (!sent) {
+          await systemLogger.error('telegram', 'command_start', 'Failed to send /start response', { chatId });
+        }
+        
         return NextResponse.json({ ok: true });
       }
 
       if (command === '/help') {
-        await sendTelegramMessage(
+        await systemLogger.info('telegram', 'command_help', 'Processing /help command', { chatId });
+        
+        const sent = await sendTelegramMessage(
           chatId,
           `${t.help.title}\n\n` +
           `${t.help.description}\n\n` +
@@ -94,16 +109,32 @@ export async function POST(request: NextRequest) {
           `${t.commands.language}\n` +
           `${t.commands.help}`
         );
+        
+        if (!sent) {
+          await systemLogger.error('telegram', 'command_help', 'Failed to send /help response', { chatId });
+        }
+        
         return NextResponse.json({ ok: true });
       }
 
       if (command === '/settings') {
+        await systemLogger.info('telegram', 'command_settings', 'Processing /settings command', {
+          chatId,
+          currentSettings: {
+            contentStyle: settings.contentStyle,
+            imagesCount: settings.imagesCount,
+            imagesSource: settings.imagesSource,
+            autoPublish: settings.autoPublish,
+            interfaceLanguage: settings.interfaceLanguage,
+          },
+        });
+        
         const styleLabel = t.styles[settings.contentStyle as keyof typeof t.styles] || settings.contentStyle;
         const sourceLabel = settings.imagesSource === 'unsplash' ? 'Unsplash' : 
                            settings.imagesSource === 'ai' ? 'AI' : 
                            t.disabled;
         
-        await sendTelegramMessage(
+        const sent = await sendTelegramMessage(
           chatId,
           `${t.settings.title}\n\n` +
           `${t.settings.currentSettings}\n` +
@@ -113,11 +144,21 @@ export async function POST(request: NextRequest) {
           `${t.settings.language}: ${getLanguageName(settings.interfaceLanguage)}\n\n` +
           `${t.settings.changeInAdmin}`
         );
+        
+        if (!sent) {
+          await systemLogger.error('telegram', 'command_settings', 'Failed to send /settings response', { chatId });
+        }
+        
         return NextResponse.json({ ok: true });
       }
 
       if (command === '/language') {
-        await sendTelegramMessage(
+        await systemLogger.info('telegram', 'command_language', 'Processing /language command', {
+          chatId,
+          currentLanguage: settings.interfaceLanguage,
+        });
+        
+        const sent = await sendTelegramMessage(
           chatId,
           `${t.languageSelection.title}\n\n` +
           `${t.languageSelection.current}: ${getLanguageName(settings.interfaceLanguage)}\n\n` +
@@ -134,10 +175,22 @@ export async function POST(request: NextRequest) {
             },
           }
         );
+        
+        if (!sent) {
+          await systemLogger.error('telegram', 'command_language', 'Failed to send /language response', { chatId });
+        } else {
+          await systemLogger.info('telegram', 'command_language', 'Language selection menu sent', { chatId });
+        }
+        
         return NextResponse.json({ ok: true });
       }
 
       // Unknown command
+      await systemLogger.warn('telegram', 'command_unknown', 'Unknown command received', {
+        chatId,
+        command,
+      });
+      
       await sendTelegramMessage(chatId, `❓ ${t.error.generic}. ${t.commands.help}`);
       return NextResponse.json({ ok: true });
     }
@@ -151,35 +204,86 @@ export async function POST(request: NextRequest) {
       const callbackChatId = callbackQuery.message.chat.id;
       const callbackData = callbackQuery.data;
 
+      await systemLogger.info('telegram', 'callback_query', 'Callback query received', {
+        chatId: callbackChatId,
+        callbackData: callbackData,
+      });
+
       if (callbackData?.startsWith('lang_')) {
         const newLang = callbackData.replace('lang_', '') as BotLanguage;
         
-        // Save to database
+        await systemLogger.info('telegram', 'language_change', 'Changing interface language', {
+          chatId: callbackChatId,
+          oldLanguage: settings.interfaceLanguage,
+          newLanguage: newLang,
+        });
+        
+        // ✅ FIX: Load current settings first (may have been changed in admin panel)
+        const currentSettings = await loadTelegramSettings(callbackChatId);
+        
+        // Save to database with all current settings
         const response = await fetch('https://app.icoffio.com/api/telegram/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...settings,
+            ...currentSettings,
             chatId: callbackChatId,
             interfaceLanguage: newLang,
           }),
         });
 
         if (response.ok) {
+          const responseData = await response.json();
+          
+          await systemLogger.info('telegram', 'language_change', 'Language changed successfully', {
+            chatId: callbackChatId,
+            newLanguage: newLang,
+            settingsSaved: responseData.success,
+          });
+          
           const newT = getTranslations(newLang);
-          await sendTelegramMessage(
+          const successMessage = await sendTelegramMessage(
             callbackChatId,
             `${newT.languageSelection.changed} ${getLanguageName(newLang)}! ✅\n\n` +
             `${newT.commands.help}`
           );
+          
+          if (!successMessage) {
+            await systemLogger.warn('telegram', 'language_change', 'Failed to send confirmation message', {
+              chatId: callbackChatId,
+              newLanguage: newLang,
+            });
+          }
+        } else {
+          const errorText = await response.text();
+          await systemLogger.error('telegram', 'language_change', 'Failed to save language settings', {
+            chatId: callbackChatId,
+            newLanguage: newLang,
+            status: response.status,
+            error: errorText,
+          });
         }
 
         // Answer callback query to remove loading state
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+        try {
+          const answerResponse = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callback_query_id: callbackQuery.id }),
         });
+          
+          if (!answerResponse.ok) {
+            await systemLogger.warn('telegram', 'callback_query', 'Failed to answer callback query', {
+              callbackQueryId: callbackQuery.id,
+              status: answerResponse.status,
+            });
+          }
+        } catch (error: any) {
+          await systemLogger.error('telegram', 'callback_query', 'Error answering callback query', {
+            callbackQueryId: callbackQuery.id,
+            error: error.message,
+          });
+        }
 
         return NextResponse.json({ ok: true });
       }
@@ -204,11 +308,19 @@ export async function POST(request: NextRequest) {
     // ========================================
     
     console.log('[TelegramSimple] ⚙️ Using loaded settings:', {
+      chatId: chatId,
       contentStyle: settings.contentStyle,
       imagesCount: settings.imagesCount,
       imagesSource: settings.imagesSource,
       autoPublish: settings.autoPublish,
+      interfaceLanguage: settings.interfaceLanguage,
     });
+    
+    // ✅ FIX: Validate settings are loaded correctly
+    if (!settings.contentStyle || settings.imagesCount === undefined) {
+      console.error('[TelegramSimple] ⚠️ Settings incomplete! Using defaults...');
+      console.error('[TelegramSimple] Settings object:', JSON.stringify(settings, null, 2));
+    }
 
     // ========================================
     // PROCESS ARTICLE
@@ -230,20 +342,62 @@ export async function POST(request: NextRequest) {
 
     if (isUrl(text)) {
       // URL → Parse → Process
-      console.log('[TelegramSimple] 🔗 Processing URL...');
+      await systemLogger.info('telegram', 'url_parsing', 'Starting URL parsing', {
+        chatId,
+        url: text.substring(0, 100),
+        contentStyle: settings.contentStyle,
+      });
+      
+      const parseTimer = systemLogger.startTimer('telegram', 'url_parsing', 'Parsing URL');
       const parsed = await parseUrl(text);
+      await parseTimer.success('URL parsed successfully', {
+        title: parsed.title,
+        contentLength: parsed.content.length,
+      });
+      
+      await systemLogger.info('telegram', 'content_processing', 'Processing parsed content with AI', {
+        chatId,
+        contentLength: parsed.content.length,
+        contentStyle: settings.contentStyle,
+      });
+      
+      const processTimer = systemLogger.startTimer('telegram', 'content_processing', 'AI content processing');
       article = await processText(parsed.content, parsed.title, settings.contentStyle);
+      await processTimer.success('Content processed successfully', {
+        title: article.title,
+        wordCount: article.wordCount,
+        category: article.category,
+      });
     } else {
       // Text → Process directly
-      console.log('[TelegramSimple] 📝 Processing text...');
+      await systemLogger.info('telegram', 'text_processing', 'Processing text directly', {
+        chatId,
+        textLength: text.length,
+        contentStyle: settings.contentStyle,
+      });
+      
+      const processTimer = systemLogger.startTimer('telegram', 'text_processing', 'AI text processing');
       article = await processText(text, undefined, settings.contentStyle);
+      await processTimer.success('Text processed successfully', {
+        title: article.title,
+        wordCount: article.wordCount,
+        category: article.category,
+      });
     }
 
     // ========================================
     // PUBLISH TO SUPABASE (with autoPublish + images)
     // ========================================
     
-    console.log(`[TelegramSimple] 📤 ${settings.autoPublish ? 'Publishing' : 'Saving as draft'}...`);
+    await systemLogger.info('telegram', 'publishing', 'Starting article publication', {
+      chatId,
+      title: article.title,
+      autoPublish: settings.autoPublish,
+      imagesCount: settings.imagesCount,
+      imagesSource: settings.imagesSource,
+    });
+    
+    const publishTimer = systemLogger.startTimer('telegram', 'publishing', 'Publishing article');
     const result = await publishArticle(
       article, 
       chatId, 
@@ -255,8 +409,19 @@ export async function POST(request: NextRequest) {
     );
 
     if (!result.success) {
+      await publishTimer.error('Publication failed', {
+        error: result.error,
+        title: article.title,
+      });
       throw new Error(result.error || 'Publication failed');
     }
+    
+    await publishTimer.success('Article published successfully', {
+      enUrl: result.en.url,
+      plUrl: result.pl.url,
+      enSlug: result.en.slug,
+      plSlug: result.pl.slug,
+    });
 
     // ========================================
     // SEND SUCCESS NOTIFICATION (DUAL-LANGUAGE)

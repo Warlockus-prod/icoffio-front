@@ -50,17 +50,22 @@ export function isMarkdown(content: string): boolean {
 export function renderContent(content: string): string {
   if (!content) return '';
   
-  // Если контент уже HTML (содержит теги), возвращаем как есть
-  if (content.includes('<p>') || content.includes('<div>') || content.includes('<h1>')) {
+  // If content looks like it has Markdown headers, force parsing even if it has HTML tags
+  if (/^#{1,6}\s/m.test(content)) {
+    return parseMarkdown(content);
+  }
+
+  // If content is already HTML (contains block tags), return as is
+  if (content.includes('<p>') || content.includes('<div>') || content.includes('<h1>') || content.includes('<article>')) {
     return content;
   }
   
-  // Если markdown - парсим
+  // If markdown patterns detected
   if (isMarkdown(content)) {
     return parseMarkdown(content);
   }
   
-  // Обычный текст - оборачиваем в параграфы
+  // Plain text - wrap in paragraphs
   return content.split('\n\n').map(p => `<p>${p}</p>`).join('');
 }
 

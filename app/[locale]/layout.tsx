@@ -224,46 +224,112 @@ export default function LocaleLayout({
               overflow: visible !important;
             }
             
-            /* Desktop широкие баннеры - фиксированные размеры */
+            /* ✅ v8.7.6: Desktop широкие баннеры - фиксированные размеры БЕЗ обрезания */
+            .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] {
+              width: 728px !important;
+              max-width: none !important;
+              overflow: visible !important;
+            }
             .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
             .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
               width: 728px !important;
               height: 90px !important;
               max-width: none !important;
+              overflow: visible !important;
             }
             
+            .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] {
+              width: 970px !important;
+              max-width: none !important;
+              overflow: visible !important;
+            }
             .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
             .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
               width: 970px !important;
               height: 250px !important;
               max-width: none !important;
+              overflow: visible !important;
             }
             
-            /* Sidebar баннеры - фиксированные размеры */
+            /* ✅ v8.7.6: Sidebar баннеры - фиксированные размеры БЕЗ обрезания */
             aside .vox-ad-loaded[data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
               width: 300px !important;
+              max-width: 300px !important;
+              overflow: visible !important;
+            }
+            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] iframe,
+            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] > div {
+              width: 300px !important;
+              height: 250px !important;
+              max-width: 300px !important;
+              overflow: visible !important;
             }
             
             aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
               width: 300px !important;
+              max-width: 300px !important;
+              overflow: visible !important;
+            }
+            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] iframe,
+            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] > div {
+              width: 300px !important;
+              height: 600px !important;
+              max-width: 300px !important;
+              overflow: visible !important;
             }
             
-            /* Mobile форматы */
+            /* ✅ v8.7.6: Mobile форматы - правильные размеры БЕЗ обрезания */
             .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
+              width: 320px !important;
               max-width: 320px !important;
+              overflow: visible !important;
+            }
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] iframe,
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] > div {
+              width: 320px !important;
+              height: 50px !important;
+              max-width: 320px !important;
+              overflow: visible !important;
             }
             
             .vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
+              width: 160px !important;
               max-width: 160px !important;
+              overflow: visible !important;
+            }
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] iframe,
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] > div {
+              width: 160px !important;
+              height: 600px !important;
+              max-width: 160px !important;
+              overflow: visible !important;
             }
             
             .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
+              width: 320px !important;
               max-width: 320px !important;
+              overflow: visible !important;
+            }
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] iframe,
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] > div {
+              width: 320px !important;
+              height: 100px !important;
+              max-width: 320px !important;
+              overflow: visible !important;
             }
             
-            /* Display форматы */
+            /* ✅ v8.7.6: Display форматы - правильные размеры БЕЗ обрезания */
             .vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
+              width: 320px !important;
               max-width: 320px !important;
+              overflow: visible !important;
+            }
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] iframe,
+            .vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] > div {
+              width: 320px !important;
+              height: 480px !important;
+              max-width: 320px !important;
+              overflow: visible !important;
             }
             
             /* Никаких минимальных высот - VOX сам определит размер */
@@ -331,20 +397,24 @@ export default function LocaleLayout({
                       const isArticlePage = window.location.pathname.includes('/article/');
                       
                       if (isArticlePage) {
+                          // ✅ v8.7.6: WinImage (In-Image) - адаптивный формат под изображениями
+                          // Использует правильный PlaceID для создания iframe под картинками
                           window._tx.integrateInImage({
-                              placeId: "63d93bb54d506e95f039e2e3",
-                              fetchSelector: true,
-                              // Исключаем миниатюры в Related Articles и других карточках
+                              placeId: "63d93bb54d506e95f039e2e3", // ✅ Правильный PlaceID для WinImage
+                              fetchSelector: true, // Автоматически находит изображения в статье
+                              // ✅ v8.7.6: Исключаем миниатюры и навигационные изображения
                               excludeSelectors: [
                                   '.group img',           // ArticleCard миниатюры
                                   '[class*="aspect-"] img', // Hero карточки
                                   'nav img',              // Навигация
                                   'header img',           // Хедер
                                   'footer img',           // Футер
-                                  'a[href*="/article/"] img:not(.prose img):not(article > div > img)' // Миниатюры в ссылках
+                                  'a[href*="/article/"] img:not(.prose img):not(article > div > img)', // Миниатюры в ссылках
+                                  '.hero-image img',      // Hero изображения статей
+                                  'aside img'             // Изображения в сайдбаре
                               ].join(', ')
                           });
-                          console.log('VOX: In-Image инициализирована (только для статьи)');
+                          console.log('VOX: WinImage (In-Image) инициализирована с PlaceID 63d93bb54d506e95f039e2e3');
                       } else {
                           console.log('VOX: In-Image пропущена - не страница статьи');
                       }
@@ -368,12 +438,14 @@ export default function LocaleLayout({
                       displayPlacements.forEach(function(placement) {
                           const container = document.querySelector('[data-hyb-ssp-ad-place="' + placement.id + '"]');
                           if (container) {
-                              // ✅ ПРАВИЛЬНАЯ инициализация display баннеров (как было пару дней назад)
+                              // ✅ v8.7.6: Display форматы - используем integrateInImage с setDisplayBlock для контейнеров
+                              // ВАЖНО: Это НЕ WinImage, это Display баннеры в фиксированных контейнерах
                               window._tx.integrateInImage({
                                   placeId: placement.id,
-                                  setDisplayBlock: true
+                                  setDisplayBlock: true, // ✅ Правильный параметр для Display форматов
+                                  selector: '[data-hyb-ssp-ad-place="' + placement.id + '"]' // ✅ Указываем конкретный контейнер
                               });
-                              console.log('VOX: Display format ' + placement.format + ' восстановлен правильно');
+                              console.log('VOX: Display format ' + placement.format + ' (' + placement.id + ') инициализирован');
                               displayCount++;
                           }
                       });

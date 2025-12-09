@@ -12,6 +12,10 @@ import { formatContentToHtml, escapeHtml } from '@/lib/utils/content-formatter';
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 // v8.6.2: Unified slug generator
 import { generateSlug } from '@/lib/utils/slug-generator';
+import { cookies } from 'next/headers';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 // Поддерживаемые действия
 type ActionType = 
@@ -45,18 +49,30 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
     const body = await request.json() as ApiRequest;
     const { action, data } = body;
+    const adminOnlyActions: ActionType[] = ['create-from-url', 'create-from-text', 'publish-article'];
 
     console.log(`📝 API Articles: ${action}`, {
       hasData: !!data,
       timestamp: new Date().toISOString()
     });
 
-    // Проверка авторизации для определенных действий
+    // Авторизация для телеграм-вебхука
     if (['create-from-telegram'].includes(action)) {
       const authResult = await checkAuthentication(request);
       if (!authResult.success) {
         return NextResponse.json(
-          { error: 'Неавторизованный доступ', details: authResult.error },
+          { error: 'Unauthorized access', details: authResult.error },
+          { status: 401 }
+        );
+      }
+    }
+
+    // Авторизация для админских действий (URL/Text/publish)
+    if (adminOnlyActions.includes(action)) {
+      const authResult = await checkAdminAuthentication(request);
+      if (!authResult.success) {
+        return NextResponse.json(
+          { error: 'Unauthorized', details: authResult.error || 'Admin token required' },
           { status: 401 }
         );
       }
@@ -88,7 +104,7 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json(
           { 
-            error: 'Неизвестное действие', 
+            error: 'Unknown action', 
             supportedActions: [
               'create-from-telegram',
               'create-from-url', 
@@ -109,8 +125,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Внутренняя ошибка сервера',
-        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
         details: process.env.NODE_ENV === 'development' ? error : undefined
       },
       { status: 500 }
@@ -216,7 +232,7 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
   try {
     if (!data || !data.title || !data.content) {
       return NextResponse.json(
-        { error: 'Отсутствует заголовок или содержимое статьи' },
+        { error: 'Missing article title or content' },
         { status: 400 }
       );
     }
@@ -274,7 +290,7 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
     } else {
       return NextResponse.json({
         success: false,
-        error: result.errors?.[0] || 'Неизвестная ошибка',
+        error: result.errors?.[0] || 'Unknown error',
         errors: result.errors,
         warnings: result.warnings
       }, { status: 500 });
@@ -295,7 +311,7 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
     
     if (!url) {
       return NextResponse.json(
-        { error: 'URL не указан' },
+        { error: 'URL not specified' },
         { status: 400 }
       );
     }
@@ -320,17 +336,22 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
 
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
-      try {
-        await fetch(`${request.nextUrl.origin}/api/revalidate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            secret: 'icoffio_revalidate_2025',
-            paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
-          })
-        });
-      } catch (revalError) {
-        console.warn('Revalidation failed:', revalError);
+      const revalidateToken = process.env.REVALIDATE_TOKEN;
+      if (revalidateToken) {
+        try {
+          await fetch(`${request.nextUrl.origin}/api/revalidate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              secret: revalidateToken,
+              paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
+            })
+          });
+        } catch (revalError) {
+          console.warn('Revalidation failed:', revalError);
+        }
+      } else {
+        console.warn('Revalidation skipped: REVALIDATE_TOKEN not configured');
       }
 
       // Формат ответа для админ панели
@@ -355,7 +376,7 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
     } else {
       return NextResponse.json({
         success: false,
-        error: result.errors?.[0] || 'Неизвестная ошибка',
+        error: result.errors?.[0] || 'Unknown error',
         errors: result.errors,
         warnings: result.warnings
       }, { status: 500 });
@@ -377,7 +398,7 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
     
     if (!title || !content) {
       return NextResponse.json(
-        { error: 'Отсутствует заголовок или содержимое' },
+        { error: 'Missing title or content' },
         { status: 400 }
       );
     }
@@ -398,17 +419,22 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
 
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
-      try {
-        await fetch(`${request.nextUrl.origin}/api/revalidate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            secret: 'icoffio_revalidate_2025',
-            paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
-          })
-        });
-      } catch (revalError) {
-        console.warn('Revalidation failed:', revalError);
+      const revalidateToken = process.env.REVALIDATE_TOKEN;
+      if (revalidateToken) {
+        try {
+          await fetch(`${request.nextUrl.origin}/api/revalidate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              secret: revalidateToken,
+              paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
+            })
+          });
+        } catch (revalError) {
+          console.warn('Revalidation failed:', revalError);
+        }
+      } else {
+        console.warn('Revalidation skipped: REVALIDATE_TOKEN not configured');
       }
 
       // Формат ответа для админ панели
@@ -431,7 +457,7 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
     } else {
       return NextResponse.json({
         success: false,
-        error: result.errors?.[0] || 'Неизвестная ошибка',
+        error: result.errors?.[0] || 'Unknown error',
         errors: result.errors,
         warnings: result.warnings
       }, { status: 500 });
@@ -581,6 +607,51 @@ async function checkAuthentication(request: NextRequest): Promise<{success: bool
 }
 
 /**
+ * Проверка админской аутентификации для защищённых действий
+ */
+async function checkAdminAuthentication(request: NextRequest): Promise<{success: boolean; error?: string}> {
+  const headerAuth = request.headers.get('Authorization');
+  const bearerToken = headerAuth?.startsWith('Bearer ') ? headerAuth.replace('Bearer ', '') : undefined;
+  const cookieToken = cookies().get('admin_token')?.value;
+  const token = bearerToken || cookieToken;
+
+  if (!token) {
+    return { success: false, error: 'Missing admin token' };
+  }
+
+  if (!validateAdminToken(token)) {
+    return { success: false, error: 'Invalid or expired admin token' };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Валидация токена администратора
+ * 1) Если задан ADMIN_API_TOKEN — используем точное совпадение
+ * 2) Иначе принимаем токен формата icoffio_<ts>_* и проверяем срок 24ч
+ */
+function validateAdminToken(token: string): boolean {
+  if (!token) return false;
+
+  if (process.env.ADMIN_API_TOKEN) {
+    return token === process.env.ADMIN_API_TOKEN;
+  }
+
+  if (!token.startsWith('icoffio_')) return false;
+
+  const parts = token.split('_');
+  if (parts.length < 2) return false;
+
+  const timestamp = parseInt(parts[1], 36);
+  if (Number.isNaN(timestamp)) return false;
+
+  const now = Date.now();
+  const expirationMs = 24 * 60 * 60 * 1000;
+  return (now - timestamp) < expirationMs;
+}
+
+/**
  * Форматирование статей для админ панели
  */
 function formatPostsForAdmin(article: any): Record<string, any> {
@@ -643,7 +714,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
 
     if (!article) {
       return NextResponse.json(
-        { error: 'Статья не предоставлена' },
+        { error: 'Article not provided' },
         { status: 400 }
       );
     }
@@ -730,6 +801,13 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       ? article.translations.pl.excerpt
       : generateSEOExcerpt(contentPl, 160);
     
+    // ✅ FIX #5: Store Polish title in tags[0] for easy retrieval
+    const tags = Array.isArray(article.tags) ? [...article.tags] : ['ai-processed', 'imported'];
+    if (titlePl && titlePl !== titleEn) {
+      // Store Polish title as first tag (supabase-articles will extract it)
+      tags.unshift(titlePl);
+    }
+    
     // Подготовка данных для Supabase
     const supabaseData = {
       chat_id: 0, // Admin panel
@@ -739,13 +817,13 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       slug_en: enSlug,
       slug_pl: plSlug,
       content_en: contentEn,
-      content_pl: contentPl,
+      content_pl: contentPl ? `# ${titlePl}\n\n${contentPl}` : contentPl, // ✅ FIX #5: Prepend PL title as H1
       excerpt_en: excerptEn,
       excerpt_pl: excerptPl,
       image_url: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
       category: article.category || 'tech',
       author: article.author || 'AI Editorial Team',
-      tags: Array.isArray(article.tags) ? article.tags : ['ai-processed', 'imported'],
+      tags: tags, // ✅ FIX #5: Polish title in tags[0]
       word_count: Math.round((article.content?.split(/\s+/).length || 0)),
       languages: article.translations?.pl ? ['en', 'pl'] : ['en'],
       source: 'admin-panel',
@@ -805,35 +883,40 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       console.log(`✅ Added PL to runtime: /pl/article/${plPost.slug}`);
     }
 
-    // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (если доступен)
+    // 2. ОПЦИОНАЛЬНО: Публикация в WordPress (отключена по умолчанию)
+    const wordpressEnabled = process.env.ENABLE_WORDPRESS_PUBLISH === 'true';
     let wordpressPublished = false;
-    try {
-      const publicationResult = await wordpressService.publishMultilingualArticle(
-        {
-          id: article.id || `article-${Date.now()}`,
-          title: article.title,
-          content: article.content,
-          excerpt: article.excerpt,
-          slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
-          category: article.category || 'technology',
-          tags: ['imported', 'ai-processed'],
-          author: article.author || 'Admin',
-          language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
-          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
-          publishedAt
-        },
-        article.translations
-      );
-      
-      wordpressPublished = publicationResult.success;
-      
-      if (publicationResult.success) {
-        console.log('✅ Also published to WordPress');
-      } else {
-        console.warn('⚠️ WordPress publication failed, but article is available locally');
+    if (wordpressEnabled) {
+      try {
+        const publicationResult = await wordpressService.publishMultilingualArticle(
+          {
+            id: article.id || `article-${Date.now()}`,
+            title: article.title,
+            content: article.content,
+            excerpt: article.excerpt,
+            slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
+            category: article.category || 'technology',
+            tags: ['imported', 'ai-processed'],
+            author: article.author || 'Admin',
+            language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
+            image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+            publishedAt
+          },
+          article.translations
+        );
+        
+        wordpressPublished = publicationResult.success;
+        
+        if (publicationResult.success) {
+          console.log('✅ Also published to WordPress');
+        } else {
+          console.warn('⚠️ WordPress publication failed, but article is available locally');
+        }
+      } catch (wpError) {
+        console.warn('⚠️ WordPress unavailable, article published locally only');
       }
-    } catch (wpError) {
-      console.warn('⚠️ WordPress unavailable, article published locally only');
+    } else {
+      console.log('ℹ️ WordPress publication skipped (ENABLE_WORDPRESS_PUBLISH is not true)');
     }
 
     // 3. Возвращаем успешный результат (статья доступна локально)
@@ -854,7 +937,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     
     return NextResponse.json(
       { 
-        error: 'Ошибка публикации статьи',
+        error: 'Article publication failed',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

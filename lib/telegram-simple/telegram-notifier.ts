@@ -2,7 +2,10 @@
  * TELEGRAM SIMPLE - NOTIFIER
  * 
  * Отправка сообщений в Telegram
+ * ✅ v8.7.5: Full logging integration
  */
+
+import { systemLogger } from '@/lib/system-logger';
 
 /**
  * Send message to Telegram chat
@@ -16,12 +19,23 @@ export async function sendTelegramMessage(
     reply_markup?: any; // Telegram inline keyboard markup
   }
 ): Promise<boolean> {
+  const startTime = Date.now();
+  
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
-      console.error('[TelegramSimple] TELEGRAM_BOT_TOKEN not configured');
+      await systemLogger.error('telegram', 'send_message', 'TELEGRAM_BOT_TOKEN not configured', {
+        chatId,
+        messageLength: text.length,
+      });
       return false;
     }
+
+    await systemLogger.debug('telegram', 'send_message', 'Sending Telegram message', {
+      chatId,
+      messageLength: text.length,
+      hasReplyMarkup: !!options?.reply_markup,
+    });
 
     const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
@@ -35,17 +49,39 @@ export async function sendTelegramMessage(
       }),
     });
 
+    const duration = Date.now() - startTime;
+
     if (!response.ok) {
       const error = await response.text();
-      console.error('[TelegramSimple] Failed to send message:', error);
+      await systemLogger.error('telegram', 'send_message', 'Failed to send Telegram message', {
+        chatId,
+        status: response.status,
+        statusText: response.statusText,
+        error: error.substring(0, 200),
+        duration_ms: duration,
+      });
       return false;
     }
 
-    console.log(`[TelegramSimple] ✅ Message sent to chat ${chatId}`);
+    const responseData = await response.json();
+    
+    await systemLogger.info('telegram', 'send_message', 'Telegram message sent successfully', {
+      chatId,
+      messageId: responseData.result?.message_id,
+      duration_ms: duration,
+      messageLength: text.length,
+    });
+
     return true;
 
-  } catch (error) {
-    console.error('[TelegramSimple] Error sending message:', error);
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    await systemLogger.error('telegram', 'send_message', 'Exception sending Telegram message', {
+      chatId,
+      error: error.message,
+      stack: error.stack,
+      duration_ms: duration,
+    });
     return false;
   }
 }

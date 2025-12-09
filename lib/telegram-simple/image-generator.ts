@@ -37,14 +37,21 @@ export async function insertImages(
     const imageUrls = await generateImages(imagesCount, imagesSource, title, excerpt, category);
 
     if (imageUrls.length === 0) {
-      console.warn('[TelegramImages] No images generated, returning original content');
+      console.warn(`[TelegramImages] ⚠️ No images generated (requested ${imagesCount} from ${imagesSource}), returning original content`);
+      console.warn('[TelegramImages] This may indicate API configuration issue or rate limiting');
       return content;
     }
 
-    console.log(`[TelegramImages] ✅ Generated ${imageUrls.length} images`);
+    console.log(`[TelegramImages] ✅ Generated ${imageUrls.length}/${imagesCount} images successfully`);
 
     // Insert images into content
-    return insertImagesIntoContent(content, imageUrls, title);
+    const contentWithImages = insertImagesIntoContent(content, imageUrls, title);
+    
+    if (contentWithImages === content) {
+      console.warn('[TelegramImages] ⚠️ Content unchanged after image insertion');
+    }
+    
+    return contentWithImages;
 
   } catch (error) {
     console.error('[TelegramImages] Error generating images:', error);
@@ -64,6 +71,11 @@ async function generateImages(
 ): Promise<string[]> {
   console.log(`[TelegramImages] Generating ${count} images from ${source}...`);
 
+  // ✅ FIX: Map Telegram settings source to API source
+  // Telegram uses: 'unsplash' | 'ai' | 'none'
+  // API expects: 'unsplash' | 'dalle' | 'custom'
+  const apiSource = source === 'ai' ? 'dalle' : source;
+
   // Create N parallel requests
   const requests = Array.from({ length: count }, (_, index) => {
     // Vary the prompt slightly for each image to get different results
@@ -75,7 +87,7 @@ async function generateImages(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        source: source,
+        source: apiSource, // ✅ FIX: Use mapped source ('dalle' instead of 'ai')
         title: prompt,
         excerpt: excerpt || title,
         category: category
@@ -93,15 +105,30 @@ async function generateImages(
     if (response.ok) {
       const data = await response.json();
       console.log(`[TelegramImages] Image ${i + 1} response:`, {
+        success: data.success,
         url: data.url?.substring(0, 50) + '...',
         source: data.source,
-        cached: data.cached,
+        error: data.error,
       });
-      if (data.url && data.url.length > 0) {
+      
+      // ✅ FIX: Check both success flag and url presence
+      if (data.success && data.url && data.url.length > 0) {
         imageUrls.push(data.url);
+        console.log(`[TelegramImages] ✅ Image ${i + 1} added: ${data.url.substring(0, 60)}...`);
+      } else {
+        console.error(`[TelegramImages] ❌ Image ${i + 1} failed:`, {
+          success: data.success,
+          error: data.error,
+          hasUrl: !!data.url,
+        });
       }
     } else {
-      console.error(`[TelegramImages] Image ${i + 1} failed:`, response.status, response.statusText);
+      const errorText = await response.text();
+      console.error(`[TelegramImages] ❌ Image ${i + 1} HTTP error:`, {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText.substring(0, 200),
+      });
     }
   }
 

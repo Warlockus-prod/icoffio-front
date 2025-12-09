@@ -933,15 +933,15 @@ curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
 
 ```bash
 # Public (доступен на клиенте)
-NEXT_PUBLIC_SUPABASE_URL=https://dlellopouivlmbrmjhoz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZWxsb3BvdWl2bG1icm1qaG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NDgxNTgsImV4cCI6MjA3NzIyNDE1OH0.kkWeZcXIzzVV0gUXkpIw2zhKplw4yKlIfT9xFmRrMJA
+NEXT_PUBLIC_SUPABASE_URL=<your_supabase_url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your_supabase_anon_key>
 
 # Server-only (только для API routes)
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZWxsb3BvdWl2bG1icm1qaG96Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY0ODE1OCwiZXhwIjoyMDc3MjI0MTU4fQ.PhxN0VQzOoHvOu0Io4odUi-wLcXT2clYO6oZH67P738
+SUPABASE_SERVICE_ROLE_KEY=<your_supabase_service_role_key>
 
 # Альтернативные имена (для совместимости)
-SUPABASE_URL=https://dlellopouivlmbrmjhoz.supabase.co
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZWxsb3BvdWl2bG1icm1qaG96Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY0ODE1OCwiZXhwIjoyMDc3MjI0MTU4fQ.PhxN0VQzOoHvOu0Io4odUi-wLcXT2clYO6oZH67P738
+SUPABASE_URL=<your_supabase_url>
+SUPABASE_SERVICE_KEY=<your_supabase_service_role_key>
 ```
 
 ### OpenAI (AI Generation):

@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.6] - 2025-12-08 - ✅ Content Generation Fixes & Polish Title Limit
+
+**PREVIOUS VERSION:** v8.7.5  
+**NEW VERSION:** v8.7.6  
+**TYPE:** PATCH (content fixes, SEO improvements)
+
+### 🎯 CONTENT GENERATION FIXES
+
+**Проблема:** AI генерировал контент с markdown синтаксисом (`###`, `**`, `*`) и случайными фразами  
+**Исправление:**
+- ✅ Промпт требует plain text без markdown
+- ✅ Очистка всех markdown элементов после генерации
+- ✅ Удаление случайных фраз ("Hello!", "If you're interested")
+- ✅ Комплексная обработка контекста в выбранном стиле
+
+**Файлы:**
+- `lib/telegram-simple/content-processor.ts` - улучшенный промпт и очистка
+- `lib/utils/content-cleaner.ts` - расширенная очистка markdown
+
+### 🇵🇱 POLISH TITLE SEO FIX
+
+**Проблема:** Польский заголовок генерировался больше 160 символов  
+**Исправление:**
+- ✅ Промпт требует max 160 символов для title
+- ✅ Проверка и умное обрезание после перевода
+- ✅ Применено во всех местах (Telegram бот и Admin панель)
+
+**Файлы:**
+- `lib/telegram-simple/translator.ts` - ограничение для Telegram бота
+- `lib/translation-service.ts` - ограничение для unified service
+- `lib/unified-article-service.ts` - проверка после перевода
+- `lib/telegram-simple/publisher.ts` - логирование длины заголовка
+
+### 📋 CHANGES SUMMARY
+
+**Modified Files:**
+- `lib/telegram-simple/content-processor.ts` - markdown removal, style improvements
+- `lib/telegram-simple/translator.ts` - title length limit (160 chars)
+- `lib/translation-service.ts` - title length limit + markdown cleanup
+- `lib/unified-article-service.ts` - Polish title validation
+- `lib/utils/content-cleaner.ts` - enhanced markdown cleanup
+- `package.json` - version updated to 8.7.6
+
+**Result:**
+- ✅ Контент теперь чистый plain text без markdown
+- ✅ Польский заголовок всегда <= 160 символов (SEO-friendly)
+- ✅ Профессиональный тон без случайных фраз
+- ✅ Комплексная обработка в выбранном стиле
+
+---
+
 ## [8.7.4] - 2025-12-08 - 🧹 Code Cleanup & Security Fixes
 
 **PREVIOUS VERSION:** v8.7.3  

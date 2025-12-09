@@ -2,19 +2,26 @@
  * TELEGRAM SIMPLE - URL PARSER
  * 
  * Простой парсинг URL для извлечения контента
+ * ✅ v8.7.5: Full logging integration
  */
 
 import * as cheerio from 'cheerio';
 import type { ParsedUrl } from './types';
+import { systemLogger } from '@/lib/system-logger';
 
 /**
  * Parse URL and extract title + content
  */
 export async function parseUrl(url: string): Promise<ParsedUrl> {
-  console.log(`[TelegramSimple] 🔗 Parsing URL: ${url}`);
+  const startTime = Date.now();
+  
+  await systemLogger.info('telegram', 'parse_url', 'Starting URL parsing', {
+    url: url.substring(0, 100),
+  });
 
   try {
     // Fetch HTML
+    const fetchTimer = systemLogger.startTimer('telegram', 'parse_url', 'Fetching HTML');
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; icoffio-bot/1.0)',
@@ -22,10 +29,18 @@ export async function parseUrl(url: string): Promise<ParsedUrl> {
     });
 
     if (!response.ok) {
+      await fetchTimer.error('HTTP fetch failed', {
+        status: response.status,
+        statusText: response.statusText,
+      });
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const html = await response.text();
+    await fetchTimer.success('HTML fetched', {
+      htmlLength: html.length,
+    });
+    
     const $ = cheerio.load(html);
 
     // Extract title
@@ -83,7 +98,14 @@ export async function parseUrl(url: string): Promise<ParsedUrl> {
 
     const content = paragraphs.join('\n\n');
 
-    console.log(`[TelegramSimple] ✅ Parsed: "${title}" (${content.length} chars)`);
+    const duration = Date.now() - startTime;
+    await systemLogger.info('telegram', 'parse_url', 'URL parsed successfully', {
+      url: url.substring(0, 100),
+      title: title || 'Untitled Article',
+      contentLength: content.length,
+      paragraphsCount: paragraphs.length,
+      duration_ms: duration,
+    });
 
     return {
       title: title || 'Untitled Article',
@@ -91,7 +113,13 @@ export async function parseUrl(url: string): Promise<ParsedUrl> {
     };
 
   } catch (error: any) {
-    console.error('[TelegramSimple] ❌ Parse error:', error.message);
+    const duration = Date.now() - startTime;
+    await systemLogger.error('telegram', 'parse_url', 'URL parsing failed', {
+      url: url.substring(0, 100),
+      error: error.message,
+      stack: error.stack,
+      duration_ms: duration,
+    });
     throw new Error(`Failed to parse URL: ${error.message}`);
   }
 }

@@ -222,30 +222,44 @@ export async function getTopPosts(limit = 1) { return getAllPosts(limit); }
 
 export async function getAllSlugs(): Promise<string[]> {
   try {
-    // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 120 }
-    });
+    // ✅ v8.5.2: Используем SUPABASE вместо WordPress
+    const responses = await Promise.all([
+      fetch('https://app.icoffio.com/api/supabase-articles?lang=en&limit=200', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        next: { revalidate: 120 }
+      }),
+      fetch('https://app.icoffio.com/api/supabase-articles?lang=pl&limit=200', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        next: { revalidate: 120 }
+      })
+    ]);
     
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data.success) {
-        // Возвращаем все slug'и из WordPress статей
-        const wpSlugs = data.articles.map((article: any) => article.slug);
+    const allSlugs: string[] = [];
+    
+    for (const response of responses) {
+      if (response.ok) {
+        const data = await response.json();
         
-        // Добавляем локальные slug'и
-        const localArticles = await getLocalArticles();
-        const localSlugs = localArticles.map(article => article.slug);
-        
-        // Объединяем и убираем дубликаты
-        return [...new Set([...wpSlugs, ...localSlugs])];
+        if (data.success && data.articles) {
+          // Собираем slug'и из Supabase
+          const slugs = data.articles.map((article: any) => article.slug);
+          allSlugs.push(...slugs);
+        }
       }
     }
+    
+    if (allSlugs.length > 0) {
+      // Добавляем локальные slug'и
+      const localArticles = await getLocalArticles();
+      const localSlugs = localArticles.map(article => article.slug);
+      
+      // Объединяем и убираем дубликаты
+      return [...new Set([...allSlugs, ...localSlugs])];
+    }
   } catch (error) {
-    console.warn('WordPress REST API unavailable for getAllSlugs, using local articles:', error);
+    console.warn('Supabase API unavailable for getAllSlugs, using local articles:', error);
   }
   
   // Fallback к только локальным статьям
@@ -425,10 +439,10 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
     return categoryMatch;
   });
 
-  // ✅ ИСПРАВЛЕНО: Используем WordPress REST API вместо GraphQL
-  let wpPosts: Post[] = [];
+  // ✅ v8.5.2: Используем SUPABASE вместо WordPress (Single Source of Truth)
+  let supabasePosts: Post[] = [];
   try {
-    const response = await fetch('https://app.icoffio.com/api/wordpress-articles', {
+    const response = await fetch(`https://app.icoffio.com/api/supabase-articles?lang=${locale}&category=${slug}&limit=${limit}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 }
@@ -437,33 +451,31 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
     if (response.ok) {
       const data = await response.json();
       
-      if (data.success) {
-        // Фильтруем по категории и преобразуем формат
-        wpPosts = data.articles
-          .filter((article: any) => {
-            // Проверяем что категория совпадает
-            const articleCategory = article.categories?.nodes?.[0]?.slug;
-            return articleCategory === slug;
-          })
-          .map((article: any) => ({
-            slug: article.slug,
-            title: strip(article.title),
-            excerpt: strip(article.excerpt),
-            date: article.date,
-            publishedAt: article.date,
-            image: article.image || "",
-            category: article.categories?.nodes?.[0] || { name: "General", slug: "general" },
-            contentHtml: article.content || "",
-          }));
+      if (data.success && data.articles) {
+        // Преобразуем формат Supabase в Post
+        supabasePosts = data.articles.map((article: any) => ({
+          slug: article.slug,
+          title: article.title,
+          excerpt: strip(article.excerpt || ''),
+          date: article.date,
+          publishedAt: article.date,
+          image: article.image || "",
+          category: article.category || { name: "General", slug: "general" },
+          contentHtml: article.content || "",
+          content: article.content || "",
+          tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
+        }));
+        
+        console.log(`✅ Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);
       }
     }
   } catch (error) {
-    // WordPress API недоступен, используем только локальные статьи
-    console.warn('WordPress API недоступен для категории, используем локальные статьи:', error);
+    // Supabase API недоступен, используем только локальные статьи
+    console.warn('Supabase API недоступен для категории, используем локальные статьи:', error);
   }
 
-  // Объединяем WordPress и локальные статьи
-  const combinedPosts = [...localFiltered, ...wpPosts];
+  // Объединяем Supabase и локальные статьи
+  const combinedPosts = [...localFiltered, ...supabasePosts];
   
   // Сортируем по дате публикации (новые сверху)
   combinedPosts.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());

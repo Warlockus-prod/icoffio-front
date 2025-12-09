@@ -19,3 +19,4 @@ UPDATE telegram_user_preferences
 SET interface_language = 'ru'
 WHERE interface_language IS NULL;
 
+

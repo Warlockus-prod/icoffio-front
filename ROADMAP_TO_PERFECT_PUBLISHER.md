@@ -680,3 +680,4 @@ await savePublicationResult(idempotencyKey, result);
 
 **Что выбираем?** 😊
 
+

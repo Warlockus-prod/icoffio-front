@@ -7,7 +7,7 @@ import { translationService } from './translation-service';
 import { copywritingService } from './copywriting-service';
 import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
-import { enhancedUrlParserService } from './enhanced-url-parser-service';
+import { advancedUrlParser } from './advanced-url-parser';
 import { addRuntimeArticle } from './local-articles';
 import { formatContentToHtml } from './utils/content-formatter';
 import { getPromptTemplateByStyle, type ContentProcessingStyle } from './config/content-prompts';
@@ -446,8 +446,8 @@ class UnifiedArticleService {
     console.log(`🌐 Извлекаем контент из URL: ${url}`);
     
     try {
-      // Используем улучшенный сервис парсинга URL с поддержкой JavaScript-сайтов
-      const extractedContent = await enhancedUrlParserService.extractContent(url);
+      // Используем продвинутый парсер URL
+      const extractedContent = await advancedUrlParser.extractContent(url);
       
       return {
         title: extractedContent.title,
@@ -851,7 +851,7 @@ class UnifiedArticleService {
       copywriting: copywritingService.isAvailable(),
       images: imageAvailability.anyService,
       wordpress: wpAvailable,
-      urlParser: enhancedUrlParserService.isAvailable()
+      urlParser: advancedUrlParser.isAvailable()
     };
   }
 }

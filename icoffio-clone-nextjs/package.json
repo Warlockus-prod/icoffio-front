@@ -1,0 +1,46 @@
+{
+  "name": "icoffio-clone",
+  "private": true,
+  "version": "8.5.3",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "clean-problematic": "node scripts/clean-problematic-articles.js",
+    "clean-problematic:dry": "node scripts/clean-problematic-articles.js --dry-run",
+    "clean-wordpress": "node scripts/clean-wordpress-articles.js",
+    "clean-wordpress:dry": "node scripts/clean-wordpress-articles.js --dry-run",
+    "clean-wordpress-api": "node scripts/clean-wordpress-via-api.js",
+    "clean-wordpress-api:dry": "node scripts/clean-wordpress-via-api.js --dry-run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.76.1",
+    "@tiptap/extension-link": "^3.7.2",
+    "@tiptap/extension-placeholder": "^3.7.2",
+    "@tiptap/react": "^3.7.2",
+    "@tiptap/starter-kit": "^3.7.2",
+    "@vercel/blob": "^2.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "jsdom": "^24.1.0",
+    "marked": "^16.4.1",
+    "next": "^14.2.5",
+    "openai": "^5.23.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.6.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/marked": "^5.0.2",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.9",
+    "typescript": "^5.5.4"
+  }
+}

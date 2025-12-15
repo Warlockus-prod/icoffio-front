@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://icoffio.com/sitemap.xml
+
+# SEO-friendly crawling
+Crawl-delay: 1
+
+# Disallow admin and internal pages
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+
+# Allow important resources
+Allow: /api/og
+Allow: /_next/image
+Allow: /_next/static
+
+# Media files
+Allow: *.css
+Allow: *.js
+Allow: *.png
+Allow: *.jpg
+Allow: *.jpeg
+Allow: *.gif
+Allow: *.svg
+Allow: *.webp
+Allow: *.ico

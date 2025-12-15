@@ -1,0 +1,330 @@
+/**
+ * 📦 UNIFIED GLOBAL STYLES - icoffio v7.29.0
+ * 
+ * This file combines all global styles in one place:
+ * - Tailwind directives
+ * - CSS variables for theming
+ * - TipTap editor styles
+ * - VOX advertising styles
+ * - Dark mode support
+ * 
+ * IMPORTANT: This is the ONLY globals.css file
+ * Previously there were two: /app/globals.css and /styles/globals.css
+ * They have been merged to eliminate redundancy
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========== BASE STYLES ========== */
+
+html { 
+  scroll-behavior: smooth; 
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ========== CSS VARIABLES - THEMING ========== */
+
+/* Light theme (default) */
+:root {
+  --foreground-rgb: 17, 24, 39;
+  --background-rgb: 255, 255, 255;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
+  --neutral-50: 249, 250, 251;
+  --neutral-100: 243, 244, 246;
+  --neutral-200: 229, 231, 235;
+  --neutral-600: 75, 85, 99;
+  --neutral-900: 17, 24, 39;
+}
+
+/* Dark theme via .dark class (manual toggle priority) */
+.dark {
+  --foreground-rgb: 249, 250, 251;
+  --background-rgb: 17, 24, 39;
+  --background-start-rgb: 17, 24, 39;
+  --background-end-rgb: 17, 24, 39;
+  --neutral-50: 31, 41, 55;
+  --neutral-100: 55, 65, 81;
+  --neutral-200: 75, 85, 99;
+  --neutral-600: 156, 163, 175;
+  --neutral-900: 249, 250, 251;
+}
+
+/* System dark theme (fallback for browsers without JS) */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --foreground-rgb: 249, 250, 251;
+    --background-rgb: 17, 24, 39;
+    --background-start-rgb: 17, 24, 39;
+    --background-end-rgb: 17, 24, 39;
+    --neutral-50: 31, 41, 55;
+    --neutral-100: 55, 65, 81;
+    --neutral-200: 75, 85, 99;
+    --neutral-600: 156, 163, 175;
+    --neutral-900: 249, 250, 251;
+  }
+}
+
+/* ========== BODY STYLES ========== */
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth transitions for dark mode (only for color properties) */
+*:not(button):not(a) {
+  transition-property: background-color, color, border-color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+/* ========== TAILWIND UTILITIES ========== */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* ========== PROSE / TYPOGRAPHY ========== */
+
+.prose { 
+  --tw-prose-headings: theme(colors.neutral.900); 
+}
+
+.dark .prose {
+  --tw-prose-headings: theme(colors.neutral.100);
+}
+
+/* ========== TIPTAP EDITOR STYLES ========== */
+
+.ProseMirror {
+  outline: none;
+  min-height: 300px;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #cbd5e0;
+  padding-left: 1rem;
+  color: #718096;
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+.ProseMirror code {
+  background-color: #f7fafc;
+  color: #e53e3e;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-family: monospace;
+}
+
+.dark .ProseMirror code {
+  background-color: #374151;
+  color: #fca5a5;
+}
+
+.ProseMirror pre {
+  background-color: #2d3748;
+  color: #f7fafc;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.ProseMirror pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+
+.ProseMirror li {
+  margin: 0.25rem 0;
+}
+
+.ProseMirror a {
+  color: #3182ce;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror a:hover {
+  color: #2c5282;
+}
+
+.dark .ProseMirror a {
+  color: #63b3ed;
+}
+
+.dark .ProseMirror a:hover {
+  color: #90cdf4;
+}
+
+/* Disable Grammarly for content editors */
+.prose [contenteditable="true"],
+.tiptap,
+textarea.markdown-editor {
+  -webkit-user-modify: read-write-plaintext-only;
+}
+
+/* ========== DARK MODE IMAGE SUPPORT ========== */
+
+.light-mode-img {
+  display: block;
+}
+
+.dark-mode-img {
+  display: none;
+}
+
+.dark .light-mode-img {
+  display: none;
+}
+
+.dark .dark-mode-img {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .light-mode-img {
+    display: none;
+  }
+  
+  :root:not(.light) .dark-mode-img {
+    display: block;
+  }
+}
+
+/* ========== VOX ADVERTISING STYLES ========== */
+
+/* Base container styles */
+.vox-ad-container {
+  position: relative !important;
+  display: block !important;
+  clear: both !important;
+  margin: 20px auto !important;
+  overflow: visible !important;
+  min-height: 50px !important;
+  isolation: isolate !important;
+}
+
+/* Inline Ads (article content) */
+.vox-inline-ad {
+  width: 100% !important;
+  max-width: 970px !important;
+  margin: 24px auto !important;
+  text-align: center !important;
+}
+
+/* Sidebar Ads */
+.vox-sidebar-ad {
+  width: 100% !important;
+  max-width: 300px !important;
+  margin: 0 auto 24px auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.vox-sidebar-ad + .vox-sidebar-ad {
+  margin-top: 24px !important;
+}
+
+/* Mobile Ads */
+.vox-mobile-ad {
+  width: 100% !important;
+  max-width: 320px !important;
+  margin: 16px auto !important;
+  text-align: center !important;
+}
+
+/* Video Player Ads */
+.vox-video-ad {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 640px !important;
+  aspect-ratio: 16 / 9 !important;
+  margin: 20px auto !important;
+}
+
+/* Prevent duplicate ad containers */
+[data-hyb-ssp-ad-place] + [data-hyb-ssp-ad-place] {
+  margin-top: 32px !important;
+}
+
+/* Desktop ad formats */
+@media (min-width: 1024px) {
+  .vox-728-90,
+  .vox-970-250 {
+    display: block !important;
+  }
+}
+
+/* Mobile ad formats */
+@media (max-width: 1023px) {
+  .vox-728-90,
+  .vox-970-250 {
+    display: none !important;
+  }
+  
+  .vox-320-50,
+  .vox-320-100 {
+    display: block !important;
+  }
+}
+
+/* Iframe container fix */
+[data-hyb-ssp-ad-place] iframe {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+/* Prevent layout shift while ads are loading */
+.vox-ad-container:empty {
+  min-height: var(--ad-min-height, 90px) !important;
+  background: transparent !important;
+}

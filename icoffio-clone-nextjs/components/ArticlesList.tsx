@@ -1,25 +1,45 @@
 'use client';
 
 import { useState } from 'react';
+import useSWR from 'swr';
 import { ArticleCard } from './ArticleCard';
 import type { Post } from '@/lib/types';
 
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 interface ArticlesListProps {
-  posts: Post[];
+  posts: Post[];       // Server-side initial data (SSR)
   locale: string;
 }
 
-export function ArticlesList({ posts, locale }: ArticlesListProps) {
+/**
+ * Articles list with SWR: instant from cache on navigation, background refresh.
+ * Server-side `posts` prop serves as fallback; SWR revalidates in the background.
+ */
+export function ArticlesList({ posts: serverPosts, locale }: ArticlesListProps) {
   const [sortBy, setSortBy] = useState<'newest' | 'popular'>('popular');
+
+  // SWR: use server data as fallback, refresh in background
+  const { data } = useSWR(
+    `/api/supabase-articles?lang=${locale}&limit=12`,
+    fetcher,
+    {
+      fallbackData: { success: true, articles: serverPosts },
+      revalidateOnFocus: false,
+      revalidateOnMount: true,      // Refresh on mount (catches new articles)
+      dedupingInterval: 60_000,     // Don't re-fetch within 1 min
+      refreshInterval: 5 * 60_000,  // Background refresh every 5 min
+    }
+  );
+
+  // Merge: SWR data (fresh) with server fallback
+  const posts: Post[] = data?.success && data.articles?.length > 0
+    ? data.articles
+    : serverPosts;
 
   // Sort articles
   const sortedPosts = [...posts].sort((a, b) => {
-    if (sortBy === 'newest') {
-      return new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime();
-    } else {
-      // TODO: Use real view counts from Supabase when available
-      return new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime();
-    }
+    return new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime();
   });
 
   const t = {
@@ -84,7 +104,6 @@ export function ArticlesList({ posts, locale }: ArticlesListProps) {
         </div>
       )}
 
-      {/* Articles count */}
       {sortedPosts.length > 0 && (
         <div className="mt-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
           {t.showing} {sortedPosts.length} {sortedPosts.length === 1 ? t.article : t.articles}
@@ -93,8 +112,3 @@ export function ArticlesList({ posts, locale }: ArticlesListProps) {
     </section>
   );
 }
-
-
-
-
-

@@ -8,17 +8,14 @@
 // ========== VOX AD PLACEMENTS ==========
 
 export const VOX_DISPLAY_PLACEMENTS = [
-  // Desktop formats
+  // Desktop formats (stable)
   { id: "63da9b577bc72f39bc3bfc68", format: "728x90", type: "desktop" },
   { id: "63da9e2a4d506e16acfd2a36", format: "300x250", type: "desktop" },
   { id: "63daa3c24d506e16acfd2a38", format: "970x250", type: "desktop" },
   { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600", type: "desktop" },
-  // Mobile formats
+  // Mobile formats (active only — disabled formats removed)
   { id: "68f644dc70e7b26b58596f34", format: "320x50", type: "mobile" },
-  { id: "68f6451d810d98e1a08f2725", format: "160x600", type: "mobile" },
   { id: "68f645bf810d98e1a08f272f", format: "320x100", type: "mobile" },
-  // Display formats
-  { id: "68f63437810d98e1a08f26de", format: "320x480", type: "display" }
 ] as const;
 
 export const VOX_IN_IMAGE_PLACE_ID = "63d93bb54d506e95f039e2e3";
@@ -77,21 +74,12 @@ aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
   width: 300px !important;
 }
 
-/* Mobile форматы */
+/* Mobile форматы (только активные) */
 .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
   max-width: 320px !important;
 }
 
-.vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
-  max-width: 160px !important;
-}
-
 .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
-  max-width: 320px !important;
-}
-
-/* Display форматы */
-.vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
   max-width: 320px !important;
 }
 

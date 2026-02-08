@@ -50,11 +50,15 @@ export async function POST(request: NextRequest) {
         console.warn('⚠️ Login rate limit exceeded');
         return createRateLimitResponse('AUTH', rateLimitResult);
       }
-      // Get password from environment variable with fallback for backwards compatibility
-      const adminPassword = process.env.ADMIN_PASSWORD || 'icoffio2025';
+      // Get password from environment variable (MUST be set on Vercel)
+      const adminPassword = process.env.ADMIN_PASSWORD;
       
-      if (!process.env.ADMIN_PASSWORD) {
-        console.warn('⚠️ ADMIN_PASSWORD not configured, using fallback (set env var for security!)');
+      if (!adminPassword) {
+        console.error('ADMIN_PASSWORD env variable not configured!');
+        return NextResponse.json(
+          { success: false, error: 'Server configuration error' },
+          { status: 500 }
+        );
       }
 
       // Validate password

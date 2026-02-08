@@ -23,9 +23,10 @@ export const maxDuration = 60; // 60 seconds max
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  let extractedChatId: number | null = null; // Saved early for error notifications
   
   try {
-    // Parse update from Telegram
+    // Parse update from Telegram (consume body once — cannot call request.json() again)
     const update = await request.json();
     console.log('[TelegramSimple] 📨 Webhook called');
 
@@ -35,7 +36,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: 'No message' });
     }
 
-    const chatId = message.chat.id;
+    const chatId: number = message.chat.id;
+    extractedChatId = chatId;
     const text = message.text?.trim() || '';
 
     if (!text) {
@@ -234,22 +236,19 @@ export async function POST(request: NextRequest) {
 
     const duration = Math.round((Date.now() - startTime) / 1000);
 
-    // Try to send error notification
-    try {
-      const update = await request.json();
-      const chatId = update.message?.chat?.id;
-      
-      if (chatId) {
+    // Send error notification using chatId saved before the error occurred
+    if (extractedChatId) {
+      try {
         await sendTelegramMessage(
-          chatId,
+          extractedChatId,
           `❌ <b>Ошибка обработки</b>\n\n` +
-          `📋 ${error.message}\n\n` +
+          `📋 ${error.message || 'Неизвестная ошибка'}\n\n` +
           `⏱️ Время: ${duration}s\n\n` +
           `Попробуйте еще раз или обратитесь к администратору.`
         );
+      } catch (notifyError) {
+        console.error('[TelegramSimple] Failed to send error notification:', notifyError);
       }
-    } catch (notifyError) {
-      console.error('[TelegramSimple] Failed to send error notification:', notifyError);
     }
 
     return NextResponse.json(

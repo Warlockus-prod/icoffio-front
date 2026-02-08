@@ -287,7 +287,7 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
 /**
  * Создание статьи из URL (для админ панели)
  */
-async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, request: NextRequest) {
+async function handleUrlCreation(body: ApiRequest & { contentStyle?: string; stage?: string }, request: NextRequest) {
   try {
     const url = body.url || body.data?.url;
     
@@ -298,20 +298,20 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
       );
     }
 
-    // ✅ v8.4.0: Получаем стиль обработки контента
+    // v8.4.0: Content style and stage parameters
     const contentStyle = body.contentStyle || body.data?.contentStyle || 'journalistic';
-    console.log(`📝 Content style requested: ${contentStyle}`);
+    const stage = (body as any).stage || body.data?.stage || undefined;
+    console.log(`📝 Content style: ${contentStyle}, stage: ${stage || 'full'}`);
 
     const articleInput: ArticleInput = {
       url,
       category: body.category || body.data?.category || 'tech',
-      contentStyle, // ✅ v8.4.0: Передаем стиль в сервис
+      contentStyle,
       
-      // Для админ панели - все возможности включены
-      enhanceContent: contentStyle !== 'as-is', // ✅ Если "Keep As Is" - не улучшаем
-      generateImage: true,
+      enhanceContent: contentStyle !== 'as-is',
+      generateImage: stage !== 'text-only', // Respect stage parameter
       translateToAll: true,
-      publishToWordPress: false // В админке пока отключаем автопубликацию
+      publishToWordPress: false
     };
 
     const result = await unifiedArticleService.processArticle(articleInput);
@@ -368,7 +368,7 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
 /**
  * Создание статьи из текста (для админ панели)
  */
-async function handleTextCreation(body: ApiRequest, request: NextRequest) {
+async function handleTextCreation(body: ApiRequest & { stage?: string }, request: NextRequest) {
   try {
     const title = body.title || body.data?.title;
     const content = body.content || body.data?.content;
@@ -380,16 +380,18 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
       );
     }
 
+    const stage = (body as any).stage || body.data?.stage || undefined;
+    console.log(`📝 Text creation, stage: ${stage || 'full'}`);
+
     const articleInput: ArticleInput = {
       title,
       content,
       category: body.category || body.data?.category || 'tech',
       
-      // Для админ панели - все возможности включены
       enhanceContent: true,
-      generateImage: true,
+      generateImage: stage !== 'text-only', // Respect stage parameter
       translateToAll: true,
-      publishToWordPress: false // В админке пока отключаем автопубликацию
+      publishToWordPress: false
     };
 
     const result = await unifiedArticleService.processArticle(articleInput);
@@ -584,10 +586,7 @@ async function checkAuthentication(request: NextRequest): Promise<{success: bool
 function formatPostsForAdmin(article: any): Record<string, any> {
   const posts: Record<string, any> = {};
   
-  // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Логирование для отладки
-  console.log('📋 formatPostsForAdmin - article language:', article.language);
-  console.log('📋 formatPostsForAdmin - article title:', article.title?.substring(0, 80));
-  console.log('📋 formatPostsForAdmin - translations available:', Object.keys(article.translations || {}));
+  // Minimal logging in production
   
   // Основная статья (всегда EN теперь)
   posts.en = {
@@ -603,8 +602,6 @@ function formatPostsForAdmin(article: any): Record<string, any> {
     content: article.content,
     contentHtml: formatContentToHtml(article.content)
   };
-  
-  console.log('📋 posts.en.title:', posts.en.title?.substring(0, 80));
   
   // Переводы (только PL поддерживается)
   for (const [lang, translation] of Object.entries(article.translations || {})) {
@@ -622,11 +619,9 @@ function formatPostsForAdmin(article: any): Record<string, any> {
         content: (translation as any).content,
         contentHtml: formatContentToHtml((translation as any).content)
       };
-      console.log('📋 posts.pl.title:', posts[lang].title?.substring(0, 80));
     }
   }
   
-  console.log('📋 Final posts structure:', Object.keys(posts).join(', '));
   return posts;
 }
 

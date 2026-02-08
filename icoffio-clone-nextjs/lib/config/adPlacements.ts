@@ -179,16 +179,24 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
 
 /**
  * Get all enabled ad placements
- * Uses saved configuration from localStorage if available
+ * On server: returns defaults; on client: merges with localStorage overrides
  */
 export function getEnabledAdPlacements(): AdPlacementConfig[] {
-  // Импортируем динамически чтобы избежать циклических зависимостей
   if (typeof window !== 'undefined') {
     try {
-      const { getAdPlacements } = require('./adPlacementsManager');
-      return getAdPlacements().filter((ad: AdPlacementConfig) => ad.enabled);
+      const STORAGE_KEY = 'icoffio_ad_placements_config';
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed: AdPlacementConfig[] = JSON.parse(stored);
+        // Merge: use saved enabled state, fall back to defaults for new placements
+        const merged = AD_PLACEMENTS.map(defaultAd => {
+          const savedAd = parsed.find(ad => ad.id === defaultAd.id);
+          return savedAd ? { ...defaultAd, enabled: savedAd.enabled } : defaultAd;
+        });
+        return merged.filter(ad => ad.enabled);
+      }
     } catch (error) {
-      console.error('Error loading ad placements:', error);
+      console.error('Error loading ad placements from localStorage:', error);
     }
   }
   return AD_PLACEMENTS.filter(ad => ad.enabled);

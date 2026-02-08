@@ -3,11 +3,12 @@ import { getLocalArticles as getLocalArticlesFromFile, getLocalArticleBySlug as 
 
 const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
 
-// Переиспользуем функции из local-articles.ts
+// Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
 const getLocalArticleBySlug = getLocalArticleBySlugFromFile;
 
-async function gql<T>(query: string, variables?: Record<string, any>): Promise<T> {
+/** WordPress GraphQL query — used only as fallback for category fetching */
+async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   if (!WP || WP === "undefined") {
     throw new Error("WordPress GraphQL endpoint not configured");
   }
@@ -16,7 +17,7 @@ async function gql<T>(query: string, variables?: Record<string, any>): Promise<T
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
-    next: { revalidate: 120 }, // ISR
+    next: { revalidate: 120 },
   });
   
   if (!res.ok) {
@@ -34,18 +35,18 @@ async function gql<T>(query: string, variables?: Record<string, any>): Promise<T
 
 const strip = (s?: string) => (s || "").replace(/<[^>]+>/g, "").trim();
 
-// Загрузка переводов статей (cloud-ready)
-async function getTranslatedArticles(): Promise<Record<string, any>> {
-  // В cloud среде переводы хранятся в памяти или внешней БД
-  // Пока возвращаем пустой массив, переводы будут генерироваться on-demand
-  
-  // В будущем здесь можно подключить:
-  // - External database
-  // - Headless CMS
-  // - Redis cache
-  // - CDN storage
-  
-  return [];
+/**
+ * Normalize category from API response.
+ * API may return a string or a Category object — always return Category.
+ */
+function normalizeCategory(raw: unknown): Category {
+  if (raw && typeof raw === 'object' && 'slug' in raw) {
+    return raw as Category;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return { name: raw, slug: raw.toLowerCase().replace(/\s+/g, '-') };
+  }
+  return { name: "General", slug: "general" };
 }
 
 // Детектирование кириллицы в тексте
@@ -59,104 +60,33 @@ function hasPolish(text: string): boolean {
   return /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text);
 }
 
-// Улучшенная фильтрация статей по языку с детектированием контента
+/**
+ * Filter articles by locale using slug suffix and content analysis.
+ * Supported locales: 'en', 'pl'.
+ */
 function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
-  console.log(`🌍 Filtering ${articles.length} articles for locale: ${locale}`);
-  
-  // Поддерживаемые языки: en, pl (сайт НЕ поддерживает русский)
   if (!['en', 'pl'].includes(locale)) {
-    console.warn(`Unsupported locale: ${locale}. Supported: 'en', 'pl' only.`);
     return [];
   }
   
-  const filtered = articles.filter(article => {
-    // 1. Проверяем slug на наличие суффикса языка (основная проверка)
+  return articles.filter(article => {
     const slugContainsLocale = article.slug.includes(`-${locale}`);
-    
-    // 2. Проверяем контент статьи (title, excerpt, content) на соответствие языку
     const contentToCheck = `${article.title} ${article.excerpt || ''} ${article.content || ''}`;
     
     if (locale === 'en') {
-      // Для английской версии: исключаем статьи с кириллицей или польскими символами
-      const hasUnwantedChars = hasCyrillic(contentToCheck) || hasPolish(contentToCheck);
-      
-      if (hasUnwantedChars) {
-        console.log(`🚫 Excluded from EN: ${article.slug} (contains non-English characters)`);
-        return false;
-      }
-      
-      // Разрешаем статьи с -en в slug ИЛИ без специфичных языковых маркеров
-      const isEnglish = slugContainsLocale || (!hasCyrillic(contentToCheck) && !hasPolish(contentToCheck));
-      
-      if (isEnglish) {
-        console.log(`✅ Article matched for EN: ${article.slug}`);
-      }
-      return isEnglish;
+      // Exclude articles with Cyrillic or Polish-specific characters
+      if (hasCyrillic(contentToCheck) || hasPolish(contentToCheck)) return false;
+      return slugContainsLocale || (!hasCyrillic(contentToCheck) && !hasPolish(contentToCheck));
     }
     
     if (locale === 'pl') {
-      // Для польской версии: требуем -pl в slug И исключаем кириллицу
-      const hasRussian = hasCyrillic(contentToCheck);
-      
-      if (hasRussian) {
-        console.log(`🚫 Excluded from PL: ${article.slug} (contains Cyrillic)`);
-        return false;
-      }
-      
-      const isPolish = slugContainsLocale && !hasRussian;
-      
-      if (isPolish) {
-        console.log(`✅ Article matched for PL: ${article.slug}`);
-      }
-      return isPolish;
+      // Require -pl in slug and exclude Cyrillic
+      if (hasCyrillic(contentToCheck)) return false;
+      return slugContainsLocale;
     }
     
     return false;
   });
-  
-  console.log(`📊 Filtered ${filtered.length}/${articles.length} articles for ${locale}`);
-  return filtered;
-}
-
-// Комбинирование WordPress и локальных статей
-async function combineArticles(wpArticles: Post[], locale: string = 'en'): Promise<Post[]> {
-  const localArticles = await getLocalArticles();
-  const translatedArticles = await getTranslatedArticles();
-  
-  // Фильтруем локальные статьи по языку
-  const localFiltered = filterArticlesByLanguage(localArticles, locale);
-  
-  // ИСПРАВЛЕНИЕ: Фильтруем WordPress статьи по языку!
-  const wpFiltered = filterArticlesByLanguage(wpArticles, locale);
-  
-  // Добавляем переводы для указанного языка (пока пустой массив)
-  const translatedForLocale: Post[] = [];
-  
-  // В будущем здесь будет логика загрузки переводов
-  // if (Array.isArray(translatedArticles)) {
-  //   for (const articleGroup of translatedArticles) {
-  //     if (articleGroup.translations && articleGroup.translations[locale]) {
-  //       translatedForLocale.push(articleGroup.translations[locale]);
-  //     }
-  //   }
-  // }
-  
-  // Комбинируем все статьи (ВСЕ уже отфильтрованы по языку!)
-  const allArticles = [
-    ...wpFiltered,     // <- ИСПРАВЛЕНО: используем отфильтрованные WordPress статьи
-    ...localFiltered,
-    ...translatedForLocale
-  ];
-  
-  // Удаляем дубликаты по slug
-  const uniqueArticles = allArticles.filter((article, index, self) => 
-    index === self.findIndex(a => a.slug === article.slug)
-  );
-  
-  // Сортируем по дате публикации (новые первыми)
-  return uniqueArticles.sort((a, b) => 
-    new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime()
-  );
 }
 
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
@@ -187,18 +117,18 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
       throw new Error(`Supabase API error: ${data.error}`);
     }
     
-    // Преобразуем данные из Supabase API в формат Post
-    const dbPosts: Post[] = data.articles.map((article: any) => ({
-      slug: article.slug,
-      title: article.title || "Untitled",
-      excerpt: article.excerpt || "",
-      date: article.date,
-      publishedAt: article.date,
-      image: article.image && article.image.trim() !== '' ? article.image : '',
-      category: article.category || { name: "General", slug: "general" },
-      contentHtml: article.content || "",
-      content: article.content || "",
-      tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
+    // Transform Supabase API data into Post format
+    const dbPosts: Post[] = data.articles.map((article: Record<string, unknown>) => ({
+      slug: article.slug as string,
+      title: (article.title as string) || "Untitled",
+      excerpt: (article.excerpt as string) || "",
+      date: article.date as string,
+      publishedAt: article.date as string,
+      image: article.image && (article.image as string).trim() !== '' ? article.image as string : '',
+      category: normalizeCategory(article.category),
+      contentHtml: (article.content as string) || "",
+      content: (article.content as string) || "",
+      tags: Array.isArray(article.tags) ? (article.tags as string[]).map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) : []
     }));
 
     // ✅ ВАЖНО: Runtime статьи ПЕРВЫМИ, затем Supabase статьи
@@ -299,7 +229,7 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
           date: article.date,
           publishedAt: article.date,
           image: article.image || "",
-          category: article.category || { name: "General", slug: "general" },
+          category: normalizeCategory(article.category),
           contentHtml: article.content || "",
           content: article.content || "",
           tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
@@ -336,14 +266,14 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
       const data = await response.json();
       
       if (data.success && data.articles) {
-        return data.articles.map((article: any) => ({
-          slug: article.slug,
-          title: article.title,
-          excerpt: article.excerpt,
-          date: article.date,
-          publishedAt: article.date,
-          image: article.image || "",
-          category: article.category || cat,
+        return data.articles.map((article: Record<string, unknown>) => ({
+          slug: article.slug as string,
+          title: article.title as string,
+          excerpt: article.excerpt as string,
+          date: article.date as string,
+          publishedAt: article.date as string,
+          image: (article.image as string) || "",
+          category: normalizeCategory(article.category) || cat,
           contentHtml: "",
         }));
       }
@@ -452,18 +382,17 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
       const data = await response.json();
       
       if (data.success && data.articles) {
-        // Преобразуем формат Supabase в Post
-        supabasePosts = data.articles.map((article: any) => ({
-          slug: article.slug,
-          title: article.title,
-          excerpt: strip(article.excerpt || ''),
-          date: article.date,
-          publishedAt: article.date,
-          image: article.image || "",
-          category: article.category || { name: "General", slug: "general" },
-          contentHtml: article.content || "",
-          content: article.content || "",
-          tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
+        supabasePosts = data.articles.map((article: Record<string, unknown>) => ({
+          slug: article.slug as string,
+          title: article.title as string,
+          excerpt: strip((article.excerpt as string) || ''),
+          date: article.date as string,
+          publishedAt: article.date as string,
+          image: (article.image as string) || "",
+          category: normalizeCategory(article.category),
+          contentHtml: (article.content as string) || "",
+          content: (article.content as string) || "",
+          tags: Array.isArray(article.tags) ? (article.tags as string[]).map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) : []
         }));
         
         console.log(`✅ Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);

@@ -20,7 +20,8 @@ const POPULAR_ARTICLES_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 function getSupabaseClient() {
   if (!supabaseClient) {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Use service key for server-side operations (never anon key — it lacks permissions)
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       console.warn('[Supabase Analytics] Missing credentials, analytics disabled');
@@ -299,7 +300,7 @@ export async function getTelegramSubmissions(
 /**
  * Получить статистику пользователя Telegram
  */
-export async function getTelegramUserStats(userId: number): Promise<any> {
+export async function getTelegramUserStats(userId: number): Promise<Record<string, unknown> | null> {
   const client = getSupabaseClient();
   if (!client) return null;
 

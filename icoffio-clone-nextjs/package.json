@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
     "clean-problematic": "node scripts/clean-problematic-articles.js",
     "clean-problematic:dry": "node scripts/clean-problematic-articles.js --dry-run",
     "clean-wordpress": "node scripts/clean-wordpress-articles.js",
@@ -14,6 +16,7 @@
     "clean-wordpress-api:dry": "node scripts/clean-wordpress-via-api.js --dry-run"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.38.0",
     "@supabase/supabase-js": "^2.76.1",
     "@tiptap/extension-link": "^3.7.2",
     "@tiptap/extension-placeholder": "^3.7.2",
@@ -25,7 +28,7 @@
     "date-fns": "^4.1.0",
     "jsdom": "^24.1.0",
     "marked": "^16.4.1",
-    "next": "^14.2.5",
+    "next": "^14.2.35",
     "openai": "^5.23.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

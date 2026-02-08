@@ -83,3 +83,4 @@ test-results/
 # Optional: editor
 .vscode/
 .idea/
+.vercel

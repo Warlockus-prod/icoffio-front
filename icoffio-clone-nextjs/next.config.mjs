@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { typedRoutes: false }, // Отключаем для поддержки i18n
@@ -28,4 +30,21 @@ const nextConfig = {
     ]
   },
 };
-export default nextConfig;
+
+export default withSentryConfig(nextConfig, {
+  // Sentry options
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  
+  // Suppress source map upload warnings when SENTRY_AUTH_TOKEN is not set
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  
+  // Upload source maps for better stack traces (only when token available)
+  widenClientFileUpload: true,
+  
+  // Disable Sentry telemetry
+  disableLogger: true,
+  
+  // Don't create .sentryclirc
+  hideSourceMaps: true,
+});

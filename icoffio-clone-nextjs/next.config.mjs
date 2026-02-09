@@ -20,19 +20,4 @@ const nextConfig = {
   },
 };
 
-// Only wrap with Sentry when DSN is configured (avoids build hangs without token)
-let config = nextConfig;
-
-if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  const { withSentryConfig } = await import("@sentry/nextjs");
-  config = withSentryConfig(nextConfig, {
-    org: process.env.SENTRY_ORG,
-    project: process.env.SENTRY_PROJECT,
-    silent: !process.env.SENTRY_AUTH_TOKEN,
-    widenClientFileUpload: true,
-    disableLogger: true,
-    hideSourceMaps: true,
-  });
-}
-
-export default config;
+export default nextConfig;

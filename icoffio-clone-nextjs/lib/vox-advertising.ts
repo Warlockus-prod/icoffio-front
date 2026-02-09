@@ -184,6 +184,14 @@ function initVOX() {
     // 3. Система показа контейнеров после загрузки рекламы
     setupAdVisibilityWatcher();
     
+    // 4. КРИТИЧНО: window._tx.init() запускает bid requests к DSP!
+    // Без этого вызова VOX регистрирует плейсменты но НЕ запрашивает рекламу
+    var totalContainers = document.querySelectorAll('[data-hyb-ssp-ad-place]').length;
+    if (totalContainers > 0 || isArticlePage) {
+      window._tx.init();
+      console.log('VOX: init() вызван — bid requests отправлены для ' + totalContainers + ' контейнеров');
+    }
+    
   } catch (err) {
     console.error('VOX: Ошибка инициализации:', err);
   }
@@ -233,25 +241,44 @@ function checkAndReinitVOX() {
   }
 }
 
-// Запуск при загрузке страницы
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() {
-    loadVOXScript();
-    setTimeout(initVOX, 1000);
-  });
-} else {
+// ========== ЗАПУСК VOX ==========
+
+function startVOX() {
+  if (!hasAdvertisingConsent()) {
+    console.log('VOX: Ожидание согласия пользователя');
+    return;
+  }
+  
   loadVOXScript();
-  setTimeout(initVOX, 1000);
+  
+  // _tx.cmds.push() гарантирует что SDK загружен и готов
+  window._tx.cmds.push(function() {
+    console.log('VOX: SDK готов, запуск инициализации');
+    
+    function firstInit() {
+      lastUrl = window.location.href;
+      initVOX();
+      // Мониторинг URL для Next.js SPA навигации
+      setInterval(checkAndReinitVOX, 1000);
+    }
+    
+    if (document.readyState === 'complete') {
+      firstInit();
+    } else {
+      window.addEventListener('load', firstInit);
+      // Fallback если load уже произошёл
+      setTimeout(firstInit, 1500);
+    }
+  });
 }
 
-// Мониторинг изменения URL для SPA навигации
-setInterval(checkAndReinitVOX, 1000);
+// Запуск при загрузке страницы
+startVOX();
 
-// Слушаем событие изменения cookie consent
+// Слушаем изменения cookie consent
 window.addEventListener('cookieConsentChanged', function() {
   console.log('VOX: Cookie consent изменился');
-  loadVOXScript();
-  setTimeout(initVOX, 500);
+  startVOX();
 });
 `;
 

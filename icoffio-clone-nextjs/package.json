@@ -18,7 +18,6 @@
     "clean-wordpress-api:dry": "node scripts/clean-wordpress-via-api.js --dry-run"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.38.0",
     "@supabase/supabase-js": "^2.76.1",
     "@tiptap/extension-link": "^3.7.2",
     "@tiptap/extension-placeholder": "^3.7.2",

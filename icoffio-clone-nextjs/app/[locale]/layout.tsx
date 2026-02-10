@@ -17,7 +17,6 @@ import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
-import Script from "next/script";
 import { VOX_INLINE_CSS, VOX_INIT_SCRIPT } from "@/lib/vox-advertising";
 
 const locales = ['en', 'pl'];
@@ -199,8 +198,8 @@ export default function LocaleLayout({
         {/* CSS для VOX Display рекламы — единый источник из lib/vox-advertising.ts */}
         <style dangerouslySetInnerHTML={{ __html: VOX_INLINE_CSS }} />
 
-        {/* VOX рекламный скрипт — next/script afterInteractive предотвращает ошибки гидрации */}
-        <Script id="vox-advertising" strategy="afterInteractive">{VOX_INIT_SCRIPT}</Script>
+        {/* VOX рекламный скрипт — dangerouslySetInnerHTML как в рабочей версии */}
+        <script dangerouslySetInnerHTML={{ __html: VOX_INIT_SCRIPT }} />
       </body>
     </html>
   );

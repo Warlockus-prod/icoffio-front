@@ -13,9 +13,12 @@ export const VOX_DISPLAY_PLACEMENTS = [
   { id: "63da9e2a4d506e16acfd2a36", format: "300x250", type: "desktop" },
   { id: "63daa3c24d506e16acfd2a38", format: "970x250", type: "desktop" },
   { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600", type: "desktop" },
-  // Mobile formats (active only — disabled formats removed)
+  // Mobile formats
   { id: "68f644dc70e7b26b58596f34", format: "320x50", type: "mobile" },
+  { id: "68f6451d810d98e1a08f2725", format: "160x600", type: "mobile" },
   { id: "68f645bf810d98e1a08f272f", format: "320x100", type: "mobile" },
+  // Display formats
+  { id: "68f63437810d98e1a08f26de", format: "320x480", type: "display" },
 ] as const;
 
 export const VOX_IN_IMAGE_PLACE_ID = "63d93bb54d506e95f039e2e3";
@@ -74,12 +77,21 @@ aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
   width: 300px !important;
 }
 
-/* Mobile форматы (только активные) */
+/* Mobile форматы */
 .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
   max-width: 320px !important;
 }
 
+.vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
+  max-width: 160px !important;
+}
+
 .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
+  max-width: 320px !important;
+}
+
+/* Display форматы */
+.vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
   max-width: 320px !important;
 }
 
@@ -197,28 +209,34 @@ function initVOX() {
   }
 }
 
-// Ad visibility watcher
+// Система показа контейнеров после загрузки рекламы
 function setupAdVisibilityWatcher() {
   var observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
         var target = mutation.target;
         if (target.hasAttribute && target.hasAttribute('data-hyb-ssp-ad-place')) {
-          target.classList.remove('vox-ad-loading');
-          target.classList.add('vox-ad-loaded');
-          console.log('VOX: Реклама загружена в контейнер', target.getAttribute('data-hyb-ssp-ad-place'));
+          // VOX добавил содержимое в контейнер - показываем его
+          target.style.opacity = '1';
+          console.log('VOX: Контейнер показан после загрузки рекламы');
         }
       }
     });
   });
   
-  // Наблюдаем за всеми рекламными контейнерами
+  // Наблюдаем за всеми ad контейнерами
   document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
-    container.classList.add('vox-ad-loading');
     observer.observe(container, { childList: true, subtree: true });
   });
   
-  console.log('VOX: AdVisibilityWatcher установлен');
+  // Fallback - показываем контейнеры через 2 секунды если что-то загрузилось
+  setTimeout(function() {
+    document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
+      if (container.children.length > 0 || container.innerHTML.trim() !== '') {
+        container.style.opacity = '1';
+      }
+    });
+  }, 2000);
 }
 
 // Функция переинициализации для Next.js client-side navigation

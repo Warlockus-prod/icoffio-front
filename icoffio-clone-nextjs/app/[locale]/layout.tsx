@@ -17,7 +17,7 @@ import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
 import { notFound } from "next/navigation";
-import { VOX_INLINE_CSS, VOX_INIT_SCRIPT } from "@/lib/vox-advertising";
+import { VOX_SCRIPT } from "@/lib/vox-advertising";
 
 const locales = ['en', 'pl'];
 
@@ -195,11 +195,8 @@ export default function LocaleLayout({
           </ToastProvider>
         </ThemeProvider>
 
-        {/* CSS для VOX Display рекламы — единый источник из lib/vox-advertising.ts */}
-        <style dangerouslySetInnerHTML={{ __html: VOX_INLINE_CSS }} />
-
-        {/* VOX рекламный скрипт — dangerouslySetInnerHTML как в рабочей версии */}
-        <script dangerouslySetInnerHTML={{ __html: VOX_INIT_SCRIPT }} />
+        {/* VOX SSP — реклама */}
+        <script dangerouslySetInnerHTML={{ __html: VOX_SCRIPT }} />
       </body>
     </html>
   );

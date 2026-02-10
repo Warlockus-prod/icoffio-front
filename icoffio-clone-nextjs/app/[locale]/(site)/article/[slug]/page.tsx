@@ -1,40 +1,43 @@
 /**
- * 📰 ARTICLE PAGE - icoffio v7.30.0
+ * Article Page — icoffio
  * 
- * Single article display with advertising integration
- * Mock data moved to lib/mock-data.ts for centralization
+ * Рекламные места (по ADVERTISING_CODES_GUIDE.md):
+ * 
+ * Desktop:
+ *   728x90  — после заголовка (inline)
+ *   300x250 — sidebar top
+ *   300x600 — sidebar bottom
+ *   970x250 — перед Related Articles
+ * 
+ * Mobile:
+ *   320x100 — после контента
+ * 
+ * In-Image — автоматически через VOX скрипт в layout.tsx
  */
 
 import { getPostBySlug, getAllSlugs, getRelated } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
-import { Prose } from "@/components/Prose";
 import { ArticleContentWithAd } from "@/components/ArticleContentWithAd";
-import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { UniversalAd } from "@/components/UniversalAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
-import { getAdPlacementsByLocation, getAdPlacementsByDevice } from "@/lib/config/adPlacements";
-import VideoPlayer from "@/components/VideoPlayer";
-import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
+import { VOX_PLACES } from "@/lib/vox-advertising";
 import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
-// v7.30.0: Centralized mock data
 import { mockPostsFull as mockPosts, getMockPostBySlug, getRelatedMockPosts } from "@/lib/mock-data";
 
-export const revalidate = 3600; // 1 hour
+export const revalidate = 3600;
 
-// Helper functions using centralized mock data
 const getPostBySlugFromMocks = getMockPostBySlug;
 const getRelatedFromMocks = getRelatedMockPosts;
 
 export async function generateMetadata({ params }: { params: { locale: string; slug: string } }): Promise<Metadata> {
-  // Try GraphQL first, fallback to mocks
   let post: Post | null = null;
   
   try {
@@ -82,39 +85,12 @@ export async function generateMetadata({ params }: { params: { locale: string; s
       description: post.excerpt || `${post.title} - detailed article on icoffio`,
       images: [post.image || "/og.png"],
     },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-      },
-    },
-    alternates: {
-      canonical: url,
-    },
+    robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+    alternates: { canonical: url },
   };
 }
 
 export default async function Article({ params }: { params: { locale: string; slug: string } }) {
-  // Get ad placements configuration
-  const articleAds = getAdPlacementsByLocation('article');
-  
-  // Split by position AND device for proper display
-  // Desktop banners
-  const adsContentTopDesktop = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'desktop');
-  const adsContentBottomDesktop = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'desktop');
-  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device === 'desktop');
-  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device === 'desktop');
-  const adsFooterDesktop = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'desktop');
-  
-  // Mobile banners
-  const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
-  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile');
-  const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
-  const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
-  
-  // Try to get post from GraphQL, fallback to mocks
   let post: Post | null = null;
   let related: Post[] = [];
   
@@ -147,8 +123,6 @@ export default async function Article({ params }: { params: { locale: string; sl
     <>
       <ArticleSchema post={post} locale={params.locale} />
       <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
-      
-      {/* Track article view for analytics */}
       <ArticleViewTracker articleSlug={post.slug} />
       
       <Container>
@@ -157,10 +131,10 @@ export default async function Article({ params }: { params: { locale: string; sl
         </div>
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
-        {/* Main Content Grid: Article + Sidebar */}
+        {/* ====== MAIN GRID: Article + Sidebar ====== */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
           
-          {/* Main Article Content */}
+          {/* === Article === */}
           <article className="min-w-0">
             <header className="mb-8">
               <div className="flex items-center gap-3 mb-4">
@@ -175,9 +149,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                   className="text-sm text-neutral-500 dark:text-neutral-400"
                 >
                   {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(params.locale === 'en' ? 'en-US' : 'pl-PL', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                    year: 'numeric', month: 'long', day: 'numeric'
                   })}
                 </time>
               </div>
@@ -189,7 +161,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-            {/* Hero Image */}
+            {/* Hero Image (In-Image реклама появится автоматически через VOX) */}
             <div className="mb-8">
               <img 
                 src={post.image || fallback} 
@@ -198,137 +170,61 @@ export default async function Article({ params }: { params: { locale: string; sl
               />
             </div>
 
-            {/* Article Content with Mid-Content Ad */}
+            {/* AD: 728x90 Leaderboard — Desktop only, после заголовка */}
+            <div className="hidden lg:block my-6 text-center">
+              <UniversalAd 
+                placeId={VOX_PLACES.LEADERBOARD} 
+                format="728x90" 
+                placement="inline" 
+              />
+            </div>
+
+            {/* Article Content */}
             <ArticleContentWithAd 
               content={post.content ? renderContent(post.content) : (post.contentHtml || '')}
-              adsDesktop={adsContentTopDesktop}
-              adsMobile={adsContentTopMobile}
+              adsDesktop={[]}
+              adsMobile={[]}
             />
 
-            {/* Mid-content ads - Mobile ONLY (160x600) */}
-            {adsContentMiddleMobile.map((ad) => (
+            {/* AD: 320x100 Mobile Large Banner — Mobile only, после контента */}
+            <div className="lg:hidden my-6 flex justify-center">
               <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="lg:hidden"
+                placeId={VOX_PLACES.MOBILE_LARGE} 
+                format="320x100" 
+                placement="mobile" 
               />
-            ))}
-
-            {/* Content bottom ads - Desktop */}
-            {adsContentBottomDesktop.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="lg:block hidden"
-              />
-            ))}
-            
-            {/* Content bottom ads - Mobile */}
-            {adsContentBottomMobile.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="lg:hidden"
-              />
-            ))}
-
-            {/* Instream Video Player - Article End */}
-            {getInstreamPlayers()
-              .filter(p => p.position === 'article-end')
-              .map((player) => (
-                <VideoPlayer
-                  key={player.id}
-                  type={player.type}
-                  position={player.position}
-                  voxPlaceId={player.voxPlaceId}
-                  autoplay={player.autoplay}
-                  muted={player.muted}
-                  videoTitle={post.title}
-                  className={`mt-12 ${player.device === 'desktop' ? 'lg:block hidden' : player.device === 'mobile' ? 'lg:hidden' : ''}`}
-                />
-              ))}
-
+            </div>
           </article>
 
-          {/* Sidebar with VOX Display ads */}
-          <aside className="lg:sticky lg:top-4 lg:h-fit hidden lg:block">
+          {/* === Sidebar (Desktop only) === */}
+          <aside className="lg:sticky lg:top-4 lg:h-fit hidden lg:block space-y-6">
             
-            {/* Sidebar top ads */}
-            {adsSidebarTop.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-              />
-            ))}
+            {/* AD: 300x250 Medium Rectangle — sidebar top */}
+            <UniversalAd 
+              placeId={VOX_PLACES.MEDIUM_RECTANGLE} 
+              format="300x250" 
+              placement="sidebar" 
+            />
 
-            {/* Outstream Video Player - Sticky Sidebar (Desktop only) */}
-            {getOutstreamPlayers()
-              .filter(p => p.position === 'sidebar-sticky' && p.device === 'desktop')
-              .map((player) => (
-                <VideoPlayer
-                  key={player.id}
-                  type={player.type}
-                  position={player.position}
-                  voxPlaceId={player.voxPlaceId}
-                  autoplay={player.autoplay}
-                  muted={player.muted}
-                  className="mt-6"
-                />
-              ))}
-
-            {/* Sidebar bottom ads */}
-            {adsSidebarBottom.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-              />
-            ))}
-            
+            {/* AD: 300x600 Large Skyscraper — sidebar bottom */}
+            <UniversalAd 
+              placeId={VOX_PLACES.LARGE_SKYSCRAPER} 
+              format="300x600" 
+              placement="sidebar" 
+            />
           </aside>
         </div>
 
-        {/* Footer ads - Desktop */}
-        {adsFooterDesktop.map((ad) => (
-          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
-            <UniversalAd 
-              placeId={ad.placeId} 
-              format={ad.format}
-              placement={ad.placement}
-              enabled={ad.enabled}
-              className="lg:block hidden"
-            />
-          </div>
-        ))}
-        
-        {/* Footer ads - Mobile */}
-        {adsFooterMobile.map((ad) => (
-          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
-            <UniversalAd 
-              placeId={ad.placeId} 
-              format={ad.format}
-              placement={ad.placement}
-              enabled={ad.enabled}
-              className="lg:hidden"
-            />
-          </div>
-        ))}
+        {/* AD: 970x250 Large Leaderboard — Desktop, перед Related */}
+        <div className="hidden lg:block max-w-7xl mx-auto my-12 text-center">
+          <UniversalAd 
+            placeId={VOX_PLACES.LARGE_LEADERBOARD} 
+            format="970x250" 
+            placement="inline" 
+          />
+        </div>
 
-        {/* Related Articles - Full Width */}
+        {/* Related Articles */}
         <div className="mt-16">
           <RelatedArticles 
             posts={related.length > 0 ? related : mockPosts}

@@ -12,7 +12,7 @@ import {
 
 export default function AdvertisingManager() {
   const [placements, setPlacements] = useState<AdPlacementConfig[]>([]);
-  const [filter, setFilter] = useState<'all' | 'display' | 'video'>('all');
+  const [filter, setFilter] = useState<'all' | 'display'>('all');
   const [deviceFilter, setDeviceFilter] = useState<'all' | 'desktop' | 'mobile' | 'both'>('all');
   const [stats, setStats] = useState<ReturnType<typeof getAdPlacementsStatsFromStorage>>();
   const [isLoading, setIsLoading] = useState(true);
@@ -149,10 +149,10 @@ export default function AdvertisingManager() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</span>
             <div className="flex gap-2">
-              {['all', 'display', 'video'].map(type => (
+              {['all', 'display'].map(type => (
                 <button
                   key={type}
-                  onClick={() => setFilter(type as any)}
+                  onClick={() => setFilter(type as 'all' | 'display')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     filter === type
                       ? 'bg-blue-600 text-white'
@@ -161,7 +161,6 @@ export default function AdvertisingManager() {
                 >
                   {type === 'all' && '🎯 All'}
                   {type === 'display' && '📊 Display'}
-                  {type === 'video' && '🎬 Video'}
                 </button>
               ))}
             </div>

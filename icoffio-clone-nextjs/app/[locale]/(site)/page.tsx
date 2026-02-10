@@ -17,6 +17,7 @@ import { Container } from "@/components/Container";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSkeleton";
 import { UniversalAd } from "@/components/UniversalAd";
+import { VOX_PLACES } from "@/lib/vox-advertising";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 // v7.30.0: Centralized mock data
@@ -158,24 +159,14 @@ export default async function Page({ params }: { params: { locale: string } }) {
           </Link>
         </div>
 
-        {/* Homepage Bottom Ad - Desktop (970x250 Large Leaderboard) */}
-        <div className="mt-16 hidden lg:block">
-          <UniversalAd 
-            placeId="63daa3c24d506e16acfd2a38"
-            format="970x250"
-            placement="inline"
-            enabled={true}
-          />
+        {/* AD: 970x250 — Desktop, после списка статей */}
+        <div className="mt-16 hidden lg:block text-center">
+          <UniversalAd placeId={VOX_PLACES.LARGE_LEADERBOARD} format="970x250" placement="inline" />
         </div>
         
-        {/* Homepage Bottom Ad - Mobile (320x100 Large Mobile Banner) */}
-        <div className="mt-12 lg:hidden">
-          <UniversalAd 
-            placeId="68f645bf810d98e1a08f272f"
-            format="320x100"
-            placement="mobile"
-            enabled={true}
-          />
+        {/* AD: 320x100 — Mobile, после списка статей */}
+        <div className="mt-12 lg:hidden flex justify-center">
+          <UniversalAd placeId={VOX_PLACES.MOBILE_LARGE} format="320x100" placement="mobile" />
         </div>
       </div>
     </>

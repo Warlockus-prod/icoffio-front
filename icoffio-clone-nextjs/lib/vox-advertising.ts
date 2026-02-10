@@ -26,26 +26,12 @@ export const VOX_IN_IMAGE_PLACE_ID = "63d93bb54d506e95f039e2e3";
 // ========== VOX INLINE CSS ==========
 
 export const VOX_INLINE_CSS = `
-/* VOX контейнеры - скрыты по умолчанию пока реклама не загружена */
+/* VOX контейнеры — позиционирование */
 .vox-ad-container {
-  position: relative !important;
-  display: block !important;
-  background: transparent !important;
-  border: none !important;
-}
-
-/* Загруженная реклама */
-.vox-ad-loaded {
-  opacity: 1 !important;
-}
-
-/* Загружающаяся реклама - скрыта */
-.vox-ad-loading {
-  opacity: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  position: relative;
+  display: block;
+  background: transparent;
+  border: none;
 }
 
 /* Контейнеры для статьи - адаптивные */
@@ -54,44 +40,44 @@ article [data-hyb-ssp-ad-place] {
 }
 
 /* Desktop широкие баннеры - фиксированные размеры */
-.vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
-.vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
+[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
+[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
   width: 728px !important;
   height: 90px !important;
   max-width: none !important;
 }
 
-.vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
-.vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
+[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
+[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
   width: 970px !important;
   height: 250px !important;
   max-width: none !important;
 }
 
 /* Sidebar баннеры - фиксированные размеры */
-aside .vox-ad-loaded[data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
+aside [data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
   width: 300px !important;
 }
 
-aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
+aside [data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
   width: 300px !important;
 }
 
 /* Mobile форматы */
-.vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
+[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
   max-width: 320px !important;
 }
 
-.vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
+[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
   max-width: 160px !important;
 }
 
-.vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
+[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
   max-width: 320px !important;
 }
 
 /* Display форматы */
-.vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
+[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
   max-width: 320px !important;
 }
 
@@ -209,6 +195,16 @@ function initVOX() {
   }
 }
 
+// Показать рекламный контейнер (сбросить все скрывающие стили)
+function showAdContainer(container) {
+  container.style.opacity = '1';
+  container.style.maxHeight = 'none';
+  container.style.overflow = 'visible';
+  container.style.margin = '';
+  container.style.padding = '';
+  console.log('VOX: Контейнер показан — ' + container.getAttribute('data-ad-format'));
+}
+
 // Система показа контейнеров после загрузки рекламы
 function setupAdVisibilityWatcher() {
   var observer = new MutationObserver(function(mutations) {
@@ -216,9 +212,7 @@ function setupAdVisibilityWatcher() {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
         var target = mutation.target;
         if (target.hasAttribute && target.hasAttribute('data-hyb-ssp-ad-place')) {
-          // VOX добавил содержимое в контейнер - показываем его
-          target.style.opacity = '1';
-          console.log('VOX: Контейнер показан после загрузки рекламы');
+          showAdContainer(target);
         }
       }
     });
@@ -229,14 +223,14 @@ function setupAdVisibilityWatcher() {
     observer.observe(container, { childList: true, subtree: true });
   });
   
-  // Fallback - показываем контейнеры через 2 секунды если что-то загрузилось
+  // Fallback — показываем контейнеры через 3 секунды если что-то загрузилось
   setTimeout(function() {
     document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
       if (container.children.length > 0 || container.innerHTML.trim() !== '') {
-        container.style.opacity = '1';
+        showAdContainer(container);
       }
     });
-  }, 2000);
+  }, 3000);
 }
 
 // Функция переинициализации для Next.js client-side navigation

@@ -59,7 +59,6 @@ export function UniversalAd({
 }: UniversalAdProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAdLoaded, setIsAdLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
   
   // Если реклама отключена через конфиг, не рендерим
   if (!enabled) {
@@ -73,51 +72,65 @@ export function UniversalAd({
     const container = containerRef.current;
     if (!container) return;
 
-    // Таймаут для проверки загрузки рекламы
-    const timeout = setTimeout(() => {
-      if (container) {
-        const hasContent = container.children.length > 0 || 
-                          container.innerHTML.trim() !== '' ||
-                          container.querySelector('iframe') !== null;
-        
-        if (hasContent) {
-          setIsAdLoaded(true);
-        } else {
-          // Нет контента после таймаута - скрываем плейсмент
-          setHasError(true);
-          console.log(`VOX: No ad content for ${format} (${placeId}) - hiding placeholder`);
-        }
-      }
-    }, 4000); // 4 секунды на загрузку рекламы
-
     // MutationObserver для отслеживания когда VOX добавит контент
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
           setIsAdLoaded(true);
-          clearTimeout(timeout);
         }
       });
     });
 
     observer.observe(container, { childList: true, subtree: true });
 
+    // Периодическая проверка — VOX может заполнить контейнер через innerHTML
+    // а не через appendChild, что MutationObserver не всегда отловит
+    const checkInterval = setInterval(() => {
+      if (container) {
+        const hasContent = container.children.length > 0 || 
+                          container.innerHTML.trim() !== '' ||
+                          container.querySelector('iframe') !== null;
+        if (hasContent) {
+          setIsAdLoaded(true);
+          clearInterval(checkInterval);
+        }
+      }
+    }, 1000);
+
+    // Через 30 секунд прекращаем проверку (но НЕ удаляем контейнер из DOM!)
+    const cleanupTimeout = setTimeout(() => {
+      clearInterval(checkInterval);
+    }, 30000);
+
     return () => {
       observer.disconnect();
-      clearTimeout(timeout);
+      clearInterval(checkInterval);
+      clearTimeout(cleanupTimeout);
     };
   }, [format, placeId]);
 
-  // Если ошибка загрузки - не показываем ничего
-  if (hasError) {
-    return null;
-  }
+  // ВАЖНО: Контейнер ВСЕГДА остаётся в DOM — VOX должен его найти!
+  // Если реклама не загружена — контейнер невидим и не занимает места
   
   // Определяем стили в зависимости от типа размещения
   const getStyles = (): React.CSSProperties => {
-    // Базовые стили - контейнер скрыт пока реклама не загружена
+    if (!isAdLoaded) {
+      // Контейнер в DOM, но невидим и не занимает места
+      return {
+        display: 'block',
+        opacity: 0,
+        maxHeight: 0,
+        overflow: 'hidden',
+        margin: 0,
+        padding: 0,
+        border: 'none',
+        backgroundColor: 'transparent',
+      };
+    }
+
+    // Реклама загружена — показываем с анимацией
     const baseStyle: React.CSSProperties = {
-      opacity: isAdLoaded ? 1 : 0,
+      opacity: 1,
       transition: 'opacity 0.3s ease-in-out',
       backgroundColor: 'transparent',
       border: 'none',
@@ -129,19 +142,16 @@ export function UniversalAd({
         return {
           ...baseStyle,
           width: '100%',
-          margin: isAdLoaded ? '0 0 24px 0' : '0',
+          margin: '0 0 24px 0',
           display: 'block',
-          // Высота 0 пока реклама не загружена
-          maxHeight: isAdLoaded ? 'none' : '0',
         };
       
       case 'mobile':
         return {
           ...baseStyle,
           width: dimensions?.width || 'auto',
-          margin: isAdLoaded ? '16px auto' : '0 auto',
+          margin: '16px auto',
           display: 'block',
-          maxHeight: isAdLoaded ? 'none' : '0',
         };
       
       case 'display':
@@ -149,10 +159,9 @@ export function UniversalAd({
           ...baseStyle,
           width: '100%',
           maxWidth: dimensions?.width || 'auto',
-          margin: isAdLoaded ? '16px auto' : '0 auto',
+          margin: '16px auto',
           display: 'block',
           textAlign: 'center',
-          maxHeight: isAdLoaded ? 'none' : '0',
         };
       
       default: // inline (728x90, 970x250)
@@ -160,28 +169,18 @@ export function UniversalAd({
           ...baseStyle,
           width: '100%',
           maxWidth: dimensions?.width || 'auto',
-          margin: isAdLoaded ? '20px auto' : '0 auto',
+          margin: '20px auto',
           display: 'block',
           textAlign: 'center',
-          maxHeight: isAdLoaded ? 'none' : '0',
         };
     }
-  };
-
-  // Определяем CSS класс
-  const getCssClass = () => {
-    const base = 'vox-ad-container';
-    const typeClass = `vox-${placement}-ad`;
-    const formatClass = `vox-${format.replace('x', '-')}`;
-    const loadedClass = isAdLoaded ? 'vox-ad-loaded' : 'vox-ad-loading';
-    return `${base} ${typeClass} ${formatClass} ${loadedClass} ${className}`.trim();
   };
 
   return (
     <div 
       ref={containerRef}
       data-hyb-ssp-ad-place={placeId}
-      className={getCssClass()}
+      className={`vox-ad-container ${className}`.trim()}
       style={getStyles()}
       data-ad-format={format}
       data-ad-placement={placement}

@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-export type AdFormat = 
+export type AdFormat =
   // Desktop Inline
   | '728x90'    // Leaderboard
   | '970x250'   // Large Leaderboard
@@ -50,17 +50,17 @@ const AD_DIMENSIONS: Partial<Record<AdFormat, { width: string; height: string }>
   'video': { width: '640px', height: '360px' },
 };
 
-export function UniversalAd({ 
-  placeId, 
-  format, 
+export function UniversalAd({
+  placeId,
+  format,
   placement = 'inline',
   className = "",
-  enabled = true 
+  enabled = true
 }: UniversalAdProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAdLoaded, setIsAdLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  
+
   // Если реклама отключена через конфиг, не рендерим
   if (!enabled) {
     return null;
@@ -76,10 +76,10 @@ export function UniversalAd({
     // Таймаут для проверки загрузки рекламы
     const timeout = setTimeout(() => {
       if (container) {
-        const hasContent = container.children.length > 0 || 
-                          container.innerHTML.trim() !== '' ||
-                          container.querySelector('iframe') !== null;
-        
+        const hasContent = container.children.length > 0 ||
+          container.innerHTML.trim() !== '' ||
+          container.querySelector('iframe') !== null;
+
         if (hasContent) {
           setIsAdLoaded(true);
         } else {
@@ -112,83 +112,80 @@ export function UniversalAd({
   if (hasError) {
     return null;
   }
-  
+
   // Определяем стили в зависимости от типа размещения
-  const getStyles = (): React.CSSProperties => {
-    // Базовые стили - контейнер скрыт пока реклама не загружена
-    const baseStyle: React.CSSProperties = {
-      opacity: isAdLoaded ? 1 : 0,
-      transition: 'opacity 0.3s ease-in-out',
-      backgroundColor: 'transparent',
-      border: 'none',
-      overflow: 'visible',
-    };
-
-    switch (placement) {
-      case 'sidebar':
-        return {
-          ...baseStyle,
-          width: '100%',
-          margin: isAdLoaded ? '0 0 24px 0' : '0',
-          display: 'block',
-          // Высота 0 пока реклама не загружена
-          maxHeight: isAdLoaded ? 'none' : '0',
-        };
-      
-      case 'mobile':
-        return {
-          ...baseStyle,
-          width: dimensions?.width || 'auto',
-          margin: isAdLoaded ? '16px auto' : '0 auto',
-          display: 'block',
-          maxHeight: isAdLoaded ? 'none' : '0',
-        };
-      
-      case 'display':
-        return {
-          ...baseStyle,
-          width: '100%',
-          maxWidth: dimensions?.width || 'auto',
-          margin: isAdLoaded ? '16px auto' : '0 auto',
-          display: 'block',
-          textAlign: 'center',
-          maxHeight: isAdLoaded ? 'none' : '0',
-        };
-      
-      default: // inline (728x90, 970x250)
-        return {
-          ...baseStyle,
-          width: '100%',
-          maxWidth: dimensions?.width || 'auto',
-          margin: isAdLoaded ? '20px auto' : '0 auto',
-          display: 'block',
-          textAlign: 'center',
-          maxHeight: isAdLoaded ? 'none' : '0',
-        };
-    }
+  // Common styles for all placements
+  const commonStyle: React.CSSProperties = {
+    ...baseStyle,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+    maxWidth: '100%', // Prevent overflow
   };
 
-  // Определяем CSS класс
-  const getCssClass = () => {
-    const base = 'vox-ad-container';
-    const typeClass = `vox-${placement}-ad`;
-    const formatClass = `vox-${format.replace('x', '-')}`;
-    const loadedClass = isAdLoaded ? 'vox-ad-loaded' : 'vox-ad-loading';
-    return `${base} ${typeClass} ${formatClass} ${loadedClass} ${className}`.trim();
-  };
+  switch (placement) {
+    case 'sidebar':
+      return {
+        ...commonStyle,
+        width: '100%',
+        minHeight: isAdLoaded ? (dimensions?.height || '250px') : '0', // Preserve space if loaded
+        margin: isAdLoaded ? '0 0 24px 0' : '0',
+        maxHeight: isAdLoaded ? 'none' : '0',
+      };
 
-  return (
-    <div 
-      ref={containerRef}
-      data-hyb-ssp-ad-place={placeId}
-      className={getCssClass()}
-      style={getStyles()}
-      data-ad-format={format}
-      data-ad-placement={placement}
-    >
-      {/* VOX заполнит контентом автоматически */}
-    </div>
-  );
+    case 'mobile':
+      return {
+        ...commonStyle,
+        width: '100%',
+        minHeight: isAdLoaded ? (dimensions?.height || '50px') : '0',
+        margin: isAdLoaded ? '16px auto' : '0 auto',
+        maxHeight: isAdLoaded ? 'none' : '0',
+      };
+
+    case 'display':
+      return {
+        ...commonStyle,
+        width: '100%',
+        minHeight: isAdLoaded ? (dimensions?.height || '250px') : '0',
+        margin: isAdLoaded ? '16px auto' : '0 auto',
+        maxHeight: isAdLoaded ? 'none' : '0',
+      };
+
+    default: // inline (728x90, 970x250)
+      return {
+        ...commonStyle,
+        width: '100%',
+        // Use minHeight to avoid layout shift if dimensions known, but allow expansion
+        minHeight: isAdLoaded ? (dimensions?.height || '90px') : '0',
+        margin: isAdLoaded ? '20px auto' : '0 auto',
+        maxHeight: isAdLoaded ? 'none' : '0',
+      };
+  }
+};
+
+// Определяем CSS класс
+const getCssClass = () => {
+  const base = 'vox-ad-container';
+  const typeClass = `vox-${placement}-ad`;
+  const formatClass = `vox-${format.replace('x', '-')}`;
+  const loadedClass = isAdLoaded ? 'vox-ad-loaded' : 'vox-ad-loading';
+  return `${base} ${typeClass} ${formatClass} ${loadedClass} ${className}`.trim();
+};
+
+return (
+  <div
+    ref={containerRef}
+    data-hyb-ssp-ad-place={placeId}
+    className={getCssClass()}
+    style={getStyles()}
+    data-ad-format={format}
+    data-ad-placement={placement}
+  >
+    {/* VOX заполнит контентом автоматически */}
+  </div>
+);
 }
 
 // Экспорт типов для использования в других компонентах

@@ -160,12 +160,12 @@ export default async function Page({ params }: { params: { locale: string } }) {
         </div>
 
         {/* AD: 970x250 — Desktop, после списка статей */}
-        <div className="mt-16 hidden lg:block text-center">
+        <div className="mt-16 hidden xl:block text-center">
           <UniversalAd placeId={VOX_PLACES.LARGE_LEADERBOARD} format="970x250" placement="inline" />
         </div>
         
         {/* AD: 320x100 — Mobile, после списка статей */}
-        <div className="mt-12 lg:hidden flex justify-center">
+        <div className="mt-12 xl:hidden flex justify-center">
           <UniversalAd placeId={VOX_PLACES.MOBILE_LARGE} format="320x100" placement="mobile" />
         </div>
       </div>

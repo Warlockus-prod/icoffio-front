@@ -1,13 +1,14 @@
 {
   "name": "icoffio-clone",
   "private": true,
-  "version": "8.5.3",
+  "version": "8.6.2",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
+    "ad:live-debug": "node scripts/live-ad-debug.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean-problematic": "node scripts/clean-problematic-articles.js",

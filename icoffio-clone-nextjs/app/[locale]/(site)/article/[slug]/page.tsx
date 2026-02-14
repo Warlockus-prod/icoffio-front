@@ -132,7 +132,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
         {/* ====== MAIN GRID: Article + Sidebar ====== */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
           
           {/* === Article === */}
           <article className="min-w-0">
@@ -171,7 +171,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             </div>
 
             {/* AD: 728x90 Leaderboard — Desktop only, после заголовка */}
-            <div className="hidden lg:block my-6 text-center">
+            <div className="hidden xl:block my-6 text-center">
               <UniversalAd 
                 placeId={VOX_PLACES.LEADERBOARD} 
                 format="728x90" 
@@ -187,7 +187,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             />
 
             {/* AD: 320x100 Mobile Large Banner — Mobile only, после контента */}
-            <div className="lg:hidden my-6 flex justify-center">
+            <div className="xl:hidden my-6 flex justify-center">
               <UniversalAd 
                 placeId={VOX_PLACES.MOBILE_LARGE} 
                 format="320x100" 
@@ -197,7 +197,7 @@ export default async function Article({ params }: { params: { locale: string; sl
           </article>
 
           {/* === Sidebar (Desktop only) === */}
-          <aside className="lg:sticky lg:top-4 lg:h-fit hidden lg:block space-y-6">
+          <aside className="xl:sticky xl:top-4 xl:h-fit hidden xl:block space-y-6">
             
             {/* AD: 300x250 Medium Rectangle — sidebar top */}
             <UniversalAd 
@@ -216,7 +216,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         </div>
 
         {/* AD: 970x250 Large Leaderboard — Desktop, перед Related */}
-        <div className="hidden lg:block max-w-7xl mx-auto my-12 text-center">
+        <div className="hidden xl:block max-w-7xl mx-auto my-12 text-center">
           <UniversalAd 
             placeId={VOX_PLACES.LARGE_LEADERBOARD} 
             format="970x250" 

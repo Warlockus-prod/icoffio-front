@@ -48,28 +48,59 @@ function hasAdvertisingConsent() {
 
 function loadVOXScript() {
   if (!hasAdvertisingConsent()) {
-    console.log('VOX: waiting for consent');
     return;
   }
-  if (typeof window._tx === "undefined") {
-    var s = document.createElement("script");
-    s.type = "text/javascript";
-    s.async = true;
-    s.src = "https://st.hbrd.io/ssp.js";
-    s.setAttribute('fetchpriority', 'high');
-    (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
+  if (!document.querySelector('script[data-vox-ssp="1"]')) {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.async = true;
+    script.src = "https://st.hbrd.io/ssp.js";
+    script.setAttribute('fetchpriority', 'high');
+    script.setAttribute('data-vox-ssp', '1');
+    (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(script);
   }
   window._tx = window._tx || {};
   window._tx.cmds = window._tx.cmds || [];
 }
 
-function initVOX() {
+var _voxUrl = '';
+var _voxRetryTimers = [];
+var _voxObserver = null;
+var _voxUrlIntervalStarted = false;
+
+var VOX_ALLOWED_DISPLAY_IDS = {
+  "${VOX_PLACES.LEADERBOARD}": true,
+  "${VOX_PLACES.MEDIUM_RECTANGLE}": true,
+  "${VOX_PLACES.LARGE_LEADERBOARD}": true,
+  "${VOX_PLACES.LARGE_SKYSCRAPER}": true,
+  "${VOX_PLACES.MOBILE_BANNER}": true,
+  "${VOX_PLACES.MOBILE_WIDE_SKY}": true,
+  "${VOX_PLACES.MOBILE_LARGE}": true,
+  "${VOX_PLACES.MOBILE_INTERSTITIAL}": true
+};
+
+function clearRetryTimers() {
+  _voxRetryTimers.forEach(function(timerId) {
+    clearTimeout(timerId);
+  });
+  _voxRetryTimers = [];
+}
+
+function containerHasContent(container) {
+  return (
+    container.children.length > 0 ||
+    container.querySelector('iframe') !== null ||
+    (container.innerHTML && container.innerHTML.trim() !== '')
+  );
+}
+
+function initVOX(reason) {
   if (!hasAdvertisingConsent()) return;
-  if (typeof window._tx === 'undefined' || !window._tx.integrateInImage) return;
+  if (typeof window._tx === 'undefined' || !window._tx.integrateInImage || !window._tx.init) return;
 
   try {
-    // 1) In-Image — ТОЛЬКО на страницах статей
-    var isArticle = window.location.pathname.includes('/article/');
+    var isArticle = window.location.pathname.indexOf('/article/') !== -1;
+
     if (isArticle) {
       window._tx.integrateInImage({
         placeId: "${VOX_IN_IMAGE_PLACE_ID}",
@@ -81,61 +112,124 @@ function initVOX() {
           'a[href*="/article/"] img:not(.prose img):not(article > div > img)'
         ].join(', ')
       });
-      console.log('VOX: In-Image init');
     }
 
-    // 2) Display баннеры — находим все контейнеры на странице
     var containers = document.querySelectorAll('[data-hyb-ssp-ad-place]');
-    var count = 0;
+    var displayCount = 0;
+
     containers.forEach(function(el) {
+      var placeId = el.getAttribute('data-hyb-ssp-ad-place');
+      if (!placeId || !VOX_ALLOWED_DISPLAY_IDS[placeId]) return;
+      if (el.getAttribute('data-ad-status') === 'unsuitable') return;
+
+      var computed = window.getComputedStyle(el);
+      if (computed.display === 'none' || computed.visibility === 'hidden') return;
+      if (containerHasContent(el)) return;
+
+      var attempts = parseInt(el.getAttribute('data-vox-init-attempts') || '0', 10);
+      if (attempts >= 3) return;
+      el.setAttribute('data-vox-init-attempts', String(attempts + 1));
+
       window._tx.integrateInImage({
-        placeId: el.getAttribute('data-hyb-ssp-ad-place'),
+        placeId: placeId,
         setDisplayBlock: true
       });
-      count++;
+      displayCount++;
     });
-    console.log('VOX: ' + count + ' display containers');
 
-    // 3) Запуск bid requests
-    if (count > 0 || isArticle) {
+    if (displayCount > 0 || isArticle) {
       window._tx.init();
-      console.log('VOX: init() — bid requests sent');
+      console.log('[VOX] init (' + (reason || 'default') + ') inImage=' + isArticle + ' display=' + displayCount);
     }
   } catch (err) {
     console.error('VOX error:', err);
   }
 }
 
-// URL tracking для SPA навигации Next.js
-var _voxUrl = '';
-function checkUrl() {
+function scheduleRetries(reason) {
+  clearRetryTimers();
+  [200, 800, 1800, 3200].forEach(function(delay) {
+    var timer = setTimeout(function() {
+      initVOX(reason + ':' + delay + 'ms');
+    }, delay);
+    _voxRetryTimers.push(timer);
+  });
+}
+
+function checkUrlAndReinit() {
   if (window.location.href !== _voxUrl) {
     _voxUrl = window.location.href;
-    setTimeout(initVOX, 500);
+    scheduleRetries('route-change');
   }
+}
+
+function ensureDomObserver() {
+  if (_voxObserver) return;
+
+  _voxObserver = new MutationObserver(function(mutations) {
+    var hasNewAdContainer = mutations.some(function(mutation) {
+      if (mutation.type !== 'childList' || mutation.addedNodes.length === 0) {
+        return false;
+      }
+
+      return Array.from(mutation.addedNodes).some(function(node) {
+        if (!(node instanceof HTMLElement)) return false;
+        if (node.matches('[data-hyb-ssp-ad-place]')) return true;
+        return node.querySelector('[data-hyb-ssp-ad-place]') !== null;
+      });
+    });
+
+    if (hasNewAdContainer) {
+      scheduleRetries('dom-mutation');
+    }
+  });
+
+  _voxObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function startUrlTracking() {
+  if (_voxUrlIntervalStarted) return;
+  _voxUrlIntervalStarted = true;
+  _voxUrl = window.location.href;
+  setInterval(checkUrlAndReinit, 1200);
+}
+
+function bootstrapVOX() {
+  if (!hasAdvertisingConsent()) return;
+  scheduleRetries('bootstrap');
+  ensureDomObserver();
+  startUrlTracking();
+}
+
+function onSdkReady(callback) {
+  if (window._tx && window._tx.integrateInImage) {
+    callback();
+    return;
+  }
+
+  window._tx = window._tx || {};
+  window._tx.cmds = window._tx.cmds || [];
+  window._tx.cmds.push(callback);
 }
 
 function startVOX() {
   if (!hasAdvertisingConsent()) return;
   loadVOXScript();
-  window._tx.cmds.push(function() {
-    function firstInit() {
-      _voxUrl = window.location.href;
-      initVOX();
-      setInterval(checkUrl, 1500);
-    }
+  onSdkReady(function() {
     if (document.readyState === 'complete') {
-      firstInit();
-    } else {
-      window.addEventListener('load', firstInit);
-      setTimeout(firstInit, 2000);
+      bootstrapVOX();
+      return;
     }
+    window.addEventListener('load', bootstrapVOX, { once: true });
+    setTimeout(bootstrapVOX, 1400);
   });
 }
 
 startVOX();
 
 window.addEventListener('cookieConsentChanged', function(e) {
-  if (e.detail && e.detail.advertising) startVOX();
+  if (e.detail && e.detail.advertising) {
+    startVOX();
+  }
 });
 `;

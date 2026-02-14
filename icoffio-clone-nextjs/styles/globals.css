@@ -240,91 +240,63 @@ textarea.markdown-editor {
 
 /* ========== VOX ADVERTISING STYLES ========== */
 
-/* Base container styles */
+/* Base container */
 .vox-ad-container {
-  position: relative !important;
-  display: block !important;
-  clear: both !important;
-  margin: 20px auto !important;
-  overflow: visible !important;
-  min-height: 50px !important;
-  isolation: isolate !important;
+  position: relative;
+  display: block;
+  background: transparent;
+  border: none;
+  overflow: visible;
 }
 
-/* Inline Ads (article content) */
+/* Shared alignment */
+.vox-inline-ad,
+.vox-sidebar-ad,
+.vox-mobile-ad,
+.vox-display-ad {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+/* Inline ads */
 .vox-inline-ad {
-  width: 100% !important;
-  max-width: 970px !important;
-  margin: 24px auto !important;
-  text-align: center !important;
+  width: 100%;
+  max-width: 970px;
+  margin: 24px auto;
 }
 
-/* Sidebar Ads */
+/* Sidebar ads */
 .vox-sidebar-ad {
-  width: 100% !important;
-  max-width: 300px !important;
-  margin: 0 auto 24px auto !important;
-  position: relative !important;
-  z-index: 1 !important;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto 24px auto;
 }
 
-.vox-sidebar-ad + .vox-sidebar-ad {
-  margin-top: 24px !important;
-}
-
-/* Mobile Ads */
+/* Mobile ads */
 .vox-mobile-ad {
-  width: 100% !important;
-  max-width: 320px !important;
-  margin: 16px auto !important;
-  text-align: center !important;
+  width: 100%;
+  max-width: 320px;
+  margin: 16px auto;
 }
 
-/* Video Player Ads */
-.vox-video-ad {
-  position: relative !important;
-  width: 100% !important;
-  max-width: 640px !important;
-  aspect-ratio: 16 / 9 !important;
-  margin: 20px auto !important;
+/* Display/Interstitial */
+.vox-display-ad {
+  width: 100%;
+  max-width: 320px;
 }
 
-/* Prevent duplicate ad containers */
-[data-hyb-ssp-ad-place] + [data-hyb-ssp-ad-place] {
-  margin-top: 32px !important;
+/* Payload alignment */
+[data-hyb-ssp-ad-place] > * {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* Desktop ad formats */
-@media (min-width: 1024px) {
-  .vox-728-90,
-  .vox-970-250 {
-    display: block !important;
-  }
-}
-
-/* Mobile ad formats */
-@media (max-width: 1023px) {
-  .vox-728-90,
-  .vox-970-250 {
-    display: none !important;
-  }
-  
-  .vox-320-50,
-  .vox-320-100 {
-    display: block !important;
-  }
-}
-
-/* Iframe container fix */
-[data-hyb-ssp-ad-place] iframe {
-  max-width: 100% !important;
-  height: auto !important;
-  display: block !important;
-  margin: 0 auto !important;
-}
-
-/* Prevent layout shift while ads are loading */
-.vox-ad-container:empty {
-  min-height: var(--ad-min-height, 90px) !important;
-  background: transparent !important;
+[data-hyb-ssp-ad-place] iframe,
+[data-hyb-ssp-ad-place] > iframe {
+  max-width: 100%;
+  display: block;
+  margin: 0 auto;
+  border: 0;
 }

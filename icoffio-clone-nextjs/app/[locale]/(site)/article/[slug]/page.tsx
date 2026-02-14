@@ -222,15 +222,6 @@ export default async function Article({ params }: { params: { locale: string; sl
               adsMobile={mobileInContentSidebarAds}
             />
 
-            {/* AD: 320x100 Mobile Large Banner — Mobile only, после контента */}
-            <div className="xl:hidden my-6 flex justify-center">
-              <UniversalAd 
-                placeId={VOX_PLACES.MOBILE_LARGE} 
-                format="320x100" 
-                placement="mobile" 
-              />
-            </div>
-
             {/* VIDEO AD: Instream/Outstream slot — в конце статьи */}
             {articleEndVideoPlayer?.enabled && (
               <div className="not-prose my-10">

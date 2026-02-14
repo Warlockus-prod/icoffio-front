@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { UniversalAd } from './UniversalAd';
 import type { AdPlacementConfig } from '@/lib/config/adPlacements';
 
@@ -19,36 +19,54 @@ export function ArticleContentWithAd({
   adsDesktop, 
   adsMobile 
 }: ArticleContentWithAdProps) {
-  
-  // Разбиваем контент на две части для вставки рекламы в середину
-  const { firstPart, secondPart } = useMemo(() => {
+  const insertionTargets = Math.max(adsDesktop.length, adsMobile.length);
+
+  // Разбиваем контент на сегменты и вставляем рекламу между ними.
+  const { segments, insertions } = useMemo(() => {
     if (!content) {
-      return { firstPart: '', secondPart: '' };
+      return { segments: [''], insertions: 0 };
     }
 
-    // Ищем все параграфы и заголовки
+    if (insertionTargets === 0) {
+      return { segments: [content], insertions: 0 };
+    }
+
     const blocks = content.split(/(<\/p>|<\/h[1-6]>|<\/ul>|<\/ol>|<\/blockquote>)/gi);
-    
-    if (blocks.length < 4) {
-      // Слишком короткий контент - не вставляем рекламу в середину
-      return { firstPart: content, secondPart: '' };
+    if (blocks.length < 8) {
+      return { segments: [content], insertions: 0 };
     }
 
-    // Находим точку примерно на 40% контента (после 2-3 блоков)
-    const totalBlocks = blocks.length;
-    const splitPoint = Math.floor(totalBlocks * 0.4);
-    
-    // Убеждаемся что splitPoint минимум 4 (2 блока с закрывающими тегами)
-    const actualSplitPoint = Math.max(4, splitPoint);
-    
-    const first = blocks.slice(0, actualSplitPoint).join('');
-    const second = blocks.slice(actualSplitPoint).join('');
+    // Не более 2 врезок на страницу, чтобы мобильная лента не была агрессивной.
+    const desiredInsertions = Math.min(insertionTargets, 2);
+    const maxByContent = blocks.length >= 16 ? desiredInsertions : 1;
 
-    return { firstPart: first, secondPart: second };
-  }, [content]);
+    const cutPoints = Array.from({ length: maxByContent }, (_, index) => {
+      const raw = Math.floor((blocks.length * (index + 1)) / (maxByContent + 1));
+      return Math.min(Math.max(4, raw), blocks.length - 4);
+    });
 
-  // Если контент слишком короткий - показываем без рекламы в середине
-  if (!secondPart) {
+    const normalizedCuts = Array.from(new Set(cutPoints)).sort((a, b) => a - b);
+    if (normalizedCuts.length === 0) {
+      return { segments: [content], insertions: 0 };
+    }
+
+    const builtSegments: string[] = [];
+    let cursor = 0;
+
+    normalizedCuts.forEach((cut) => {
+      builtSegments.push(blocks.slice(cursor, cut).join(''));
+      cursor = cut;
+    });
+
+    builtSegments.push(blocks.slice(cursor).join(''));
+
+    return {
+      segments: builtSegments,
+      insertions: normalizedCuts.length,
+    };
+  }, [content, insertionTargets]);
+
+  if (insertions === 0) {
     return (
       <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
         <div dangerouslySetInnerHTML={{ __html: content }} />
@@ -58,36 +76,43 @@ export function ArticleContentWithAd({
 
   return (
     <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
-      {/* Первая часть контента (~40%) */}
-      <div dangerouslySetInnerHTML={{ __html: firstPart }} />
-      
-      {/* Реклама в середине текста - Desktop */}
-      {adsDesktop.map((ad) => (
-        <div key={ad.id} className="hidden lg:block my-8 not-prose">
-          <UniversalAd 
-            placeId={ad.placeId} 
-            format={ad.format}
-            placement={ad.placement}
-            enabled={ad.enabled}
-          />
-        </div>
-      ))}
-      
-      {/* Реклама в середине текста - Mobile */}
-      {adsMobile.map((ad) => (
-        <div key={ad.id} className="lg:hidden my-6 not-prose">
-          <UniversalAd 
-            placeId={ad.placeId} 
-            format={ad.format}
-            placement={ad.placement}
-            enabled={ad.enabled}
-          />
-        </div>
-      ))}
-      
-      {/* Вторая часть контента (~60%) */}
-      <div dangerouslySetInnerHTML={{ __html: secondPart }} />
+      {segments.map((segment, index) => {
+        const desktopAd = adsDesktop[index];
+        const mobileAd = adsMobile[index];
+        const shouldRenderAd = index < insertions;
+
+        return (
+          <Fragment key={`segment-${index}`}>
+            <div dangerouslySetInnerHTML={{ __html: segment }} />
+
+            {shouldRenderAd && (
+              <>
+                {desktopAd && (
+                  <div className="hidden xl:block my-8 not-prose">
+                    <UniversalAd
+                      placeId={desktopAd.placeId}
+                      format={desktopAd.format}
+                      placement={desktopAd.placement}
+                      enabled={desktopAd.enabled}
+                    />
+                  </div>
+                )}
+
+                {mobileAd && (
+                  <div className="xl:hidden my-6 not-prose">
+                    <UniversalAd
+                      placeId={mobileAd.placeId}
+                      format={mobileAd.format}
+                      placement={mobileAd.placement}
+                      enabled={mobileAd.enabled}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
-

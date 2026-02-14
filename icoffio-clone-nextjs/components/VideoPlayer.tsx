@@ -130,6 +130,13 @@ export default function VideoPlayer({
   const getContainerDimensions = () => {
     switch (type) {
       case 'instream':
+        if (!currentVideo) {
+          return {
+            width: '100%',
+            maxWidth: '420px',
+            minHeight: '250px'
+          };
+        }
         return {
           width: '100%',
           maxWidth: position === 'article-end' ? '800px' : '100%',
@@ -234,13 +241,14 @@ export default function VideoPlayer({
             </>
           ) : (
             // Нет видео - только реклама
-            <div className="w-full h-full flex items-center justify-center bg-gray-900">
+            <div className="w-full min-h-[250px] flex items-center justify-center bg-gray-900/90">
               {voxPlaceId ? (
                 <div
                   ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
                   data-ad-placement="video"
-                  className="w-full h-full"
+                  className="w-full flex items-center justify-center"
+                  style={{ minHeight: '250px' }}
                 />
               ) : (
                 <p className="text-gray-400">Video content not available</p>

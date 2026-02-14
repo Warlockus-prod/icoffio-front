@@ -28,6 +28,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { VOX_PLACES } from "@/lib/vox-advertising";
 import { getVideoPlayerById } from "@/lib/config/video-players";
+import type { AdPlacementConfig } from "@/lib/config/adPlacements";
 import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -121,6 +122,38 @@ export default async function Article({ params }: { params: { locale: string; sl
     { label: post.title }
   ];
   const articleEndVideoPlayer = getVideoPlayerById('instream-article-end');
+  const mobileInContentSidebarAds: AdPlacementConfig[] = [
+    {
+      id: 'mobile-reflow-sidebar-top',
+      placeId: VOX_PLACES.MEDIUM_RECTANGLE,
+      format: '300x250',
+      placement: 'mobile',
+      name: 'Mobile Reflow Sidebar Top',
+      description: 'Desktop sidebar top placement shown inside article flow on mobile',
+      location: 'article',
+      position: 'content-middle',
+      enabled: true,
+      priority: 9,
+      device: 'mobile',
+      addedDate: '2026-02-14',
+      status: 'stable',
+    },
+    {
+      id: 'mobile-reflow-sidebar-bottom',
+      placeId: VOX_PLACES.LARGE_SKYSCRAPER,
+      format: '300x600',
+      placement: 'mobile',
+      name: 'Mobile Reflow Sidebar Bottom',
+      description: 'Desktop sidebar bottom placement shown deeper in article flow on mobile',
+      location: 'article',
+      position: 'content-bottom',
+      enabled: true,
+      priority: 7,
+      device: 'mobile',
+      addedDate: '2026-02-14',
+      status: 'stable',
+    },
+  ];
 
   return (
     <>
@@ -186,7 +219,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             <ArticleContentWithAd 
               content={post.content ? renderContent(post.content) : (post.contentHtml || '')}
               adsDesktop={[]}
-              adsMobile={[]}
+              adsMobile={mobileInContentSidebarAds}
             />
 
             {/* AD: 320x100 Mobile Large Banner — Mobile only, после контента */}

@@ -28,6 +28,14 @@ export const VOX_PLACES = {
   MOBILE_INTERSTITIAL: "68f63437810d98e1a08f26de", // 320x480
 } as const;
 
+/** Video форматы */
+export const VOX_VIDEO_PLACES = {
+  INSTREAM_ARTICLE_END: "68f70a1c810d98e1a08f2740",
+  INSTREAM_ARTICLE_MIDDLE: "68f70a1c810d98e1a08f2741",
+  OUTSTREAM_SIDEBAR: "68f70a1c810d98e1a08f2742",
+  OUTSTREAM_MOBILE: "68f70a1c810d98e1a08f2743",
+} as const;
+
 // ========== VOX SCRIPT ==========
 // Чистый скрипт, скопированный из рабочей версии (worktree/nmp)
 // с минимальными правками
@@ -76,7 +84,11 @@ var VOX_ALLOWED_DISPLAY_IDS = {
   "${VOX_PLACES.MOBILE_BANNER}": true,
   "${VOX_PLACES.MOBILE_WIDE_SKY}": true,
   "${VOX_PLACES.MOBILE_LARGE}": true,
-  "${VOX_PLACES.MOBILE_INTERSTITIAL}": true
+  "${VOX_PLACES.MOBILE_INTERSTITIAL}": true,
+  "${VOX_VIDEO_PLACES.INSTREAM_ARTICLE_END}": true,
+  "${VOX_VIDEO_PLACES.INSTREAM_ARTICLE_MIDDLE}": true,
+  "${VOX_VIDEO_PLACES.OUTSTREAM_SIDEBAR}": true,
+  "${VOX_VIDEO_PLACES.OUTSTREAM_MOBILE}": true
 };
 
 function clearRetryTimers() {

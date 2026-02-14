@@ -14,19 +14,15 @@
  * @date 2025-10-30
  */
 
-import { useEffect, useRef, useState } from 'react';
-
-export type VideoPlayerType = 'instream' | 'outstream';
-export type VideoPlayerPosition = 
-  | 'article-end'      // В конце статьи
-  | 'article-middle'   // В середине статьи
-  | 'sidebar-sticky'   // Sticky сбоку (desktop)
-  | 'in-content';      // Между параграфами (mobile)
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { VideoPlayerPosition, VideoPlayerType } from '@/lib/config/video-players';
 
 interface VideoPlayerProps {
   type: VideoPlayerType;
   position: VideoPlayerPosition;
   videoUrl?: string;              // URL видео для instream
+  videoPlaylist?: string[];       // Последовательность роликов (опционально)
+  posterUrl?: string;             // Явный постер (опционально)
   videoTitle?: string;            // Заголовок видео
   voxPlaceId?: string;            // VOX PlaceID для рекламы
   autoplay?: boolean;             // Автоплей (только для outstream)
@@ -38,6 +34,8 @@ export default function VideoPlayer({
   type,
   position,
   videoUrl,
+  videoPlaylist = [],
+  posterUrl,
   videoTitle,
   voxPlaceId,
   autoplay = false,
@@ -45,10 +43,34 @@ export default function VideoPlayer({
   className = ''
 }: VideoPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
+  const adSlotRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
+  const [playlistIndex, setPlaylistIndex] = useState(0);
+
+  const playlist = useMemo(() => {
+    const values = [videoUrl, ...videoPlaylist].filter((item): item is string => Boolean(item && item.trim()));
+    return Array.from(new Set(values));
+  }, [videoPlaylist, videoUrl]);
+
+  const currentVideo = playlist[playlistIndex];
+
+  useEffect(() => {
+    setPlaylistIndex(0);
+  }, [playlist]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || playlist.length <= 1) return;
+
+    const handleEnded = () => {
+      setPlaylistIndex((prev) => (prev + 1) % playlist.length);
+    };
+
+    video.addEventListener('ended', handleEnded);
+    return () => video.removeEventListener('ended', handleEnded);
+  }, [playlist.length]);
 
   // Intersection Observer для autoplay on scroll (outstream)
   useEffect(() => {
@@ -57,8 +79,6 @@ export default function VideoPlayer({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          setIsVisible(entry.isIntersecting);
-          
           // Autoplay при появлении в viewport
           if (entry.isIntersecting && autoplay && videoRef.current) {
             videoRef.current.play().catch(() => {
@@ -77,33 +97,33 @@ export default function VideoPlayer({
     return () => observer.disconnect();
   }, [type, autoplay]);
 
-  // VOX рекламная интеграция
+  // Отслеживаем, когда VOX наполнил рекламный контейнер.
   useEffect(() => {
-    if (!voxPlaceId) return;
+    const slot = adSlotRef.current;
+    if (!voxPlaceId || !slot) return;
 
-    // Загрузка VOX скрипта если еще не загружен
-    if (typeof window !== 'undefined' && !(window as any)._tx) {
-      const script = document.createElement('script');
-      script.src = 'https://st.hbrd.io/ssp.js?t=' + new Date().getTime();
-      script.async = true;
-      script.onload = () => {
-        console.log('[VideoPlayer] VOX script loaded');
-        initializeVoxAd();
-      };
-      document.body.appendChild(script);
-    } else {
-      initializeVoxAd();
-    }
-
-    function initializeVoxAd() {
-      if ((window as any)._tx) {
-        (window as any)._tx.cmds = (window as any)._tx.cmds || [];
-        (window as any)._tx.cmds.push(() => {
-          (window as any)._tx.init();
-          setAdLoaded(true);
-        });
+    const markLoaded = () => {
+      const hasPayload = slot.querySelector('iframe') !== null || slot.innerHTML.trim() !== '' || slot.children.length > 0;
+      if (hasPayload) {
+        setAdLoaded(true);
       }
-    }
+    };
+
+    setAdLoaded(false);
+
+    const observer = new MutationObserver(() => {
+      markLoaded();
+    });
+
+    observer.observe(slot, { childList: true, subtree: true, attributes: true });
+    const timers = [1200, 2400, 3600, 5200, 7000].map((delay) => window.setTimeout(markLoaded, delay));
+
+    markLoaded();
+
+    return () => {
+      observer.disconnect();
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+    };
   }, [voxPlaceId]);
 
   // Получить размеры контейнера по типу
@@ -126,6 +146,14 @@ export default function VideoPlayer({
   };
 
   const dimensions = getContainerDimensions();
+  const outstreamMinHeight = 'height' in dimensions ? dimensions.height : '250px';
+
+  const resolvedPoster = (() => {
+    if (posterUrl) return posterUrl;
+    if (!currentVideo) return undefined;
+    if (/\.(mp4|webm|ogg)(\?|$)/i.test(currentVideo)) return undefined;
+    return `${currentVideo.replace(/\/$/, '')}/thumbnail.jpg`;
+  })();
 
   // Sticky стили для sidebar
   const getStickyStyles = () => {
@@ -158,7 +186,7 @@ export default function VideoPlayer({
       {/* Instream: Видео с рекламой */}
       {type === 'instream' && (
         <div className="relative w-full h-full">
-          {videoUrl ? (
+          {currentVideo ? (
             <>
               {/* HTML5 Video */}
               <video
@@ -167,24 +195,32 @@ export default function VideoPlayer({
                 controls
                 playsInline
                 muted={muted}
-                poster={`${videoUrl}/thumbnail.jpg`}
+                poster={resolvedPoster}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
               >
-                <source src={videoUrl} type="video/mp4" />
+                <source src={currentVideo} type="video/mp4" />
                 Your browser does not support video playback.
               </video>
 
               {/* VOX Preroll Ad Container */}
               {voxPlaceId && (
                 <div
+                  ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
+                  data-ad-placement="video"
                   className="absolute inset-0 z-10"
                   style={{
                     display: isPlaying ? 'none' : 'block',
                     pointerEvents: 'auto'
                   }}
                 />
+              )}
+
+              {voxPlaceId && !adLoaded && !isPlaying && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
+                  Loading video advertisement...
+                </div>
               )}
 
               {/* Video Title Overlay */}
@@ -201,11 +237,18 @@ export default function VideoPlayer({
             <div className="w-full h-full flex items-center justify-center bg-gray-900">
               {voxPlaceId ? (
                 <div
+                  ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
+                  data-ad-placement="video"
                   className="w-full h-full"
                 />
               ) : (
                 <p className="text-gray-400">Video content not available</p>
+              )}
+              {voxPlaceId && !adLoaded && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
+                  Loading video advertisement...
+                </div>
               )}
             </div>
           )}
@@ -216,21 +259,23 @@ export default function VideoPlayer({
       {type === 'outstream' && (
         <div className="relative w-full h-full">
           {voxPlaceId ? (
-            <div
-              data-hyb-ssp-ad-place={voxPlaceId}
-              className="w-full h-full flex items-center justify-center"
-              style={{
-                minHeight: dimensions.height || '250px',
-                backgroundColor: '#f5f5f5'
-              }}
-            >
-              {/* VOX заполнит контентом */}
+            <>
+              <div
+                ref={adSlotRef}
+                data-hyb-ssp-ad-place={voxPlaceId}
+                data-ad-placement="video"
+                className="w-full h-full"
+                style={{
+                  minHeight: outstreamMinHeight,
+                  backgroundColor: '#f5f5f5'
+                }}
+              />
               {!adLoaded && (
-                <div className="text-gray-400 text-sm">
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm bg-white/80 pointer-events-none">
                   Loading advertisement...
                 </div>
               )}
-            </div>
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
               <p className="text-gray-400 text-sm">Ad placement</p>
@@ -278,4 +323,3 @@ export function insertOutstreamInContent(
   
   return paragraphs.join('\n\n');
 }
-

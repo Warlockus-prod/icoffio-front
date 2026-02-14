@@ -24,8 +24,10 @@ import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { UniversalAd } from "@/components/UniversalAd";
+import VideoPlayer from "@/components/VideoPlayer";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { VOX_PLACES } from "@/lib/vox-advertising";
+import { getVideoPlayerById } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -118,6 +120,7 @@ export default async function Article({ params }: { params: { locale: string; sl
     { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },
     { label: post.title }
   ];
+  const articleEndVideoPlayer = getVideoPlayerById('instream-article-end');
 
   return (
     <>
@@ -194,6 +197,21 @@ export default async function Article({ params }: { params: { locale: string; sl
                 placement="mobile" 
               />
             </div>
+
+            {/* VIDEO AD: Instream/Outstream slot — в конце статьи */}
+            {articleEndVideoPlayer?.enabled && (
+              <div className="not-prose my-10">
+                <VideoPlayer
+                  type={articleEndVideoPlayer.type}
+                  position={articleEndVideoPlayer.position}
+                  voxPlaceId={articleEndVideoPlayer.voxPlaceId}
+                  autoplay={articleEndVideoPlayer.autoplay}
+                  muted={articleEndVideoPlayer.muted}
+                  videoUrl={process.env.NEXT_PUBLIC_ARTICLE_VIDEO_URL}
+                  videoTitle={process.env.NEXT_PUBLIC_ARTICLE_VIDEO_TITLE}
+                />
+              </div>
+            )}
           </article>
 
           {/* === Sidebar (Desktop only) === */}

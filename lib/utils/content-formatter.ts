@@ -23,6 +23,74 @@ export function escapeHtml(text: string): string {
 }
 
 /**
+ * Normalize AI-generated text so it reads naturally and does not expose raw marker artifacts.
+ *
+ * Main fixes:
+ * - Converts heading-like `**Section**` markers to markdown headings (`## Section`)
+ * - Removes remaining `**...**` wrappers (keeps text)
+ * - Rebuilds paragraph breaks for long one-block texts
+ * - Cleans spacing around punctuation
+ */
+export function normalizeAiGeneratedText(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return '';
+  }
+
+  // Skip normalization for clear HTML documents
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    return content;
+  }
+
+  let normalized = content.replace(/\r\n/g, '\n').trim();
+
+  // Convert standalone/section-like bold markers to markdown headings.
+  // Example: "... missing. **What’s the cost?** The startup ..."
+  normalized = normalized.replace(/\*\*([^*\n]{6,100})\*\*/g, (_match, inner) => {
+    const headingText = inner.trim();
+    const words = headingText.split(/\s+/).filter(Boolean).length;
+    const hasHeadingEnding = /[?!]$/.test(headingText);
+    const looksLikeHeading =
+      words >= 2 &&
+      words <= 14 &&
+      (hasHeadingEnding || words >= 4) &&
+      /^[A-Za-z0-9À-ž"'“”‘’(]/.test(headingText) &&
+      !/[,:;.]$/.test(headingText);
+
+    if (!looksLikeHeading) {
+      return headingText;
+    }
+
+    return `\n\n## ${headingText}\n\n`;
+  });
+
+  // Remove any remaining raw markdown bold wrappers
+  normalized = normalized.replace(/\*\*([^*]+)\*\*/g, '$1');
+
+  // If the article is one giant block, rebuild paragraphs for readability.
+  const lineBreakCount = (normalized.match(/\n/g) || []).length;
+  if (lineBreakCount < 2 && normalized.length > 500) {
+    const sentenceRegex = /[^.!?]+[.!?]+|[^.!?]+$/g;
+    const sentences = (normalized.match(sentenceRegex) || [])
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (sentences.length >= 4) {
+      const paragraphs: string[] = [];
+      for (let i = 0; i < sentences.length; i += 2) {
+        paragraphs.push(sentences.slice(i, i + 2).join(' '));
+      }
+      normalized = paragraphs.join('\n\n');
+    }
+  }
+
+  return normalized
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .trim();
+}
+
+/**
  * Format plain text content to HTML with Markdown-like syntax support
  * 
  * Supported syntax:
@@ -41,8 +109,10 @@ export function formatContentToHtml(content: string): string {
   if (!content || typeof content !== 'string') {
     return '';
   }
+
+  const normalizedContent = normalizeAiGeneratedText(content);
   
-  return content
+  return normalizedContent
     // Headings
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
@@ -151,4 +221,3 @@ export function sanitizeHtml(html: string): string {
     return ''; // Remove disallowed tags
   });
 }
-

@@ -1,4 +1,5 @@
 import { getTranslation } from './i18n';
+import { normalizeAiGeneratedText } from './utils/content-formatter';
 
 interface TranslationRequest {
   content: string;
@@ -66,6 +67,8 @@ Requirements:
 - Maintain the original meaning and tone
 - Use appropriate technical terminology for ${languageName}
 - Keep the same formatting and structure
+- Do not output standalone markdown bold markers like **Section Title**
+- If section headers are needed, use clean headings (e.g. "## Section Title")
 - ${instruction}
 - Make it sound natural for native ${languageName} speakers
 
@@ -131,6 +134,11 @@ Please provide ONLY the translation, without any additional comments or explanat
       translatedText = translatedText.replace(/^["«»"„"]+|["«»"„"]+$/g, '');
       // Удаляем одинарные кавычки в начале и конце (если они не часть текста)
       translatedText = translatedText.replace(/^['\'`]+|['\'`]+$/g, '');
+
+      // ✅ Убираем артефакты форматирования (например, **Section**) и нормализуем структуру
+      if (contentType === 'body') {
+        translatedText = normalizeAiGeneratedText(translatedText);
+      }
 
       return {
         translatedText,

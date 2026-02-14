@@ -71,6 +71,9 @@ export default function ArticlesManager() {
         
         if (result.success && result.articles) {
           result.articles.forEach((article: any) => {
+            const fallbackImage = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
+            const imageUrl = article.image_url || article.image || fallbackImage;
+
             // English version
             if (article.slug_en) {
               allArticles.push({
@@ -83,7 +86,7 @@ export default function ArticlesManager() {
                 status: 'dynamic' as const,
                 url: `https://app.icoffio.com/en/article/${article.slug_en}`,
                 excerpt: article.excerpt_en || article.excerpt || '',
-                image: article.image_url || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+                image: imageUrl,
                 author: article.author || 'icoffio Editorial Team',
                 views: article.views || Math.floor(Math.random() * 1000) + 50,
                 lastEdit: article.updated_at || article.created_at,
@@ -103,10 +106,34 @@ export default function ArticlesManager() {
                 status: 'dynamic' as const,
                 url: `https://app.icoffio.com/pl/article/${article.slug_pl}`,
                 excerpt: article.excerpt_pl || article.excerpt || '',
-                image: article.image_url || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+                image: imageUrl,
                 author: article.author || 'icoffio Editorial Team',
                 views: article.views || Math.floor(Math.random() * 1000) + 50,
                 lastEdit: article.updated_at || article.created_at,
+                publishStatus: 'published' as const
+              });
+            }
+
+            // Backward compatibility: transformed single-language format
+            if (!article.slug_en && !article.slug_pl && article.slug) {
+              const inferredLanguage =
+                article.language ||
+                (article.slug.endsWith('-pl') ? 'pl' : 'en');
+
+              allArticles.push({
+                id: `supabase_${article.id}_${inferredLanguage}`,
+                title: article.title || 'Untitled',
+                slug: article.slug,
+                category: article.category?.slug || article.category || 'tech',
+                language: inferredLanguage,
+                createdAt: article.date || article.created_at || new Date().toISOString(),
+                status: 'dynamic' as const,
+                url: `https://app.icoffio.com/${inferredLanguage}/article/${article.slug}`,
+                excerpt: article.excerpt || '',
+                image: imageUrl,
+                author: article.author || 'icoffio Editorial Team',
+                views: article.views || Math.floor(Math.random() * 1000) + 50,
+                lastEdit: article.updated_at || article.date || article.created_at,
                 publishStatus: 'published' as const
               });
             }
@@ -120,7 +147,7 @@ export default function ArticlesManager() {
       const adminArticles = localArticleStorage.getAllArticles();
       adminArticles.forEach(article => {
         const language = article.slug.endsWith('-en') ? 'en' : 
-                        article.slug.endsWith('-pl') ? 'pl' : 'unknown';
+                        article.slug.endsWith('-pl') ? 'pl' : 'en';
         
         allArticles.push({
           id: article.id,
@@ -144,7 +171,7 @@ export default function ArticlesManager() {
       const staticArticles = await getLocalArticles();
       staticArticles.forEach((article: Post) => {
         const language = article.slug.endsWith('-en') ? 'en' : 
-                        article.slug.endsWith('-pl') ? 'pl' : 'unknown';
+                        article.slug.endsWith('-pl') ? 'pl' : 'en';
         
         allArticles.push({
           id: `static_${article.slug}`,

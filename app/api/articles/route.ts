@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
 import { wordpressService } from '@/lib/wordpress-service';
 // v7.30.0: Centralized content formatting utility
-import { formatContentToHtml, escapeHtml } from '@/lib/utils/content-formatter';
+import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText } from '@/lib/utils/content-formatter';
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 
@@ -590,6 +590,7 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   console.log('📋 formatPostsForAdmin - translations available:', Object.keys(article.translations || {}));
   
   // Основная статья (всегда EN теперь)
+  const normalizedEnContent = normalizeAiGeneratedText(article.content || '');
   posts.en = {
     slug: article.slug,
     title: article.title,
@@ -600,8 +601,8 @@ function formatPostsForAdmin(article: any): Record<string, any> {
       name: article.category,
       slug: article.category
     },
-    content: article.content,
-    contentHtml: formatContentToHtml(article.content)
+    content: normalizedEnContent,
+    contentHtml: formatContentToHtml(normalizedEnContent)
   };
   
   console.log('📋 posts.en.title:', posts.en.title?.substring(0, 80));
@@ -609,6 +610,7 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   // Переводы (только PL поддерживается)
   for (const [lang, translation] of Object.entries(article.translations || {})) {
     if (lang === 'pl') { // Только польский
+      const normalizedPlContent = normalizeAiGeneratedText((translation as any).content || '');
       posts[lang] = {
         slug: (translation as any).slug,
         title: (translation as any).title,
@@ -619,8 +621,8 @@ function formatPostsForAdmin(article: any): Record<string, any> {
           name: article.category,
           slug: article.category
         },
-        content: (translation as any).content,
-        contentHtml: formatContentToHtml((translation as any).content)
+        content: normalizedPlContent,
+        contentHtml: formatContentToHtml(normalizedPlContent)
       };
       console.log('📋 posts.pl.title:', posts[lang].title?.substring(0, 80));
     }
@@ -672,14 +674,15 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         .substring(0, 60);
     };
     
-    const baseSlug = article.slug || generateSlug(article.title);
+    const rawBaseSlug = article.slug || generateSlug(article.title);
+    const baseSlug = rawBaseSlug.replace(/-(en|pl)$/i, '');
     const publishedAt = new Date().toISOString();
     
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
     // ✅ v8.4.0: Расстановка изображений в контенте
-    let contentEn = article.content;
-    let contentPl = article.translations?.pl?.content || article.content;
+    let contentEn = normalizeAiGeneratedText(article.content || '');
+    let contentPl = normalizeAiGeneratedText(article.translations?.pl?.content || article.content || '');
     let heroImage = article.image;
     
     // Если есть массив изображений - расставляем их
@@ -799,14 +802,14 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         {
           id: article.id || `article-${Date.now()}`,
           title: article.title,
-          content: article.content,
+          content: contentEn,
           excerpt: article.excerpt,
           slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
           category: article.category || 'technology',
           tags: ['imported', 'ai-processed'],
           author: article.author || 'Admin',
           language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
-          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+          image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
           publishedAt
         },
         article.translations
@@ -832,7 +835,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       url: `https://app.icoffio.com/en/article/${enSlug}`, // ✅ Ссылка с суффиксом -en
       urls: {
         en: `https://app.icoffio.com/en/article/${enSlug}`, // ✅ slug-name-en
-        pl: article.translations?.pl ? `https://app.icoffio.com/pl/article/${baseSlug}-pl` : null // ✅ slug-name-pl
+        pl: article.translations?.pl ? `https://app.icoffio.com/pl/article/${plSlug}` : null // ✅ slug-name-pl
       }
     });
 
@@ -848,5 +851,3 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     );
   }
 }
-
-

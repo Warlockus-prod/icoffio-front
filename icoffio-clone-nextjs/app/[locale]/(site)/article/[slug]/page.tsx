@@ -222,6 +222,15 @@ export default async function Article({ params }: { params: { locale: string; sl
               adsMobile={mobileInContentSidebarAds}
             />
 
+            {/* AD: 320x50 Mobile Banner — мягкий формат перед video slot */}
+            <div className="xl:hidden my-6 flex justify-center">
+              <UniversalAd
+                placeId={VOX_PLACES.MOBILE_BANNER}
+                format="320x50"
+                placement="mobile"
+              />
+            </div>
+
             {/* VIDEO AD: Instream/Outstream slot — в конце статьи */}
             {articleEndVideoPlayer?.enabled && (
               <div className="not-prose my-10">

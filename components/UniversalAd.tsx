@@ -4,8 +4,8 @@
  * 
  * ВАЖНО: Компонент скрывается если реклама не загружена (no placeholder/no black spaces)
  * 
- * @version 7.26.0
- * @date 2025-12-04
+ * @version 8.6.1
+ * @date 2026-02-14
  */
 
 'use client';
@@ -58,8 +58,8 @@ export function UniversalAd({
   enabled = true
 }: UniversalAdProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isAdLoaded, setIsAdLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [adStatus, setAdStatus] = useState<'loading' | 'ready' | 'unsuitable'>('loading');
+  const lastUnsuitableReasonRef = useRef<string>('');
 
   // Если реклама отключена через конфиг, не рендерим
   if (!enabled) {
@@ -67,51 +67,139 @@ export function UniversalAd({
   }
 
   const dimensions = AD_DIMENSIONS[format];
+  const formatMaxWidth = dimensions?.width || '100%';
+  const expectedWidth = dimensions ? Number.parseInt(dimensions.width, 10) : null;
+  const expectedHeight = dimensions ? Number.parseInt(dimensions.height, 10) : null;
 
-  // Наблюдаем за контейнером чтобы определить загрузилась ли реклама
+  const parseSize = (value: string | null | undefined): number => {
+    if (!value) return 0;
+    const normalized = value.replace('px', '').trim();
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const resolveElementSize = (element: Element): { width: number; height: number } => {
+    const htmlElement = element as HTMLElement;
+    const rect = htmlElement.getBoundingClientRect();
+    const computed = window.getComputedStyle(htmlElement);
+
+    const width = Math.max(
+      rect.width,
+      htmlElement.clientWidth || 0,
+      htmlElement.scrollWidth || 0,
+      parseSize(htmlElement.getAttribute('width')),
+      parseSize(htmlElement.getAttribute('data-width')),
+      parseSize(htmlElement.style.width),
+      parseSize(computed.width),
+    );
+
+    const height = Math.max(
+      rect.height,
+      htmlElement.clientHeight || 0,
+      htmlElement.scrollHeight || 0,
+      parseSize(htmlElement.getAttribute('height')),
+      parseSize(htmlElement.getAttribute('data-height')),
+      parseSize(htmlElement.style.height),
+      parseSize(computed.height),
+    );
+
+    return { width, height };
+  };
+
+  const checkSuitability = (container: HTMLDivElement): { status: 'loading' | 'ready' | 'unsuitable'; reason?: string } => {
+    const hasContent = (
+      container.children.length > 0 ||
+      container.querySelector('iframe') !== null ||
+      container.innerHTML.trim() !== ''
+    );
+
+    if (!hasContent) {
+      return { status: 'loading' };
+    }
+
+    if (!expectedWidth || !expectedHeight || format === 'video') {
+      return { status: 'ready' };
+    }
+
+    const creative = container.querySelector('iframe') || container.firstElementChild;
+    if (!creative) {
+      return { status: 'loading' };
+    }
+
+    const measured = resolveElementSize(creative);
+    if (measured.width <= 0 || measured.height <= 0) {
+      return { status: 'loading' };
+    }
+
+    // Допускаем умеренное масштабирование, но блокируем явно неподходящие креативы.
+    const widthMin = expectedWidth * 0.65;
+    const widthMax = expectedWidth * 1.1;
+    const heightMin = expectedHeight * 0.7;
+    const heightMax = expectedHeight * 1.35;
+
+    const widthOk = measured.width >= widthMin && measured.width <= widthMax;
+    const heightOk = measured.height >= heightMin && measured.height <= heightMax;
+
+    if (widthOk && heightOk) {
+      return { status: 'ready' };
+    }
+
+    return {
+      status: 'unsuitable',
+      reason: `expected~${expectedWidth}x${expectedHeight}, got~${Math.round(measured.width)}x${Math.round(measured.height)}`,
+    };
+  };
+
+  // Наблюдаем за контейнером и не удаляем его, чтобы реклама могла догрузиться позже.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    setAdStatus('loading');
+    lastUnsuitableReasonRef.current = '';
 
-    // Таймаут для проверки загрузки рекламы
-    const timeout = setTimeout(() => {
-      if (container) {
-        const hasContent = container.children.length > 0 ||
-          container.innerHTML.trim() !== '' ||
-          container.querySelector('iframe') !== null;
+    const evaluateAd = () => {
+      const result = checkSuitability(container);
+      setAdStatus(result.status);
 
-        if (hasContent) {
-          setIsAdLoaded(true);
-        } else {
-          // Нет контента после таймаута - скрываем плейсмент
-          setHasError(true);
-          console.log(`VOX: No ad content for ${format} (${placeId}) - hiding placeholder`);
-        }
+      if (result.status === 'unsuitable' && result.reason && lastUnsuitableReasonRef.current !== result.reason) {
+        lastUnsuitableReasonRef.current = result.reason;
+        console.log(`[VOX] Hiding unsuitable ad ${placeId} (${format}): ${result.reason}`);
       }
-    }, 4000); // 4 секунды на загрузку рекламы
+    };
 
-    // MutationObserver для отслеживания когда VOX добавит контент
+    // Проверки с интервалами покрывают медленные ответы ad-provider.
+    const timers = [2500, 5000, 8000, 12000].map((delay) =>
+      window.setTimeout(evaluateAd, delay)
+    );
+
+    // MutationObserver для отслеживания момента, когда VOX добавит контент.
     const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          setIsAdLoaded(true);
-          clearTimeout(timeout);
-        }
-      });
+      const hasRelevantMutation = mutations.some((mutation) => (
+        (mutation.type === 'childList' && (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)) ||
+        mutation.type === 'attributes'
+      ));
+
+      if (hasRelevantMutation) {
+        evaluateAd();
+      }
     });
 
-    observer.observe(container, { childList: true, subtree: true });
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+
+    // Быстрая проверка на случай уже загруженного кэша.
+    evaluateAd();
 
     return () => {
       observer.disconnect();
-      clearTimeout(timeout);
+      timers.forEach((timerId) => window.clearTimeout(timerId));
     };
-  }, [format, placeId]);
+  }, [expectedHeight, expectedWidth, format, placeId]);
 
-  // Если ошибка загрузки - не показываем ничего
-  if (hasError) {
-    return null;
-  }
+  const isAdLoaded = adStatus === 'ready';
 
   // Определяем стили в зависимости от типа размещения
   const getStyles = (): React.CSSProperties => {
@@ -122,6 +210,7 @@ export function UniversalAd({
       backgroundColor: 'transparent',
       border: 'none',
       overflow: 'visible',
+      boxSizing: 'border-box',
     };
 
     // Common styles for all placements
@@ -132,14 +221,14 @@ export function UniversalAd({
       alignItems: 'center',
       marginLeft: 'auto',
       marginRight: 'auto',
-      maxWidth: '100%', // Prevent overflow
+      width: '100%',
+      maxWidth: formatMaxWidth,
     };
 
     switch (placement) {
       case 'sidebar':
         return {
           ...commonStyle,
-          width: '100%',
           minHeight: isAdLoaded ? (dimensions?.height || '250px') : '0', // Preserve space if loaded
           margin: isAdLoaded ? '0 0 24px 0' : '0',
           maxHeight: isAdLoaded ? 'none' : '0',
@@ -148,7 +237,6 @@ export function UniversalAd({
       case 'mobile':
         return {
           ...commonStyle,
-          width: '100%',
           minHeight: isAdLoaded ? (dimensions?.height || '50px') : '0',
           margin: isAdLoaded ? '16px auto' : '0 auto',
           maxHeight: isAdLoaded ? 'none' : '0',
@@ -157,7 +245,6 @@ export function UniversalAd({
       case 'display':
         return {
           ...commonStyle,
-          width: '100%',
           minHeight: isAdLoaded ? (dimensions?.height || '250px') : '0',
           margin: isAdLoaded ? '16px auto' : '0 auto',
           maxHeight: isAdLoaded ? 'none' : '0',
@@ -166,7 +253,6 @@ export function UniversalAd({
       default: // inline (728x90, 970x250)
         return {
           ...commonStyle,
-          width: '100%',
           // Use minHeight to avoid layout shift if dimensions known, but allow expansion
           minHeight: isAdLoaded ? (dimensions?.height || '90px') : '0',
           margin: isAdLoaded ? '20px auto' : '0 auto',
@@ -192,6 +278,7 @@ export function UniversalAd({
       style={getStyles()}
       data-ad-format={format}
       data-ad-placement={placement}
+      data-ad-status={adStatus}
     >
       {/* VOX заполнит контентом автоматически */}
     </div>

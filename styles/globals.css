@@ -249,12 +249,21 @@ textarea.markdown-editor {
   overflow: visible;
 }
 
+/* Shared alignment for all display placements */
+.vox-inline-ad,
+.vox-sidebar-ad,
+.vox-mobile-ad,
+.vox-display-ad {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
 /* Inline Ads (article content) */
 .vox-inline-ad {
   width: 100%;
   max-width: 970px;
   margin: 24px auto;
-  text-align: center;
 }
 
 /* Sidebar Ads */
@@ -269,12 +278,25 @@ textarea.markdown-editor {
   width: 100%;
   max-width: 320px;
   margin: 16px auto;
-  text-align: center;
 }
 
-/* Iframe sizing — let VOX set dimensions, only constrain max-width */
-[data-hyb-ssp-ad-place] iframe {
+/* Display/Interstitial placements */
+.vox-display-ad {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Ad payload sizing — center and prevent clipping in wrapper containers */
+[data-hyb-ssp-ad-place] > * {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-hyb-ssp-ad-place] iframe,
+[data-hyb-ssp-ad-place] > iframe {
   max-width: 100%;
   display: block;
   margin: 0 auto;
+  border: 0;
 }

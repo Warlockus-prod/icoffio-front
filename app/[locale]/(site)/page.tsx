@@ -159,7 +159,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
         </div>
 
         {/* Homepage Bottom Ad - Desktop (970x250 Large Leaderboard) */}
-        <div className="mt-16 hidden lg:block">
+        <div className="mt-16 hidden xl:block">
           <UniversalAd 
             placeId="63daa3c24d506e16acfd2a38"
             format="970x250"
@@ -169,7 +169,7 @@ export default async function Page({ params }: { params: { locale: string } }) {
         </div>
         
         {/* Homepage Bottom Ad - Mobile (320x100 Large Mobile Banner) */}
-        <div className="mt-12 lg:hidden">
+        <div className="mt-12 xl:hidden">
           <UniversalAd 
             placeId="68f645bf810d98e1a08f272f"
             format="320x100"

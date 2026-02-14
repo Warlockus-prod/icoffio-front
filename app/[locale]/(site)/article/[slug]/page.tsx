@@ -17,7 +17,7 @@ import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { UniversalAd } from "@/components/UniversalAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
-import { getAdPlacementsByLocation, getAdPlacementsByDevice } from "@/lib/config/adPlacements";
+import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import VideoPlayer from "@/components/VideoPlayer";
 import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
@@ -158,7 +158,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
         {/* Main Content Grid: Article + Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
           
           {/* Main Article Content */}
           <article className="min-w-0">
@@ -213,7 +213,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className="lg:hidden"
+                className="xl:hidden"
               />
             ))}
 
@@ -225,7 +225,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className="lg:block hidden"
+                className="xl:block hidden"
               />
             ))}
             
@@ -237,7 +237,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 format={ad.format}
                 placement={ad.placement}
                 enabled={ad.enabled}
-                className="lg:hidden"
+                className="xl:hidden"
               />
             ))}
 
@@ -260,7 +260,7 @@ export default async function Article({ params }: { params: { locale: string; sl
           </article>
 
           {/* Sidebar with VOX Display ads */}
-          <aside className="lg:sticky lg:top-4 lg:h-fit hidden lg:block">
+          <aside className="xl:sticky xl:top-4 xl:h-fit hidden xl:block">
             
             {/* Sidebar top ads */}
             {adsSidebarTop.map((ad) => (
@@ -310,7 +310,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className="lg:block hidden"
+              className="xl:block hidden"
             />
           </div>
         ))}
@@ -323,7 +323,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className="lg:hidden"
+              className="xl:hidden"
             />
           </div>
         ))}

@@ -1,5 +1,4 @@
 import "@/styles/globals.css";
-import Script from "next/script";
 import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -17,7 +16,6 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
-import { AD_PLACEMENTS } from "@/lib/config/adPlacements";
 import { AdManager } from "@/components/AdManager";
 import { notFound } from "next/navigation";
 

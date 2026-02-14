@@ -12,6 +12,10 @@
 
 **AI ДОЛЖЕН ДЕЛАТЬ МАКСИМУМ САМ, НЕ СПРАШИВАЯ ПОЛЬЗОВАТЕЛЯ!**
 
+### ⚠️ MULTI-AGENT PROTOCOL (NEW v3.0)
+**Review [MULTI_AGENT_PROTOCOL.md](file:///Users/Andrey/App/icoffio-front/docs/MULTI_AGENT_PROTOCOL.md) before starting complex tasks.**
+This protocol defines the 4 roles (PM, Dev, QA, Ad-Tech) and their responsibilities.
+
 #### ✅ ДЕЛАТЬ АВТОНОМНО (БЕЗ ВОПРОСОВ):
 
 1. **Код и архитектура:** писать, рефакторить, исправлять, оптимизировать

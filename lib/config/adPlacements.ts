@@ -7,6 +7,7 @@
  */
 
 import { AdFormat, AdPlacement } from '@/components/UniversalAd';
+import { getAdPlacements } from './adPlacementsManager';
 
 export interface AdPlacementConfig {
   id: string;
@@ -102,7 +103,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     name: 'Mobile Banner Top',
     description: '320x50 banner at the top (Mobile)',
     location: 'article',
-    position: 'header',
+    position: 'content-top',
     enabled: true,
     priority: 9,
     device: 'mobile',
@@ -182,14 +183,8 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
  * Uses saved configuration from localStorage if available
  */
 export function getEnabledAdPlacements(): AdPlacementConfig[] {
-  // Импортируем динамически чтобы избежать циклических зависимостей
   if (typeof window !== 'undefined') {
-    try {
-      const { getAdPlacements } = require('./adPlacementsManager');
-      return getAdPlacements().filter((ad: AdPlacementConfig) => ad.enabled);
-    } catch (error) {
-      console.error('Error loading ad placements:', error);
-    }
+    return getAdPlacements().filter(ad => ad.enabled);
   }
   return AD_PLACEMENTS.filter(ad => ad.enabled);
 }

@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import Script from "next/script";
 import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -16,6 +17,8 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
+import { AD_PLACEMENTS } from "@/lib/config/adPlacements";
+import { AdManager } from "@/components/AdManager";
 import { notFound } from "next/navigation";
 
 const locales = ['en', 'pl'];
@@ -27,7 +30,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 
   const t = getTranslation(params.locale as any);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
-  
+
   return {
     metadataBase: new URL(siteUrl),
     title: { default: t.siteTitle, template: `%s • icoffio` },
@@ -50,11 +53,11 @@ export async function generateMetadata({ params }: { params: { locale: string } 
       { media: "(prefers-color-scheme: dark)", color: "#111827" }
     ],
     colorScheme: "light dark",
-    openGraph: { 
+    openGraph: {
       type: "website",
       siteName: "icoffio",
-      title: t.siteTitle, 
-      description: t.siteDescription, 
+      title: t.siteTitle,
+      description: t.siteDescription,
       images: [
         {
           url: "/og.png",
@@ -62,7 +65,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
           height: 630,
           alt: "icoffio — Technology News and Reviews"
         }
-      ], 
+      ],
       locale: params.locale === 'en' ? 'en_US' : `${params.locale}_${params.locale.toUpperCase()}`,
       url: `${siteUrl}/${params.locale}`
     },
@@ -194,318 +197,8 @@ export default function LocaleLayout({
           </ToastProvider>
         </ThemeProvider>
 
-        {/* CSS для VOX Display рекламы - v7.26.0: умные плейсхолдеры */}
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            /* VOX контейнеры - скрыты по умолчанию пока реклама не загружена */
-            .vox-ad-container {
-              position: relative !important;
-              display: block !important;
-              background: transparent !important;
-              border: none !important;
-            }
-            
-            /* Загруженная реклама */
-            .vox-ad-loaded {
-              opacity: 1 !important;
-            }
-            
-            /* Загружающаяся реклама - скрыта */
-            .vox-ad-loading {
-              opacity: 0 !important;
-              max-height: 0 !important;
-              overflow: hidden !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            
-            /* Контейнеры для статьи - адаптивные */
-            article [data-hyb-ssp-ad-place] {
-              overflow: visible !important;
-            }
-            
-            /* Desktop широкие баннеры - фиксированные размеры */
-            .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] iframe,
-            .vox-ad-loaded[data-hyb-ssp-ad-place="63da9b577bc72f39bc3bfc68"] > div {
-              width: 728px !important;
-              height: 90px !important;
-              max-width: none !important;
-            }
-            
-            .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] iframe,
-            .vox-ad-loaded[data-hyb-ssp-ad-place="63daa3c24d506e16acfd2a38"] > div {
-              width: 970px !important;
-              height: 250px !important;
-              max-width: none !important;
-            }
-            
-            /* Sidebar баннеры - фиксированные размеры */
-            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63da9e2a4d506e16acfd2a36"] {
-              width: 300px !important;
-            }
-            
-            aside .vox-ad-loaded[data-hyb-ssp-ad-place="63daa2ea7bc72f39bc3bfc72"] {
-              width: 300px !important;
-            }
-            
-            /* Mobile форматы */
-            .vox-ad-loaded[data-hyb-ssp-ad-place="68f644dc70e7b26b58596f34"] {
-              max-width: 320px !important;
-            }
-            
-            .vox-ad-loaded[data-hyb-ssp-ad-place="68f6451d810d98e1a08f2725"] {
-              max-width: 160px !important;
-            }
-            
-            .vox-ad-loaded[data-hyb-ssp-ad-place="68f645bf810d98e1a08f272f"] {
-              max-width: 320px !important;
-            }
-            
-            /* Display форматы */
-            .vox-ad-loaded[data-hyb-ssp-ad-place="68f63437810d98e1a08f26de"] {
-              max-width: 320px !important;
-            }
-            
-            /* Никаких минимальных высот - VOX сам определит размер */
-            /* Если реклама не загружена - места не занимает */
-          `
-        }} />
-
-        {/* VOX рекламный скрипт - ОБЪЕДИНЕННАЯ ВЕРСИЯ (In-Image + Display) с COOKIE CONSENT */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Функция проверки cookie consent для advertising
-              function hasAdvertisingConsent() {
-                try {
-                  var saved = localStorage.getItem('icoffio_cookie_consent');
-                  if (!saved) return false;
-                  var parsed = JSON.parse(saved);
-                  return parsed.hasConsented && parsed.preferences && parsed.preferences.advertising;
-                } catch (e) {
-                  return false;
-                }
-              }
-              
-              // Загружаем VOX скрипт только если есть согласие
-              function loadVOXScript() {
-                if (!hasAdvertisingConsent()) {
-                  console.log('VOX: Ожидание согласия пользователя на рекламу');
-                  return;
-                }
-                
-                console.log('VOX: Загрузка скрипта с согласием пользователя');
-                
-                if (typeof window._tx === "undefined") {
-                    var s = document.createElement("script");
-                    s.type = "text/javascript";
-                    s.async = true;
-                    // Кеширование VOX скрипта - убрали timestamp для браузерного кеша
-                    s.src = "https://st.hbrd.io/ssp.js";
-                    // Форсируем загрузку с высоким приоритетом
-                    s.setAttribute('fetchpriority', 'high');
-                    (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(s);
-                }
-                window._tx = window._tx || {};
-                window._tx.cmds = window._tx.cmds || [];
-              }
-              
-              // Функция инициализации VOX с поддержкой переинициализации
-              function initVOX() {
-                  // Проверяем согласие перед инициализацией
-                  if (!hasAdvertisingConsent()) {
-                      console.log('VOX: Пропуск инициализации - нет согласия на рекламу');
-                      return;
-                  }
-                  
-                  console.log('VOX: Инициализация начата для URL:', window.location.href);
-                  
-                  // Проверяем доступность VOX API
-                  if (typeof window._tx === 'undefined' || !window._tx.integrateInImage) {
-                      console.log('VOX: API не готов, пропуск инициализации');
-                      return;
-                  }
-                  
-                  try {
-                      // 1. In-Image реклама (ТОЛЬКО для страниц статей)
-                      const isArticlePage = window.location.pathname.includes('/article/');
-                      
-                      if (isArticlePage) {
-                          window._tx.integrateInImage({
-                              placeId: "63d93bb54d506e95f039e2e3",
-                              fetchSelector: true,
-                              // Исключаем миниатюры в Related Articles и других карточках
-                              excludeSelectors: [
-                                  '.group img',           // ArticleCard миниатюры
-                                  '[class*="aspect-"] img', // Hero карточки
-                                  'nav img',              // Навигация
-                                  'header img',           // Хедер
-                                  'footer img',           // Футер
-                                  'a[href*="/article/"] img:not(.prose img):not(article > div > img)' // Миниатюры в ссылках
-                              ].join(', ')
-                          });
-                          console.log('VOX: In-Image инициализирована (только для статьи)');
-                      } else {
-                          console.log('VOX: In-Image пропущена - не страница статьи');
-                      }
-                      
-                      // 2. Display форматы (только для страниц где есть контейнеры)
-                      const displayPlacements = [
-                          // Desktop formats (stable)
-                          { id: "63da9b577bc72f39bc3bfc68", format: "728x90", type: "desktop" },
-                          { id: "63da9e2a4d506e16acfd2a36", format: "300x250", type: "desktop" },
-                          { id: "63daa3c24d506e16acfd2a38", format: "970x250", type: "desktop" },
-                          { id: "63daa2ea7bc72f39bc3bfc72", format: "300x600", type: "desktop" },
-                          // Mobile formats (new - 2025-10-28)
-                          { id: "68f644dc70e7b26b58596f34", format: "320x50", type: "mobile" },
-                          { id: "68f6451d810d98e1a08f2725", format: "160x600", type: "mobile" },
-                          { id: "68f645bf810d98e1a08f272f", format: "320x100", type: "mobile" },
-                          // Display formats (new - 2025-10-28)
-                          { id: "68f63437810d98e1a08f26de", format: "320x480", type: "display" }
-                      ];
-                      
-                      let displayCount = 0;
-                      displayPlacements.forEach(function(placement) {
-                          const container = document.querySelector('[data-hyb-ssp-ad-place="' + placement.id + '"]');
-                          if (container) {
-                              // ✅ ПРАВИЛЬНАЯ инициализация display баннеров (как было пару дней назад)
-                              window._tx.integrateInImage({
-                                  placeId: placement.id,
-                                  setDisplayBlock: true
-                              });
-                              console.log('VOX: Display format ' + placement.format + ' восстановлен правильно');
-                              displayCount++;
-                          }
-                      });
-                      
-                      console.log('VOX: Найдено ' + displayCount + ' display контейнеров');
-                      
-                      // 3. Система показа контейнеров после загрузки рекламы
-                      function setupAdVisibilityWatcher() {
-                          const observer = new MutationObserver(function(mutations) {
-                              mutations.forEach(function(mutation) {
-                                  if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                                      const target = mutation.target;
-                                      if (target.hasAttribute && target.hasAttribute('data-hyb-ssp-ad-place')) {
-                                          // VOX добавил содержимое в контейнер - показываем его
-                                          target.style.opacity = '1';
-                                          console.log('VOX: Контейнер показан после загрузки рекламы');
-                                      }
-                                  }
-                              });
-                          });
-                          
-                          // Наблюдаем за всеми ad контейнерами
-                          document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
-                              observer.observe(container, { childList: true, subtree: true });
-                          });
-                          
-                          // Fallback - показываем контейнеры через 2 секунды если ничего не загрузилось  
-                          setTimeout(function() {
-                              document.querySelectorAll('[data-hyb-ssp-ad-place]').forEach(function(container) {
-                                  if (container.children.length > 0 || container.innerHTML.trim() !== '') {
-                                      container.style.opacity = '1';
-                                  }
-                              });
-                          }, 2000); // Оптимизировано - уменьшен с 3000 до 2000ms
-                      }
-                      
-                      // 4. Финальная инициализация (только если есть контейнеры)
-                      const totalContainers = document.querySelectorAll('[data-hyb-ssp-ad-place]').length;
-                      if (totalContainers > 0 || window.location.href.includes('/article/')) {
-                          setupAdVisibilityWatcher();
-                          window._tx.init();
-                          console.log('VOX: Инициализация завершена для ' + totalContainers + ' контейнеров');
-                      } else {
-                          console.log('VOX: Контейнеры не найдены, инициализация пропущена');
-                      }
-                      
-                  } catch (error) {
-                      console.error('VOX: Ошибка инициализации:', error);
-                  }
-              }
-              
-              // Переменные для отслеживания инициализации
-              let voxInitialized = false;
-              let currentUrl = '';
-              
-              // Система отслеживания URL для Next.js client-side navigation
-              function checkAndReinitVOX() {
-                  const newUrl = window.location.href;
-                  
-                  if (newUrl !== currentUrl) {
-                      console.log('VOX: Обнаружена смена URL:', currentUrl, '->', newUrl);
-                      
-                      const oldUrl = currentUrl;
-                      currentUrl = newUrl;
-                      
-                      // Переинициализируем только при переходах между статьями или на статьи
-                      const isNewArticle = newUrl.includes('/article/');
-                      const wasArticle = oldUrl.includes('/article/');
-                      
-                      if (isNewArticle || wasArticle) {
-                          console.log('VOX: Переинициализация - переход между статьями');
-                          
-                          // Минимальная задержка для обновления DOM после Next.js navigation
-                          setTimeout(function() {
-                              if (typeof window._tx !== 'undefined' && window._tx.integrateInImage) {
-                                  initVOX();
-                              }
-                          }, 300); // Оптимизировано - уменьшена задержка
-                      } else {
-                          console.log('VOX: Переход не требует переинициализации');
-                      }
-                  }
-              }
-              
-              // Запуск VOX с поддержкой Next.js navigation и Cookie Consent
-              function startVOX() {
-                  // Проверяем согласие
-                  if (!hasAdvertisingConsent()) {
-                      console.log('VOX: Ожидание согласия пользователя');
-                      return;
-                  }
-                  
-                  // Загружаем скрипт если есть согласие
-                  loadVOXScript();
-                  
-                  // После загрузки скрипта инициализируем
-                  window._tx.cmds.push(function () {
-                      console.log('VOX: Команда добавлена в очередь');
-                      
-                      // Инициализация при первой загрузке
-                      function firstInit() {
-                          currentUrl = window.location.href;
-                          console.log('VOX: Первая инициализация для URL:', currentUrl);
-                          initVOX();
-                          
-                          // Запускаем мониторинг URL изменений для Next.js navigation
-                          setInterval(checkAndReinitVOX, 1000);
-                      }
-                      
-                      if (document.readyState === 'complete') {
-                          firstInit();
-                      } else {
-                          window.addEventListener('load', firstInit);
-                          setTimeout(firstInit, 1000); // Оптимизировано - уменьшен fallback с 2000 до 1000ms
-                      }
-                  });
-              }
-              
-              // Запускаем при загрузке страницы
-              startVOX();
-              
-              // Слушаем изменения cookie consent
-              window.addEventListener('cookieConsentChanged', function(event) {
-                  console.log('VOX: Обнаружено изменение cookie consent', event.detail);
-                  if (event.detail && event.detail.advertising) {
-                      console.log('VOX: Реклама разрешена, перезагружаем страницу');
-                      // Страница перезагрузится автоматически в useCookieConsent
-                  }
-              });
-            `,
-          }}
-        />
+        {/* VOX ad script — loads SSP, inits display placements found in DOM */}
+        <AdManager />
       </body>
     </html>
   );

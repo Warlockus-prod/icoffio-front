@@ -49,6 +49,7 @@ export default function VideoPlayer({
   const [isVisible, setIsVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
+  const [hasAdContent, setHasAdContent] = useState(true); // hide if no content after timeout
 
   // Intersection Observer для autoplay on scroll (outstream)
   useEffect(() => {
@@ -77,24 +78,11 @@ export default function VideoPlayer({
     return () => observer.disconnect();
   }, [type, autoplay]);
 
-  // VOX рекламная интеграция
+  // VOX ad integration — relies on global SSP loaded by layout.tsx
   useEffect(() => {
     if (!voxPlaceId) return;
 
-    // Загрузка VOX скрипта если еще не загружен
-    if (typeof window !== 'undefined' && !(window as any)._tx) {
-      const script = document.createElement('script');
-      script.src = 'https://st.hbrd.io/ssp.js?t=' + new Date().getTime();
-      script.async = true;
-      script.onload = () => {
-        console.log('[VideoPlayer] VOX script loaded');
-        initializeVoxAd();
-      };
-      document.body.appendChild(script);
-    } else {
-      initializeVoxAd();
-    }
-
+    // VOX script is loaded globally in layout.tsx, just init the placement
     function initializeVoxAd() {
       if ((window as any)._tx) {
         (window as any)._tx.cmds = (window as any)._tx.cmds || [];
@@ -104,6 +92,24 @@ export default function VideoPlayer({
         });
       }
     }
+
+    initializeVoxAd();
+
+    // Hide container if no ad content after timeout
+    const timeout = setTimeout(() => {
+      const container = playerRef.current;
+      if (!container) return;
+      const adEl = container.querySelector('[data-hyb-ssp-ad-place]');
+      if (adEl) {
+        const hasContent = adEl.children.length > 0 &&
+          !adEl.querySelector('.text-gray-400'); // exclude our own placeholder text
+        if (!hasContent) {
+          setHasAdContent(false);
+        }
+      }
+    }, 5000);
+
+    return () => clearTimeout(timeout);
   }, [voxPlaceId]);
 
   // Получить размеры контейнера по типу
@@ -127,6 +133,11 @@ export default function VideoPlayer({
 
   const dimensions = getContainerDimensions();
 
+  // If no video URL and no ad content loaded after timeout — hide entirely
+  if (!videoUrl && !hasAdContent) {
+    return null;
+  }
+
   // Sticky стили для sidebar
   const getStickyStyles = () => {
     if (position === 'sidebar-sticky') {
@@ -147,10 +158,9 @@ export default function VideoPlayer({
         ...dimensions,
         ...getStickyStyles(),
         margin: position === 'article-end' ? '40px auto' : '20px 0',
-        backgroundColor: '#000',
-        borderRadius: '12px',
-        overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        backgroundColor: videoUrl ? '#000' : 'transparent',
+        borderRadius: videoUrl ? '12px' : '0',
+        overflow: 'hidden'
       }}
       data-player-type={type}
       data-position={position}
@@ -218,18 +228,9 @@ export default function VideoPlayer({
           {voxPlaceId ? (
             <div
               data-hyb-ssp-ad-place={voxPlaceId}
-              className="w-full h-full flex items-center justify-center"
-              style={{
-                minHeight: dimensions.height || '250px',
-                backgroundColor: '#f5f5f5'
-              }}
+              className="w-full h-full"
             >
-              {/* VOX заполнит контентом */}
-              {!adLoaded && (
-                <div className="text-gray-400 text-sm">
-                  Loading advertisement...
-                </div>
-              )}
+              {/* VOX fills content automatically */}
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">

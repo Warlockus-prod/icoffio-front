@@ -59,6 +59,12 @@ export default function ParsingQueue() {
   const { parsingQueue, removeJobFromQueue, updateJobStatus } = useAdminStore();
 
   const handleRetry = (jobId: string, url: string, category: string = 'tech') => {
+    const isTextJob = url.startsWith('text:');
+    if (isTextJob) {
+      window.alert('Text/AI jobs cannot be retried from queue. Please submit again from Text Input or AI Generate.');
+      return;
+    }
+
     updateJobStatus(jobId, 'pending', 0);
     // Перезапуск парсинга
     setTimeout(() => {
@@ -185,6 +191,15 @@ export default function ParsingQueue() {
       <div className="space-y-4">
         {parsingQueue.map((job) => {
           const statusConfig = STATUS_CONFIG[job.status];
+          const isTextJob = job.url.startsWith('text:');
+          const sourceLabel = (() => {
+            if (isTextJob) return 'Text / AI Input';
+            try {
+              return new URL(job.url).hostname;
+            } catch {
+              return 'Unknown source';
+            }
+          })();
           const timeAgo = formatDistanceToNow(new Date(job.startTime), { 
             addSuffix: true, 
             locale: enUS 
@@ -209,7 +224,7 @@ export default function ParsingQueue() {
                   </div>
                   
                   <div className="text-sm text-gray-900 dark:text-white font-medium truncate mb-1">
-                    {new URL(job.url).hostname}
+                    {sourceLabel}
                   </div>
                   
                   <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
@@ -219,7 +234,7 @@ export default function ParsingQueue() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 ml-4">
-                  {job.status === 'failed' && (
+                  {job.status === 'failed' && !isTextJob && (
                     <button
                       onClick={() => handleRetry(job.id, job.url)}
                       className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors"
@@ -316,10 +331,12 @@ export default function ParsingQueue() {
               <button
                 onClick={() => {
                   const failedJobs = parsingQueue.filter(job => job.status === 'failed');
-                  failedJobs.forEach(job => handleRetry(job.id, job.url));
+                  failedJobs
+                    .filter(job => !job.url.startsWith('text:'))
+                    .forEach(job => handleRetry(job.id, job.url));
                 }}
                 className="px-3 py-2 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors"
-                disabled={!parsingQueue.some(job => job.status === 'failed')}
+                disabled={!parsingQueue.some(job => job.status === 'failed' && !job.url.startsWith('text:'))}
               >
                 🔄 Retry Failed
               </button>

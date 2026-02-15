@@ -20,6 +20,12 @@ export interface ParseJob {
   category?: string; // ✅ v8.4.0: Категория статьи
 }
 
+interface TextProcessingOptions {
+  skipEnhancement?: boolean;
+  skipTranslation?: boolean;
+  skipImageGeneration?: boolean;
+}
+
 export interface Article {
   id: string;
   title: string;
@@ -162,7 +168,7 @@ interface AdminStore {
   
   // Parsing Actions
   addUrlToQueue: (url: string, category: string, contentStyle?: ContentStyleType) => void;
-  addTextToQueue: (title: string, content: string, category: string) => Promise<void>;
+  addTextToQueue: (title: string, content: string, category: string, options?: TextProcessingOptions) => Promise<void>;
   updateJobStatus: (jobId: string, status: ParseJob['status'], progress?: number, articleData?: Article | null) => void;
   removeJobFromQueue: (jobId: string) => void;
   
@@ -306,7 +312,7 @@ export const useAdminStore = create<AdminStore>()(
       (get() as any).startParsing(newJob.id, url, category, contentStyle);
     },
 
-    addTextToQueue: async (title, content, category) => {
+    addTextToQueue: async (title, content, category, options) => {
       const newJob: ParseJob = {
         id: Date.now().toString(),
         url: `text:${title.substring(0, 50)}...`, // Псевдо-URL для отображения
@@ -327,7 +333,7 @@ export const useAdminStore = create<AdminStore>()(
 
       // Trigger text processing via API
       try {
-        await (get() as any).startTextProcessing(newJob.id, title, content, category);
+        await (get() as any).startTextProcessing(newJob.id, title, content, category, options);
       } catch (error) {
         get().updateJobStatus(newJob.id, 'failed', 0);
         console.error('Error processing text:', error);
@@ -733,9 +739,10 @@ export const useAdminStore = create<AdminStore>()(
         }
       },
 
-      startTextProcessing: async (jobId: string, title: string, content: string, category: string) => {
+      startTextProcessing: async (jobId: string, title: string, content: string, category: string, options?: TextProcessingOptions) => {
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
+          const normalizedCategory = ['ai', 'apple', 'games', 'tech'].includes(category) ? category : 'tech';
           
           // ✅ ИСПРАВЛЕНИЕ: Увеличенный таймаут для облачной обработки
           const controller = new AbortController();
@@ -751,8 +758,11 @@ export const useAdminStore = create<AdminStore>()(
               action: 'create-from-text',
               title,
               content,
-              category,
-              stage: 'text-only' // ✨ NEW: Request text-only processing (no image generation)
+              category: normalizedCategory,
+              stage: 'text-only', // ✨ NEW: Request text-only processing (no image generation)
+              enhanceContent: options?.skipEnhancement ? false : true,
+              translateToAll: options?.skipTranslation ? false : true,
+              generateImage: options?.skipImageGeneration !== undefined ? !options.skipImageGeneration : false
             }),
             signal: controller.signal
           });

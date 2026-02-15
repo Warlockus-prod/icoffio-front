@@ -304,17 +304,34 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
 
     // ✅ v8.4.0: Получаем стиль обработки контента
     const contentStyle = body.contentStyle || body.data?.contentStyle || 'journalistic';
+    const stage = body.data?.stage || (body as any).stage;
+    const enhanceContent = typeof (body as any).enhanceContent === 'boolean'
+      ? (body as any).enhanceContent
+      : typeof body.data?.enhanceContent === 'boolean'
+        ? body.data.enhanceContent
+        : contentStyle !== 'as-is';
+    const generateImage = typeof (body as any).generateImage === 'boolean'
+      ? (body as any).generateImage
+      : typeof body.data?.generateImage === 'boolean'
+        ? body.data.generateImage
+        : true;
+    const translateToAll = typeof (body as any).translateToAll === 'boolean'
+      ? (body as any).translateToAll
+      : typeof body.data?.translateToAll === 'boolean'
+        ? body.data.translateToAll
+        : true;
     console.log(`📝 Content style requested: ${contentStyle}`);
 
     const articleInput: ArticleInput = {
       url,
       category: body.category || body.data?.category || 'tech',
       contentStyle, // ✅ v8.4.0: Передаем стиль в сервис
+      stage,
       
       // Для админ панели - все возможности включены
-      enhanceContent: contentStyle !== 'as-is', // ✅ Если "Keep As Is" - не улучшаем
-      generateImage: true,
-      translateToAll: true,
+      enhanceContent,
+      generateImage,
+      translateToAll,
       publishToWordPress: false // В админке пока отключаем автопубликацию
     };
 
@@ -376,6 +393,22 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
   try {
     const title = body.title || body.data?.title;
     const content = body.content || body.data?.content;
+    const stage = body.data?.stage || (body as any).stage;
+    const enhanceContent = typeof (body as any).enhanceContent === 'boolean'
+      ? (body as any).enhanceContent
+      : typeof body.data?.enhanceContent === 'boolean'
+        ? body.data.enhanceContent
+        : true;
+    const generateImage = typeof (body as any).generateImage === 'boolean'
+      ? (body as any).generateImage
+      : typeof body.data?.generateImage === 'boolean'
+        ? body.data.generateImage
+        : true;
+    const translateToAll = typeof (body as any).translateToAll === 'boolean'
+      ? (body as any).translateToAll
+      : typeof body.data?.translateToAll === 'boolean'
+        ? body.data.translateToAll
+        : true;
     
     if (!title || !content) {
       return NextResponse.json(
@@ -388,11 +421,12 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
       title,
       content,
       category: body.category || body.data?.category || 'tech',
+      stage,
       
       // Для админ панели - все возможности включены
-      enhanceContent: true,
-      generateImage: true,
-      translateToAll: true,
+      enhanceContent,
+      generateImage,
+      translateToAll,
       publishToWordPress: false // В админке пока отключаем автопубликацию
     };
 

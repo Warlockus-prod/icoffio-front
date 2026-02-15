@@ -47,6 +47,7 @@ export default function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
+  const [hasAdContent, setHasAdContent] = useState(true);
   const [playlistIndex, setPlaylistIndex] = useState(0);
 
   const playlist = useMemo(() => {
@@ -55,6 +56,29 @@ export default function VideoPlayer({
   }, [videoPlaylist, videoUrl]);
 
   const currentVideo = playlist[playlistIndex];
+
+  const getElementSize = (element: Element | null): { width: number; height: number } => {
+    if (!element) return { width: 0, height: 0 };
+    const htmlElement = element as HTMLElement;
+    const rect = htmlElement.getBoundingClientRect();
+    return {
+      width: Math.max(rect.width, htmlElement.clientWidth || 0, htmlElement.scrollWidth || 0),
+      height: Math.max(rect.height, htmlElement.clientHeight || 0, htmlElement.scrollHeight || 0),
+    };
+  };
+
+  const hasRenderableAdContent = (slot: HTMLElement): boolean => {
+    const candidates = Array.from(
+      slot.querySelectorAll('iframe, img, video, canvas, object, embed')
+    );
+
+    if (candidates.length === 0) return false;
+
+    return candidates.some((candidate) => {
+      const { width, height } = getElementSize(candidate);
+      return width >= 120 && height >= 60;
+    });
+  };
 
   useEffect(() => {
     setPlaylistIndex(0);
@@ -103,28 +127,37 @@ export default function VideoPlayer({
     if (!voxPlaceId || !slot) return;
 
     const markLoaded = () => {
-      const hasPayload = slot.querySelector('iframe') !== null || slot.innerHTML.trim() !== '' || slot.children.length > 0;
+      const hasPayload = hasRenderableAdContent(slot);
       if (hasPayload) {
         setAdLoaded(true);
+        setHasAdContent(true);
       }
     };
 
     setAdLoaded(false);
+    setHasAdContent(true);
 
     const observer = new MutationObserver(() => {
       markLoaded();
     });
 
     observer.observe(slot, { childList: true, subtree: true, attributes: true });
-    const timers = [1200, 2400, 3600, 5200, 7000].map((delay) => window.setTimeout(markLoaded, delay));
+    const timers = [1200, 2400, 3600].map((delay) => window.setTimeout(markLoaded, delay));
+    const hardTimeout = window.setTimeout(() => {
+      if (!hasRenderableAdContent(slot)) {
+        setHasAdContent(false);
+        setAdLoaded(false);
+      }
+    }, 3500);
 
     markLoaded();
 
     return () => {
       observer.disconnect();
       timers.forEach((timerId) => window.clearTimeout(timerId));
+      window.clearTimeout(hardTimeout);
     };
-  }, [voxPlaceId]);
+  }, [currentVideo, voxPlaceId]);
 
   // Получить размеры контейнера по типу
   const getContainerDimensions = () => {
@@ -161,6 +194,16 @@ export default function VideoPlayer({
     if (/\.(mp4|webm|ogg)(\?|$)/i.test(currentVideo)) return undefined;
     return `${currentVideo.replace(/\/$/, '')}/thumbnail.jpg`;
   })();
+
+  // Instream without actual video source produces a bad UX placeholder.
+  if (type === 'instream' && !currentVideo) {
+    return null;
+  }
+
+  // Outstream with no loaded creative should disappear instead of showing a stuck loading box.
+  if (type === 'outstream' && !hasAdContent) {
+    return null;
+  }
 
   // Sticky стили для sidebar
   const getStickyStyles = () => {

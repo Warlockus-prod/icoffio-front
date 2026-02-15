@@ -243,7 +243,6 @@ textarea.markdown-editor {
 /* Base container */
 .vox-ad-container {
   position: relative;
-  display: block;
   background: transparent;
   border: none;
   overflow: visible;

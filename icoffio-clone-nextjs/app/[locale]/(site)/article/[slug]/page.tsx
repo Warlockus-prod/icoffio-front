@@ -229,38 +229,38 @@ export default async function Article({ params }: { params: { locale: string; sl
 
             {/* Mid-content ads - Mobile ONLY (160x600) */}
             {adsContentMiddleMobile.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="xl:hidden"
-              />
+              <div key={ad.id} className="xl:hidden">
+                <UniversalAd
+                  placeId={ad.placeId}
+                  format={ad.format}
+                  placement={ad.placement}
+                  enabled={ad.enabled}
+                />
+              </div>
             ))}
 
             {/* Content bottom ads - Desktop */}
             {adsContentBottomDesktop.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="xl:block hidden"
-              />
+              <div key={ad.id} className="hidden xl:block">
+                <UniversalAd
+                  placeId={ad.placeId}
+                  format={ad.format}
+                  placement={ad.placement}
+                  enabled={ad.enabled}
+                />
+              </div>
             ))}
             
             {/* Content bottom ads - Mobile */}
             {adsContentBottomMobile.map((ad) => (
-              <UniversalAd 
-                key={ad.id}
-                placeId={ad.placeId} 
-                format={ad.format}
-                placement={ad.placement}
-                enabled={ad.enabled}
-                className="xl:hidden"
-              />
+              <div key={ad.id} className="xl:hidden">
+                <UniversalAd
+                  placeId={ad.placeId}
+                  format={ad.format}
+                  placement={ad.placement}
+                  enabled={ad.enabled}
+                />
+              </div>
             ))}
 
             {/* Instream Video Player - Article End */}
@@ -326,26 +326,24 @@ export default async function Article({ params }: { params: { locale: string; sl
 
         {/* Footer ads - Desktop */}
         {adsFooterDesktop.map((ad) => (
-          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
-            <UniversalAd 
-              placeId={ad.placeId} 
+          <div key={ad.id} className="max-w-7xl mx-auto mt-12 hidden xl:block">
+            <UniversalAd
+              placeId={ad.placeId}
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className="xl:block hidden"
             />
           </div>
         ))}
         
         {/* Footer ads - Mobile */}
         {adsFooterMobile.map((ad) => (
-          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
-            <UniversalAd 
-              placeId={ad.placeId} 
+          <div key={ad.id} className="max-w-7xl mx-auto mt-12 xl:hidden">
+            <UniversalAd
+              placeId={ad.placeId}
               format={ad.format}
               placement={ad.placement}
               enabled={ad.enabled}
-              className="xl:hidden"
             />
           </div>
         ))}

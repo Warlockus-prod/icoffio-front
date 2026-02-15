@@ -184,7 +184,6 @@ export function UniversalAd({
       style={{
         opacity: isAdLoaded ? 1 : 0,
         transition: 'opacity 0.3s ease-in-out',
-        display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',

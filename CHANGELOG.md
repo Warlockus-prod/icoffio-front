@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.9] - 2026-02-15 - 📌 Tech Debt Backlog + Stage 2 Consolidation Preparation
+
+### 🎯 Что сделано
+- Вынесены оставшиеся production TODO в отдельный приоритизированный техдолг.
+- Расширен `sync-manifest.json` на дополнительные критичные admin/API файлы.
+- Зафиксирован план `Stage 2` для уменьшения дублирования root/clone структуры.
+
+### 🔧 Реализация
+- Новый документ техдолга:
+  - `docs/TECH_DEBT_BACKLOG.md`
+- Новый план консолидации:
+  - `docs/CONSOLIDATION_STAGE2_PLAN.md`
+- Обновлен workflow:
+  - `docs/SOURCE_OF_TRUTH_WORKFLOW.md`
+- Расширен mirror coverage:
+  - `sync-manifest.json` (добавлены admin parse/publish/translate/regenerate/delete/cleanup routes и ключевые admin UI файлы)
+
+### ✅ Проверки
+- `npm run sync:check` (root и clone)
+- `npm run build` (root и clone)
+
 ## [8.6.8] - 2026-02-15 - 🧭 Source-Of-Truth Guard + Mirror Sync Workflow
 
 ### 🎯 Что сделано

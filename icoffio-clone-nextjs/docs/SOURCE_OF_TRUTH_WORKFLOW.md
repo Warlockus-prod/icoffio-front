@@ -17,6 +17,11 @@ Mirrored targets are:
 The file list is defined in:
 - `/sync-manifest.json`
 
+Current scope includes:
+- admin parsing/generation/publishing API routes
+- admin URL parser UI + image selection + article editor
+- key article ingestion routes and content formatting utilities
+
 ## Commands
 - Check drift:
   - `npm run sync:check`
@@ -34,3 +39,7 @@ Before release:
 3. `npm run build` in root
 4. update version + changelog
 5. push + deploy
+
+Supporting docs:
+- `/docs/TECH_DEBT_BACKLOG.md`
+- `/docs/CONSOLIDATION_STAGE2_PLAN.md`

@@ -113,10 +113,17 @@ export async function GET(request: Request) {
         throw new Error(`Supabase query failed: ${rawError.message}`);
       }
 
+      const sanitizedRawArticles = (rawArticles || []).map((article: any) => ({
+        ...article,
+        title: sanitizeExcerptText(article?.title || '', 260),
+        excerpt_en: sanitizeExcerptText(article?.excerpt_en || article?.title || '', 200),
+        excerpt_pl: sanitizeExcerptText(article?.excerpt_pl || article?.excerpt_en || article?.title || '', 200)
+      }));
+
       return NextResponse.json({
         success: true,
-        articles: rawArticles || [],
-        count: (rawArticles || []).length,
+        articles: sanitizedRawArticles,
+        count: sanitizedRawArticles.length,
         source: 'supabase',
         mode: 'raw'
       });

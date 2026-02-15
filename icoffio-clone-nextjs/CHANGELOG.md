@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.17] - 2026-02-15 - 🗺️ Preview Ad Slots Layout Map
+
+### 🎯 Что сделано
+- В `Preview` шаге `Article Creator` добавлен визуальный блок с раскладкой выбранных ad slots по позициям.
+- Теперь перед публикацией видно, какие именно размещения активны в:
+  - `header`
+  - `content-top`
+  - `content-middle`
+  - `content-bottom`
+  - `sidebar-top`
+  - `sidebar-bottom`
+  - `footer`
+
+### 🔧 Реализация
+- `components/admin/ArticleCreatorModal.tsx`
+  - добавлен `Ad Slots Layout Preview`;
+  - слоты сгруппированы по позициям с количеством и badges (`format • device`);
+  - блок показывает пустые позиции как `No slots selected`.
+- `package.json`, `icoffio-clone-nextjs/package.json`
+  - версия обновлена до `8.6.17`.
+
 ## [8.6.16] - 2026-02-15 - 💰 Per-Article Monetization Controls in Admin
 
 ### 🎯 Что сделано

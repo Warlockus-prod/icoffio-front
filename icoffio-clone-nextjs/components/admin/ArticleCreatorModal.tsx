@@ -60,6 +60,55 @@ const CONTENT_STYLES = [
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const STAGE_ORDER: Stage[] = ['editing', 'images', 'monetization', 'preview'];
+const AD_POSITION_ORDER: AdPlacementConfig['position'][] = [
+  'header',
+  'content-top',
+  'content-middle',
+  'content-bottom',
+  'sidebar-top',
+  'sidebar-bottom',
+  'footer'
+];
+const AD_POSITION_META: Record<
+  AdPlacementConfig['position'],
+  { label: string; icon: string; description: string }
+> = {
+  header: {
+    label: 'Header',
+    icon: '🧭',
+    description: 'Top header area before article content'
+  },
+  'content-top': {
+    label: 'Content Top',
+    icon: '⬆️',
+    description: 'After title / first section'
+  },
+  'content-middle': {
+    label: 'Content Middle',
+    icon: '↕️',
+    description: 'In the middle of article content'
+  },
+  'content-bottom': {
+    label: 'Content Bottom',
+    icon: '⬇️',
+    description: 'After main article content'
+  },
+  'sidebar-top': {
+    label: 'Sidebar Top',
+    icon: '📌',
+    description: 'Top sidebar block (desktop)'
+  },
+  'sidebar-bottom': {
+    label: 'Sidebar Bottom',
+    icon: '📍',
+    description: 'Bottom sidebar block (desktop)'
+  },
+  footer: {
+    label: 'Footer',
+    icon: '🧱',
+    description: 'Before related articles / footer area'
+  }
+};
 
 const isPlaceholderImage = (url?: string): boolean =>
   Boolean(url && url.includes(DEFAULT_PLACEHOLDER_IMAGE_MARKER));
@@ -246,6 +295,18 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       enabledVideoPlayerIds: selectedVideoPlayerIds
     });
   }, [selectedAdPlacementIds, selectedVideoPlayerIds]);
+
+  const selectedAdPlacements = useMemo(
+    () => availableAdPlacements.filter((ad) => selectedAdPlacementIds.includes(ad.id)),
+    [availableAdPlacements, selectedAdPlacementIds]
+  );
+
+  const adPlacementsByPosition = useMemo(() => {
+    return AD_POSITION_ORDER.map((position) => ({
+      position,
+      items: selectedAdPlacements.filter((ad) => ad.position === position)
+    }));
+  }, [selectedAdPlacements]);
 
   const moveSelectedImage = useCallback((fromIndex: number, toIndex: number) => {
     updateSelectedImages(prev => {
@@ -1337,6 +1398,47 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                     <span className="px-2 py-1 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
                       Video Players: {selectedVideoPlayerIds.length}
                     </span>
+                  </div>
+
+                  {/* Visual monetization map */}
+                  <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                      🗺️ Ad Slots Layout Preview
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {adPlacementsByPosition.map(({ position, items }) => (
+                        <div
+                          key={position}
+                          className="rounded-lg border border-amber-100 dark:border-amber-900/40 bg-white/70 dark:bg-gray-800/40 p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {AD_POSITION_META[position].icon} {AD_POSITION_META[position].label}
+                            </div>
+                            <span className="text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-gray-500 mb-2">
+                            {AD_POSITION_META[position].description}
+                          </div>
+                          {items.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {items.map((ad) => (
+                                <span
+                                  key={ad.id}
+                                  className="text-[11px] px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
+                                >
+                                  {ad.format} • {ad.device}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-gray-400">No slots selected</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">

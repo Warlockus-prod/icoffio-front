@@ -1,46 +1,41 @@
 /**
- * Article Page — icoffio
+ * 📰 ARTICLE PAGE - icoffio v7.30.0
  * 
- * Рекламные места (по ADVERTISING_CODES_GUIDE.md):
- * 
- * Desktop:
- *   728x90  — после заголовка (inline)
- *   300x250 — sidebar top
- *   300x600 — sidebar bottom
- *   970x250 — перед Related Articles
- * 
- * Mobile:
- *   320x100 — после контента
- * 
- * In-Image — автоматически через VOX скрипт в layout.tsx
+ * Single article display with advertising integration
+ * Mock data moved to lib/mock-data.ts for centralization
  */
 
 import { getPostBySlug, getAllSlugs, getRelated } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
+import { Prose } from "@/components/Prose";
 import { ArticleContentWithAd } from "@/components/ArticleContentWithAd";
+import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { UniversalAd } from "@/components/UniversalAd";
-import VideoPlayer from "@/components/VideoPlayer";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
-import { VOX_PLACES } from "@/lib/vox-advertising";
-import { getVideoPlayerById } from "@/lib/config/video-players";
-import type { AdPlacementConfig } from "@/lib/config/adPlacements";
+import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
+import VideoPlayer from "@/components/VideoPlayer";
+import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
+import { extractMonetizationSettingsFromContent } from "@/lib/monetization-settings";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
+// v7.30.0: Centralized mock data
 import { mockPostsFull as mockPosts, getMockPostBySlug, getRelatedMockPosts } from "@/lib/mock-data";
 
-export const revalidate = 3600;
+export const revalidate = 3600; // 1 hour
 
+// Helper functions using centralized mock data
 const getPostBySlugFromMocks = getMockPostBySlug;
 const getRelatedFromMocks = getRelatedMockPosts;
 
 export async function generateMetadata({ params }: { params: { locale: string; slug: string } }): Promise<Metadata> {
+  // Try GraphQL first, fallback to mocks
   let post: Post | null = null;
   
   try {
@@ -88,12 +83,22 @@ export async function generateMetadata({ params }: { params: { locale: string; s
       description: post.excerpt || `${post.title} - detailed article on icoffio`,
       images: [post.image || "/og.png"],
     },
-    robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
-    alternates: { canonical: url },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+      },
+    },
+    alternates: {
+      canonical: url,
+    },
   };
 }
 
 export default async function Article({ params }: { params: { locale: string; slug: string } }) {
+  // Try to get post from GraphQL, fallback to mocks
   let post: Post | null = null;
   let related: Post[] = [];
   
@@ -114,6 +119,44 @@ export default async function Article({ params }: { params: { locale: string; sl
   }
   
   if (!post) return notFound();
+
+  // Per-article monetization overrides are stored as a hidden comment in content.
+  const { settings: articleMonetizationSettings, cleanContent: cleanArticleContent } =
+    extractMonetizationSettingsFromContent(post.content || post.contentHtml || '');
+
+  const defaultArticleAds = getAdPlacementsByLocation('article');
+  const enabledAdIds = articleMonetizationSettings
+    ? new Set(articleMonetizationSettings.enabledAdPlacementIds)
+    : null;
+  const articleAds = enabledAdIds
+    ? defaultArticleAds.filter((ad) => enabledAdIds.has(ad.id))
+    : defaultArticleAds;
+
+  const defaultInstreamPlayers = getInstreamPlayers();
+  const defaultOutstreamPlayers = getOutstreamPlayers();
+  const enabledVideoIds = articleMonetizationSettings
+    ? new Set(articleMonetizationSettings.enabledVideoPlayerIds)
+    : null;
+  const articleInstreamPlayers = enabledVideoIds
+    ? defaultInstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
+    : defaultInstreamPlayers;
+  const articleOutstreamPlayers = enabledVideoIds
+    ? defaultOutstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
+    : defaultOutstreamPlayers;
+
+  // Split by position AND device for proper display
+  // Desktop banners
+  const adsContentTopDesktop = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'desktop');
+  const adsContentBottomDesktop = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'desktop');
+  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device === 'desktop');
+  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device === 'desktop');
+  const adsFooterDesktop = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'desktop');
+  
+  // Mobile banners
+  const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
+  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile');
+  const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
+  const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
   
   const fallback = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop";
 
@@ -121,44 +164,13 @@ export default async function Article({ params }: { params: { locale: string; sl
     { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },
     { label: post.title }
   ];
-  const articleEndVideoPlayer = getVideoPlayerById('instream-article-end');
-  const mobileInContentSidebarAds: AdPlacementConfig[] = [
-    {
-      id: 'mobile-reflow-sidebar-top',
-      placeId: VOX_PLACES.MEDIUM_RECTANGLE,
-      format: '300x250',
-      placement: 'mobile',
-      name: 'Mobile Reflow Sidebar Top',
-      description: 'Desktop sidebar top placement shown inside article flow on mobile',
-      location: 'article',
-      position: 'content-middle',
-      enabled: true,
-      priority: 9,
-      device: 'mobile',
-      addedDate: '2026-02-14',
-      status: 'stable',
-    },
-    {
-      id: 'mobile-reflow-sidebar-bottom',
-      placeId: VOX_PLACES.LARGE_SKYSCRAPER,
-      format: '300x600',
-      placement: 'mobile',
-      name: 'Mobile Reflow Sidebar Bottom',
-      description: 'Desktop sidebar bottom placement shown deeper in article flow on mobile',
-      location: 'article',
-      position: 'content-bottom',
-      enabled: true,
-      priority: 7,
-      device: 'mobile',
-      addedDate: '2026-02-14',
-      status: 'stable',
-    },
-  ];
 
   return (
     <>
       <ArticleSchema post={post} locale={params.locale} />
       <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
+      
+      {/* Track article view for analytics */}
       <ArticleViewTracker articleSlug={post.slug} />
       
       <Container>
@@ -167,10 +179,10 @@ export default async function Article({ params }: { params: { locale: string; sl
         </div>
         <Breadcrumbs items={breadcrumbItems} locale={params.locale} />
 
-        {/* ====== MAIN GRID: Article + Sidebar ====== */}
+        {/* Main Content Grid: Article + Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-8 max-w-7xl mx-auto">
           
-          {/* === Article === */}
+          {/* Main Article Content */}
           <article className="min-w-0">
             <header className="mb-8">
               <div className="flex items-center gap-3 mb-4">
@@ -185,7 +197,9 @@ export default async function Article({ params }: { params: { locale: string; sl
                   className="text-sm text-neutral-500 dark:text-neutral-400"
                 >
                   {new Date(post.publishedAt || post.date || new Date()).toLocaleDateString(params.locale === 'en' ? 'en-US' : 'pl-PL', {
-                    year: 'numeric', month: 'long', day: 'numeric'
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                   })}
                 </time>
               </div>
@@ -197,7 +211,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               </p>
             </header>
 
-            {/* Hero Image (In-Image реклама появится автоматически через VOX) */}
+            {/* Hero Image */}
             <div className="mb-8">
               <img 
                 src={post.image || fallback} 
@@ -206,76 +220,137 @@ export default async function Article({ params }: { params: { locale: string; sl
               />
             </div>
 
-            {/* AD: 728x90 Leaderboard — Desktop only, после заголовка */}
-            <div className="hidden xl:block my-6 text-center">
-              <UniversalAd 
-                placeId={VOX_PLACES.LEADERBOARD} 
-                format="728x90" 
-                placement="inline" 
-              />
-            </div>
-
-            {/* Article Content */}
+            {/* Article Content with Mid-Content Ad */}
             <ArticleContentWithAd 
-              content={post.content ? renderContent(post.content) : (post.contentHtml || '')}
-              adsDesktop={[]}
-              adsMobile={mobileInContentSidebarAds}
+              content={renderContent(cleanArticleContent)}
+              adsDesktop={adsContentTopDesktop}
+              adsMobile={adsContentTopMobile}
             />
 
-            {/* AD: 320x50 Mobile Banner — мягкий формат перед video slot */}
-            <div className="xl:hidden my-6 flex justify-center">
-              <UniversalAd
-                placeId={VOX_PLACES.MOBILE_BANNER}
-                format="320x50"
-                placement="mobile"
+            {/* Mid-content ads - Mobile ONLY (160x600) */}
+            {adsContentMiddleMobile.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="xl:hidden"
               />
-            </div>
+            ))}
 
-            {/* VIDEO AD: Instream/Outstream slot — в конце статьи */}
-            {articleEndVideoPlayer?.enabled && (
-              <div className="not-prose my-10">
+            {/* Content bottom ads - Desktop */}
+            {adsContentBottomDesktop.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="xl:block hidden"
+              />
+            ))}
+            
+            {/* Content bottom ads - Mobile */}
+            {adsContentBottomMobile.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+                className="xl:hidden"
+              />
+            ))}
+
+            {/* Instream Video Player - Article End */}
+            {articleInstreamPlayers
+              .filter(p => p.position === 'article-end')
+              .map((player) => (
                 <VideoPlayer
-                  type={articleEndVideoPlayer.type}
-                  position={articleEndVideoPlayer.position}
-                  voxPlaceId={articleEndVideoPlayer.voxPlaceId}
-                  autoplay={articleEndVideoPlayer.autoplay}
-                  muted={articleEndVideoPlayer.muted}
-                  videoUrl={process.env.NEXT_PUBLIC_ARTICLE_VIDEO_URL}
-                  videoTitle={process.env.NEXT_PUBLIC_ARTICLE_VIDEO_TITLE}
+                  key={player.id}
+                  type={player.type}
+                  position={player.position}
+                  voxPlaceId={player.voxPlaceId}
+                  autoplay={player.autoplay}
+                  muted={player.muted}
+                  videoTitle={post.title}
+                  className={`mt-12 ${player.device === 'desktop' ? 'lg:block hidden' : player.device === 'mobile' ? 'lg:hidden' : ''}`}
                 />
-              </div>
-            )}
+              ))}
+
           </article>
 
-          {/* === Sidebar (Desktop only) === */}
-          <aside className="xl:sticky xl:top-4 xl:h-fit hidden xl:block space-y-6">
+          {/* Sidebar with VOX Display ads */}
+          <aside className="xl:sticky xl:top-4 xl:h-fit hidden xl:block">
             
-            {/* AD: 300x250 Medium Rectangle — sidebar top */}
-            <UniversalAd 
-              placeId={VOX_PLACES.MEDIUM_RECTANGLE} 
-              format="300x250" 
-              placement="sidebar" 
-            />
+            {/* Sidebar top ads */}
+            {adsSidebarTop.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+              />
+            ))}
 
-            {/* AD: 300x600 Large Skyscraper — sidebar bottom */}
-            <UniversalAd 
-              placeId={VOX_PLACES.LARGE_SKYSCRAPER} 
-              format="300x600" 
-              placement="sidebar" 
-            />
+            {/* Outstream Video Player - Sticky Sidebar (Desktop only) */}
+            {articleOutstreamPlayers
+              .filter(p => p.position === 'sidebar-sticky' && p.device === 'desktop')
+              .map((player) => (
+                <VideoPlayer
+                  key={player.id}
+                  type={player.type}
+                  position={player.position}
+                  voxPlaceId={player.voxPlaceId}
+                  autoplay={player.autoplay}
+                  muted={player.muted}
+                  className="mt-6"
+                />
+              ))}
+
+            {/* Sidebar bottom ads */}
+            {adsSidebarBottom.map((ad) => (
+              <UniversalAd 
+                key={ad.id}
+                placeId={ad.placeId} 
+                format={ad.format}
+                placement={ad.placement}
+                enabled={ad.enabled}
+              />
+            ))}
+            
           </aside>
         </div>
 
-        {/* AD: 970x250 Large Leaderboard — Desktop, перед Related */}
-        <div className="hidden xl:block max-w-7xl mx-auto my-12 text-center">
-          <UniversalAd 
-            placeId={VOX_PLACES.LARGE_LEADERBOARD} 
-            format="970x250" 
-            placement="inline" 
-          />
-        </div>
+        {/* Footer ads - Desktop */}
+        {adsFooterDesktop.map((ad) => (
+          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
+            <UniversalAd 
+              placeId={ad.placeId} 
+              format={ad.format}
+              placement={ad.placement}
+              enabled={ad.enabled}
+              className="xl:block hidden"
+            />
+          </div>
+        ))}
+        
+        {/* Footer ads - Mobile */}
+        {adsFooterMobile.map((ad) => (
+          <div key={ad.id} className="max-w-7xl mx-auto mt-12">
+            <UniversalAd 
+              placeId={ad.placeId} 
+              format={ad.format}
+              placement={ad.placement}
+              enabled={ad.enabled}
+              className="xl:hidden"
+            />
+          </div>
+        ))}
 
-        {/* Related Articles */}
+        {/* Related Articles - Full Width */}
         <div className="mt-16">
           <RelatedArticles 
             posts={related.length > 0 ? related : mockPosts}

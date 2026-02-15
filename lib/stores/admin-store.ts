@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { adminLogger, createApiTimer } from '../admin-logger';
 import { localArticleStorage } from '../local-article-storage';
+import type { ArticleMonetizationSettings } from '../monetization-settings';
 
 // Types
 // Content processing styles (from content-prompts.ts)
@@ -41,6 +42,7 @@ export interface Article {
     pl?: { title: string; content: string; excerpt: string };
   };
   selectedImageId?: string;
+  monetizationSettings?: ArticleMonetizationSettings;
   publishedAt?: Date;
   
   // ✨ NEW: Staged Processing

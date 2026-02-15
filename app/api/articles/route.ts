@@ -10,6 +10,7 @@ import { wordpressService } from '@/lib/wordpress-service';
 import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
+import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settings';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const isPlaceholderImage = (url?: string): boolean =>
@@ -767,6 +768,16 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         contentPl = plResult.contentWithImages;
         console.log(`🖼️ PL: Hero + ${plResult.placements.length} images placed`);
       }
+    }
+
+    // ✅ v8.6.16: Персональные настройки монетизации для конкретной статьи.
+    if (article.monetizationSettings) {
+      contentEn = injectMonetizationSettingsIntoContent(contentEn, article.monetizationSettings);
+      contentPl = injectMonetizationSettingsIntoContent(contentPl, article.monetizationSettings);
+      console.log(
+        `💰 Applied custom monetization settings: ${article.monetizationSettings.enabledAdPlacementIds?.length || 0} ad slots, ` +
+          `${article.monetizationSettings.enabledVideoPlayerIds?.length || 0} video players`
+      );
     }
     
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!

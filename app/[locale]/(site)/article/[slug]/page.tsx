@@ -21,6 +21,7 @@ import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import VideoPlayer from "@/components/VideoPlayer";
 import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
+import { extractMonetizationSettingsFromContent } from "@/lib/monetization-settings";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -97,23 +98,6 @@ export async function generateMetadata({ params }: { params: { locale: string; s
 }
 
 export default async function Article({ params }: { params: { locale: string; slug: string } }) {
-  // Get ad placements configuration
-  const articleAds = getAdPlacementsByLocation('article');
-  
-  // Split by position AND device for proper display
-  // Desktop banners
-  const adsContentTopDesktop = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'desktop');
-  const adsContentBottomDesktop = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'desktop');
-  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device === 'desktop');
-  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device === 'desktop');
-  const adsFooterDesktop = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'desktop');
-  
-  // Mobile banners
-  const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
-  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile');
-  const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
-  const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
-  
   // Try to get post from GraphQL, fallback to mocks
   let post: Post | null = null;
   let related: Post[] = [];
@@ -135,6 +119,44 @@ export default async function Article({ params }: { params: { locale: string; sl
   }
   
   if (!post) return notFound();
+
+  // Per-article monetization overrides are stored as a hidden comment in content.
+  const { settings: articleMonetizationSettings, cleanContent: cleanArticleContent } =
+    extractMonetizationSettingsFromContent(post.content || post.contentHtml || '');
+
+  const defaultArticleAds = getAdPlacementsByLocation('article');
+  const enabledAdIds = articleMonetizationSettings
+    ? new Set(articleMonetizationSettings.enabledAdPlacementIds)
+    : null;
+  const articleAds = enabledAdIds
+    ? defaultArticleAds.filter((ad) => enabledAdIds.has(ad.id))
+    : defaultArticleAds;
+
+  const defaultInstreamPlayers = getInstreamPlayers();
+  const defaultOutstreamPlayers = getOutstreamPlayers();
+  const enabledVideoIds = articleMonetizationSettings
+    ? new Set(articleMonetizationSettings.enabledVideoPlayerIds)
+    : null;
+  const articleInstreamPlayers = enabledVideoIds
+    ? defaultInstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
+    : defaultInstreamPlayers;
+  const articleOutstreamPlayers = enabledVideoIds
+    ? defaultOutstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
+    : defaultOutstreamPlayers;
+
+  // Split by position AND device for proper display
+  // Desktop banners
+  const adsContentTopDesktop = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'desktop');
+  const adsContentBottomDesktop = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'desktop');
+  const adsSidebarTop = articleAds.filter(ad => ad.position === 'sidebar-top' && ad.device === 'desktop');
+  const adsSidebarBottom = articleAds.filter(ad => ad.position === 'sidebar-bottom' && ad.device === 'desktop');
+  const adsFooterDesktop = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'desktop');
+  
+  // Mobile banners
+  const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
+  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile');
+  const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
+  const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
   
   const fallback = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop";
 
@@ -200,7 +222,7 @@ export default async function Article({ params }: { params: { locale: string; sl
 
             {/* Article Content with Mid-Content Ad */}
             <ArticleContentWithAd 
-              content={post.content ? renderContent(post.content) : (post.contentHtml || '')}
+              content={renderContent(cleanArticleContent)}
               adsDesktop={adsContentTopDesktop}
               adsMobile={adsContentTopMobile}
             />
@@ -242,7 +264,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             ))}
 
             {/* Instream Video Player - Article End */}
-            {getInstreamPlayers()
+            {articleInstreamPlayers
               .filter(p => p.position === 'article-end')
               .map((player) => (
                 <VideoPlayer
@@ -274,7 +296,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             ))}
 
             {/* Outstream Video Player - Sticky Sidebar (Desktop only) */}
-            {getOutstreamPlayers()
+            {articleOutstreamPlayers
               .filter(p => p.position === 'sidebar-sticky' && p.device === 'desktop')
               .map((player) => (
                 <VideoPlayer

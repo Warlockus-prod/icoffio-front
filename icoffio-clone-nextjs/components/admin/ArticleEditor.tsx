@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import { localArticleStorage } from '@/lib/local-article-storage';
+import toast from 'react-hot-toast';
 import ArticlePreview from './ArticleEditor/ArticlePreview';
 import TranslationPanel from './ArticleEditor/TranslationPanel';
 import ContentEditor from './ArticleEditor/ContentEditor';
@@ -12,6 +13,59 @@ export default function ArticleEditor() {
   const { selectedArticle, parsingQueue, selectArticle } = useAdminStore();
   const [activeTab, setActiveTab] = useState<'preview' | 'editor' | 'translations' | 'images'>('preview');
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pl'>('en');
+  
+  const toSlug = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+
+  const handleSaveDraft = () => {
+    if (!selectedArticle) return;
+
+    const sourceJob = parsingQueue.find((job) => job.article?.id === selectedArticle.id);
+    const sourceType = sourceJob?.url?.startsWith('text:') ? 'text' : 'url';
+    const translations = Object.entries(selectedArticle.translations || {}).reduce(
+      (acc, [lang, translation]) => {
+        if (!translation) return acc;
+        acc[lang] = {
+          title: translation.title,
+          content: translation.content,
+          excerpt: translation.excerpt,
+          slug: toSlug(translation.title || `${selectedArticle.title}-${lang}`),
+        };
+        return acc;
+      },
+      {} as Record<string, { title: string; content: string; excerpt: string; slug: string }>
+    );
+
+    const saved = localArticleStorage.saveArticle({
+      id: selectedArticle.id,
+      title: selectedArticle.title,
+      content: selectedArticle.content,
+      excerpt: selectedArticle.excerpt,
+      slug: toSlug(selectedArticle.title),
+      category: selectedArticle.category || 'tech',
+      author: selectedArticle.author || 'AI Assistant',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      image: selectedArticle.image,
+      status: 'draft',
+      translations,
+      source: {
+        type: sourceType,
+        originalUrl: sourceJob?.url,
+      },
+    });
+
+    if (saved) {
+      toast.success('Draft saved in local storage');
+    } else {
+      toast.error('Failed to save draft');
+    }
+  };
   
   // Get articles ready for editing (from queue + local storage)
   const readyArticles = parsingQueue.filter(job => job.status === 'ready' && job.article);
@@ -293,7 +347,10 @@ export default function ArticleEditor() {
               </div>
 
               <div className="flex gap-3">
-                <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm">
+                <button
+                  onClick={handleSaveDraft}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm"
+                >
                   💾 Save Draft
                 </button>
                 
@@ -412,4 +469,3 @@ export default function ArticleEditor() {
     </div>
   );
 }
-

@@ -29,7 +29,7 @@ interface ScheduledPublish {
 }
 
 export default function PublishingQueue() {
-  const { parsingQueue, publishingQueue, removeJobFromQueue, updateJobStatus, addActivity } = useAdminStore();
+  const { parsingQueue, publishingQueue, removeJobFromQueue, updateJobStatus, addActivity, selectArticle, setActiveTab } = useAdminStore();
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
   const [isPublishing, setIsPublishing] = useState<Set<string>>(new Set());
   const [previewArticle, setPreviewArticle] = useState<ReadyArticle | null>(null);
@@ -463,7 +463,10 @@ export default function PublishingQueue() {
                     </button>
                     
                     <button
-                      onClick={() => useAdminStore.getState().selectArticle(article)}
+                      onClick={() => {
+                        selectArticle(article);
+                        setActiveTab('editor');
+                      }}
                       className="px-3 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 rounded-lg transition-colors text-sm"
                     >
                       ✏️ Edit

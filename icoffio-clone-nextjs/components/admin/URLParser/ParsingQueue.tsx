@@ -56,7 +56,7 @@ const STATUS_CONFIG = {
 };
 
 export default function ParsingQueue() {
-  const { parsingQueue, removeJobFromQueue, updateJobStatus } = useAdminStore();
+  const { parsingQueue, removeJobFromQueue, updateJobStatus, selectArticle, setActiveTab } = useAdminStore();
 
   const handleRetry = (jobId: string, url: string, category: string = 'tech') => {
     const isTextJob = url.startsWith('text:');
@@ -68,8 +68,15 @@ export default function ParsingQueue() {
     updateJobStatus(jobId, 'pending', 0);
     // Перезапуск парсинга
     setTimeout(() => {
-      (useAdminStore.getState() as any).startParsing(jobId, url, category);
+      useAdminStore.getState().startParsing(jobId, url, category);
     }, 1000);
+  };
+
+  const handleView = (jobId: string) => {
+    const job = parsingQueue.find((item) => item.id === jobId);
+    if (!job?.article) return;
+    selectArticle(job.article);
+    setActiveTab('editor');
   };
 
   const handleRemove = (jobId: string) => {
@@ -246,6 +253,7 @@ export default function ParsingQueue() {
                   
                   {job.status === 'ready' && (
                     <button
+                      onClick={() => handleView(job.id)}
                       className="px-3 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
                       title="View result"
                     >

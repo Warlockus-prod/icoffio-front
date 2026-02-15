@@ -104,6 +104,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   
   // ===== TIPTAP EDITOR =====
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit,
       Link.configure({

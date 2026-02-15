@@ -33,6 +33,7 @@ export default function RichTextEditor({
   className = '',
 }: RichTextEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
@@ -264,4 +265,3 @@ export default function RichTextEditor({
     </div>
   );
 }
-

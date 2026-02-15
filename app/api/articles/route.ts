@@ -11,6 +11,10 @@ import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeExce
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 
+const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
+const isPlaceholderImage = (url?: string): boolean =>
+  Boolean(url && url.includes(DEFAULT_PLACEHOLDER_IMAGE_MARKER));
+
 // Поддерживаемые действия
 type ActionType = 
   | 'create-from-telegram'  // Для n8n webhook
@@ -688,14 +692,22 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     // ✅ v8.4.0: Расстановка изображений в контенте
     let contentEn = normalizeAiGeneratedText(article.content || '');
     let contentPl = normalizeAiGeneratedText(article.translations?.pl?.content || article.content || '');
-    let heroImage = article.image;
-    
-    // Если есть массив изображений - расставляем их
-    const allImages: string[] = [];
-    if (article.image) allImages.push(article.image);
+
+    // Normalize image order: prefer first non-placeholder image as hero
+    const rawImages: string[] = [];
+    if (article.image) rawImages.push(article.image);
     if (article.images && Array.isArray(article.images)) {
-      allImages.push(...article.images.filter((img: string) => img && img !== article.image));
+      rawImages.push(...article.images);
     }
+
+    const uniqueImages = Array.from(new Set(rawImages.filter((img: string) => Boolean(img && img.trim()))));
+    const preferredHeroImage =
+      uniqueImages.find((img) => !isPlaceholderImage(img)) || uniqueImages[0] || '';
+    const allImages =
+      preferredHeroImage
+        ? [preferredHeroImage, ...uniqueImages.filter((img) => img !== preferredHeroImage)]
+        : [];
+    let heroImage = preferredHeroImage || article.image;
     
     if (allImages.length > 0) {
       console.log(`🖼️ Placing ${allImages.length} images in content`);

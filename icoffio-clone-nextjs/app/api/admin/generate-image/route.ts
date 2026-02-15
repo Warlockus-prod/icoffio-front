@@ -1,5 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { getArticleImage, type ImageSource } from '@/lib/image-generation-service';
+
+async function persistRemoteImage(imageUrl: string, title: string): Promise<string> {
+  try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return imageUrl;
+    }
+
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      return imageUrl;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const extension = contentType.includes('jpeg')
+      ? 'jpg'
+      : contentType.includes('webp')
+        ? 'webp'
+        : 'png';
+    const safeTitle = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 50) || 'ai-image';
+    const fileName = `articles/ai/${Date.now()}-${safeTitle}.${extension}`;
+
+    const blob = await put(fileName, Buffer.from(arrayBuffer), {
+      access: 'public',
+      contentType,
+      addRandomSuffix: false
+    });
+
+    return blob.url;
+  } catch (error) {
+    console.warn('Failed to persist generated image, using original URL');
+    return imageUrl;
+  }
+}
 
 /**
  * API endpoint для генерации изображений статей
@@ -68,9 +107,14 @@ export async function POST(request: NextRequest) {
       console.log(`💰 Cost: $${result.cost.toFixed(2)}`);
     }
 
+    const finalUrl =
+      source === 'dalle' && result.url
+        ? await persistRemoteImage(result.url, title)
+        : result.url;
+
     return NextResponse.json({
       success: true,
-      url: result.url,
+      url: finalUrl,
       cost: result.cost,
       revisedPrompt: result.revisedPrompt,
       source,

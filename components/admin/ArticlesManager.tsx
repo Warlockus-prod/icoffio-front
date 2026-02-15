@@ -25,6 +25,35 @@ interface ArticleItem {
   publishStatus?: 'draft' | 'published';
 }
 
+const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
+const DEFAULT_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
+
+const isLikelyTemporaryImage = (image?: string): boolean =>
+  Boolean(image && /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(image));
+
+const hasCustomPersistentImage = (image?: string): boolean =>
+  Boolean(image && !image.includes(DEFAULT_IMAGE_MARKER) && !isLikelyTemporaryImage(image));
+
+const normalizeArticleImage = (image?: string): string =>
+  image && image.trim() ? image : FALLBACK_IMAGE_URL;
+
+const normalizeViews = (...values: unknown[]): number => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+  }
+
+  return 0;
+};
+
 export default function ArticlesManager() {
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
@@ -71,8 +100,8 @@ export default function ArticlesManager() {
         
         if (result.success && result.articles) {
           result.articles.forEach((article: any) => {
-            const fallbackImage = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
-            const imageUrl = article.image_url || article.image || fallbackImage;
+            const imageUrl = normalizeArticleImage(article.image_url || article.image);
+            const viewCount = normalizeViews(article.views, article.total_views, article.unique_views);
 
             // English version
             if (article.slug_en) {
@@ -88,7 +117,7 @@ export default function ArticlesManager() {
                 excerpt: article.excerpt_en || article.excerpt || '',
                 image: imageUrl,
                 author: article.author || 'icoffio Editorial Team',
-                views: article.views || Math.floor(Math.random() * 1000) + 50,
+                views: viewCount,
                 lastEdit: article.updated_at || article.created_at,
                 publishStatus: 'published' as const
               });
@@ -108,7 +137,7 @@ export default function ArticlesManager() {
                 excerpt: article.excerpt_pl || article.excerpt || '',
                 image: imageUrl,
                 author: article.author || 'icoffio Editorial Team',
-                views: article.views || Math.floor(Math.random() * 1000) + 50,
+                views: viewCount,
                 lastEdit: article.updated_at || article.created_at,
                 publishStatus: 'published' as const
               });
@@ -132,7 +161,7 @@ export default function ArticlesManager() {
                 excerpt: article.excerpt || '',
                 image: imageUrl,
                 author: article.author || 'icoffio Editorial Team',
-                views: article.views || Math.floor(Math.random() * 1000) + 50,
+                views: viewCount,
                 lastEdit: article.updated_at || article.date || article.created_at,
                 publishStatus: 'published' as const
               });
@@ -159,9 +188,9 @@ export default function ArticlesManager() {
           status: 'admin',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+          image: normalizeArticleImage(article.image),
           author: article.author || 'icoffio Editorial Team',
-          views: Math.floor(Math.random() * 1000) + 50,
+          views: normalizeViews((article as any).views, (article as any).total_views),
           lastEdit: article.updatedAt || article.createdAt,
           publishStatus: 'draft' as const
         });
@@ -180,21 +209,18 @@ export default function ArticlesManager() {
           category: typeof article.category === 'string' ? article.category : article.category.slug,
           language,
           author: 'icoffio Editorial Team',
-          views: Math.floor(Math.random() * 5000) + 100,
+          views: normalizeViews((article as any).views, (article as any).total_views),
           lastEdit: article.publishedAt || article.date || new Date().toISOString(),
           publishStatus: 'published' as const,
           createdAt: article.publishedAt || article.date || new Date().toISOString(),
           status: 'static',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: article.image || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800'
+          image: normalizeArticleImage(article.image)
         });
       });
       
-      // Убираем дубликаты по slug, выбирая лучший вариант (нормальная картинка + более свежая запись)
-      const defaultImageMarker = 'photo-1485827404703-89b55fcc595e';
-      const hasCustomImage = (image?: string) =>
-        Boolean(image && !image.includes(defaultImageMarker));
+      // Убираем дубликаты по slug, выбирая лучший вариант (персистентная картинка + более свежая запись)
       const getTimestamp = (article: ArticleItem) =>
         new Date(article.lastEdit || article.createdAt).getTime() || 0;
 
@@ -206,8 +232,8 @@ export default function ArticlesManager() {
           return;
         }
 
-        const currentHasCustomImage = hasCustomImage(current.image);
-        const candidateHasCustomImage = hasCustomImage(article.image);
+        const currentHasCustomImage = hasCustomPersistentImage(current.image);
+        const candidateHasCustomImage = hasCustomPersistentImage(article.image);
 
         if (candidateHasCustomImage && !currentHasCustomImage) {
           bestBySlug.set(article.slug, article);
@@ -607,13 +633,16 @@ export default function ArticlesManager() {
                   {visibleColumns.title && (
                     <td className="px-6 py-4">
                       <div className="flex items-start gap-3">
-                        {article.image && (
-                          <img
-                            src={article.image}
-                            alt=""
-                            className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                          />
-                        )}
+                        <img
+                          src={article.image || FALLBACK_IMAGE_URL}
+                          alt=""
+                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                          onError={(event) => {
+                            if (event.currentTarget.src !== FALLBACK_IMAGE_URL) {
+                              event.currentTarget.src = FALLBACK_IMAGE_URL;
+                            }
+                          }}
+                        />
                         <div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white" title={article.title}>
                             {article.title}

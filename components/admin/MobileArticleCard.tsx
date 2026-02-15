@@ -28,6 +28,8 @@ interface MobileArticleCardProps {
   onView: (url: string) => void;
 }
 
+const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
+
 export default function MobileArticleCard({
   article,
   isSelected,
@@ -79,13 +81,16 @@ export default function MobileArticleCard({
           />
 
           {/* Image */}
-          {article.image && (
-            <img
-              src={article.image}
-              alt={article.title}
-              className="w-16 h-16 object-cover rounded-lg"
-            />
-          )}
+          <img
+            src={article.image || FALLBACK_IMAGE_URL}
+            alt={article.title}
+            className="w-16 h-16 object-cover rounded-lg"
+            onError={(event) => {
+              if (event.currentTarget.src !== FALLBACK_IMAGE_URL) {
+                event.currentTarget.src = FALLBACK_IMAGE_URL;
+              }
+            }}
+          />
 
           {/* Title & Category */}
           <div className="flex-1 min-w-0">
@@ -212,8 +217,6 @@ export default function MobileArticleCard({
     </div>
   );
 }
-
-
 
 
 

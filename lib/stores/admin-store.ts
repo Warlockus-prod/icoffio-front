@@ -352,7 +352,7 @@ export const useAdminStore = create<AdminStore>()(
 
       removeJobFromQueue: (jobId) => {
         set((state) => ({
-          parsingQueue: state.parsingQueue.filter(job => job.id !== jobId)
+          parsingQueue: state.parsingQueue.filter(job => job.id !== jobId && job.article?.id !== jobId)
         }));
       },
 
@@ -360,11 +360,42 @@ export const useAdminStore = create<AdminStore>()(
       selectArticle: (article) => set({ selectedArticle: article }),
 
       updateArticle: (updates) => {
-        set((state) => ({
-          selectedArticle: state.selectedArticle 
-            ? { ...state.selectedArticle, ...updates }
-            : null
-        }));
+        set((state) => {
+          const targetId = updates.id || state.selectedArticle?.id;
+
+          const shouldUpdateSelected =
+            Boolean(state.selectedArticle) &&
+            (!targetId || state.selectedArticle!.id === targetId);
+
+          const selectedArticle = shouldUpdateSelected && state.selectedArticle
+            ? { ...state.selectedArticle, ...updates, id: state.selectedArticle.id }
+            : state.selectedArticle;
+
+          const parsingQueue = targetId
+            ? state.parsingQueue.map((job) => {
+                if (!job.article) return job;
+                if (job.article.id !== targetId && job.id !== targetId) return job;
+                return {
+                  ...job,
+                  article: { ...job.article, ...updates, id: job.article.id }
+                };
+              })
+            : state.parsingQueue;
+
+          const publishingQueue = targetId
+            ? state.publishingQueue.map((queueArticle) =>
+                queueArticle.id === targetId
+                  ? { ...queueArticle, ...updates, id: queueArticle.id }
+                  : queueArticle
+              )
+            : state.publishingQueue;
+
+          return {
+            selectedArticle: selectedArticle || null,
+            parsingQueue,
+            publishingQueue
+          };
+        });
       },
 
       addToPublishingQueue: (article) => {

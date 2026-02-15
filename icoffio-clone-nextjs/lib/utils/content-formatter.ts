@@ -103,7 +103,7 @@ export function sanitizeExcerptText(content: string, maxLength: number = 160): s
 
   // Remove heading/list markers and markdown wrappers.
   cleaned = cleaned
-    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*#{1,6}\s*/gm, '')
     .replace(/^\s*[-*+]\s+/gm, '')
     .replace(/^\s*\d+\.\s+/gm, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -112,6 +112,7 @@ export function sanitizeExcerptText(content: string, maxLength: number = 160): s
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
 
   cleaned = cleaned
+    .replace(/\s{0,2}#{2,6}\s*(?=\S)/g, ' ')
     .replace(/\n+/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/^["'`«»„”]+|["'`«»„”]+$/g, '')

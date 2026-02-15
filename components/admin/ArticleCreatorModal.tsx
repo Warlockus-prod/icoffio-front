@@ -50,6 +50,11 @@ const CONTENT_STYLES = [
   { id: 'technical', label: 'Technical', icon: '⚙️' }
 ];
 
+const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
+
+const isPlaceholderImage = (url?: string): boolean =>
+  Boolean(url && url.includes(DEFAULT_PLACEHOLDER_IMAGE_MARKER));
+
 // ========== MAIN COMPONENT ==========
 
 export default function ArticleCreatorModal({ article, onClose, onPublish }: ArticleCreatorModalProps) {
@@ -146,6 +151,28 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     setHasUnsavedChanges(true);
   }, []);
 
+  const resolveImageSelection = useCallback(() => {
+    const candidates = [
+      ...selectedImages,
+      imageUrl,
+      article.image,
+      ...(article.images || [])
+    ].filter((img): img is string => Boolean(img && img.trim()));
+
+    const uniqueImages = Array.from(new Set(candidates));
+    if (uniqueImages.length === 0) {
+      return { heroImage: '', contentImages: [] as string[] };
+    }
+
+    const preferredHeroImage = uniqueImages.find((img) => !isPlaceholderImage(img)) || uniqueImages[0];
+    const ordered = [preferredHeroImage, ...uniqueImages.filter((img) => img !== preferredHeroImage)].slice(0, 5);
+
+    return {
+      heroImage: ordered[0] || '',
+      contentImages: ordered.slice(1)
+    };
+  }, [selectedImages, imageUrl, article.image, article.images]);
+
   const moveSelectedImage = useCallback((fromIndex: number, toIndex: number) => {
     updateSelectedImages(prev => {
       if (fromIndex === toIndex || toIndex < 0 || toIndex >= prev.length) {
@@ -169,6 +196,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     setIsSaving(true);
     const normalizedEnContent = normalizeAiGeneratedText(content);
     const normalizedPlContent = normalizeAiGeneratedText(plContent);
+    const { heroImage, contentImages } = resolveImageSelection();
     
     // ✅ v8.2.0: Save both languages + multiple images
     updateArticle({
@@ -177,8 +205,8 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       excerpt,
       content: normalizedEnContent,
       category,
-      image: selectedImages[0] || imageUrl, // First image = hero
-      images: selectedImages.slice(1), // Rest = content images
+      image: heroImage,
+      images: contentImages,
       translations: {
         en: { title, content: normalizedEnContent, excerpt },
         pl: { title: plTitle, content: normalizedPlContent, excerpt: plExcerpt }
@@ -188,7 +216,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     toast.success('✅ EN + PL saved!');
     setHasUnsavedChanges(false);
     setIsSaving(false);
-  }, [article.id, title, excerpt, content, category, imageUrl, selectedImages, plTitle, plContent, plExcerpt, updateArticle]);
+  }, [article.id, title, excerpt, content, category, plTitle, plContent, plExcerpt, updateArticle, resolveImageSelection]);
 
   const handleSearchImages = async () => {
     if (!imageSearch.trim()) return;
@@ -248,7 +276,15 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
           prompt: result.revisedPrompt || promptToUse
         };
         setImageOptions(prev => [newOption, ...prev]);
-        toast.success('🎨 AI image generated!', { id: toastId });
+        updateSelectedImages(prev => {
+          const withoutNew = prev.filter(url => url !== result.url);
+          const withoutLeadingPlaceholder =
+            withoutNew.length > 0 && isPlaceholderImage(withoutNew[0])
+              ? withoutNew.slice(1)
+              : withoutNew;
+          return [result.url, ...withoutLeadingPlaceholder].slice(0, 5);
+        });
+        toast.success('🎨 AI image generated and set as hero!', { id: toastId });
       } else {
         toast.error(result.error || 'Failed to generate AI image', { id: toastId });
       }
@@ -259,24 +295,34 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     }
   };
 
-  const handleSelectImage = (option: ImageOption) => {
-    setImageUrl(option.url);
-    setHasUnsavedChanges(true);
-    toast.success('✅ Image selected!');
-  };
-
   const handleAddCustomImage = () => {
-    if (!customImageUrl.trim()) return;
-    
-    setImageUrl(customImageUrl);
-    setHasUnsavedChanges(true);
+    const customUrl = customImageUrl.trim();
+    if (!customUrl) return;
+
+    setImageOptions(prev => {
+      const next: ImageOption = {
+        id: `custom-${Date.now()}`,
+        url: customUrl,
+        thumbnail: customUrl,
+        source: 'custom'
+      };
+      return [next, ...prev.filter(option => option.url !== customUrl)];
+    });
+
+    updateSelectedImages(prev => {
+      const withoutCustom = prev.filter(url => url !== customUrl);
+      const withoutLeadingPlaceholder =
+        withoutCustom.length > 0 && isPlaceholderImage(withoutCustom[0])
+          ? withoutCustom.slice(1)
+          : withoutCustom;
+      return [customUrl, ...withoutLeadingPlaceholder].slice(0, 5);
+    });
     setCustomImageUrl('');
-    toast.success('✅ Custom image added!');
+    toast.success('✅ Custom image added as hero!');
   };
 
   const handleRemoveImage = () => {
-    setImageUrl('');
-    setHasUnsavedChanges(true);
+    updateSelectedImages(() => []);
     toast.success('🗑️ Image removed');
   };
 
@@ -363,6 +409,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     
     const normalizedEnContent = normalizeAiGeneratedText(content);
     const normalizedPlContent = normalizeAiGeneratedText(plContent);
+    const { heroImage, contentImages } = resolveImageSelection();
 
     setIsPublishing(true);
     const toastId = toast.loading('📤 Adding to publishing queue...');
@@ -381,8 +428,8 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
             excerpt,
             content: normalizedEnContent,
             category,
-            image: selectedImages[0] || imageUrl,
-            images: selectedImages.slice(1),
+            image: heroImage,
+            images: contentImages,
             translations: {
               en: { title, content: normalizedEnContent, excerpt },
               pl: { title: plTitle, content: normalizedPlContent, excerpt: plExcerpt }
@@ -407,8 +454,8 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
           excerpt,
           content: normalizedEnContent,
           category,
-          image: selectedImages[0] || imageUrl,
-          images: selectedImages.slice(1)
+          image: heroImage,
+          images: contentImages
         });
         onClose();
       } else {
@@ -450,6 +497,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   };
 
   const previewContent = getPreviewContent();
+  const { heroImage: previewHeroImage } = resolveImageSelection();
   const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length;
 
   if (isPublishMinimized) {
@@ -949,10 +997,15 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                           onClick={() => {
                             if (isSelected) {
                               updateSelectedImages(prev => prev.filter(u => u !== option.url));
-                            } else if (selectedImages.length < 5) {
-                              updateSelectedImages(prev => [...prev, option.url]);
                             } else {
-                              toast.error('Max 5 images!');
+                              updateSelectedImages(prev => {
+                                const withoutCurrent = prev.filter(u => u !== option.url);
+                                const withoutLeadingPlaceholder =
+                                  withoutCurrent.length > 0 && isPlaceholderImage(withoutCurrent[0])
+                                    ? withoutCurrent.slice(1)
+                                    : withoutCurrent;
+                                return [option.url, ...withoutLeadingPlaceholder].slice(0, 5);
+                              });
                             }
                           }}
                           className={`group relative rounded-xl overflow-hidden border-2 transition-all ${
@@ -1018,9 +1071,9 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
               {/* Article Preview */}
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {/* Image */}
-                {imageUrl && (
+                {previewHeroImage && (
                   <img
-                    src={imageUrl}
+                    src={previewHeroImage}
                     alt={previewContent.title}
                     className="w-full h-80 object-cover"
                   />

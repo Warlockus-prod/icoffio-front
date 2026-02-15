@@ -44,6 +44,10 @@ export interface ImageRegenerationRequest {
   customPrompt?: string;                  // Кастомный промпт от пользователя
   customTags?: string[];                  // Кастомные теги (для Unsplash)
   useSmartPrompts?: boolean;              // Использовать AI для генерации промптов
+  articleTitle?: string;                  // Fallback для draft-статей
+  articleCategory?: string;               // Fallback для draft-статей
+  articleContent?: string;                // Fallback для draft-статей
+  articleExcerpt?: string;                // Fallback для draft-статей
 }
 
 export interface ImageRegenerationResponse {
@@ -81,4 +85,3 @@ export function createDefaultArticleImageMetadata(): ArticleImageMetadata {
     lastUpdated: new Date().toISOString()
   };
 }
-

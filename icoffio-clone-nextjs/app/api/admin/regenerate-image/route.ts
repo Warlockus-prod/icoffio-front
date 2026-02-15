@@ -12,6 +12,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { 
   generateSmartImagePrompts, 
   buildUnsplashQueryFromTags 
@@ -30,6 +32,32 @@ import {
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+interface PublishedArticleRow {
+  id: number;
+  title: string;
+  category: string | null;
+  content_en: string | null;
+  content_pl: string | null;
+  excerpt_en: string | null;
+  excerpt_pl: string | null;
+  slug_en: string | null;
+  slug_pl: string | null;
+  image_url: string | null;
+}
+
+interface ResolvedArticleData {
+  id: string;
+  publishedArticleId?: number;
+  title: string;
+  content: string;
+  excerpt: string;
+  category: string;
+  slugEn?: string;
+  slugPl?: string;
+  imageUrl?: string;
+  source: 'published_articles' | 'request-fallback';
+}
+
 /**
  * POST /api/admin/regenerate-image
  * 
@@ -47,7 +75,11 @@ export async function POST(request: NextRequest) {
       source,
       customPrompt,
       customTags,
-      useSmartPrompts = true
+      useSmartPrompts = true,
+      articleTitle,
+      articleCategory,
+      articleContent,
+      articleExcerpt
     } = body;
 
     // Валидация
@@ -63,9 +95,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`[RegenerateImage] Regenerating ${imageType} image for article ${articleId} using ${source}`);
 
-    // Получаем данные статьи (в реальности это будет из базы данных)
-    // Пока используем dummy данные для демонстрации
-    const articleData = await getArticleData(articleId);
+    // Загружаем реальные данные статьи (Supabase), с fallback на данные из запроса
+    const articleData = await getArticleData({
+      articleId,
+      articleTitle,
+      articleCategory,
+      articleContent,
+      articleExcerpt
+    });
 
     if (!articleData) {
       return NextResponse.json(
@@ -76,6 +113,10 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    console.log(
+      `[RegenerateImage] Using article source=${articleData.source}, title="${articleData.title}"`
+    );
 
     let imageUrl: string;
     let metadata: ImageMetadata;
@@ -215,8 +256,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Сохранить метаданные в базу данных
-    // await saveImageMetadata(articleId, imageType, imageIndex, metadata);
+    await persistImageMetadata({
+      requestedArticleId: articleId,
+      articleData,
+      imageType,
+      imageIndex,
+      metadata
+    });
 
     console.log('[RegenerateImage] ✅ Image regenerated successfully');
 
@@ -266,18 +312,217 @@ async function generatePromptForArticle(
 }
 
 /**
- * Получает данные статьи
- * TODO: Заменить на реальный запрос к базе данных
+ * Получает данные статьи:
+ * 1) из Supabase published_articles по id/slug
+ * 2) fallback из параметров запроса (для draft-статей до публикации)
  */
-async function getArticleData(articleId: string): Promise<any> {
-  // Пока возвращаем dummy данные
-  // В продакшене это будет запрос к Supabase или WordPress
-  return {
-    id: articleId,
-    title: 'Sample Article Title',
-    content: 'Article content...',
-    excerpt: 'Article excerpt...',
-    category: 'ai'
-  };
+async function getArticleData(params: {
+  articleId: string;
+  articleTitle?: string;
+  articleCategory?: string;
+  articleContent?: string;
+  articleExcerpt?: string;
+}): Promise<ResolvedArticleData | null> {
+  const { articleId, articleTitle, articleCategory, articleContent, articleExcerpt } = params;
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      const row = await findPublishedArticleByReference(supabase, articleId);
+      if (row) {
+        return {
+          id: String(row.id),
+          publishedArticleId: row.id,
+          title: (row.title || articleTitle || 'Untitled article').trim(),
+          content: (row.content_en || row.content_pl || articleContent || '').trim(),
+          excerpt: (row.excerpt_en || row.excerpt_pl || articleExcerpt || row.title || '').trim(),
+          category: (row.category || articleCategory || 'tech').trim(),
+          slugEn: row.slug_en || undefined,
+          slugPl: row.slug_pl || undefined,
+          imageUrl: row.image_url || undefined,
+          source: 'published_articles'
+        };
+      }
+    } catch (error) {
+      console.error('[RegenerateImage] Failed to load article from Supabase:', error);
+    }
+  }
+
+  const fallbackTitle = articleTitle?.trim();
+  if (fallbackTitle) {
+    return {
+      id: articleId,
+      title: fallbackTitle,
+      content: (articleContent || '').trim(),
+      excerpt: (articleExcerpt || fallbackTitle).trim(),
+      category: (articleCategory || 'tech').trim(),
+      source: 'request-fallback'
+    };
+  }
+
+  return null;
 }
 
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseKey);
+}
+
+function buildReferenceCandidates(reference: string): string[] {
+  const normalized = reference.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const withoutLangSuffix = normalized.replace(/-(en|pl)$/i, '');
+  const candidates = new Set<string>([normalized, withoutLangSuffix]);
+
+  if (!/-en$|-pl$/i.test(normalized)) {
+    candidates.add(`${withoutLangSuffix}-en`);
+    candidates.add(`${withoutLangSuffix}-pl`);
+  }
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+async function findPublishedArticleByReference(supabase: SupabaseClient, reference: string) {
+  const selectFields = 'id,title,category,content_en,content_pl,excerpt_en,excerpt_pl,slug_en,slug_pl,image_url';
+
+  if (/^\d+$/.test(reference)) {
+    const { data, error } = await supabase
+      .from('published_articles')
+      .select(selectFields)
+      .eq('id', Number(reference))
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data && data.length > 0) {
+      return data[0] as PublishedArticleRow;
+    }
+  }
+
+  const candidates = buildReferenceCandidates(reference);
+  for (const candidate of candidates) {
+    const { data: bySlugEn, error: bySlugEnError } = await supabase
+      .from('published_articles')
+      .select(selectFields)
+      .eq('slug_en', candidate)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (bySlugEnError) {
+      throw new Error(bySlugEnError.message);
+    }
+
+    if (bySlugEn && bySlugEn.length > 0) {
+      return bySlugEn[0] as PublishedArticleRow;
+    }
+
+    const { data: bySlugPl, error: bySlugPlError } = await supabase
+      .from('published_articles')
+      .select(selectFields)
+      .eq('slug_pl', candidate)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (bySlugPlError) {
+      throw new Error(bySlugPlError.message);
+    }
+
+    if (bySlugPl && bySlugPl.length > 0) {
+      return bySlugPl[0] as PublishedArticleRow;
+    }
+  }
+
+  return null;
+}
+
+async function persistImageMetadata(params: {
+  requestedArticleId: string;
+  articleData: ResolvedArticleData;
+  imageType: 'hero' | 'content';
+  imageIndex?: number;
+  metadata: ImageMetadata;
+}) {
+  const { requestedArticleId, articleData, imageType, imageIndex, metadata } = params;
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    console.warn('[RegenerateImage] Supabase is not configured, metadata persistence skipped');
+    return;
+  }
+
+  let hasPersisted = false;
+  const criticalErrors: string[] = [];
+
+  // Для hero-изображения синхронизируем image_url в published_articles, если запись существует
+  if (articleData.publishedArticleId && imageType === 'hero') {
+    const { error: updateError } = await supabase
+      .from('published_articles')
+      .update({ image_url: metadata.url })
+      .eq('id', articleData.publishedArticleId);
+
+    if (updateError) {
+      criticalErrors.push(`published_articles update failed: ${updateError.message}`);
+    } else {
+      hasPersisted = true;
+    }
+  }
+
+  // История и полные metadata сохраняются в activity_logs.metadata (JSONB)
+  const { error: activityError } = await supabase.from('activity_logs').insert([
+    {
+      user_name: 'Image Regenerator',
+      user_source: 'admin',
+      action: 'generate_image',
+      action_label: `Regenerated ${imageType} image`,
+      entity_type: 'article',
+      entity_id: articleData.publishedArticleId
+        ? String(articleData.publishedArticleId)
+        : requestedArticleId,
+      entity_title: articleData.title,
+      entity_url: articleData.slugEn
+        ? `https://app.icoffio.com/en/article/${articleData.slugEn}`
+        : null,
+      entity_url_pl: articleData.slugPl
+        ? `https://app.icoffio.com/pl/article/${articleData.slugPl}`
+        : null,
+      metadata: {
+        requestedArticleId,
+        resolvedArticleId: articleData.id,
+        imageType,
+        imageIndex: typeof imageIndex === 'number' ? imageIndex : null,
+        metadata,
+        source: articleData.source,
+        persistedAt: new Date().toISOString()
+      }
+    }
+  ]);
+
+  if (activityError) {
+    // Graceful degradation, если migration еще не применена
+    if (activityError.code === '42P01') {
+      console.warn('[RegenerateImage] activity_logs table not found, skip metadata history');
+    } else {
+      criticalErrors.push(`activity_logs insert failed: ${activityError.message}`);
+    }
+  } else {
+    hasPersisted = true;
+  }
+
+  if (criticalErrors.length > 0) {
+    throw new Error(criticalErrors.join(' | '));
+  }
+
+  if (!hasPersisted) {
+    console.warn('[RegenerateImage] Metadata persistence skipped (no writable targets found)');
+  };
+}

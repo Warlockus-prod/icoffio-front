@@ -8,8 +8,10 @@ Scope: actionable `TODO/FIXME/HACK` in production code paths.
 - `P2` improves product quality and monetization quality.
 - `P3` cleanup or process-only improvements.
 
-## Prioritized items
+## Completed items
 1. `P1` Persist regenerated image metadata and load real article data
+   - Status:
+     - Completed on 2026-02-15 (`v8.6.10`).
    - Files:
      - `app/api/admin/regenerate-image/route.ts:218`
      - `app/api/admin/regenerate-image/route.ts:270`
@@ -19,8 +21,13 @@ Scope: actionable `TODO/FIXME/HACK` in production code paths.
      - Regenerated image state can be lost and may diverge from published article state.
    - Acceptance:
      - Save metadata to DB (Supabase/target source), remove dummy article loader, add API test for persisted metadata.
+   - Result:
+     - Article data now resolves from `published_articles` by `id/slug` with request fallback for drafts.
+     - Metadata is persisted in `activity_logs.metadata` and hero image updates `published_articles.image_url` when available.
 
 2. `P1` Show user-visible error on text-to-article queue failures
+   - Status:
+     - Completed on 2026-02-15 (`v8.6.10`).
    - File:
      - `components/admin/URLParser/TextInput.tsx:41`
    - Problem:
@@ -29,7 +36,11 @@ Scope: actionable `TODO/FIXME/HACK` in production code paths.
      - Users retry blindly and perceive queue as unstable.
    - Acceptance:
      - Render inline error or toast, preserve input values, provide retry hint.
+   - Result:
+     - UI now shows inline submit error.
+     - Store propagates text processing failures to caller and keeps detailed job error in queue state.
 
+## Open prioritized items
 3. `P2` Replace date-based fallback in "Popular" sorting with real view metrics
    - File:
      - `components/ArticlesList.tsx:20`

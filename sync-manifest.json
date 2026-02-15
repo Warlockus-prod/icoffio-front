@@ -19,6 +19,7 @@
     "components/admin/ArticleEditor.tsx",
     "components/admin/ArticleCreatorModal.tsx",
     "components/admin/ArticlesManager.tsx",
+    "components/admin/ImageMetadataEditor.tsx",
     "components/admin/ImageSelectionModal.tsx",
     "components/admin/MobileArticleCard.tsx",
     "components/admin/URLParser.tsx",
@@ -28,6 +29,7 @@
     "components/admin/URLParser/URLInput.tsx",
     "lib/config/content-prompts.ts",
     "lib/stores/admin-store.ts",
+    "lib/types/image-metadata.ts",
     "lib/utils/content-formatter.ts"
   ]
 }

@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.10] - 2026-02-15 - ✅ P1 Tech Debt Closure (Image Metadata Persistence + Text Error UX)
+
+### 🎯 Что сделано
+- Убран dummy-flow в `regenerate-image`: данные статьи читаются из `published_articles` (id/slug), с fallback на draft-контекст из UI.
+- Включена персистентность метаданных регенерации:
+  - `activity_logs.metadata` (история и payload),
+  - `published_articles.image_url` для hero-изображений.
+- Ошибки text processing теперь явно показываются пользователю в `TextInput`.
+- Расширен manifest mirror на новые критичные файлы редактора изображений.
+
+### 🔧 Измененные файлы
+- `app/api/admin/regenerate-image/route.ts`
+- `components/admin/ImageMetadataEditor.tsx`
+- `components/admin/ArticleEditor.tsx`
+- `components/admin/URLParser/TextInput.tsx`
+- `lib/stores/admin-store.ts`
+- `lib/types/image-metadata.ts`
+- `sync-manifest.json`
+
+### ✅ Проверки
+- `npm run sync:check`
+- `npm run build`
+
 ## [8.6.9] - 2026-02-15 - 📌 Tech Debt Backlog + Stage 2 Consolidation Preparation
 
 ### 🎯 Что сделано

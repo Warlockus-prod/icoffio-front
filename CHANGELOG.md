@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.10] - 2026-02-15 - ✅ P1 Tech Debt Closure (Image Metadata Persistence + Text Error UX)
+
+### 🎯 Что сделано
+- Закрыт `P1`: `regenerate-image` больше не использует dummy-данные статьи.
+- Закрыт `P1`: ошибки text-to-queue теперь показываются пользователю в UI, а не только в консоли.
+- Расширен mirror coverage для новых критичных файлов (`ImageMetadataEditor`, `ArticleEditor`, `image-metadata` types).
+
+### 🔧 Реализация
+- `app/api/admin/regenerate-image/route.ts`
+  - Реальная загрузка статьи из `published_articles` по `id/slug`.
+  - Fallback на данные из запроса для draft-статей (до публикации).
+  - Персистентность метаданных:
+    - запись истории в `activity_logs.metadata` (JSONB)
+    - обновление `published_articles.image_url` для hero-изображений.
+- `components/admin/ImageMetadataEditor.tsx`
+  - Передача контекста статьи (`title/category/content/excerpt`) в API регенерации.
+- `components/admin/ArticleEditor.tsx`
+  - Проброс контекста в `ImageMetadataEditor`.
+- `lib/stores/admin-store.ts`
+  - Ошибки text-pipeline теперь пробрасываются наверх и сохраняются в `job.error`.
+- `components/admin/URLParser/TextInput.tsx`
+  - Добавлен user-visible блок ошибки при падении text-пайплайна.
+- `lib/types/image-metadata.ts`
+  - Расширен `ImageRegenerationRequest` fallback-полями для draft-контекста.
+- `sync-manifest.json`
+  - Добавлены `components/admin/ImageMetadataEditor.tsx`, `components/admin/ArticleEditor.tsx`, `lib/types/image-metadata.ts`.
+
+### ✅ Проверки
+- `npm run sync:check` (root и clone)
+- `npm run build` (root и clone)
+
 ## [8.6.9] - 2026-02-15 - 📌 Tech Debt Backlog + Stage 2 Consolidation Preparation
 
 ### 🎯 Что сделано

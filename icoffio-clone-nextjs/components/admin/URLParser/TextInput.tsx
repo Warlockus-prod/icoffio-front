@@ -13,6 +13,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const categories = [
     { id: 'ai', name: 'AI & Machine Learning', icon: '🤖' },
@@ -26,6 +27,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
+    setSubmitError(null);
     setIsSubmitting(true);
     try {
       await addTextToQueue(title.trim(), content.trim(), category || 'tech');
@@ -38,7 +40,10 @@ export default function TextInput({ onSubmit }: TextInputProps) {
       onSubmit?.();
     } catch (error) {
       console.error('Error adding text to queue:', error);
-      // TODO: показать пользователю ошибку
+      const message = error instanceof Error
+        ? error.message
+        : 'Failed to add article to queue. Please try again.';
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -70,7 +75,10 @@ export default function TextInput({ onSubmit }: TextInputProps) {
               id="article-title"
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (submitError) setSubmitError(null);
+              }}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                        focus:ring-2 focus:ring-blue-500 focus:border-transparent
@@ -93,7 +101,10 @@ export default function TextInput({ onSubmit }: TextInputProps) {
             <textarea
               id="article-content"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                if (submitError) setSubmitError(null);
+              }}
               rows={8}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white
@@ -119,7 +130,10 @@ export default function TextInput({ onSubmit }: TextInputProps) {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setCategory(category === cat.id ? '' : cat.id)}
+                onClick={() => {
+                  setCategory(category === cat.id ? '' : cat.id);
+                  if (submitError) setSubmitError(null);
+                }}
                 className={`px-4 py-2 rounded-lg border flex items-center gap-2 transition-all ${
                   category === cat.id
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
@@ -165,6 +179,12 @@ export default function TextInput({ onSubmit }: TextInputProps) {
             </div>
           )}
         </div>
+
+        {submitError && (
+          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300">
+            {submitError}
+          </div>
+        )}
       </form>
 
       {/* Writing Tips */}

@@ -266,6 +266,8 @@ export default function ArticleEditor() {
                   articleId={selectedArticle.id}
                   articleTitle={selectedArticle.title}
                   articleCategory={selectedArticle.category}
+                  articleContent={selectedArticle.content}
+                  articleExcerpt={selectedArticle.excerpt}
                 />
               </div>
             )}
@@ -410,5 +412,4 @@ export default function ArticleEditor() {
     </div>
   );
 }
-
 

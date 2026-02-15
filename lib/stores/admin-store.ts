@@ -326,8 +326,21 @@ export const useAdminStore = create<AdminStore>()(
       try {
         await get().startTextProcessing(newJob.id, title, content, category, options);
       } catch (error) {
+        const errorMessage = error instanceof Error
+          ? error.message
+          : 'Failed to process text article';
+
         get().updateJobStatus(newJob.id, 'failed', 0);
+        set((state) => ({
+          parsingQueue: state.parsingQueue.map(job =>
+            job.id === newJob.id
+              ? { ...job, error: errorMessage }
+              : job
+          )
+        }));
+
         console.error('Error processing text:', error);
+        throw new Error(errorMessage);
       }
     },
 
@@ -803,12 +816,24 @@ export const useAdminStore = create<AdminStore>()(
               url: `text:${title}`
             });
           } else {
+            const errorMessage = result.error || `Ошибка обработки текста: ${title}`;
+
             get().updateJobStatus(jobId, 'failed', 0);
+            set((state) => ({
+              parsingQueue: state.parsingQueue.map(job =>
+                job.id === jobId
+                  ? { ...job, error: errorMessage }
+                  : job
+              )
+            }));
+
             get().addActivity({
               type: 'parsing_failed', 
-              message: `Ошибка обработки текста: ${title}`,
+              message: errorMessage,
               url: `text:${title}`
             });
+
+            throw new Error(errorMessage);
           }
         } catch (error) {
           // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок (аналогично startParsing)
@@ -841,6 +866,8 @@ export const useAdminStore = create<AdminStore>()(
             message: errorMessage,
             url: `text:${title}`
           });
+
+          throw new Error(errorMessage);
         }
       }
     }),

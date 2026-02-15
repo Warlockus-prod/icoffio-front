@@ -26,6 +26,8 @@ interface ImageMetadataEditorProps {
   articleId: string;
   articleTitle: string;
   articleCategory: string;
+  articleContent?: string;
+  articleExcerpt?: string;
   initialMetadata?: ArticleImageMetadata;
   onUpdate?: (metadata: ArticleImageMetadata) => void;
 }
@@ -34,6 +36,8 @@ export default function ImageMetadataEditor({
   articleId,
   articleTitle,
   articleCategory,
+  articleContent,
+  articleExcerpt,
   initialMetadata,
   onUpdate
 }: ImageMetadataEditorProps) {
@@ -74,7 +78,11 @@ export default function ImageMetadataEditor({
         imageType,
         imageIndex,
         source,
-        useSmartPrompts: !useCustomPrompt
+        useSmartPrompts: !useCustomPrompt,
+        articleTitle,
+        articleCategory,
+        articleContent,
+        articleExcerpt
       };
 
       // Если редактируем промпт/теги, используем их
@@ -409,4 +417,3 @@ export default function ImageMetadataEditor({
     </div>
   );
 }
-

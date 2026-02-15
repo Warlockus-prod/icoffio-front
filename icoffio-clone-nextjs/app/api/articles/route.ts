@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
 import { wordpressService } from '@/lib/wordpress-service';
+import { urlParserService } from '@/lib/url-parser-service';
 // v7.30.0: Centralized content formatting utility
 import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
 // v8.4.0: Image placement utility
@@ -15,6 +16,14 @@ import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settin
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const isPlaceholderImage = (url?: string): boolean =>
   Boolean(url && url.includes(DEFAULT_PLACEHOLDER_IMAGE_MARKER));
+const MAX_MULTI_SOURCE_URLS = 5;
+const MAX_SOURCE_CHARS_PER_URL = 5000;
+const MAX_TOTAL_SOURCE_CHARS = 18000;
+const MAX_SOURCE_TEXT_CHARS = 6000;
+const MAX_MANUAL_TEXT_CHARS = 12000;
+const SUPPORTED_CATEGORIES = new Set(['ai', 'apple', 'games', 'tech']);
+
+type SupportedCategory = 'ai' | 'apple' | 'games' | 'tech';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -39,6 +48,133 @@ interface ApiRequest {
   title?: string;
   content?: string;
   category?: string;
+}
+
+interface MultiSourceDigest {
+  compiledContent: string;
+  suggestedTitle?: string;
+  suggestedCategory: SupportedCategory;
+  parsedCount: number;
+  warnings: string[];
+}
+
+function truncateText(value: string, maxChars: number): string {
+  if (!value) return '';
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, maxChars).trim()}\n\n[truncated]`;
+}
+
+function normalizeCategory(input?: string | null, fallback: SupportedCategory = 'tech'): SupportedCategory {
+  if (!input) return fallback;
+  const normalized = input.toLowerCase().trim();
+  if (SUPPORTED_CATEGORIES.has(normalized)) {
+    return normalized as SupportedCategory;
+  }
+  return fallback;
+}
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function extractSourceUrls(body: ApiRequest): string[] {
+  const rawUrls = [
+    ...(Array.isArray((body as any).urls) ? (body as any).urls : []),
+    ...(Array.isArray(body.data?.urls) ? body.data.urls : []),
+    ...(Array.isArray((body as any).sourceUrls) ? (body as any).sourceUrls : []),
+    ...(Array.isArray(body.data?.sourceUrls) ? body.data.sourceUrls : []),
+    ...(body.url ? [body.url] : []),
+    ...(body.data?.url ? [body.data.url] : [])
+  ];
+
+  return Array.from(
+    new Set(
+      rawUrls
+        .map((url) => String(url || '').trim())
+        .filter(Boolean)
+        .filter((url) => isValidHttpUrl(url))
+    )
+  );
+}
+
+async function buildMultiSourceDigest(
+  urls: string[],
+  requestedCategory?: string | null
+): Promise<MultiSourceDigest> {
+  const warnings: string[] = [];
+  const parsedSources: Array<{
+    url: string;
+    title: string;
+    content: string;
+    category: SupportedCategory;
+  }> = [];
+
+  for (const sourceUrl of urls) {
+    try {
+      const extracted = await urlParserService.extractContent(sourceUrl, {
+        maxContentLength: MAX_SOURCE_CHARS_PER_URL
+      });
+      const cleanContent = truncateText(
+        normalizeAiGeneratedText(extracted.content || '').trim(),
+        MAX_SOURCE_CHARS_PER_URL
+      );
+
+      if (!cleanContent) {
+        warnings.push(`Source has no usable content: ${sourceUrl}`);
+        continue;
+      }
+
+      parsedSources.push({
+        url: sourceUrl,
+        title: extracted.title || new URL(sourceUrl).hostname,
+        content: cleanContent,
+        category: normalizeCategory(extracted.category, 'tech')
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown parsing error';
+      warnings.push(`Failed to parse ${sourceUrl}: ${message}`);
+    }
+  }
+
+  if (parsedSources.length === 0) {
+    return {
+      compiledContent: '',
+      suggestedTitle: undefined,
+      suggestedCategory: normalizeCategory(requestedCategory, 'tech'),
+      parsedCount: 0,
+      warnings
+    };
+  }
+
+  let remaining = MAX_TOTAL_SOURCE_CHARS;
+  const sourceBlocks: string[] = [];
+  parsedSources.forEach((source, index) => {
+    if (remaining <= 0) return;
+    const allowed = Math.min(MAX_SOURCE_CHARS_PER_URL, remaining);
+    const trimmedContent = truncateText(source.content, allowed);
+    remaining -= trimmedContent.length;
+
+    sourceBlocks.push(
+      `### Source ${index + 1}: ${source.title}\nURL: ${source.url}\n\n${trimmedContent}`
+    );
+  });
+
+  const combinedTitle = parsedSources.length === 1
+    ? parsedSources[0].title
+    : `${parsedSources[0].title} + ${parsedSources.length - 1} additional sources`;
+
+  return {
+    compiledContent: sourceBlocks.join('\n\n---\n\n'),
+    suggestedTitle: combinedTitle,
+    suggestedCategory: normalizeCategory(requestedCategory, parsedSources[0].category),
+    parsedCount: parsedSources.length,
+    warnings
+  };
 }
 
 // ========== ОСНОВНЫЕ МЕТОДЫ ==========
@@ -161,7 +297,9 @@ export async function GET(request: NextRequest) {
         'create-from-url': {
           description: 'Создание статьи из URL (для админ панели)',
           data: {
-            url: 'string (required)',
+            url: 'string (required, если urls не передан)',
+            urls: 'string[] (optional, до 5 URL для одной статьи)',
+            content: 'string (optional, дополнительный контекст от редактора)',
             category: 'ai|apple|games|tech (optional)'
           }
         },
@@ -170,6 +308,7 @@ export async function GET(request: NextRequest) {
           data: {
             title: 'string (required)',
             content: 'string (required)',
+            sourceUrls: 'string[] (optional, до 5 URL для мульти-анализа)',
             category: 'ai|apple|games|tech (optional)'
           }
         },
@@ -294,17 +433,25 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
  */
 async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, request: NextRequest) {
   try {
-    const url = body.url || body.data?.url;
-    
-    if (!url) {
+    const sourceUrls = extractSourceUrls(body);
+    if (sourceUrls.length === 0) {
       return NextResponse.json(
         { error: 'URL не указан' },
         { status: 400 }
       );
     }
+    if (sourceUrls.length > MAX_MULTI_SOURCE_URLS) {
+      return NextResponse.json(
+        { error: `Можно передать максимум ${MAX_MULTI_SOURCE_URLS} URL за один запрос` },
+        { status: 400 }
+      );
+    }
 
     // ✅ v8.4.0: Получаем стиль обработки контента
-    const contentStyle = body.contentStyle || body.data?.contentStyle || 'journalistic';
+    const rawContentStyle = body.contentStyle || body.data?.contentStyle || 'journalistic';
+    const contentStyle = ['journalistic', 'as-is', 'seo-optimized', 'academic', 'casual', 'technical'].includes(rawContentStyle)
+      ? rawContentStyle
+      : 'journalistic';
     const stage = body.data?.stage || (body as any).stage;
     const enhanceContent = typeof (body as any).enhanceContent === 'boolean'
       ? (body as any).enhanceContent
@@ -321,22 +468,73 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
       : typeof body.data?.translateToAll === 'boolean'
         ? body.data.translateToAll
         : true;
+    const sourceText = truncateText(
+      String((body as any).content || body.data?.content || (body as any).sourceText || body.data?.sourceText || '').trim(),
+      MAX_SOURCE_TEXT_CHARS
+    );
+    const requestedCategory = body.category || body.data?.category;
+    const requestedTitle = String(body.title || body.data?.title || '').trim();
+    const isMultiSourceRequest = sourceUrls.length > 1 || Boolean(sourceText);
+    const sourceWarnings: string[] = [];
     console.log(`📝 Content style requested: ${contentStyle}`);
 
-    const articleInput: ArticleInput = {
-      url,
-      category: body.category || body.data?.category || 'tech',
-      contentStyle, // ✅ v8.4.0: Передаем стиль в сервис
-      stage,
-      
-      // Для админ панели - все возможности включены
-      enhanceContent,
-      generateImage,
-      translateToAll,
-      publishToWordPress: false // В админке пока отключаем автопубликацию
-    };
+    let articleInput: ArticleInput;
+    let responseInput: Record<string, any>;
+
+    if (isMultiSourceRequest) {
+      const digest = await buildMultiSourceDigest(sourceUrls, requestedCategory);
+      sourceWarnings.push(...digest.warnings);
+
+      const composedParts: string[] = [];
+      if (sourceText) {
+        composedParts.push(`### Additional context from editor\n\n${sourceText}`);
+      }
+      if (digest.compiledContent) {
+        composedParts.push(`### Parsed source materials\n\n${digest.compiledContent}`);
+      }
+
+      if (composedParts.length === 0) {
+        return NextResponse.json(
+          { error: 'Не удалось извлечь данные из указанных URL и не передан дополнительный текст' },
+          { status: 422 }
+        );
+      }
+
+      articleInput = {
+        title: truncateText(requestedTitle || digest.suggestedTitle || 'Combined source analysis', 180),
+        content: composedParts.join('\n\n---\n\n'),
+        category: normalizeCategory(requestedCategory, digest.suggestedCategory),
+        contentStyle: contentStyle as ArticleInput['contentStyle'],
+        stage,
+        enhanceContent,
+        generateImage,
+        translateToAll,
+        publishToWordPress: false
+      };
+
+      responseInput = {
+        urls: sourceUrls,
+        sourceCount: sourceUrls.length,
+        sourceTextIncluded: Boolean(sourceText),
+        parsedSourcesCount: digest.parsedCount
+      };
+    } else {
+      const singleUrl = sourceUrls[0];
+      articleInput = {
+        url: singleUrl,
+        category: normalizeCategory(requestedCategory, 'tech'),
+        contentStyle: contentStyle as ArticleInput['contentStyle'],
+        stage,
+        enhanceContent,
+        generateImage,
+        translateToAll,
+        publishToWordPress: false
+      };
+      responseInput = { url: singleUrl };
+    }
 
     const result = await unifiedArticleService.processArticle(articleInput);
+    const combinedWarnings = [...sourceWarnings, ...(result.warnings || [])];
 
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
@@ -366,18 +564,18 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
             slug: result.article!.slug,
             excerpt: result.article!.excerpt
           },
-          input: { url }
+          input: responseInput
         },
         // ✅ ИСПРАВЛЕНИЕ: Передаем imageOptions для выбора нескольких картинок
         imageOptions: (result.article as any).imageOptions || undefined,
-        warnings: result.warnings
+        warnings: combinedWarnings.length > 0 ? combinedWarnings : undefined
       });
     } else {
       return NextResponse.json({
         success: false,
         error: result.errors?.[0] || 'Неизвестная ошибка',
         errors: result.errors,
-        warnings: result.warnings
+        warnings: combinedWarnings.length > 0 ? combinedWarnings : undefined
       }, { status: 500 });
     }
 
@@ -392,8 +590,8 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
  */
 async function handleTextCreation(body: ApiRequest, request: NextRequest) {
   try {
-    const title = body.title || body.data?.title;
-    const content = body.content || body.data?.content;
+    const title = String(body.title || body.data?.title || '').trim();
+    const content = String(body.content || body.data?.content || '').trim();
     const stage = body.data?.stage || (body as any).stage;
     const enhanceContent = typeof (body as any).enhanceContent === 'boolean'
       ? (body as any).enhanceContent
@@ -410,18 +608,38 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
       : typeof body.data?.translateToAll === 'boolean'
         ? body.data.translateToAll
         : true;
-    
+    const sourceUrls = extractSourceUrls(body);
+    if (sourceUrls.length > MAX_MULTI_SOURCE_URLS) {
+      return NextResponse.json(
+        { error: `Можно передать максимум ${MAX_MULTI_SOURCE_URLS} URL за один запрос` },
+        { status: 400 }
+      );
+    }
+
     if (!title || !content) {
       return NextResponse.json(
         { error: 'Отсутствует заголовок или содержимое' },
         { status: 400 }
       );
     }
+    const sourceWarnings: string[] = [];
+    let combinedContent = truncateText(content, MAX_MANUAL_TEXT_CHARS);
+    let categoryFallback: SupportedCategory = 'tech';
+
+    if (sourceUrls.length > 0) {
+      const digest = await buildMultiSourceDigest(sourceUrls, body.category || body.data?.category);
+      sourceWarnings.push(...digest.warnings);
+      categoryFallback = digest.suggestedCategory;
+
+      if (digest.compiledContent) {
+        combinedContent = `${combinedContent}\n\n---\n\n### Reference URLs for additional context\n\n${digest.compiledContent}`;
+      }
+    }
 
     const articleInput: ArticleInput = {
       title,
-      content,
-      category: body.category || body.data?.category || 'tech',
+      content: combinedContent,
+      category: normalizeCategory(body.category || body.data?.category, categoryFallback),
       stage,
       
       // Для админ панели - все возможности включены
@@ -432,6 +650,7 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
     };
 
     const result = await unifiedArticleService.processArticle(articleInput);
+    const combinedWarnings = [...sourceWarnings, ...(result.warnings || [])];
 
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
@@ -461,16 +680,16 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
             slug: result.article!.slug,
             excerpt: result.article!.excerpt
           },
-          input: { title, content, category: articleInput.category }
+          input: { title, category: articleInput.category, sourceUrls, sourceCount: sourceUrls.length }
         },
-        warnings: result.warnings
+        warnings: combinedWarnings.length > 0 ? combinedWarnings : undefined
       });
     } else {
       return NextResponse.json({
         success: false,
         error: result.errors?.[0] || 'Неизвестная ошибка',
         errors: result.errors,
-        warnings: result.warnings
+        warnings: combinedWarnings.length > 0 ? combinedWarnings : undefined
       }, { status: 500 });
     }
 

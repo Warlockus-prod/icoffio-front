@@ -11,6 +11,8 @@ export type ContentStyleType = 'journalistic' | 'as-is' | 'seo-optimized' | 'aca
 export interface ParseJob {
   id: string;
   url: string;
+  sourceUrls?: string[];
+  sourceText?: string;
   status: 'pending' | 'parsing' | 'ai_processing' | 'translating' | 'images' | 'ready' | 'published' | 'failed';
   progress: number;
   startTime: Date;
@@ -25,6 +27,12 @@ interface TextProcessingOptions {
   skipEnhancement?: boolean;
   skipTranslation?: boolean;
   skipImageGeneration?: boolean;
+  sourceUrls?: string[];
+}
+
+interface UrlProcessingOptions {
+  sourceUrls?: string[];
+  sourceText?: string;
 }
 
 export interface Article {
@@ -169,7 +177,7 @@ interface AdminStore {
   setActiveTab: (tab: AdminStore['activeTab']) => void;
   
   // Parsing Actions
-  addUrlToQueue: (url: string, category: string, contentStyle?: ContentStyleType) => void;
+  addUrlToQueue: (url: string, category: string, contentStyle?: ContentStyleType, options?: UrlProcessingOptions) => void;
   addTextToQueue: (title: string, content: string, category: string, options?: TextProcessingOptions) => Promise<void>;
   updateJobStatus: (jobId: string, status: ParseJob['status'], progress?: number, articleData?: Article | null) => void;
   removeJobFromQueue: (jobId: string) => void;
@@ -197,7 +205,13 @@ interface AdminStore {
   addActivity: (activity: Omit<ActivityItem, 'id' | 'timestamp'>) => void;
 
   // Internal parsing methods (exposed on interface to avoid `as any` casts)
-  startParsing: (jobId: string, url: string, category: string, contentStyle?: ContentStyleType) => Promise<void>;
+  startParsing: (
+    jobId: string,
+    url: string,
+    category: string,
+    contentStyle?: ContentStyleType,
+    options?: UrlProcessingOptions
+  ) => Promise<void>;
   startTextProcessing: (jobId: string, title: string, content: string, category: string, options?: TextProcessingOptions) => Promise<void>;
 }
 
@@ -278,12 +292,31 @@ export const useAdminStore = create<AdminStore>()(
       setActiveTab: (tab) => set({ activeTab: tab }),
 
       // Parsing Actions
-      addUrlToQueue: (url, category, contentStyle = 'journalistic') => {
-        adminLogger.info('user', 'add_url', 'User added URL to parsing queue', { url, category, contentStyle });
+      addUrlToQueue: (url, category, contentStyle = 'journalistic', options) => {
+        const sourceUrls = Array.from(
+          new Set(
+            ((options?.sourceUrls && options.sourceUrls.length > 0 ? options.sourceUrls : [url]) || [])
+              .map((item) => item.trim())
+              .filter(Boolean)
+          )
+        ).slice(0, 5);
+        const sourceText = options?.sourceText?.trim() || undefined;
+        const displayUrl = sourceUrls[0] || url;
+        const isMultiSource = sourceUrls.length > 1 || Boolean(sourceText);
+
+        adminLogger.info('user', 'add_url', 'User added URL to parsing queue', {
+          url: displayUrl,
+          category,
+          contentStyle,
+          sourceUrlsCount: sourceUrls.length,
+          hasSourceText: Boolean(sourceText)
+        });
         
         const newJob: ParseJob = {
           id: Date.now().toString(),
-          url,
+          url: displayUrl,
+          sourceUrls,
+          sourceText,
           status: 'pending',
           progress: 0,
           startTime: new Date(),
@@ -297,18 +330,29 @@ export const useAdminStore = create<AdminStore>()(
 
         get().addActivity({
           type: 'url_added',
-          message: `URL добавлен в очередь парсинга: ${url}`,
-          url
+          message: isMultiSource
+            ? `Multi-source задача добавлена: ${sourceUrls.length} URL${sourceText ? ' + text' : ''}`
+            : `URL добавлен в очередь парсинга: ${displayUrl}`,
+          url: displayUrl
         });
 
       // Trigger parsing via API
-      get().startParsing(newJob.id, url, category, contentStyle);
+      get().startParsing(newJob.id, displayUrl, category, contentStyle, { sourceUrls, sourceText });
     },
 
     addTextToQueue: async (title, content, category, options) => {
+      const sourceUrls = Array.from(
+        new Set(
+          (options?.sourceUrls || [])
+            .map((item) => item.trim())
+            .filter(Boolean)
+        )
+      ).slice(0, 5);
+
       const newJob: ParseJob = {
         id: Date.now().toString(),
         url: `text:${title.substring(0, 50)}...`, // Псевдо-URL для отображения
+        sourceUrls: sourceUrls.length > 0 ? sourceUrls : undefined,
         status: 'pending',
         progress: 0,
         startTime: new Date(),
@@ -320,7 +364,9 @@ export const useAdminStore = create<AdminStore>()(
 
       get().addActivity({
         type: 'url_added',
-        message: `Текстовая статья добавлена в очередь: ${title}`,
+        message: sourceUrls.length > 0
+          ? `Текстовая статья + ${sourceUrls.length} URL добавлена в очередь: ${title}`
+          : `Текстовая статья добавлена в очередь: ${title}`,
         url: newJob.url
       });
 
@@ -612,9 +658,30 @@ export const useAdminStore = create<AdminStore>()(
       },
 
       // Private method for starting parsing
-      startParsing: async (jobId: string, url: string, category: string, contentStyle: ContentStyleType = 'journalistic') => {
+      startParsing: async (
+        jobId: string,
+        url: string,
+        category: string,
+        contentStyle: ContentStyleType = 'journalistic',
+        options?: UrlProcessingOptions
+      ) => {
+        const sourceUrls = Array.from(
+          new Set(
+            ((options?.sourceUrls && options.sourceUrls.length > 0 ? options.sourceUrls : [url]) || [])
+              .map((item) => item.trim())
+              .filter(Boolean)
+          )
+        ).slice(0, 5);
+        const sourceText = options?.sourceText?.trim() || undefined;
+        const mainUrl = sourceUrls[0] || url;
+        const isMultiSource = sourceUrls.length > 1 || Boolean(sourceText);
         const timer = createApiTimer('parse_url');
-        adminLogger.info('parsing', 'parse_start', `Starting URL parsing: ${url}`, { jobId, url, category, contentStyle });
+        adminLogger.info(
+          'parsing',
+          'parse_start',
+          `Starting URL parsing: ${isMultiSource ? `${sourceUrls.length} URLs` : mainUrl}`,
+          { jobId, url: mainUrl, category, contentStyle, sourceUrlsCount: sourceUrls.length, hasSourceText: Boolean(sourceText) }
+        );
         
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
@@ -622,7 +689,7 @@ export const useAdminStore = create<AdminStore>()(
           // ✅ ИСПРАВЛЕНИЕ: Увеличенный таймаут для облачной обработки
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
-            adminLogger.warn('parsing', 'parse_timeout', 'URL parsing timeout (180s)', { jobId, url });
+            adminLogger.warn('parsing', 'parse_timeout', 'URL parsing timeout (180s)', { jobId, url: mainUrl });
             console.warn('⏰ Admin Store: Aborting URL parsing due to timeout (180s)');
             controller.abort();
           }, 180000); // 180 секунд (3 минуты) для полной обработки с OpenAI
@@ -632,7 +699,9 @@ export const useAdminStore = create<AdminStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'create-from-url',
-              url,
+              url: mainUrl,
+              ...(isMultiSource ? { urls: sourceUrls } : {}),
+              ...(sourceText ? { content: sourceText } : {}),
               category,
               contentStyle, // ✅ v8.4.0: Передаем стиль обработки
               stage: 'text-only' // ✨ NEW: Request text-only processing (no image generation)
@@ -645,15 +714,19 @@ export const useAdminStore = create<AdminStore>()(
           const result = await response.json();
           
           if (result.success) {
-            adminLogger.info('parsing', 'parse_success', `URL parsing completed successfully: ${url}`, { 
+            adminLogger.info('parsing', 'parse_success', `URL parsing completed successfully: ${mainUrl}`, { 
               jobId, 
-              url, 
+              url: mainUrl, 
               title: result.data.stats.title,
               languages: result.data.stats.languages 
             });
             
             // ✅ СОХРАНЯЕМ СТАТЬИ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ (отдельно для каждого языка)
-            const storedArticles = localArticleStorage.convertApiResponseToArticle(result, 'url', url);
+            const storedArticles = localArticleStorage.convertApiResponseToArticle(
+              result,
+              'url',
+              isMultiSource ? sourceUrls.join('\n') : mainUrl
+            );
             localArticleStorage.saveArticles(storedArticles);
             
             // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Всегда используем EN как основную статью!
@@ -692,34 +765,34 @@ export const useAdminStore = create<AdminStore>()(
             get().addActivity({
               type: 'parsing_completed',
               message: `Статья успешно обработана: ${stats.title}`,
-              url
+              url: mainUrl
             });
             timer(); // End timer
           } else {
-            adminLogger.error('parsing', 'parse_failed', `URL parsing failed: ${url}`, { 
+            adminLogger.error('parsing', 'parse_failed', `URL parsing failed: ${mainUrl}`, { 
               jobId, 
-              url, 
+              url: mainUrl, 
               errors: result.errors 
             });
             
             get().updateJobStatus(jobId, 'failed', 0);
             get().addActivity({
               type: 'parsing_failed', 
-              message: `Ошибка парсинга URL: ${url}`,
-              url
+              message: `Ошибка парсинга URL: ${mainUrl}`,
+              url: mainUrl
             });
             timer(); // End timer
           }
         } catch (error) {
           // ✅ ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок с подробными сообщениями
           console.error('❌ Admin Store: URL parsing failed:', error);
-          let errorMessage = `Ошибка парсинга URL: ${url}`;
+          let errorMessage = `Ошибка парсинга URL: ${mainUrl}`;
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              errorMessage = `Таймаут парсинга URL (180s): ${url}`;
+              errorMessage = `Таймаут парсинга URL (180s): ${mainUrl}`;
             } else if (error.message.includes('fetch')) {
-              errorMessage = `Сетевая ошибка при парсинге: ${url}`;
+              errorMessage = `Сетевая ошибка при парсинге: ${mainUrl}`;
             } else {
               errorMessage = `Ошибка парсинга: ${error.message}`;
             }
@@ -740,7 +813,7 @@ export const useAdminStore = create<AdminStore>()(
           get().addActivity({
             type: 'parsing_failed',
             message: errorMessage,
-            url
+            url: mainUrl
           });
         }
       },
@@ -749,6 +822,13 @@ export const useAdminStore = create<AdminStore>()(
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           const normalizedCategory = ['ai', 'apple', 'games', 'tech'].includes(category) ? category : 'tech';
+          const sourceUrls = Array.from(
+            new Set(
+              (options?.sourceUrls || [])
+                .map((item) => item.trim())
+                .filter(Boolean)
+            )
+          ).slice(0, 5);
           
           // ✅ ИСПРАВЛЕНИЕ: Увеличенный таймаут для облачной обработки
           const controller = new AbortController();
@@ -764,6 +844,9 @@ export const useAdminStore = create<AdminStore>()(
               action: 'create-from-text',
               title,
               content,
+              ...(sourceUrls.length > 0
+                ? { sourceUrls }
+                : {}),
               category: normalizedCategory,
               stage: 'text-only', // ✨ NEW: Request text-only processing (no image generation)
               enhanceContent: options?.skipEnhancement ? false : true,

@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.18] - 2026-02-15 - 🔗 Multi-Source Article Creation (URL + Text Hybrid)
+
+### 🎯 Что сделано
+- В админке добавлен мультианализ: теперь одну статью можно собрать из нескольких URL (до 5) и опционального текстового контекста.
+- Для режима `From Text` добавлены optional reference URL, чтобы создавать гибрид `свой текст + источники URL`.
+- Для режима `From URL` добавлен переключатель `Create one article from all entered URLs` и поле `Additional text context`.
+- `AI Generate` оставлен отдельным режимом без URL-микса (чтобы не усложнять UX и сохранить стабильность текущего сценария).
+
+### 🔧 Реализация
+- `components/admin/URLParser/URLInput.tsx`
+  - новый режим one-article multi-source;
+  - optional `Additional text context`;
+  - валидация лимита `max 5 URL`.
+- `components/admin/URLParser/TextInput.tsx`
+  - optional `Reference URL(s)` (до 5 URL);
+  - отправка гибридного payload `text + sourceUrls`.
+- `components/admin/URLParser/ParsingQueue.tsx`, `components/admin/URLParser.tsx`
+  - улучшено отображение источника задачи (`N URLs`, `+ text`, `Text + URLs`);
+  - retry учитывает source metadata (`sourceUrls`, `sourceText`).
+- `lib/stores/admin-store.ts`
+  - расширены `ParseJob` и pipeline метаданными multi-source;
+  - `startParsing/startTextProcessing` передают `urls[]` и/или `sourceText`.
+- `app/api/articles/route.ts`
+  - `create-from-url` поддерживает `urls[] + content/sourceText` и сборку единого source digest;
+  - `create-from-text` поддерживает `sourceUrls[]` для гибридной обработки;
+  - добавлены лимиты и нормализация для multi-source входных данных.
+- `package.json`, `icoffio-clone-nextjs/package.json`
+  - версия обновлена до `8.6.18`.
+
 ## [8.6.17] - 2026-02-15 - 🗺️ Preview Ad Slots Layout Map
 
 ### 🎯 Что сделано

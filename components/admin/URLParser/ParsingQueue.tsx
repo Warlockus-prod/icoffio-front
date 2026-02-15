@@ -59,6 +59,9 @@ export default function ParsingQueue() {
   const { parsingQueue, removeJobFromQueue, updateJobStatus, selectArticle, setActiveTab } = useAdminStore();
 
   const handleRetry = (jobId: string, url: string, category: string = 'tech') => {
+    const job = parsingQueue.find((item) => item.id === jobId);
+    if (!job) return;
+
     const isTextJob = url.startsWith('text:');
     if (isTextJob) {
       window.alert('Text/AI jobs cannot be retried from queue. Please submit again from Text Input or AI Generate.');
@@ -68,7 +71,10 @@ export default function ParsingQueue() {
     updateJobStatus(jobId, 'pending', 0);
     // Перезапуск парсинга
     setTimeout(() => {
-      useAdminStore.getState().startParsing(jobId, url, category);
+      useAdminStore.getState().startParsing(jobId, url, category, job.contentStyle, {
+        sourceUrls: job.sourceUrls,
+        sourceText: job.sourceText
+      });
     }, 1000);
   };
 
@@ -119,7 +125,7 @@ export default function ParsingQueue() {
                 url: job.url
               });
           } else {
-            handleRetry(job.id, job.url);
+            handleRetry(job.id, job.url, job.category || 'tech');
           }
         }, 1000);
       });
@@ -199,8 +205,18 @@ export default function ParsingQueue() {
         {parsingQueue.map((job) => {
           const statusConfig = STATUS_CONFIG[job.status];
           const isTextJob = job.url.startsWith('text:');
+          const sourceUrls = job.sourceUrls && job.sourceUrls.length > 0 ? job.sourceUrls : [];
+          const sourceCount = sourceUrls.length;
+          const previewUrls = sourceCount > 0 ? sourceUrls : [job.url];
+          const hasSourceText = Boolean(job.sourceText?.trim());
           const sourceLabel = (() => {
+            if (isTextJob && sourceCount > 0) {
+              return `Text + ${sourceCount} URL${sourceCount > 1 ? 's' : ''}`;
+            }
             if (isTextJob) return 'Text / AI Input';
+            if (sourceCount > 1 || hasSourceText) {
+              return `${sourceCount} URL${sourceCount > 1 ? 's' : ''}${hasSourceText ? ' + text' : ''}`;
+            }
             try {
               return new URL(job.url).hostname;
             } catch {
@@ -235,15 +251,25 @@ export default function ParsingQueue() {
                   </div>
                   
                   <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                    {job.url}
+                    {sourceCount > 1
+                      ? `${previewUrls.slice(0, 2).join(' • ')}${sourceCount > 2 ? ` • +${sourceCount - 2} more` : ''}`
+                      : sourceCount === 1 && !isTextJob
+                        ? sourceUrls[0]
+                        : job.url}
                   </div>
+
+                  {hasSourceText && (
+                    <div className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                      Includes additional text context
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 ml-4">
                   {job.status === 'failed' && !isTextJob && (
                     <button
-                      onClick={() => handleRetry(job.id, job.url)}
+                      onClick={() => handleRetry(job.id, job.url, job.category || 'tech')}
                       className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-colors"
                       title="Retry"
                     >

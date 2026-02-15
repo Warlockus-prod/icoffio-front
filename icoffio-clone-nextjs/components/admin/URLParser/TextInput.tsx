@@ -7,10 +7,26 @@ interface TextInputProps {
   onSubmit?: () => void;
 }
 
+function extractUrls(input: string): string[] {
+  const matches = input.match(/https?:\/\/[^\s<>"')]+/gi) || [];
+  const normalized = matches.map((url) => url.replace(/[),.;!?]+$/g, '').trim());
+  return Array.from(new Set(normalized.filter(Boolean)));
+}
+
+function validateUrl(inputUrl: string): boolean {
+  try {
+    const urlObj = new URL(inputUrl);
+    return ['http:', 'https:'].includes(urlObj.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export default function TextInput({ onSubmit }: TextInputProps) {
   const { addTextToQueue, parsingQueue } = useAdminStore();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [sourceUrlsInput, setSourceUrlsInput] = useState('');
   const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -27,14 +43,34 @@ export default function TextInput({ onSubmit }: TextInputProps) {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
+    const sourceUrls = extractUrls(sourceUrlsInput);
+    if (sourceUrls.length > 5) {
+      setSubmitError('Maximum 5 reference URLs per article');
+      return;
+    }
+
+    const invalidUrl = sourceUrls.find((url) => !validateUrl(url));
+    if (invalidUrl) {
+      setSubmitError(`Invalid reference URL: ${invalidUrl}`);
+      return;
+    }
+
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      await addTextToQueue(title.trim(), content.trim(), category || 'tech');
+      await addTextToQueue(
+        title.trim(),
+        content.trim(),
+        category || 'tech',
+        {
+          sourceUrls
+        }
+      );
       
       // Очищаем форму после успешной отправки
       setTitle('');
       setContent('');
+      setSourceUrlsInput('');
       setCategory('');
       
       onSubmit?.();
@@ -51,6 +87,7 @@ export default function TextInput({ onSubmit }: TextInputProps) {
 
   const isFormValid = title.trim() && content.trim();
   const wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const sourceUrlCount = extractUrls(sourceUrlsInput).length;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
@@ -146,6 +183,32 @@ export default function TextInput({ onSubmit }: TextInputProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Optional Source URLs */}
+        <div className="space-y-2">
+          <label htmlFor="article-source-urls" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Reference URL(s) (optional)
+          </label>
+          <textarea
+            id="article-source-urls"
+            value={sourceUrlsInput}
+            onChange={(e) => {
+              setSourceUrlsInput(e.target.value);
+              if (submitError) setSubmitError(null);
+            }}
+            rows={3}
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                     bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                     focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                     placeholder:text-gray-500 dark:placeholder:text-gray-400
+                     resize-y"
+            placeholder={'https://example.com/source-1\nhttps://example.com/source-2'}
+            disabled={isSubmitting}
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            AI will combine your text with these source links into one article. Max 5 URLs. Detected: {sourceUrlCount}
+          </p>
         </div>
 
         {/* Submit Button */}

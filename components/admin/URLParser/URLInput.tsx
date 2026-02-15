@@ -37,6 +37,8 @@ function validateUrl(inputUrl: string): boolean {
 
 export default function URLInput() {
   const [urlInput, setUrlInput] = useState('');
+  const [additionalContext, setAdditionalContext] = useState('');
+  const [combineIntoSingleArticle, setCombineIntoSingleArticle] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('tech');
   const [selectedStyle, setSelectedStyle] = useState<ContentStyleType>('journalistic');
   const [isValidating, setIsValidating] = useState(false);
@@ -46,6 +48,8 @@ export default function URLInput() {
 
   const { addUrlToQueue, parsingQueue } = useAdminStore();
   const parsedUrls = useMemo(() => extractUrls(urlInput), [urlInput]);
+  const hasAdditionalContext = additionalContext.trim().length > 0;
+  const shouldCreateSingleArticle = combineIntoSingleArticle || hasAdditionalContext;
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -65,6 +69,11 @@ export default function URLInput() {
     const invalidUrl = urls.find((url) => !validateUrl(url));
     if (invalidUrl) {
       setValidationError(`Invalid URL: ${invalidUrl}`);
+      return;
+    }
+
+    if (urls.length > 5) {
+      setValidationError('Maximum 5 URLs for one submission');
       return;
     }
 
@@ -106,15 +115,20 @@ export default function URLInput() {
       return;
     }
 
+    if (urls.length > 5) {
+      setValidationError('Maximum 5 URLs for one submission');
+      return;
+    }
+
     const duplicates = urls.filter((url) => parsingQueue.some((job) => job.url === url));
-    if (duplicates.length > 0) {
+    if (!shouldCreateSingleArticle && duplicates.length > 0) {
       setValidationError(`Already in queue: ${duplicates.length} URL(s)`);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      if (urls.length === 1) {
+      if (!shouldCreateSingleArticle && urls.length === 1) {
         const isAvailable = await checkUrlAvailability(urls[0]);
         if (!isAvailable) {
           setValidationError('URL is unavailable or not responding');
@@ -122,8 +136,17 @@ export default function URLInput() {
         }
       }
 
-      urls.forEach((url) => addUrlToQueue(url, selectedCategory, selectedStyle));
+      if (shouldCreateSingleArticle) {
+        addUrlToQueue(urls[0], selectedCategory, selectedStyle, {
+          sourceUrls: urls,
+          sourceText: additionalContext.trim() || undefined
+        });
+      } else {
+        urls.forEach((url) => addUrlToQueue(url, selectedCategory, selectedStyle));
+      }
       setUrlInput('');
+      setAdditionalContext('');
+      setCombineIntoSingleArticle(false);
       setValidationError('');
     } catch {
       setValidationError('Error adding URL(s)');
@@ -193,6 +216,37 @@ export default function URLInput() {
               {validationError}
             </p>
           )}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/20 space-y-3">
+          <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={combineIntoSingleArticle}
+              onChange={(e) => setCombineIntoSingleArticle(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            <span>Create one article from all entered URLs (multi-analysis)</span>
+          </label>
+
+          <div>
+            <label htmlFor="url-additional-context" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Additional text context (optional)
+            </label>
+            <textarea
+              id="url-additional-context"
+              value={additionalContext}
+              onChange={(e) => setAdditionalContext(e.target.value)}
+              rows={3}
+              placeholder="Add your notes, angles, key facts, or what to focus on..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              When text context is filled, sources are processed as one combined article.
+            </p>
+          </div>
         </div>
 
         <div>
@@ -294,7 +348,11 @@ export default function URLInput() {
               <>
                 <span>🚀</span>
                 <span>
-                  {parsedUrls.length > 1 ? `Add ${parsedUrls.length} URLs` : 'Add to Queue'}
+                  {shouldCreateSingleArticle
+                    ? `Create 1 article from ${parsedUrls.length} URL${parsedUrls.length > 1 ? 's' : ''}`
+                    : parsedUrls.length > 1
+                      ? `Add ${parsedUrls.length} URLs`
+                      : 'Add to Queue'}
                 </span>
               </>
             )}

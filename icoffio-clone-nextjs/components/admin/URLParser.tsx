@@ -213,7 +213,28 @@ export default function URLParser() {
               .map(job => (
                 <div key={job.id} className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
                   <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                    {new URL(job.url).hostname}
+                    {(() => {
+                      const sourceUrls = job.sourceUrls && job.sourceUrls.length > 0 ? job.sourceUrls : [];
+                      const sourceCount = sourceUrls.length;
+                      const hasSourceText = Boolean(job.sourceText?.trim());
+
+                      if (job.url.startsWith('text:')) {
+                        if (sourceCount > 0) {
+                          return `Text + ${sourceCount} URL${sourceCount > 1 ? 's' : ''}`;
+                        }
+                        return 'Text / AI input';
+                      }
+
+                      if (sourceCount > 1 || hasSourceText) {
+                        return `${sourceCount} source URL${sourceCount > 1 ? 's' : ''}${hasSourceText ? ' + text' : ''}`;
+                      }
+
+                      try {
+                        return new URL(job.url).hostname;
+                      } catch {
+                        return 'Source';
+                      }
+                    })()}
                   </div>
                   <div className="text-xs text-blue-600 dark:text-blue-400">
                     {job.status === 'parsing' && '🔍 Extracting content'}
@@ -348,5 +369,4 @@ export default function URLParser() {
     </div>
   );
 }
-
 

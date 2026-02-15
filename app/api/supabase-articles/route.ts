@@ -8,6 +8,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+const DEFAULT_THUMBNAIL_MARKER = 'photo-1485827404703-89b55fcc595e';
+
 // Initialize Supabase client
 function getSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -18,6 +20,62 @@ function getSupabaseClient() {
   }
 
   return createClient(supabaseUrl, supabaseKey);
+}
+
+function hasCustomImage(imageUrl?: string | null): boolean {
+  return !!imageUrl && !imageUrl.includes(DEFAULT_THUMBNAIL_MARKER);
+}
+
+function articleTimestamp(article: any): number {
+  const value = article?.updated_at || article?.created_at;
+  const timestamp = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function scoreArticle(article: any, language: 'en' | 'pl'): number {
+  const content = language === 'pl' ? article?.content_pl : article?.content_en;
+  const excerpt = language === 'pl' ? article?.excerpt_pl : article?.excerpt_en;
+  const contentLength = typeof content === 'string' ? content.length : 0;
+
+  let score = 0;
+  if (hasCustomImage(article?.image_url)) score += 100;
+  if (contentLength > 0) score += Math.min(contentLength, 5000) / 50;
+  if (typeof excerpt === 'string' && excerpt.trim().length > 0) score += 10;
+  if (article?.featured) score += 2;
+  return score;
+}
+
+function selectBestArticleVersion(articles: any[], language: 'en' | 'pl'): any | null {
+  if (!articles || articles.length === 0) return null;
+
+  return articles.reduce((best, candidate) => {
+    if (!best) return candidate;
+
+    const bestScore = scoreArticle(best, language);
+    const candidateScore = scoreArticle(candidate, language);
+
+    if (candidateScore > bestScore) return candidate;
+    if (candidateScore < bestScore) return best;
+
+    return articleTimestamp(candidate) > articleTimestamp(best) ? candidate : best;
+  }, null);
+}
+
+function dedupeArticlesBySlug(articles: any[], language: 'en' | 'pl'): any[] {
+  const groupedBySlug = new Map<string, any[]>();
+
+  for (const article of articles || []) {
+    const slugKey = language === 'en' ? article?.slug_en : article?.slug_pl;
+    if (!slugKey) continue;
+
+    const existingGroup = groupedBySlug.get(slugKey) || [];
+    existingGroup.push(article);
+    groupedBySlug.set(slugKey, existingGroup);
+  }
+
+  return Array.from(groupedBySlug.values())
+    .map(group => selectBestArticleVersion(group, language))
+    .filter(Boolean) as any[];
 }
 
 export async function GET(request: Request) {
@@ -95,13 +153,9 @@ export async function GET(request: Request) {
       throw new Error(`Supabase query failed: ${error.message}`);
     }
 
-    // ✅ v8.4.1: Удаляем дубликаты по slug ПЕРЕД трансформацией
+    // ✅ v8.4.1+: Дедупликация по slug с выбором "лучшей" версии записи
     const isEn = language === 'en';
-    const uniqueArticles = articles.filter((article: any, index: number, self: any[]) =>
-      index === self.findIndex((a: any) => 
-        (isEn ? a.slug_en : a.slug_pl) === (isEn ? article.slug_en : article.slug_pl)
-      )
-    );
+    const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
     
     console.log(`[supabase-articles] Filtered ${articles.length} -> ${uniqueArticles.length} unique for ${language}`);
 
@@ -166,9 +220,10 @@ export async function POST(request: Request) {
         .or(`slug_en.eq.${slug},slug_pl.eq.${slug}`)
         .eq('published', true)
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(20);
 
-      const article = articles?.[0];
+      const articleLanguage = slug?.endsWith('-pl') || language === 'pl' ? 'pl' : 'en';
+      const article = selectBestArticleVersion(articles || [], articleLanguage);
 
       if (error || !article) {
         return NextResponse.json({
@@ -259,12 +314,8 @@ export async function POST(request: Request) {
         throw new Error(`Failed to get related articles: ${error.message}`);
       }
 
-      // ✅ Удаляем дубликаты по slug
-      const uniqueArticles = (articles || []).filter((article: any, index: number, self: any[]) =>
-        index === self.findIndex((a: any) => 
-          (lang === 'en' ? a.slug_en : a.slug_pl) === (lang === 'en' ? article.slug_en : article.slug_pl)
-        )
-      );
+      // ✅ Удаляем дубликаты по slug и выбираем лучшую версию
+      const uniqueArticles = dedupeArticlesBySlug(articles || [], lang === 'en' ? 'en' : 'pl');
 
       const transformedArticles = uniqueArticles.map((article: any) => {
         const isEn = lang === 'en';

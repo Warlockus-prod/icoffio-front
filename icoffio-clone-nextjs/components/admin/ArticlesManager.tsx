@@ -191,10 +191,35 @@ export default function ArticlesManager() {
         });
       });
       
-      // Убираем дубликаты по slug
-      const uniqueArticles = allArticles.filter((article, index, self) => 
-        index === self.findIndex(a => a.slug === article.slug)
-      );
+      // Убираем дубликаты по slug, выбирая лучший вариант (нормальная картинка + более свежая запись)
+      const defaultImageMarker = 'photo-1485827404703-89b55fcc595e';
+      const hasCustomImage = (image?: string) =>
+        Boolean(image && !image.includes(defaultImageMarker));
+      const getTimestamp = (article: ArticleItem) =>
+        new Date(article.lastEdit || article.createdAt).getTime() || 0;
+
+      const bestBySlug = new Map<string, ArticleItem>();
+      allArticles.forEach(article => {
+        const current = bestBySlug.get(article.slug);
+        if (!current) {
+          bestBySlug.set(article.slug, article);
+          return;
+        }
+
+        const currentHasCustomImage = hasCustomImage(current.image);
+        const candidateHasCustomImage = hasCustomImage(article.image);
+
+        if (candidateHasCustomImage && !currentHasCustomImage) {
+          bestBySlug.set(article.slug, article);
+          return;
+        }
+
+        if (candidateHasCustomImage === currentHasCustomImage && getTimestamp(article) > getTimestamp(current)) {
+          bestBySlug.set(article.slug, article);
+        }
+      });
+
+      const uniqueArticles = Array.from(bestBySlug.values());
       
       // Сортируем по дате создания (новые сверху)
       uniqueArticles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

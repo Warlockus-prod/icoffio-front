@@ -142,6 +142,31 @@ function normalizeAutoPublish(rawValue?: string): boolean | null {
   return null;
 }
 
+function getEffectiveImageMode(
+  settings: Pick<TelegramSettings, 'imagesCount' | 'imagesSource'>
+): 'none' | 'unsplash' | 'ai' | 'mixed' {
+  if (settings.imagesCount <= 0 || settings.imagesSource === 'none') {
+    return 'none';
+  }
+
+  // Base rule: with two images we always publish one stock + one generated.
+  if (settings.imagesCount === 2) {
+    return 'mixed';
+  }
+
+  return settings.imagesSource === 'ai' ? 'ai' : 'unsplash';
+}
+
+function getEffectiveImageLabel(
+  settings: Pick<TelegramSettings, 'imagesCount' | 'imagesSource'>
+): string {
+  const mode = getEffectiveImageMode(settings);
+  if (mode === 'none') return 'Нет';
+  if (mode === 'mixed') return 'Mixed (Unsplash + AI)';
+  if (mode === 'ai') return 'AI';
+  return 'Unsplash';
+}
+
 function verifyTelegramRequest(request: NextRequest): boolean {
   const configuredSecrets = Array.from(
     new Set(
@@ -253,13 +278,7 @@ function buildSettingsMessage(settings: TelegramSettings): string {
     `⚙️ <b>Настройки публикации</b>\n\n` +
     `📝 Стиль: ${escapeHtml(getStyleLabel(settings.contentStyle))}\n` +
     `🖼️ Картинок: ${settings.imagesCount}\n` +
-    `📸 Источник: ${
-      settings.imagesSource === 'unsplash'
-        ? 'Unsplash'
-        : settings.imagesSource === 'ai'
-          ? 'AI'
-          : 'Нет'
-    }\n` +
+    `📸 Источник: ${escapeHtml(getEffectiveImageLabel(settings))}\n` +
     `${settings.autoPublish ? '✅' : '📝'} Публикация: ${
       settings.autoPublish ? 'Автоматически' : 'Черновик'
     }\n\n` +
@@ -375,6 +394,7 @@ async function processSubmission(input: ProcessSubmissionInput): Promise<Process
     });
 
     const settings = await loadTelegramSettings(input.chatId);
+    const effectiveImageMode = getEffectiveImageMode(settings);
     const estimatedTime = settings.imagesCount > 0 ? '20-35 секунд' : '15-25 секунд';
 
     if (input.sendProgressMessage !== false) {
@@ -385,7 +405,7 @@ async function processSubmission(input: ProcessSubmissionInput): Promise<Process
           `${url ? '🔗 Обрабатываю ссылку' : '📝 Обрабатываю текст'}\n` +
           `📝 Стиль: ${escapeHtml(getStyleLabel(settings.contentStyle))}\n` +
           `🖼️ Картинок: ${settings.imagesCount}${
-            settings.imagesCount > 0 ? ` (${settings.imagesSource})` : ''
+            settings.imagesCount > 0 ? ` (${escapeHtml(getEffectiveImageLabel(settings))})` : ''
           }\n` +
           `⏱️ Ориентировочно: ${estimatedTime}`
       );
@@ -443,6 +463,7 @@ async function processSubmission(input: ProcessSubmissionInput): Promise<Process
         autoPublish: settings.autoPublish,
         imagesCount: settings.imagesCount,
         imagesSource: settings.imagesSource,
+        effectiveImageMode,
         durationMs,
       },
     });
@@ -692,7 +713,14 @@ export async function POST(request: NextRequest) {
           metadata: { source: 'telegram-simple', imagesCount },
         });
 
-        await sendTelegramMessage(chatId, `✅ Количество картинок: <b>${updated.imagesCount}</b>`);
+        await sendTelegramMessage(
+          chatId,
+          `✅ Количество картинок: <b>${updated.imagesCount}</b>${
+            updated.imagesCount === 2
+              ? '\n📸 Режим 2 изображений: <b>1 Unsplash + 1 AI</b>'
+              : ''
+          }`
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -726,7 +754,11 @@ export async function POST(request: NextRequest) {
 
         await sendTelegramMessage(
           chatId,
-          `✅ Источник картинок: <b>${escapeHtml(updated.imagesSource.toUpperCase())}</b>`
+          `✅ Источник картинок: <b>${escapeHtml(updated.imagesSource.toUpperCase())}</b>${
+            updated.imagesCount === 2
+              ? '\nℹ️ При 2 картинках автоматически используется <b>1 Unsplash + 1 AI</b>.'
+              : ''
+          }`
         );
         return NextResponse.json({ ok: true });
       }

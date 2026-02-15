@@ -9,6 +9,7 @@
 import { translateArticleContent } from './ai-copywriting-service';
 import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
 import { getPublicationStyle, PublicationStyle } from './telegram-user-preferences';
+import { buildTitleKeywordPhrase, extractTitleKeywords } from './image-keywords';
 
 const BASE_URL = 'https://app.icoffio.com';
 
@@ -236,18 +237,21 @@ async function insertImagesIntoContent(
   category: string
 ): Promise<string> {
   try {
-    console.log(`[DualLang] 🚀 FAST MODE: Getting 2 images from Unsplash (NO AI, NO cache)...`);
+    const keywordPhrase = buildTitleKeywordPhrase(title, 5);
+    const keywords = extractTitleKeywords(title, 5);
+    const secondaryKeyword = keywords[1] || keywords[0] || keywordPhrase;
 
-    // ⚡ ВАРИАНТ C: Только Unsplash, БЕЗ AI, БЕЗ библиотеки
-    // 2 параллельных запроса к Unsplash → 2-5 сек (было 10-30 сек)
+    console.log(`[DualLang] 🚀 FAST MODE: Getting 2 images (1 Unsplash + 1 AI) from title keywords...`);
+
+    // Базовый режим 2 изображений: 1x Unsplash + 1x DALL-E
     const [image1Response, image2Response] = await Promise.all([
       fetch(`${BASE_URL}/api/admin/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'unsplash',
-          title: title,
-          excerpt: excerpt,
+          title: `${keywordPhrase} ${secondaryKeyword}`.trim(),
+          excerpt: keywordPhrase,
           category: category
         }),
       }),
@@ -256,9 +260,9 @@ async function insertImagesIntoContent(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source: 'unsplash',
-          title: `${category} technology concept`,
-          excerpt: excerpt || title,
+          source: 'dalle',
+          title: `${keywordPhrase} ${category} digital concept`,
+          excerpt: keywordPhrase,
           category: category
         }),
       })
@@ -305,4 +309,3 @@ async function insertImagesIntoContent(
     return content;
   }
 }
-

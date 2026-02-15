@@ -2,7 +2,7 @@
  * 🎨 IMAGE OPTIONS API ENDPOINT
  * 
  * POST /api/articles/image-options
- * Генерирует варианты изображений для статьи (3x Unsplash + 2x AI)
+ * Генерирует варианты изображений для статьи (по умолчанию 3x Unsplash + 2x AI)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -62,8 +62,6 @@ export async function GET() {
     }
   });
 }
-
-
 
 
 

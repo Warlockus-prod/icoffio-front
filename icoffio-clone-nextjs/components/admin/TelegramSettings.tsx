@@ -247,7 +247,7 @@ export function TelegramSettings() {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {settings.imagesCount === 0 && '📝 Text only, no images'}
             {settings.imagesCount === 1 && '🖼️ Hero image only'}
-            {settings.imagesCount === 2 && '🖼️🖼️ Hero + one in content'}
+            {settings.imagesCount === 2 && '🖼️🖼️ Hero + one in content (auto: 1 Unsplash + 1 AI)'}
             {settings.imagesCount === 3 && '🖼️🖼️🖼️ Hero + two in content'}
           </p>
         </div>
@@ -289,6 +289,11 @@ export function TelegramSettings() {
                 </label>
               ))}
             </div>
+            {settings.imagesCount === 2 && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                Для режима из 2 изображений источник комбинируется автоматически: 1 Unsplash + 1 AI.
+              </p>
+            )}
           </div>
         )}
       </div>

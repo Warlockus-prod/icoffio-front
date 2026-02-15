@@ -49,7 +49,11 @@ export async function publishArticle(
     let finalContentPl = polish.content;
 
     if (imageSettings && imageSettings.imagesCount > 0 && imageSettings.imagesSource !== 'none') {
-      console.log(`[TelegramSimple] 🖼️ Generating ${imageSettings.imagesCount} images from ${imageSettings.imagesSource}...`);
+      const effectiveMode =
+        imageSettings.imagesCount === 2 ? 'mixed (1 unsplash + 1 ai)' : imageSettings.imagesSource;
+      console.log(
+        `[TelegramSimple] 🖼️ Generating ${imageSettings.imagesCount} images (effective mode: ${effectiveMode})...`
+      );
       
       const imageOptions: ImageGenerationOptions = {
         imagesCount: imageSettings.imagesCount,

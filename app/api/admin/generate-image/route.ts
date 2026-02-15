@@ -46,21 +46,20 @@ async function persistRemoteImage(imageUrl: string, title: string): Promise<stri
  */
 export async function POST(request: NextRequest) {
   try {
-    const {
-      source = 'unsplash',
-      title,
-      excerpt,
-      category,
-      customUrl,
-      quality = 'hd',
-      style = 'natural',
-      size = '1792x1024',
-    } = await request.json();
+    const body = await request.json();
+    const source = body?.source || 'unsplash';
+    const title = (body?.title || body?.prompt || '').toString().trim();
+    const excerpt = body?.excerpt;
+    const category = body?.category;
+    const customUrl = body?.customUrl;
+    const quality = body?.quality || 'hd';
+    const style = body?.style || 'natural';
+    const size = body?.size || '1792x1024';
 
     // Валидация
     if (!title) {
       return NextResponse.json(
-        { success: false, error: 'Article title is required' },
+        { success: false, error: 'Article title or prompt is required' },
         { status: 400 }
       );
     }
@@ -112,9 +111,22 @@ export async function POST(request: NextRequest) {
         ? await persistRemoteImage(result.url, title)
         : result.url;
 
+    const normalizedSource = source === 'dalle' ? 'ai' : source;
+    const image = finalUrl
+      ? {
+          id: `${normalizedSource}-${Date.now()}`,
+          url: finalUrl,
+          thumbnail: finalUrl,
+          source: normalizedSource,
+          prompt: result.revisedPrompt || title,
+        }
+      : null;
+
     return NextResponse.json({
       success: true,
       url: finalUrl,
+      imageUrl: finalUrl, // legacy compatibility
+      image, // legacy compatibility for older admin widgets
       cost: result.cost,
       revisedPrompt: result.revisedPrompt,
       source,

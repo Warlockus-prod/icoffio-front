@@ -2,63 +2,53 @@
  * 🎨 IMAGE OPTIONS GENERATOR
  * 
  * Генерирует варианты изображений для статьи:
- * - 3x Unsplash (разные поисковые запросы)
- * - 2x AI Generated (разные промпты)
+ * - Unsplash (поисковые запросы по ключевым словам title)
+ * - AI Generated (промпты по ключевым словам title)
  */
 
 import { ImageOption } from './stores/admin-store';
+import { buildTitleKeywordPhrase, extractTitleKeywords } from './image-keywords';
 
 // ============================================================================
 // SEARCH QUERY GENERATION
 // ============================================================================
 
 /**
- * Генерирует 3 разных поисковых запроса для Unsplash
+ * Генерирует поисковые запросы для Unsplash на основе ключевых слов title
  */
 export function generateSearchQueries(title: string, category: string, excerpt?: string): string[] {
   const queries: string[] = [];
+  const keywords = extractTitleKeywords(title, 6);
+  const fallback = buildTitleKeywordPhrase(title, 3);
   
-  // Query 1: Main concept from title
-  const mainConcept = extractMainConcept(title);
-  queries.push(mainConcept);
+  // Query 1: main keyword phrase
+  queries.push(fallback);
   
-  // Query 2: Category + technology
-  queries.push(`${category} technology`);
+  // Query 2: secondary keyword cluster
+  const secondary = keywords.slice(1, 4).join(' ');
+  if (secondary) {
+    queries.push(secondary);
+  }
   
-  // Query 3: Keywords from title + excerpt
-  const keywords = extractKeywords(title, excerpt);
-  queries.push(keywords.join(' '));
-  
-  return queries;
+  // Query 3: add third variation if possible
+  const tertiary = keywords.slice(0, 2).join(' ');
+  if (tertiary) {
+    queries.push(`${tertiary} concept`);
+  }
+
+  // Keep uniqueness and non-empty values
+  return [...new Set(queries.map((q) => q.trim()).filter(Boolean))];
 }
 
-/**
- * Извлекает главную концепцию из заголовка
- */
 function extractMainConcept(title: string): string {
-  // Удаляем общие слова и берем ключевые
-  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with'];
-  const words = title.toLowerCase()
-    .split(/\s+/)
-    .filter(word => !commonWords.includes(word) && word.length > 3);
-  
-  // Берем первые 2-3 значимых слова
-  return words.slice(0, 3).join(' ');
+  return buildTitleKeywordPhrase(title, 3);
 }
 
 /**
- * Извлекает ключевые слова из текста
+ * Извлекает ключевые слова только из title (excerpt не используется специально)
  */
 function extractKeywords(title: string, excerpt?: string): string[] {
-  const text = (title + ' ' + (excerpt || '')).toLowerCase();
-  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being'];
-  
-  const words = text
-    .split(/\s+/)
-    .filter(word => !commonWords.includes(word) && word.length > 4)
-    .slice(0, 5);
-  
-  return words;
+  return extractTitleKeywords(title, 5);
 }
 
 // ============================================================================
@@ -70,17 +60,19 @@ function extractKeywords(title: string, excerpt?: string): string[] {
  */
 export function generateImagePrompts(title: string, category: string, excerpt?: string): string[] {
   const prompts: string[] = [];
+  const mainConcept = extractMainConcept(title);
+  const keywordSet = extractTitleKeywords(title, 5).join(', ');
   
   // Prompt 1: Professional/Editorial style
   prompts.push(
-    `Professional editorial image for article about "${extractMainConcept(title)}". ` +
+    `Professional editorial image based on title keywords: ${keywordSet || mainConcept}. ` +
     `Modern, clean, technology-focused. High quality photography style. ` +
     `Category: ${category}. Cinematic lighting, sharp focus, 8K.`
   );
   
   // Prompt 2: Abstract/Conceptual style  
   prompts.push(
-    `Abstract conceptual illustration representing "${extractMainConcept(title)}". ` +
+    `Abstract conceptual illustration representing: ${mainConcept}. ` +
     `Minimalist design, bold colors, geometric shapes. Digital art style. ` +
     `Professional, modern, tech-inspired. Clean composition.`
   );
@@ -164,16 +156,25 @@ export async function generateAIOptions(
         const response = await fetch('/api/admin/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
+          body: JSON.stringify({
+            source: 'dalle',
+            title: prompt,
+            excerpt: prompt,
+            category: 'technology'
+          })
         });
         
         if (response.ok) {
           const data = await response.json();
+          const imageUrl = data.url || data.imageUrl;
+          if (!imageUrl) {
+            return null;
+          }
           
           return {
             id: `ai-${index + 1}-${Date.now()}`,
-            url: data.imageUrl,
-            thumbnail: data.imageUrl, // DALL-E doesn't provide separate thumbnail
+            url: imageUrl,
+            thumbnail: imageUrl, // DALL-E doesn't provide separate thumbnail
             source: 'ai' as const,
             prompt: prompt,
             model: 'dall-e-3',
@@ -298,4 +299,3 @@ export async function regenerateImageOptions(article: {
     aiGenerated: aiOptions
   };
 }
-

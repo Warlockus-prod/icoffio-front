@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.15] - 2026-02-15 - 🖼️ Telegram 2-Image Default + Keyword-Based Image Generation
+
+### 🎯 Что сделано
+- Для Telegram-публикаций добавлен новый дефолт: при `2` картинках автоматически используется связка `1 Unsplash + 1 AI`.
+- Генерация изображений переведена на ключевые слова из `title` вместо прямого использования полного заголовка.
+- Админка сохранена гибкой: ручной выбор источника и количества изображений не ограничен Telegram-правилом.
+
+### 🔧 Реализация
+- `lib/image-keywords.ts`
+  - новый общий extractor ключевых слов и keyword-phrase для image prompt/query.
+- `lib/telegram-simple/image-generator.ts`
+  - добавлен source-plan для Telegram: при `imagesCount=2` всегда `unsplash + dalle`;
+  - запросы к image API формируются по ключевым словам title.
+- `app/api/telegram-simple/webhook/route.ts`
+  - улучшены тексты настроек/подтверждений с явным отображением mixed-режима для `2` картинок;
+  - в activity metadata добавлен `effectiveImageMode` для аналитики.
+- `lib/image-generation-service.ts`, `lib/image-options-generator.ts`, `lib/dual-language-publisher.ts`
+  - prompt/query generation обновлены на keyword-first стратегию.
+- `app/api/admin/generate-image/route.ts`
+  - добавлена backward compatibility: принимает `title` и legacy `prompt`;
+  - возвращает `url` и legacy-поля `imageUrl`/`image` для старых admin-кнопок.
+- `package.json`, `icoffio-clone-nextjs/package.json`
+  - версия обновлена до `8.6.15`.
+
 ## [8.6.14] - 2026-02-15 - 🤖 Telegram UX + Admin Buttons Stabilization
 
 ### 🎯 Что сделано

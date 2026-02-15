@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { buildTitleKeywordPhrase, extractTitleKeywords } from './image-keywords';
 
 // Ленивая инициализация OpenAI клиента (только когда нужен)
 let openaiInstance: OpenAI | null = null;
@@ -47,16 +48,15 @@ export interface ImageGenerationResult {
  * Генерирует оптимизированный prompt для DALL-E 3
  */
 function generateImagePrompt(params: ImageGenerationParams): string {
-  const { title, excerpt, category } = params;
+  const { title, category } = params;
+  const keywordPhrase = buildTitleKeywordPhrase(title, 5);
+  const keywordList = extractTitleKeywords(title, 5);
+  const keywordText = keywordList.length > 0 ? keywordList.join(', ') : keywordPhrase;
   
-  // Базовый prompt с контекстом статьи
-  let prompt = `Professional high-quality photograph for a tech journalism article titled "${title}".`;
-  
-  // Добавляем контекст из excerpt
-  if (excerpt && excerpt.length > 20) {
-    const excerptShort = excerpt.substring(0, 150);
-    prompt += ` Context: ${excerptShort}`;
-  }
+  // Генерируем prompt строго из ключевых слов title (без полного заголовка/excerpt)
+  let prompt =
+    `Professional high-quality photograph based on keywords: ${keywordText}. ` +
+    `Main concept: ${keywordPhrase}.`;
   
   // Добавляем стиль в зависимости от категории
   if (category) {
@@ -270,6 +270,7 @@ export async function getArticleImage(
       
     case 'unsplash':
       let query: string;
+      const keywordQuery = buildTitleKeywordPhrase(params.title, 4);
       
       if (params.customQuery) {
         // Используем кастомный query если указан
@@ -287,15 +288,16 @@ export async function getArticleImage(
             excerpt: params.excerpt || params.title,
             category: params.category || 'technology'
           });
-          query = smartPrompts.heroPrompt;
-          console.log('[ImageService] Generated smart prompt:', query);
+          // Даже в smart mode держим основу на ключевых словах title.
+          query = keywordQuery || smartPrompts.unsplashTags.slice(0, 4).join(' ');
+          console.log('[ImageService] Using keyword-first Unsplash query:', query);
         } catch (error) {
-          console.warn('[ImageService] Smart prompts failed, using fallback');
-          query = `${params.title} ${params.category || 'technology'}`;
+          console.warn('[ImageService] Smart prompts failed, using title keywords');
+          query = keywordQuery || (params.category || 'technology');
         }
       } else {
-        // Fallback к базовому query
-        query = `${params.title} ${params.category || 'technology'}`;
+        // Fallback к keyword query из title
+        query = keywordQuery || (params.category || 'technology');
       }
       
       return getUnsplashImage(query);
@@ -320,4 +322,3 @@ export async function getArticleImage(
       };
   }
 }
-

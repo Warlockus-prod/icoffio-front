@@ -5,6 +5,8 @@
  * Based on user settings (count, source)
  */
 
+import { buildTitleKeywordPhrase, extractTitleKeywords } from '../image-keywords';
+
 const BASE_URL = 'https://app.icoffio.com';
 
 export interface ImageGenerationOptions {
@@ -62,15 +64,22 @@ async function generateImages(
   excerpt: string,
   category: string
 ): Promise<string[]> {
-  console.log(`[TelegramImages] Generating ${count} images from ${source}...`);
-  const apiSource = source === 'ai' ? 'dalle' : 'unsplash';
+  const sourcePlan = buildImageSourcePlan(count, source);
+  const keywordPhrase = buildTitleKeywordPhrase(title, 5);
+  const keywords = extractTitleKeywords(title, 5);
 
-  // Create N parallel requests
-  const requests = Array.from({ length: count }, (_, index) => {
-    // Vary the prompt slightly for each image to get different results
-    const prompt = index === 0 
-      ? title 
-      : `${category} technology concept ${index + 1}`;
+  console.log(
+    `[TelegramImages] Generating ${count} images (requested source: ${source}, plan: ${sourcePlan.join(' + ')})...`
+  );
+  console.log(`[TelegramImages] Title keywords: ${keywordPhrase}`);
+
+  // Create parallel requests according to source plan
+  const requests = sourcePlan.map((apiSource, index) => {
+    const keywordVariant = keywords[index % Math.max(1, keywords.length)] || keywordPhrase;
+    const prompt =
+      apiSource === 'dalle'
+        ? `${keywordPhrase} ${keywordVariant} ${category} digital concept`
+        : `${keywordPhrase} ${keywordVariant}`;
 
     return fetch(`${BASE_URL}/api/admin/generate-image`, {
       method: 'POST',
@@ -78,7 +87,7 @@ async function generateImages(
       body: JSON.stringify({
         source: apiSource,
         title: prompt,
-        excerpt: excerpt || title,
+        excerpt: excerpt || keywordPhrase,
         category: category
       }),
     });
@@ -99,6 +108,19 @@ async function generateImages(
   }
 
   return imageUrls;
+}
+
+function buildImageSourcePlan(
+  count: number,
+  source: 'unsplash' | 'ai'
+): Array<'unsplash' | 'dalle'> {
+  if (count === 2) {
+    // Fixed baseline: 1 stock + 1 generated for better variety.
+    return ['unsplash', 'dalle'];
+  }
+
+  const apiSource = source === 'ai' ? 'dalle' : 'unsplash';
+  return Array.from({ length: count }, () => apiSource);
 }
 
 /**

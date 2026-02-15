@@ -16,8 +16,8 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
-import { AdManager } from "@/components/AdManager";
 import { notFound } from "next/navigation";
+import { VOX_SCRIPT } from "@/lib/vox-advertising";
 
 const locales = ['en', 'pl'];
 
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 
   const t = getTranslation(params.locale as any);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
-
+  
   return {
     metadataBase: new URL(siteUrl),
     title: { default: t.siteTitle, template: `%s • icoffio` },
@@ -51,11 +51,11 @@ export async function generateMetadata({ params }: { params: { locale: string } 
       { media: "(prefers-color-scheme: dark)", color: "#111827" }
     ],
     colorScheme: "light dark",
-    openGraph: {
+    openGraph: { 
       type: "website",
       siteName: "icoffio",
-      title: t.siteTitle,
-      description: t.siteDescription,
+      title: t.siteTitle, 
+      description: t.siteDescription, 
       images: [
         {
           url: "/og.png",
@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
           height: 630,
           alt: "icoffio — Technology News and Reviews"
         }
-      ],
+      ], 
       locale: params.locale === 'en' ? 'en_US' : `${params.locale}_${params.locale.toUpperCase()}`,
       url: `${siteUrl}/${params.locale}`
     },
@@ -195,8 +195,8 @@ export default function LocaleLayout({
           </ToastProvider>
         </ThemeProvider>
 
-        {/* VOX ad script — loads SSP, inits display placements found in DOM */}
-        <AdManager />
+        {/* VOX SSP — реклама */}
+        <script dangerouslySetInnerHTML={{ __html: VOX_SCRIPT }} />
       </body>
     </html>
   );

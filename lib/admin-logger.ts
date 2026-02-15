@@ -33,24 +33,32 @@ export interface LogFilter {
 
 class AdminLogger {
   private logs: LogEntry[] = [];
-  private maxLogs = 1000; // Максимум логов в памяти
+  private maxLogs = 1000;
   private sessionId: string;
   private isClient: boolean;
+  private saveIntervalId: ReturnType<typeof setInterval> | null = null;
+  private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.sessionId = this.generateSessionId();
     this.isClient = typeof window !== 'undefined';
     
     if (this.isClient) {
-      // Загружаем сохраненные логи из localStorage
       this.loadFromStorage();
       
       // Сохраняем логи каждые 30 секунд
-      setInterval(() => this.saveToStorage(), 30000);
+      this.saveIntervalId = setInterval(() => this.saveToStorage(), 30000);
       
       // Очищаем старые логи раз в час
-      setInterval(() => this.cleanupOldLogs(), 3600000);
+      this.cleanupIntervalId = setInterval(() => this.cleanupOldLogs(), 3600000);
     }
+  }
+
+  /** Cleanup intervals to prevent memory leaks */
+  destroy(): void {
+    if (this.saveIntervalId) clearInterval(this.saveIntervalId);
+    if (this.cleanupIntervalId) clearInterval(this.cleanupIntervalId);
+    if (this.isClient) this.saveToStorage();
   }
 
   private generateSessionId(): string {

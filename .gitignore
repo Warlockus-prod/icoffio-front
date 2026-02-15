@@ -1,86 +1,62 @@
-# Root .gitignore for monorepo (React Native + Next.js)
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# OS
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
 .DS_Store
+*.pem
 
-# Logs
-*.log
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Node / package managers
-**/node_modules/
-**/.pnp
-**/.pnp.js
-**/.yarn/*
-!**/.yarn/patches
-!**/.yarn/plugins
-!**/.yarn/releases
-!**/.yarn/sdks
-!**/.yarn/versions
-
-# Env / secrets (never commit)
-**/.env
-**/.env.*
-!**/.env.example
-**/.env*.local
-**/*.pem
-pass.env
-**/scripts/telegram-config.json
-**/telegram-reset-config.json
-
-# React Native / iOS / Android
-**/.xcode.env.local
-**/DerivedData/
-**/xcuserdata/
-**/*.xcuserstate
-**/*.hmap
-**/*.ipa
-**/Pods/
-**/vendor/bundle/
-
-**/.gradle/
-**/local.properties
-**/*.iml
-**/.idea/
-**/*.hprof
-**/.cxx/
-**/*.keystore
-!**/debug.keystore
-**/.kotlin/
-
-**/.metro-health-check*
-**/coverage/
-
-# Next.js
-**/.next/
-**/out/
-**/.vercel/
-**/*.tsbuildinfo
-**/next-env.d.ts
-
-# Backups / patches (keep locally)
-icoffio-clone-nextjs/backups/
-
-# Playwright artifacts / screenshots
 .playwright-mcp/
-playwright-report/
-test-results/
 
-# Root screenshots/exports (do not commit)
-/*.png
-/*.jpg
-/*.jpeg
-/*.webp
-/*.gif
+# local env files
+.env*.local
 
-# Archives and large exports (don’t commit)
-*.zip
-*.tar.gz
-*.tgz
-
-# Optional: editor
-.vscode/
-.idea/
+# vercel
 .vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# VPS deployment scripts (не нужны для Vercel)
+deploy-*.sh
+*-vps*.sh
+clean-vps-project.sh
+fix-server.sh
+vps-management.sh
+restart-vps.sh
+sync-vps.sh
+update-vps.sh
+
+# Sensitive data
+pass.env
+scripts/telegram-config.json
+telegram-reset-config.json
+
+# Archive files
+*.tar.gz
+*.zip
+
+# Legacy duplicate app tree (retired)
+icoffio-clone-nextjs/
+
+# VPS documentation
+VPS_*.md

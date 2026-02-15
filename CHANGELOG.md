@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.23] - 2026-02-16 - 🧹 Single-Root Cutover (Git + Vercel)
+
+### 🎯 Что сделано
+- Репозиторий консолидирован в один источник кода: `icoffio-front` (root).
+- Удален дублирующий каталог `icoffio-clone-nextjs` из git-дерева.
+- Удален mirror/sync слой:
+  - `sync-manifest.json`
+  - `scripts/sync-mirror.js`
+  - `sync:check/sync:apply` из `package.json`
+- CI переведен на root (`.github/workflows/ci.yml` больше не использует `working-directory: icoffio-clone-nextjs`).
+- Vercel Root Directory переключен на `.` для проекта `icoffio-front`.
+- Обновлены ключевые документы и инструкции, чтобы они ссылались на root-путь.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (54/54)
+- `npm run build` — OK
+- Vercel preview deploy — Ready
+- Vercel production deploy — Ready
+
 ## [8.6.22] - 2026-02-15 - 🧩 Article Ads: Responsive Visibility + Empty Video Placeholder Fix
 
 ### 🎯 Что исправлено
@@ -27,9 +47,6 @@ All notable changes to this project will be documented in this file.
 - Обновлена документация ресета, чтобы примеры соответствовали рабочей конфигурации.
 
 ### 🔧 Измененные файлы
-- `scripts/telegram-reset-simple.py`
-- `scripts/telegram-reset-interactive.py`
-- `scripts/telegram-reset-auto.sh`
 - `scripts/README_TELEGRAM_RESET.md`
 
 ## [8.6.20] - 2026-02-15 - 🤖 Telegram Persistent Queue Worker + DB Idempotency + Inline Actions

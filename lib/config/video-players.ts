@@ -7,7 +7,12 @@
  * @date 2025-10-30
  */
 
-import { VideoPlayerType, VideoPlayerPosition } from '@/components/VideoPlayer';
+export type VideoPlayerType = 'instream' | 'outstream';
+export type VideoPlayerPosition =
+  | 'article-end'
+  | 'article-middle'
+  | 'sidebar-sticky'
+  | 'in-content';
 
 export interface VideoPlayerConfig {
   id: string;
@@ -175,4 +180,3 @@ export const VIDEO_PLACEMENT_RECOMMENDATIONS = {
     recommended: true
   }
 };
-

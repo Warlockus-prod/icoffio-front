@@ -55,7 +55,7 @@
 ### 1. Commit изменений:
 
 ```bash
-cd /Users/Andrey/App/icoffio-front/icoffio-clone-nextjs
+cd /Users/Andrey/App/icoffio-front
 
 git add .
 

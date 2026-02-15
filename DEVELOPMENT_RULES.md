@@ -12,10 +12,6 @@
 
 **AI ДОЛЖЕН ДЕЛАТЬ МАКСИМУМ САМ, НЕ СПРАШИВАЯ ПОЛЬЗОВАТЕЛЯ!**
 
-### ⚠️ MULTI-AGENT PROTOCOL (NEW v3.0)
-**Review [MULTI_AGENT_PROTOCOL.md](file:///Users/Andrey/App/icoffio-front/docs/MULTI_AGENT_PROTOCOL.md) before starting complex tasks.**
-This protocol defines the 4 roles (PM, Dev, QA, Ad-Tech) and their responsibilities.
-
 #### ✅ ДЕЛАТЬ АВТОНОМНО (БЕЗ ВОПРОСОВ):
 
 1. **Код и архитектура:** писать, рефакторить, исправлять, оптимизировать
@@ -693,7 +689,7 @@ curl -I https://app.icoffio.com/en/admin
 ### Где что находится
 
 ```
-icoffio-clone-nextjs/
+icoffio-front/
 ├── app/                      # Next.js App Router
 │   ├── [locale]/            # i18n pages
 │   │   ├── (site)/          # Публичные страницы
@@ -886,7 +882,6 @@ git checkout -b fix/rollback-issue
 **Статус:** ОБЯЗАТЕЛЬНЫ К ИСПОЛНЕНИЮ
 
 *Эти правила созданы на основе анализа проблем v1.4.0-v1.7.0 и призваны предотвратить их повторение.*
-
 
 
 

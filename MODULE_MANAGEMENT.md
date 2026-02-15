@@ -3,7 +3,7 @@
 ## 📋 Структура проекта
 
 Это монорепозиторий, содержащий:
-- **Web-приложение** (Next.js): `icoffio-clone-nextjs/`
+- **Web-приложение** (Next.js): ``
 - **Мобильное приложение** (React Native): `icoffioApp/`
 
 ## 🌿 Структура веток
@@ -27,9 +27,9 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ### 1. **module-web-admin** — Админ-панель
 **Файлы:**
-- `icoffio-clone-nextjs/app/[locale]/admin/`
-- `icoffio-clone-nextjs/components/admin/` (41 компонент)
-- `icoffio-clone-nextjs/app/api/admin/` (роуты: auth, publish, delete, bulk-operations)
+- `app/[locale]/admin/`
+- `components/admin/` (41 компонент)
+- `app/api/admin/` (роуты: auth, publish, delete, bulk-operations)
 
 **Функции:**
 - Создание/редактирование статей
@@ -42,10 +42,10 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ### 2. **module-web-parser** — Парсинг источников
 **Файлы:**
-- `icoffio-clone-nextjs/app/api/admin/parse-url/route.ts`
-- `icoffio-clone-nextjs/lib/url-parser-service.ts`
-- `icoffio-clone-nextjs/lib/wordpress-service.ts`
-- `icoffio-clone-nextjs/scripts/seed-wp*.ts`
+- `app/api/admin/parse-url/route.ts`
+- `lib/url-parser-service.ts`
+- `lib/wordpress-service.ts`
+- `scripts/seed-wp*.ts`
 
 **Функции:**
 - Парсинг TechCrunch, Wylsa, и др.
@@ -57,9 +57,9 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ### 3. **module-web-telegram** — Telegram-бот
 **Файлы:**
-- `icoffio-clone-nextjs/app/api/telegram/` (webhook, settings, stats, queue)
-- `icoffio-clone-nextjs/lib/telegram-*.ts` (6 файлов: i18n, database, image, compose)
-- `icoffio-clone-nextjs/components/admin/TelegramDashboard.tsx`
+- `app/api/telegram/` (webhook, settings, stats, queue)
+- `lib/telegram-*.ts` (6 файлов: i18n, database, image, compose)
+- `components/admin/TelegramDashboard.tsx`
 
 **Функции:**
 - Webhook для приёма ссылок от пользователей
@@ -71,10 +71,10 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ### 4. **module-web-ads** — Рекламные блоки
 **Файлы:**
-- `icoffio-clone-nextjs/lib/vox-advertising.ts`
-- `icoffio-clone-nextjs/components/UniversalAd.tsx`
-- `icoffio-clone-nextjs/components/InlineAd.tsx`
-- `icoffio-clone-nextjs/components/admin/AdvertisingManager.tsx`
+- `lib/vox-advertising.ts`
+- `components/UniversalAd.tsx`
+- `components/InlineAd.tsx`
+- `components/admin/AdvertisingManager.tsx`
 
 **Функции:**
 - VOX Media интеграция
@@ -85,10 +85,10 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ### 5. **module-web-home** — Главная страница
 **Файлы:**
-- `icoffio-clone-nextjs/app/[locale]/(site)/page.tsx`
-- `icoffio-clone-nextjs/components/Hero.tsx`
-- `icoffio-clone-nextjs/components/CategoryNav.tsx`
-- `icoffio-clone-nextjs/components/Newsletter.tsx`
+- `app/[locale]/(site)/page.tsx`
+- `components/Hero.tsx`
+- `components/CategoryNav.tsx`
+- `components/Newsletter.tsx`
 
 **Функции:**
 - Hero-баннер
@@ -100,10 +100,10 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ### 6. **module-web-analytics** — Статистика
 **Файлы:**
-- `icoffio-clone-nextjs/app/api/analytics/` (track-view, popular-articles)
-- `icoffio-clone-nextjs/lib/supabase-analytics.ts`
-- `icoffio-clone-nextjs/components/admin/ArticlePopularityStats.tsx`
-- `icoffio-clone-nextjs/components/admin/ActivityLog.tsx`
+- `app/api/analytics/` (track-view, popular-articles)
+- `lib/supabase-analytics.ts`
+- `components/admin/ArticlePopularityStats.tsx`
+- `components/admin/ActivityLog.tsx`
 
 **Функции:**
 - Трекинг просмотров
@@ -257,10 +257,10 @@ chore(mobile): bump react-native to 0.82.1
 ### Проверить, какие файлы относятся к модулю:
 \`\`\`bash
 # Админка
-git log --oneline --name-only develop -- icoffio-clone-nextjs/components/admin/ | head -n 50
+git log --oneline --name-only develop -- components/admin/ | head -n 50
 
 # Telegram
-git log --oneline --name-only develop -- icoffio-clone-nextjs/app/api/telegram/ icoffio-clone-nextjs/lib/telegram-*.ts
+git log --oneline --name-only develop -- app/api/telegram/ lib/telegram-*.ts
 \`\`\`
 
 ### Синхронизация модульной ветки с develop:
@@ -280,4 +280,4 @@ git branch -v
 ## 📞 Контакты
 По вопросам:
 - **Менеджер:** [указать Telegram/email]
-- **Документация:** \`/icoffio-clone-nextjs/PROJECT_MASTER_DOCUMENTATION.md\`
+- **Документация:** \`/PROJECT_MASTER_DOCUMENTATION.md\`

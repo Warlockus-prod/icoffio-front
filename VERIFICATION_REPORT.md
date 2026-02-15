@@ -47,7 +47,7 @@ eb22861 docs: add module management and contribution guides
 - ✅ \`**/.env\`, \`**/.env.*\` — игнорируются (кроме \`.env.example\`)
 - ✅ \`**/*.pem\`, \`pass.env\` — секреты игнорируются
 - ✅ \`**/scripts/telegram-config.json\` — игнорируется
-- ✅ \`icoffio-clone-nextjs/backups/\` — бэкапы не коммитятся
+- ✅ \`backups/\` — бэкапы не коммитятся
 - ✅ \`*.zip\`, \`*.tar.gz\` — архивы не попадут в Git
 - ✅ \`/*.png\`, \`/*.jpg\` — скриншоты из корня не коммитятся
 
@@ -77,7 +77,7 @@ eb22861 docs: add module management and contribution guides
 
 ## 5. ✅ Структура модулей
 
-### Web (Next.js): \`icoffio-clone-nextjs/\`
+### Web (Next.js): \`\`
 
 #### Модуль: Admin
 - **Файлов:** 41 компонент в \`components/admin/\`

@@ -7,7 +7,6 @@
  */
 
 import { AdFormat, AdPlacement } from '@/components/UniversalAd';
-import { getAdPlacements } from './adPlacementsManager';
 
 export interface AdPlacementConfig {
   id: string;
@@ -103,7 +102,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     name: 'Mobile Banner Top',
     description: '320x50 banner at the top (Mobile)',
     location: 'article',
-    position: 'content-top',
+    position: 'header',
     enabled: true,
     priority: 9,
     device: 'mobile',
@@ -180,11 +179,25 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
 
 /**
  * Get all enabled ad placements
- * Uses saved configuration from localStorage if available
+ * On server: returns defaults; on client: merges with localStorage overrides
  */
 export function getEnabledAdPlacements(): AdPlacementConfig[] {
   if (typeof window !== 'undefined') {
-    return getAdPlacements().filter(ad => ad.enabled);
+    try {
+      const STORAGE_KEY = 'icoffio_ad_placements_config';
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed: AdPlacementConfig[] = JSON.parse(stored);
+        // Merge: use saved enabled state, fall back to defaults for new placements
+        const merged = AD_PLACEMENTS.map(defaultAd => {
+          const savedAd = parsed.find(ad => ad.id === defaultAd.id);
+          return savedAd ? { ...defaultAd, enabled: savedAd.enabled } : defaultAd;
+        });
+        return merged.filter(ad => ad.enabled);
+      }
+    } catch (error) {
+      console.error('Error loading ad placements from localStorage:', error);
+    }
   }
   return AD_PLACEMENTS.filter(ad => ad.enabled);
 }

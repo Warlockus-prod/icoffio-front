@@ -1,6 +1,0 @@
-{
-  "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN_HERE",
-  "telegram_secret_token": "random_32_characters_string_here_xyz123",
-  "webhook_url": "https://app.icoffio.com/api/telegram-simple/webhook"
-}
-

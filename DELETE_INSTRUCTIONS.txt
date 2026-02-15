@@ -23,7 +23,7 @@
 
 ШАГ 2: Запустите удаление
 
-cd icoffio-clone-nextjs
+cd .
 
 export WP_USERNAME="your_username"
 export WP_APP_PASSWORD="xxxx xxxx xxxx xxxx"

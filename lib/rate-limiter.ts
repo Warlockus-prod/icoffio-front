@@ -12,7 +12,7 @@ interface RateLimitEntry {
 
 class RateLimiter {
   private limits: Map<string, RateLimitEntry> = new Map();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     // Cleanup old entries every 5 minutes
@@ -131,7 +131,6 @@ export const RateLimits = {
     windowMs: 60 * 60 * 1000, // 1 hour
   },
 };
-
 
 
 

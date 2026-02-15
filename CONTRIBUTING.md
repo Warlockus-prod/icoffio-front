@@ -16,7 +16,7 @@ cd icoffio-front
 
 #### Web (Next.js):
 \`\`\`bash
-cd icoffio-clone-nextjs
+cd .
 npm install
 cp .env.example .env.local  # настроить переменные окружения
 npm run dev
@@ -143,7 +143,7 @@ Closes #42
 
 #### Web (Next.js):
 \`\`\`bash
-cd icoffio-clone-nextjs
+cd .
 npm run build   # проверьте, что билд проходит
 npm run start   # запустите prod-версию
 \`\`\`
@@ -168,20 +168,19 @@ npm run lint
 
 \`\`\`
 icoffio-front/
-├── icoffio-clone-nextjs/    # Next.js Web
-│   ├── app/
-│   │   ├── [locale]/
-│   │   │   ├── admin/       # Админка
-│   │   │   └── (site)/      # Публичные страницы
-│   │   └── api/             # API-роуты
-│   ├── components/
-│   │   ├── admin/           # Админские компоненты
-│   │   └── *.tsx            # Общие компоненты
-│   ├── lib/                 # Утилиты, сервисы
-│   ├── scripts/             # Утилиты для разработки
-│   └── supabase/            # Миграции БД
+├── app/
+│   ├── [locale]/
+│   │   ├── admin/       # Админка
+│   │   └── (site)/      # Публичные страницы
+│   └── api/             # API-роуты
+├── components/
+│   ├── admin/           # Админские компоненты
+│   └── *.tsx            # Общие компоненты
+├── lib/                 # Утилиты, сервисы
+├── scripts/             # Утилиты для разработки
+├── supabase/            # Миграции БД
 │
-└── icoffioApp/              # React Native Mobile
+└── icoffioApp/          # React Native Mobile
     ├── src/
     │   ├── screens/
     │   ├── components/
@@ -196,7 +195,7 @@ icoffio-front/
 
 ### Web (Next.js)
 \`\`\`bash
-cd icoffio-clone-nextjs
+cd .
 npm run dev
 # Откройте DevTools в браузере (F12)
 \`\`\`
@@ -255,12 +254,12 @@ VERCEL_BLOB_READ_WRITE_TOKEN=vercel_blob_...
 
 ### Как запустить скрипт очистки статей?
 \`\`\`bash
-cd icoffio-clone-nextjs
+cd .
 node scripts/clean-wordpress-articles.js --dry-run
 \`\`\`
 
 ### Как сбросить Telegram webhook?
-Читайте: \`icoffio-clone-nextjs/scripts/README_TELEGRAM_RESET.md\`
+Читайте: \`scripts/README_TELEGRAM_RESET.md\`
 
 ### Как создать миграцию БД?
 \`\`\`sql

@@ -190,7 +190,7 @@ interface AdPlacementConfig {
 ### Файловая структура
 
 ```
-icoffio-clone-nextjs/
+
 ├── components/
 │   ├── UniversalAd.tsx              ← НОВЫЙ (универсальный компонент)
 │   ├── InlineAd.tsx                 (DEPRECATED, но работает)

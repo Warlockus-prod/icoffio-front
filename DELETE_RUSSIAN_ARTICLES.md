@@ -48,7 +48,7 @@
 ### Шаг 2: Запустить скрипт удаления
 
 ```bash
-cd icoffio-clone-nextjs
+cd .
 
 # Установите credentials
 export WP_USERNAME="your_username"  # Ваш WordPress username
@@ -82,7 +82,7 @@ WP_APP_PASSWORD=xxxx xxxx xxxx xxxx
 ### Шаг 3: Запустить удаление через API
 
 ```bash
-cd icoffio-clone-nextjs
+cd .
 node scripts/delete-via-api-batch.js
 ```
 

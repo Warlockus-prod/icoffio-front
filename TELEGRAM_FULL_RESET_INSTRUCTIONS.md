@@ -34,7 +34,7 @@ SELECT COUNT(*) as total_jobs FROM telegram_jobs;
 
 ### Создайте файл конфигурации:
 ```bash
-cd /Users/Andrey/App/icoffio-front/icoffio-clone-nextjs
+cd /Users/Andrey/App/icoffio-front
 nano telegram-reset-config.json
 ```
 
@@ -185,4 +185,3 @@ LIMIT 5;
 ---
 
 **Следующий шаг:** Выполните ШАГ 1 (SQL), потом скажите "готово"
-

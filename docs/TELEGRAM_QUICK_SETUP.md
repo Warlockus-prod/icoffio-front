@@ -89,7 +89,7 @@ VERCEL_PROJECT_ID (optional)
 
 ```bash
 # Terminal:
-cd /Users/Andrey/App/icoffio-front/icoffio-clone-nextjs
+cd /Users/Andrey/App/icoffio-front
 
 # Create test commit
 echo "# Test notification" >> README.md
@@ -181,7 +181,6 @@ RESULT: Automatic Telegram notifications! 🎉
 **Version:** v7.5.0  
 **Your Chat ID:** <TELEGRAM_CHAT_ID>  
 **Status:** ✅ Ready for Setup
-
 
 
 

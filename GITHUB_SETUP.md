@@ -160,9 +160,6 @@ on:
 jobs:
   lint-web:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: icoffio-clone-nextjs
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -218,7 +215,7 @@ git push origin main
 2. Установите зависимости:
    \`\`\`bash
    # Web
-   cd icoffio-clone-nextjs && npm install
+   npm install
 
    # Mobile
    cd ../icoffioApp && npm install
@@ -255,7 +252,7 @@ git push origin main
    \`\`\`bash
    git fetch origin
    git checkout feature/developer-branch
-   cd icoffio-clone-nextjs && npm install && npm run dev
+   npm install && npm run dev
    \`\`\`
 3. Тестируйте функционал
 4. Если всё ОК:

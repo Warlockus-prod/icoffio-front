@@ -14,19 +14,15 @@
  * @date 2025-10-30
  */
 
-import { useEffect, useRef, useState } from 'react';
-
-export type VideoPlayerType = 'instream' | 'outstream';
-export type VideoPlayerPosition = 
-  | 'article-end'      // В конце статьи
-  | 'article-middle'   // В середине статьи
-  | 'sidebar-sticky'   // Sticky сбоку (desktop)
-  | 'in-content';      // Между параграфами (mobile)
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { VideoPlayerPosition, VideoPlayerType } from '@/lib/config/video-players';
 
 interface VideoPlayerProps {
   type: VideoPlayerType;
   position: VideoPlayerPosition;
   videoUrl?: string;              // URL видео для instream
+  videoPlaylist?: string[];       // Последовательность роликов (опционально)
+  posterUrl?: string;             // Явный постер (опционально)
   videoTitle?: string;            // Заголовок видео
   voxPlaceId?: string;            // VOX PlaceID для рекламы
   autoplay?: boolean;             // Автоплей (только для outstream)
@@ -38,6 +34,8 @@ export default function VideoPlayer({
   type,
   position,
   videoUrl,
+  videoPlaylist = [],
+  posterUrl,
   videoTitle,
   voxPlaceId,
   autoplay = false,
@@ -45,10 +43,19 @@ export default function VideoPlayer({
   className = ''
 }: VideoPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
+  const adSlotRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [hasAdContent, setHasAdContent] = useState(true); // hide if no content after timeout
+  const [adLoaded, setAdLoaded] = useState(false);
+  const [hasAdContent, setHasAdContent] = useState(true);
+  const [playlistIndex, setPlaylistIndex] = useState(0);
+
+  const playlist = useMemo(() => {
+    const values = [videoUrl, ...videoPlaylist].filter((item): item is string => Boolean(item && item.trim()));
+    return Array.from(new Set(values));
+  }, [videoPlaylist, videoUrl]);
+
+  const currentVideo = playlist[playlistIndex];
 
   const getElementSize = (element: Element | null): { width: number; height: number } => {
     if (!element) return { width: 0, height: 0 };
@@ -60,23 +67,34 @@ export default function VideoPlayer({
     };
   };
 
-  const hasRenderableAdContent = (container: HTMLDivElement): boolean => {
-    const adEl = container.querySelector('[data-hyb-ssp-ad-place]');
-    if (!adEl) return false;
-
-    const creativeCandidates = Array.from(
-      adEl.querySelectorAll('iframe, img, video, canvas, object, embed')
+  const hasRenderableAdContent = (slot: HTMLElement): boolean => {
+    const candidates = Array.from(
+      slot.querySelectorAll('iframe, img, video, canvas, object, embed')
     );
 
-    if (creativeCandidates.length === 0) {
-      return false;
-    }
+    if (candidates.length === 0) return false;
 
-    return creativeCandidates.some((candidate) => {
+    return candidates.some((candidate) => {
       const { width, height } = getElementSize(candidate);
       return width >= 120 && height >= 60;
     });
   };
+
+  useEffect(() => {
+    setPlaylistIndex(0);
+  }, [playlist]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || playlist.length <= 1) return;
+
+    const handleEnded = () => {
+      setPlaylistIndex((prev) => (prev + 1) % playlist.length);
+    };
+
+    video.addEventListener('ended', handleEnded);
+    return () => video.removeEventListener('ended', handleEnded);
+  }, [playlist.length]);
 
   // Intersection Observer для autoplay on scroll (outstream)
   useEffect(() => {
@@ -85,8 +103,6 @@ export default function VideoPlayer({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          setIsVisible(entry.isIntersecting);
-          
           // Autoplay при появлении в viewport
           if (entry.isIntersecting && autoplay && videoRef.current) {
             videoRef.current.play().catch(() => {
@@ -105,63 +121,55 @@ export default function VideoPlayer({
     return () => observer.disconnect();
   }, [type, autoplay]);
 
-  // VOX ad integration — relies on global SSP loaded by layout.tsx.
-  // We keep the container only if a real creative is rendered.
+  // Отслеживаем, когда VOX наполнил рекламный контейнер.
   useEffect(() => {
-    if (!voxPlaceId) return;
+    const slot = adSlotRef.current;
+    if (!voxPlaceId || !slot) return;
 
-    const container = playerRef.current;
-    if (!container) return;
-
-    // VOX script is loaded globally in layout.tsx, just init the placement.
-    function initializeVoxAd() {
-      if ((window as any)._tx) {
-        (window as any)._tx.cmds = (window as any)._tx.cmds || [];
-        (window as any)._tx.cmds.push(() => {
-          (window as any)._tx.init();
-        });
-      }
-    }
-
-    initializeVoxAd();
-
-    const evaluate = () => {
-      if (videoUrl) {
-        setHasAdContent(true);
-        return;
-      }
-
-      const ready = hasRenderableAdContent(container);
-      if (ready) {
+    const markLoaded = () => {
+      const hasPayload = hasRenderableAdContent(slot);
+      if (hasPayload) {
+        setAdLoaded(true);
         setHasAdContent(true);
       }
     };
 
-    evaluate();
+    setAdLoaded(false);
+    setHasAdContent(true);
 
     const observer = new MutationObserver(() => {
-      evaluate();
+      markLoaded();
     });
-    observer.observe(container, { childList: true, subtree: true, attributes: true });
 
-    // Hard cutoff: if no creative is actually rendered, hide the block.
-    const hardTimeout = setTimeout(() => {
-      if (videoUrl) return;
-      if (!hasRenderableAdContent(container)) {
+    observer.observe(slot, { childList: true, subtree: true, attributes: true });
+    const timers = [1200, 2400, 3600].map((delay) => window.setTimeout(markLoaded, delay));
+    const hardTimeout = window.setTimeout(() => {
+      if (!hasRenderableAdContent(slot)) {
         setHasAdContent(false);
+        setAdLoaded(false);
       }
     }, 3500);
 
+    markLoaded();
+
     return () => {
       observer.disconnect();
-      clearTimeout(hardTimeout);
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+      window.clearTimeout(hardTimeout);
     };
-  }, [videoUrl, voxPlaceId]);
+  }, [currentVideo, voxPlaceId]);
 
   // Получить размеры контейнера по типу
   const getContainerDimensions = () => {
     switch (type) {
       case 'instream':
+        if (!currentVideo) {
+          return {
+            width: '100%',
+            maxWidth: '420px',
+            minHeight: '250px'
+          };
+        }
         return {
           width: '100%',
           maxWidth: position === 'article-end' ? '800px' : '100%',
@@ -178,14 +186,22 @@ export default function VideoPlayer({
   };
 
   const dimensions = getContainerDimensions();
+  const outstreamMinHeight = 'height' in dimensions ? dimensions.height : '250px';
 
-  // Instream блоки без видеофайла не показываем: иначе получаем пустой/зависший placeholder.
-  if (type === 'instream' && !videoUrl) {
+  const resolvedPoster = (() => {
+    if (posterUrl) return posterUrl;
+    if (!currentVideo) return undefined;
+    if (/\.(mp4|webm|ogg)(\?|$)/i.test(currentVideo)) return undefined;
+    return `${currentVideo.replace(/\/$/, '')}/thumbnail.jpg`;
+  })();
+
+  // Instream without actual video source produces a bad UX placeholder.
+  if (type === 'instream' && !currentVideo) {
     return null;
   }
 
-  // If no ad content loaded after timeout — hide entirely.
-  if (!videoUrl && !hasAdContent) {
+  // Outstream with no loaded creative should disappear instead of showing a stuck loading box.
+  if (type === 'outstream' && !hasAdContent) {
     return null;
   }
 
@@ -209,9 +225,10 @@ export default function VideoPlayer({
         ...dimensions,
         ...getStickyStyles(),
         margin: position === 'article-end' ? '40px auto' : '20px 0',
-        backgroundColor: videoUrl ? '#000' : 'transparent',
-        borderRadius: videoUrl ? '12px' : '0',
-        overflow: 'hidden'
+        backgroundColor: '#000',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
       }}
       data-player-type={type}
       data-position={position}
@@ -219,7 +236,7 @@ export default function VideoPlayer({
       {/* Instream: Видео с рекламой */}
       {type === 'instream' && (
         <div className="relative w-full h-full">
-          {videoUrl ? (
+          {currentVideo ? (
             <>
               {/* HTML5 Video */}
               <video
@@ -228,24 +245,32 @@ export default function VideoPlayer({
                 controls
                 playsInline
                 muted={muted}
-                poster={`${videoUrl}/thumbnail.jpg`}
+                poster={resolvedPoster}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
               >
-                <source src={videoUrl} type="video/mp4" />
+                <source src={currentVideo} type="video/mp4" />
                 Your browser does not support video playback.
               </video>
 
               {/* VOX Preroll Ad Container */}
               {voxPlaceId && (
                 <div
+                  ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
+                  data-ad-placement="video"
                   className="absolute inset-0 z-10"
                   style={{
                     display: isPlaying ? 'none' : 'block',
                     pointerEvents: 'auto'
                   }}
                 />
+              )}
+
+              {voxPlaceId && !adLoaded && !isPlaying && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
+                  Loading video advertisement...
+                </div>
               )}
 
               {/* Video Title Overlay */}
@@ -259,14 +284,22 @@ export default function VideoPlayer({
             </>
           ) : (
             // Нет видео - только реклама
-            <div className="w-full h-full flex items-center justify-center bg-gray-900">
+            <div className="w-full min-h-[250px] flex items-center justify-center bg-gray-900/90">
               {voxPlaceId ? (
                 <div
+                  ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
-                  className="w-full h-full"
+                  data-ad-placement="video"
+                  className="w-full flex items-center justify-center"
+                  style={{ minHeight: '250px' }}
                 />
               ) : (
                 <p className="text-gray-400">Video content not available</p>
+              )}
+              {voxPlaceId && !adLoaded && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
+                  Loading video advertisement...
+                </div>
               )}
             </div>
           )}
@@ -277,12 +310,23 @@ export default function VideoPlayer({
       {type === 'outstream' && (
         <div className="relative w-full h-full">
           {voxPlaceId ? (
-            <div
-              data-hyb-ssp-ad-place={voxPlaceId}
-              className="w-full h-full"
-            >
-              {/* VOX fills content automatically */}
-            </div>
+            <>
+              <div
+                ref={adSlotRef}
+                data-hyb-ssp-ad-place={voxPlaceId}
+                data-ad-placement="video"
+                className="w-full h-full"
+                style={{
+                  minHeight: outstreamMinHeight,
+                  backgroundColor: '#f5f5f5'
+                }}
+              />
+              {!adLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm bg-white/80 pointer-events-none">
+                  Loading advertisement...
+                </div>
+              )}
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
               <p className="text-gray-400 text-sm">Ad placement</p>

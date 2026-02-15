@@ -240,7 +240,7 @@ textarea.markdown-editor {
 
 /* ========== VOX ADVERTISING STYLES ========== */
 
-/* Base container — visibility controlled by UniversalAd React component */
+/* Base container */
 .vox-ad-container {
   position: relative;
   background: transparent;
@@ -248,7 +248,7 @@ textarea.markdown-editor {
   overflow: visible;
 }
 
-/* Shared alignment for all display placements */
+/* Shared alignment */
 .vox-inline-ad,
 .vox-sidebar-ad,
 .vox-mobile-ad,
@@ -258,34 +258,34 @@ textarea.markdown-editor {
   text-align: center;
 }
 
-/* Inline Ads (article content) */
+/* Inline ads */
 .vox-inline-ad {
   width: 100%;
   max-width: 970px;
   margin: 24px auto;
 }
 
-/* Sidebar Ads */
+/* Sidebar ads */
 .vox-sidebar-ad {
   width: 100%;
   max-width: 300px;
   margin: 0 auto 24px auto;
 }
 
-/* Mobile Ads */
+/* Mobile ads */
 .vox-mobile-ad {
   width: 100%;
   max-width: 320px;
   margin: 16px auto;
 }
 
-/* Display/Interstitial placements */
+/* Display/Interstitial */
 .vox-display-ad {
   width: 100%;
   max-width: 320px;
 }
 
-/* Ad payload sizing — center and prevent clipping in wrapper containers */
+/* Payload alignment */
 [data-hyb-ssp-ad-place] > * {
   max-width: 100%;
   margin-left: auto;

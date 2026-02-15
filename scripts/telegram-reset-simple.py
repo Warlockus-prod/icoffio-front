@@ -41,8 +41,8 @@ def main():
     
     print("✅ Configuration loaded")
     
-    # Step 2: Reset Supabase telegram tables
-    print("\n📋 Step 2/4: Resetting Supabase telegram tables...")
+    # Step 2: Reset Supabase queue
+    print("\n📋 Step 2/4: Resetting Supabase queue...")
     
     headers = {
         'apikey': service_key,
@@ -52,34 +52,26 @@ def main():
     }
     
     try:
-        for table in ['telegram_jobs', 'telegram_submissions']:
-            print(f"   Deleting all rows from {table}...")
-            response = requests.delete(
-                f"{supabase_url}/rest/v1/{table}?id=not.is.null",
-                headers=headers
-            )
-            if response.status_code in [200, 204]:
-                print(f"   ✅ {table} cleared")
-            elif response.status_code == 404:
-                print(f"   ⚠️  {table} not found (skipped)")
-            else:
-                print(f"   ⚠️  {table} clear response: {response.status_code} {response.text[:120]}")
-
-            print(f"   Verifying {table}...")
-            verify = requests.get(
-                f"{supabase_url}/rest/v1/{table}?select=id&limit=1",
-                headers=headers
-            )
-            if verify.status_code == 404:
-                print(f"   ⚠️  {table} not found during verify (skipped)")
-            elif verify.status_code in [200, 206]:
-                rows = verify.json()
-                if len(rows) == 0:
-                    print(f"   ✅ {table} is empty")
-                else:
-                    print(f"   ⚠️  {table} still has data")
-            else:
-                print(f"   ⚠️  {table} verify response: {verify.status_code} {verify.text[:120]}")
+        print("   Deleting all jobs...")
+        response = requests.delete(
+            f"{supabase_url}/rest/v1/telegram_jobs?id=not.is.null",
+            headers=headers
+        )
+        if response.status_code in [200, 204]:
+            print("   ✅ All jobs deleted")
+        else:
+            print(f"   ⚠️  Response: {response.status_code}")
+        
+        print("   Verifying queue is empty...")
+        response = requests.get(
+            f"{supabase_url}/rest/v1/telegram_jobs?select=id",
+            headers=headers
+        )
+        jobs = response.json()
+        if len(jobs) == 0:
+            print("   ✅ Queue is empty (0 jobs)")
+        else:
+            print(f"   ⚠️  Queue has {len(jobs)} jobs")
     
     except Exception as e:
         print(f"   ❌ Error: {e}")
@@ -89,7 +81,7 @@ def main():
     print("\n📋 Step 3/4: Managing Telegram webhook...")
     
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://app.icoffio.com/api/telegram-simple/webhook")
+    webhook_url = "https://app.icoffio.com/api/telegram-simple/webhook"
     
     try:
         print("   Getting current webhook...")
@@ -112,13 +104,7 @@ def main():
         webhook_data = {
             'url': webhook_url,
             'secret_token': secret_token,
-            'allowed_updates': [
-                'message',
-                'edited_message',
-                'channel_post',
-                'edited_channel_post',
-                'callback_query'
-            ],
+            'allowed_updates': ['message', 'callback_query'],
             'max_connections': 40,
             'drop_pending_updates': True
         }
@@ -163,7 +149,7 @@ def main():
     print("=" * 60 + "\n")
     
     print("📊 Summary:")
-    print("  ✅ Supabase telegram tables reset")
+    print("  ✅ Supabase queue reset (0 jobs)")
     print("  ✅ Webhook deleted")
     print("  ✅ Webhook recreated")
     print("  ✅ Webhook verified\n")
@@ -180,9 +166,10 @@ def main():
     print("  Supabase: https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz\n")
     
     print("🎯 Look for in Vercel logs:")
-    print("  [TelegramSimple] Incoming message")
-    print("  [TelegramSimple] Processing...")
-    print("  [TelegramSimple] ✅ Message sent\n")
+    print("  [Queue] 🚀 processQueue() called")
+    print("  [Queue] ✅ Starting queue processing...")
+    print("  [Queue] 📋 Found 1 pending job(s)")
+    print("  [Queue] ✅ Job completed\n")
     
     print("✅ Done! 🚀\n")
 
@@ -197,3 +184,4 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
+

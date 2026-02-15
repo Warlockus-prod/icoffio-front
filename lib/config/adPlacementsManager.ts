@@ -106,8 +106,7 @@ export function getAdPlacementsStatsFromStorage() {
     enabled: placements.filter(ad => ad.enabled).length,
     disabled: placements.filter(ad => !ad.enabled).length,
     byType: {
-      display: placements.filter(ad => ad.format !== 'video').length,
-      video: placements.filter(ad => ad.format === 'video').length,
+      display: placements.length, // All current placements are display type
     },
     byDevice: {
       desktop: placements.filter(ad => ad.device === 'desktop').length,
@@ -120,8 +119,7 @@ export function getAdPlacementsStatsFromStorage() {
       testing: placements.filter(ad => ad.status === 'testing').length,
     },
     enabledByType: {
-      display: placements.filter(ad => ad.enabled && ad.format !== 'video').length,
-      video: placements.filter(ad => ad.enabled && ad.format === 'video').length,
+      display: placements.filter(ad => ad.enabled).length,
     }
   };
 }

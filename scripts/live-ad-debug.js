@@ -36,10 +36,7 @@ async function findFirstArticlePath(page, locale) {
     return link ? link.getAttribute('href') : null;
   }, locale);
 
-  if (!href) {
-    return `/${locale}/article/ai-revolution-2024-en`;
-  }
-
+  if (!href) return `/${locale}/article/ai-revolution-2024-en`;
   return href.startsWith('http') ? new URL(href).pathname : href;
 }
 

@@ -7,6 +7,8 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import toast from 'react-hot-toast';
 import { useAdminStore, type Article } from '@/lib/stores/admin-store';
+import { renderContent } from '@/lib/markdown';
+import { normalizeAiGeneratedText } from '@/lib/utils/content-formatter';
 
 // ========== TYPES ==========
 
@@ -56,22 +58,29 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   const [language, setLanguage] = useState<'en' | 'pl'>('en');
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isPublishMinimized, setIsPublishMinimized] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Editable fields - ENGLISH
   const [title, setTitle] = useState(article.title);
   const [excerpt, setExcerpt] = useState(article.excerpt || '');
-  const [content, setContent] = useState(article.content);
+  const [content, setContent] = useState(() => normalizeAiGeneratedText(article.content || ''));
   const [category, setCategory] = useState(article.category);
-  const [imageUrl, setImageUrl] = useState(article.image || '');
+  const [imageUrl, setImageUrl] = useState(article.image || article.images?.[0] || '');
   
   // ✅ v8.2.0: Editable fields - POLISH
   const [plTitle, setPlTitle] = useState(article.translations?.pl?.title || '');
   const [plExcerpt, setPlExcerpt] = useState(article.translations?.pl?.excerpt || '');
-  const [plContent, setPlContent] = useState(article.translations?.pl?.content || '');
+  const [plContent, setPlContent] = useState(() =>
+    normalizeAiGeneratedText(article.translations?.pl?.content || '')
+  );
   
   // ✅ v8.2.0: Multiple images (up to 5)
-  const [selectedImages, setSelectedImages] = useState<string[]>(article.image ? [article.image] : []);
+  const [selectedImages, setSelectedImages] = useState<string[]>(() => {
+    const combined = [article.image, ...(article.images || [])].filter((img): img is string => Boolean(img));
+    return Array.from(new Set(combined)).slice(0, 5);
+  });
+  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
   
   // Image selection state
   const [imageSearch, setImageSearch] = useState('');
@@ -122,23 +131,57 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     }
   }, [title]);
 
+  useEffect(() => {
+    if (!isPublishing) {
+      setIsPublishMinimized(false);
+    }
+  }, [isPublishing]);
+
+  const updateSelectedImages = useCallback((updater: (prev: string[]) => string[]) => {
+    setSelectedImages(prev => {
+      const next = updater(prev);
+      setImageUrl(next[0] || '');
+      return next;
+    });
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const moveSelectedImage = useCallback((fromIndex: number, toIndex: number) => {
+    updateSelectedImages(prev => {
+      if (fromIndex === toIndex || toIndex < 0 || toIndex >= prev.length) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, [updateSelectedImages]);
+
+  const removeSelectedImageAt = useCallback((index: number) => {
+    updateSelectedImages(prev => prev.filter((_, i) => i !== index));
+    toast.success('🗑️ Image removed');
+  }, [updateSelectedImages]);
+
   // ===== HANDLERS =====
   
   const handleSave = useCallback(() => {
     setIsSaving(true);
+    const normalizedEnContent = normalizeAiGeneratedText(content);
+    const normalizedPlContent = normalizeAiGeneratedText(plContent);
     
     // ✅ v8.2.0: Save both languages + multiple images
     updateArticle({
       id: article.id,
       title,
       excerpt,
-      content,
+      content: normalizedEnContent,
       category,
       image: selectedImages[0] || imageUrl, // First image = hero
       images: selectedImages.slice(1), // Rest = content images
       translations: {
-        en: { title, content, excerpt },
-        pl: { title: plTitle, content: plContent, excerpt: plExcerpt }
+        en: { title, content: normalizedEnContent, excerpt },
+        pl: { title: plTitle, content: normalizedPlContent, excerpt: plExcerpt }
       }
     });
     
@@ -271,9 +314,10 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       
       if (result.success && result.processedText) {
         // Update English content
-        setContent(result.processedText);
+        const normalizedEn = normalizeAiGeneratedText(result.processedText);
+        setContent(normalizedEn);
         if (editor) {
-          editor.commands.setContent(result.processedText);
+          editor.commands.setContent(normalizedEn);
         }
         
         // Also regenerate Polish if exists
@@ -290,7 +334,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
           
           const plResult = await plResponse.json();
           if (plResult.success && plResult.processedText) {
-            setPlContent(plResult.processedText);
+            setPlContent(normalizeAiGeneratedText(plResult.processedText));
           }
         }
         
@@ -317,6 +361,9 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       return;
     }
     
+    const normalizedEnContent = normalizeAiGeneratedText(content);
+    const normalizedPlContent = normalizeAiGeneratedText(plContent);
+
     setIsPublishing(true);
     const toastId = toast.loading('📤 Adding to publishing queue...');
     
@@ -332,13 +379,13 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
             ...article,
             title,
             excerpt,
-            content,
+            content: normalizedEnContent,
             category,
             image: selectedImages[0] || imageUrl,
             images: selectedImages.slice(1),
             translations: {
-              en: { title, content, excerpt },
-              pl: { title: plTitle, content: plContent, excerpt: plExcerpt }
+              en: { title, content: normalizedEnContent, excerpt },
+              pl: { title: plTitle, content: normalizedPlContent, excerpt: plExcerpt }
             }
           }
         })
@@ -354,7 +401,15 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
           url: result.urls?.en || `/en/article/${article.id}`
         });
         toast.success(`✅ "${title.substring(0, 40)}..." added to queue!`, { id: toastId });
-        onPublish?.({ ...article, title, excerpt, content, category, image: imageUrl });
+        onPublish?.({
+          ...article,
+          title,
+          excerpt,
+          content: normalizedEnContent,
+          category,
+          image: selectedImages[0] || imageUrl,
+          images: selectedImages.slice(1)
+        });
         onClose();
       } else {
         throw new Error(result.error || 'Publication failed');
@@ -367,6 +422,11 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   };
 
   const handleClose = () => {
+    if (isPublishing) {
+      setIsPublishMinimized(true);
+      return;
+    }
+
     if (hasUnsavedChanges) {
       if (confirm('You have unsaved changes. Are you sure you want to close?')) {
         onClose();
@@ -382,15 +442,42 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       return { title, excerpt, content };
     } else {
       return {
-        title: article.translations?.pl?.title || title,
-        excerpt: article.translations?.pl?.excerpt || excerpt,
-        content: article.translations?.pl?.content || content
+        title: plTitle || article.translations?.pl?.title || title,
+        excerpt: plExcerpt || article.translations?.pl?.excerpt || excerpt,
+        content: plContent || article.translations?.pl?.content || content
       };
     }
   };
 
   const previewContent = getPreviewContent();
   const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length;
+
+  if (isPublishMinimized) {
+    return (
+      <div className="fixed bottom-6 right-6 z-50 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-green-500">
+        <div className="p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="animate-spin w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full"></div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                Publishing to queue...
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                {title}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsPublishMinimized(false)}
+            className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+          >
+            ⬆️ Expand
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ===== RENDER =====
   return (
@@ -680,15 +767,50 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                       #1 = Hero, #2-5 = In content
                     </span>
                   </h3>
-                  <div className="grid grid-cols-5 gap-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Drag cards to reorder or use arrows. First image is used as article hero.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     {selectedImages.map((url, index) => (
-                      <div key={url} className="relative rounded-xl overflow-hidden border-2 border-green-500 group">
+                      <div
+                        key={`${url}-${index}`}
+                        draggable
+                        onDragStart={() => setDraggedImageIndex(index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (draggedImageIndex === null) return;
+                          moveSelectedImage(draggedImageIndex, index);
+                          setDraggedImageIndex(null);
+                        }}
+                        onDragEnd={() => setDraggedImageIndex(null)}
+                        className={`relative rounded-xl overflow-hidden border-2 border-green-500 group cursor-move ${
+                          draggedImageIndex === index ? 'opacity-70 ring-2 ring-blue-500/40' : ''
+                        }`}
+                      >
                         <img src={url} alt={`Selected ${index + 1}`} className="w-full h-24 object-cover" />
                         <div className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${index === 0 ? 'bg-amber-500' : 'bg-blue-500'}`}>
                           {index + 1}
                         </div>
+                        <div className="absolute bottom-1 left-1 flex items-center gap-1">
+                          <button
+                            onClick={() => moveSelectedImage(index, index - 1)}
+                            disabled={index === 0}
+                            className="w-6 h-6 bg-black/55 hover:bg-black/70 disabled:opacity-30 text-white rounded text-xs transition-colors"
+                            title="Move left"
+                          >
+                            ←
+                          </button>
+                          <button
+                            onClick={() => moveSelectedImage(index, index + 1)}
+                            disabled={index === selectedImages.length - 1}
+                            className="w-6 h-6 bg-black/55 hover:bg-black/70 disabled:opacity-30 text-white rounded text-xs transition-colors"
+                            title="Move right"
+                          >
+                            →
+                          </button>
+                        </div>
                         <button
-                          onClick={() => setSelectedImages(prev => prev.filter(u => u !== url))}
+                          onClick={() => removeSelectedImageAt(index)}
                           className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
                         >
                           ✕
@@ -728,8 +850,10 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                         const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
                         const result = await res.json();
                         if (result.success) {
-                          setSelectedImages(prev => [...prev, result.url]);
-                          setImageUrl(selectedImages.length === 0 ? result.url : imageUrl);
+                          updateSelectedImages(prev => {
+                            if (prev.length >= 5) return prev;
+                            return [...prev, result.url];
+                          });
                           toast.success(`✅ Uploaded to CDN!`, { id: toastId });
                         } else {
                           toast.error(result.error || 'Upload failed', { id: toastId });
@@ -756,8 +880,10 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                           const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
                           const result = await res.json();
                           if (result.success) {
-                            setSelectedImages(prev => [...prev, result.url]);
-                            if (selectedImages.length === 0) setImageUrl(result.url);
+                            updateSelectedImages(prev => {
+                              if (prev.length >= 5) return prev;
+                              return [...prev, result.url];
+                            });
                             toast.success(`✅ Uploaded to CDN!`, { id: toastId });
                           } else {
                             toast.error(result.error || 'Upload failed', { id: toastId });
@@ -822,10 +948,9 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                           key={option.id}
                           onClick={() => {
                             if (isSelected) {
-                              setSelectedImages(prev => prev.filter(u => u !== option.url));
+                              updateSelectedImages(prev => prev.filter(u => u !== option.url));
                             } else if (selectedImages.length < 5) {
-                              setSelectedImages(prev => [...prev, option.url]);
-                              if (selectedImages.length === 0) setImageUrl(option.url);
+                              updateSelectedImages(prev => [...prev, option.url]);
                             } else {
                               toast.error('Max 5 images!');
                             }
@@ -924,7 +1049,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                   
                   <div 
                     className="prose prose-lg dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: previewContent.content }}
+                    dangerouslySetInnerHTML={{ __html: renderContent(previewContent.content || '') }}
                   />
                 </div>
               </div>
@@ -969,13 +1094,23 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                   Next →
                 </button>
               ) : (
-                <button
-                  onClick={handlePublish}
-                  disabled={isPublishing}
-                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 transition-all disabled:opacity-50"
-                >
-                  {isPublishing ? '⏳ Adding...' : '🚀 Add to Queue'}
-                </button>
+                <>
+                  {isPublishing && (
+                    <button
+                      onClick={() => setIsPublishMinimized(true)}
+                      className="px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
+                    >
+                      ⬇️ Minimize
+                    </button>
+                  )}
+                  <button
+                    onClick={handlePublish}
+                    disabled={isPublishing}
+                    className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 transition-all disabled:opacity-50"
+                  >
+                    {isPublishing ? '⏳ Adding...' : '🚀 Add to Queue'}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -984,4 +1119,3 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     </div>
   );
 }
-

@@ -23,12 +23,45 @@ function getSupabaseClient() {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const action = searchParams.get('action');
     const language = searchParams.get('lang') || 'en';
     const category = searchParams.get('category');
     const limit = parseInt(searchParams.get('limit') || '100');
     const featured = searchParams.get('featured') === 'true';
 
     const supabase = getSupabaseClient();
+
+    // Admin list mode: return raw multilingual rows (slug_en + slug_pl).
+    if (action === 'get-all') {
+      let rawQuery = supabase
+        .from('published_articles')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (category) {
+        rawQuery = rawQuery.eq('category', category);
+      }
+
+      if (featured) {
+        rawQuery = rawQuery.eq('featured', true);
+      }
+
+      const { data: rawArticles, error: rawError } = await rawQuery;
+
+      if (rawError) {
+        throw new Error(`Supabase query failed: ${rawError.message}`);
+      }
+
+      return NextResponse.json({
+        success: true,
+        articles: rawArticles || [],
+        count: (rawArticles || []).length,
+        source: 'supabase',
+        mode: 'raw'
+      });
+    }
 
     // Build query
     let query = supabase
@@ -127,12 +160,15 @@ export async function POST(request: Request) {
 
     if (action === 'get-by-slug') {
       // Get specific article by slug
-      const { data: article, error } = await supabase
+      const { data: articles, error } = await supabase
         .from('published_articles')
         .select('*')
         .or(`slug_en.eq.${slug},slug_pl.eq.${slug}`)
         .eq('published', true)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const article = articles?.[0];
 
       if (error || !article) {
         return NextResponse.json({
@@ -267,4 +303,3 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
-

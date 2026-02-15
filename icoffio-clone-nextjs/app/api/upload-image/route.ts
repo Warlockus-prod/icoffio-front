@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // В production добавить более строгую проверку
     
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const file = (formData as unknown as { get: (name: string) => File | null }).get('file');
     
     if (!file) {
       return NextResponse.json(
@@ -152,4 +152,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

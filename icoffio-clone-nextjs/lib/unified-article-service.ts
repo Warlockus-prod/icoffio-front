@@ -9,7 +9,7 @@ import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
 import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
-import { formatContentToHtml } from './utils/content-formatter';
+import { formatContentToHtml, normalizeAiGeneratedText } from './utils/content-formatter';
 import { getPromptTemplateByStyle, type ContentProcessingStyle } from './config/content-prompts';
 import type { Post } from './types';
 
@@ -246,7 +246,7 @@ class UnifiedArticleService {
               finalArticleData = {
                 ...articleData,
                 title: enTitle.translatedText,
-                content: enContent.translatedText,
+                content: normalizeAiGeneratedText(enContent.translatedText),
                 excerpt: enExcerpt.translatedText,
                 language: 'en' // ✅ КРИТИЧНО: Устанавливаем язык в 'en'!
               };
@@ -278,7 +278,7 @@ class UnifiedArticleService {
               
               translations.pl = {
                 title: plTitle.translatedText,
-                content: plContent.translatedText,
+                content: normalizeAiGeneratedText(plContent.translatedText),
                 excerpt: plExcerpt.translatedText,
                 slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl (система требует!)
               };
@@ -287,7 +287,7 @@ class UnifiedArticleService {
             } else {
               translations.pl = {
                 title: articleData.title,
-                content: articleData.content,
+                content: normalizeAiGeneratedText(articleData.content),
                 excerpt: articleData.excerpt || articleData.title.substring(0, 100),
                 slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl
               };
@@ -303,7 +303,7 @@ class UnifiedArticleService {
           translations = {
             pl: {
               title: articleData.title,
-              content: articleData.content,
+              content: normalizeAiGeneratedText(articleData.content),
               excerpt: articleData.excerpt || articleData.title.substring(0, 100),
               slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: С суффиксом -pl
             }
@@ -313,6 +313,7 @@ class UnifiedArticleService {
       
       // Используем финальную (возможно переведенную на EN) версию как основную статью
       articleData = finalArticleData;
+      articleData.content = normalizeAiGeneratedText(articleData.content || '');
       
       // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно устанавливаем язык в 'en'
       // После перевода на английский, основная статья ВСЕГДА английская
@@ -518,7 +519,7 @@ class UnifiedArticleService {
       return {
         ...articleData,
         title: enhanced.title,
-        content: enhanced.content,
+        content: normalizeAiGeneratedText(enhanced.content || articleData.content),
         excerpt: enhanced.excerpt,
         tags: enhanced.tags,
         metaDescription: enhanced.metaDescription

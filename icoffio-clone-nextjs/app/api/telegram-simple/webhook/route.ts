@@ -61,14 +61,25 @@ function extractUrl(text: string): string | null {
 }
 
 function verifyTelegramRequest(request: NextRequest): boolean {
-  const secret = process.env.TELEGRAM_SECRET_TOKEN || process.env.TELEGRAM_BOT_SECRET;
-  if (!secret) {
+  const configuredSecrets = Array.from(
+    new Set(
+      [process.env.TELEGRAM_SECRET_TOKEN, process.env.TELEGRAM_BOT_SECRET]
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  if (configuredSecrets.length === 0) {
     console.warn('[TelegramSimple] Secret token is not configured; request accepted without verification');
     return true;
   }
 
+  if (configuredSecrets.length > 1) {
+    console.warn('[TelegramSimple] Multiple webhook secrets configured; accepting either configured value');
+  }
+
   const receivedSecret = request.headers.get('x-telegram-bot-api-secret-token');
-  if (!receivedSecret || receivedSecret !== secret) {
+  if (!receivedSecret || !configuredSecrets.includes(receivedSecret)) {
     console.warn('[TelegramSimple] Invalid webhook secret token');
     return false;
   }

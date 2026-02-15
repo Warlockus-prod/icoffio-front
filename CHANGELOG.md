@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.12] - 2026-02-15 - 🚑 Telegram Webhook Secret Recovery Hotfix
+
+### 🎯 Что исправлено
+- Восстановлена работа Telegram webhook после `401 Unauthorized` из-за рассинхрона secret token.
+- Добавлена устойчивость проверки секрета: backend принимает любой валидный секрет из `TELEGRAM_SECRET_TOKEN` или `TELEGRAM_BOT_SECRET`.
+
+### 🔧 Реализация
+- `app/api/telegram-simple/webhook/route.ts`
+  - `verifyTelegramRequest` теперь поддерживает оба env-ключа одновременно;
+  - при наличии двух разных секретов принимает совпадение с любым из них и пишет предупреждение в лог.
+- Operational fix:
+  - webhook перевыставлен через Telegram API на `https://app.icoffio.com/api/telegram-simple/webhook` с production secret из Vercel env.
+
 ## [8.6.11] - 2026-02-15 - 🤖 Telegram Observability + Admin Source Visibility + Production Release
 
 ### 🎯 Что сделано

@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
       imagesSource: data?.images_source || 'unsplash',
       autoPublish: data?.auto_publish ?? true,
       interfaceLanguage: normalizeInterfaceLanguage(data?.language || 'ru'),
+      combineUrlsAsSingle: data?.combine_urls_as_single ?? false,
     };
 
     return NextResponse.json({ success: true, settings });
@@ -93,8 +94,10 @@ export async function POST(request: NextRequest) {
       imagesSource,
       autoPublish,
       interfaceLanguage,
+      combineUrlsAsSingle,
     } = body;
     const normalizedLanguage = normalizeInterfaceLanguage(interfaceLanguage || 'ru');
+    const normalizedCombineUrlsAsSingle = Boolean(combineUrlsAsSingle);
 
     // Валидация
     if (!chatId) {
@@ -113,22 +116,41 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabase();
 
+    const basePayload = {
+      chat_id: chatId,
+      content_style: contentStyle,
+      images_count: imagesCount,
+      images_source: imagesSource,
+      auto_publish: autoPublish,
+      language: normalizedLanguage,
+      updated_at: new Date().toISOString(),
+    };
+
     // Upsert (update or insert)
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('telegram_user_preferences')
-      .upsert({
-        chat_id: chatId,
-        content_style: contentStyle,
-        images_count: imagesCount,
-        images_source: imagesSource,
-        auto_publish: autoPublish,
-        language: normalizedLanguage,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'chat_id',
-      })
+      .upsert(
+        {
+          ...basePayload,
+          combine_urls_as_single: normalizedCombineUrlsAsSingle,
+        },
+        {
+          onConflict: 'chat_id',
+        }
+      )
       .select()
       .single();
+
+    // Backward compatibility if migration is not applied yet.
+    if (error && error.code === '42703') {
+      const retry = await supabase
+        .from('telegram_user_preferences')
+        .upsert(basePayload, { onConflict: 'chat_id' })
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       throw error;
@@ -140,6 +162,7 @@ export async function POST(request: NextRequest) {
       imagesSource,
       autoPublish,
       interfaceLanguage: normalizedLanguage,
+      combineUrlsAsSingle: normalizedCombineUrlsAsSingle,
     });
 
     return NextResponse.json({
@@ -152,6 +175,7 @@ export async function POST(request: NextRequest) {
         imagesSource,
         autoPublish,
         interfaceLanguage: normalizedLanguage,
+        combineUrlsAsSingle: normalizedCombineUrlsAsSingle,
       },
     });
 

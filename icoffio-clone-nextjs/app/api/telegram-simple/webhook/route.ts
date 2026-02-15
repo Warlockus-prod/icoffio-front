@@ -6,11 +6,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
+import { answerCallbackQuery, sendTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
 import { parseUrl } from '@/lib/telegram-simple/url-parser';
 import { processText } from '@/lib/telegram-simple/content-processor';
 import { publishArticle } from '@/lib/telegram-simple/publisher';
 import { loadTelegramSettings } from '@/lib/telegram-simple/settings-loader';
+import {
+  enqueueTelegramSimpleJob,
+  type TelegramSimpleQueuePayload,
+} from '@/lib/telegram-simple/job-queue';
 import type {
   ContentStyle,
   InterfaceLanguage,
@@ -46,7 +50,7 @@ interface TelegramActivityInput {
   metadata?: Record<string, any>;
 }
 
-interface ProcessSubmissionInput {
+export interface ProcessSubmissionInput {
   chatId: number;
   userId: number;
   username?: string;
@@ -59,15 +63,28 @@ interface ProcessSubmissionInput {
   combineUrlsAsSingle?: boolean;
   additionalContext?: string;
   settingsOverride?: TelegramSettings;
+  existingSubmissionId?: number | null;
+  skipDuplicateCheck?: boolean;
   sendProgressMessage?: boolean;
   sendResultMessage?: boolean;
   progressLabel?: string;
 }
 
-interface ProcessSubmissionResult {
+interface SubmissionMeta {
+  candidateUrls: string[];
+  combineUrlsAsSingle: boolean;
+  additionalContext: string;
+  singleUrl: string | null;
+  submissionType: 'url' | 'text';
+  submissionContent: string;
+}
+
+export interface ProcessSubmissionResult {
   success: boolean;
   submissionId: number | null;
   submissionType: 'url' | 'text';
+  queued?: boolean;
+  jobId?: string | null;
   title?: string;
   enUrl?: string;
   plUrl?: string;
@@ -151,6 +168,14 @@ function normalizeAutoPublish(rawValue?: string): boolean | null {
   return null;
 }
 
+function normalizeCombineMode(rawValue?: string): boolean | null {
+  if (!rawValue) return null;
+  const value = rawValue.trim().toLowerCase();
+  if (['single', 'one', 'combined', 'on', 'true', '1', 'yes'].includes(value)) return true;
+  if (['batch', 'multi', 'off', 'false', '0', 'no'].includes(value)) return false;
+  return null;
+}
+
 function normalizeInterfaceLanguage(rawValue?: string): InterfaceLanguage | null {
   if (!rawValue) return null;
   const value = rawValue.trim().toLowerCase();
@@ -198,6 +223,66 @@ function extractAdditionalContext(text: string, urls: string[]): string {
     normalized = normalized.replace(new RegExp(escapeRegExp(url), 'g'), ' ');
   }
   return normalized.replace(/\s+/g, ' ').trim();
+}
+
+function buildSubmissionMeta(input: ProcessSubmissionInput): SubmissionMeta {
+  const normalizedText = input.rawText.trim();
+  const detectedUrls = extractUrls(normalizedText);
+  const candidateUrls = Array.from(
+    new Set(
+      [
+        ...(input.urls || []),
+        ...(input.url ? [input.url] : []),
+        ...detectedUrls,
+      ]
+        .map((url) => url.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, MAX_BATCH_URLS);
+
+  const combineUrlsAsSingle = Boolean(input.combineUrlsAsSingle && candidateUrls.length > 1);
+  const additionalContext = (
+    input.additionalContext || extractAdditionalContext(normalizedText, candidateUrls)
+  ).trim();
+  const singleUrl = candidateUrls[0] || null;
+  const submissionType: 'url' | 'text' = singleUrl ? 'url' : 'text';
+  const submissionContent = (
+    combineUrlsAsSingle
+      ? `single:${candidateUrls.join('|')}${additionalContext ? `|context:${additionalContext}` : ''}`
+      : singleUrl || normalizedText
+  ).slice(0, 8000);
+
+  return {
+    candidateUrls,
+    combineUrlsAsSingle,
+    additionalContext,
+    singleUrl,
+    submissionType,
+    submissionContent,
+  };
+}
+
+function buildQuickActionsKeyboard(
+  settings: Pick<TelegramSettings, 'combineUrlsAsSingle' | 'interfaceLanguage'>
+) {
+  const lang = settings.interfaceLanguage || 'ru';
+  const modeLabel = settings.combineUrlsAsSingle
+    ? localize(lang, '🧩 Режим: Single', '🧩 Mode: Single', '🧩 Tryb: Single')
+    : localize(lang, '📦 Режим: Batch', '📦 Mode: Batch', '📦 Tryb: Batch');
+  const modeAction = settings.combineUrlsAsSingle ? 'mode:batch' : 'mode:single';
+  const reloadLabel = localize(lang, '🔄 Сброс зависших', '🔄 Reload stuck', '🔄 Reset zawieszonych');
+
+  return {
+    inline_keyboard: [
+      [
+        { text: '🇷🇺 RU', callback_data: 'lang:ru' },
+        { text: '🇬🇧 EN', callback_data: 'lang:en' },
+        { text: '🇵🇱 PL', callback_data: 'lang:pl' },
+      ],
+      [{ text: modeLabel, callback_data: modeAction }],
+      [{ text: reloadLabel, callback_data: 'reload:stale' }],
+    ],
+  };
 }
 
 function isDuplicateTelegramUpdate(updateId: number): boolean {
@@ -284,6 +369,43 @@ function getActivitySupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
+async function isDuplicateTelegramUpdatePersistent(
+  updateId: number,
+  chatId?: number,
+  userId?: number,
+  updateType?: string
+): Promise<boolean> {
+  const supabase = getActivitySupabaseClient();
+  if (!supabase) {
+    return isDuplicateTelegramUpdate(updateId);
+  }
+
+  const { error } = await supabase.from('telegram_webhook_updates').insert([
+    {
+      update_id: updateId,
+      chat_id: chatId || null,
+      user_id: userId || null,
+      update_type: updateType || null,
+      received_at: new Date().toISOString(),
+    },
+  ]);
+
+  if (!error) return false;
+
+  // Unique violation means this update was already processed.
+  if (error.code === '23505') {
+    return true;
+  }
+
+  // Missing table (migration not applied yet) -> fallback to in-memory dedup.
+  if (error.code === '42P01') {
+    return isDuplicateTelegramUpdate(updateId);
+  }
+
+  console.warn('[TelegramSimple] Failed to persist webhook update id:', error.message);
+  return isDuplicateTelegramUpdate(updateId);
+}
+
 async function logTelegramActivity(input: TelegramActivityInput): Promise<void> {
   const supabase = getActivitySupabaseClient();
   if (!supabase) return;
@@ -317,7 +439,12 @@ async function saveTelegramSettings(
   patch: Partial<
     Pick<
       TelegramSettings,
-      'contentStyle' | 'imagesCount' | 'imagesSource' | 'autoPublish' | 'interfaceLanguage'
+      | 'contentStyle'
+      | 'imagesCount'
+      | 'imagesSource'
+      | 'autoPublish'
+      | 'interfaceLanguage'
+      | 'combineUrlsAsSingle'
     >
   >,
   fallbackLanguageCode?: string
@@ -335,20 +462,33 @@ async function saveTelegramSettings(
     return merged;
   }
 
-  const { error } = await supabase
+  const basePayload = {
+    chat_id: chatId,
+    content_style: merged.contentStyle,
+    images_count: merged.imagesCount,
+    images_source: merged.imagesSource,
+    auto_publish: merged.autoPublish,
+    language: merged.interfaceLanguage,
+    updated_at: new Date().toISOString(),
+  };
+
+  let { error } = await supabase
     .from('telegram_user_preferences')
     .upsert(
       {
-        chat_id: chatId,
-        content_style: merged.contentStyle,
-        images_count: merged.imagesCount,
-        images_source: merged.imagesSource,
-        auto_publish: merged.autoPublish,
-        language: merged.interfaceLanguage,
-        updated_at: new Date().toISOString(),
+        ...basePayload,
+        combine_urls_as_single: merged.combineUrlsAsSingle,
       },
       { onConflict: 'chat_id' }
     );
+
+  // Backward compatibility if migration was not applied yet.
+  if (error && error.code === '42703') {
+    const retry = await supabase
+      .from('telegram_user_preferences')
+      .upsert(basePayload, { onConflict: 'chat_id' });
+    error = retry.error || null;
+  }
 
   if (error) {
     throw new Error(error.message || 'Failed to save settings');
@@ -368,6 +508,9 @@ function buildSettingsMessage(settings: TelegramSettings): string {
   const publicationLabel = settings.autoPublish
     ? localize(lang, 'Автоматически', 'Auto publish', 'Auto publikacja')
     : localize(lang, 'Черновик', 'Draft', 'Szkic');
+  const multiUrlModeLabel = settings.combineUrlsAsSingle
+    ? localize(lang, 'Одна статья (single)', 'One article (single)', 'Jeden artykuł (single)')
+    : localize(lang, 'Пакет (batch)', 'Batch mode', 'Tryb pakietowy');
 
   return (
     `${localize(lang, '⚙️ <b>Настройки публикации</b>', '⚙️ <b>Publishing Settings</b>', '⚙️ <b>Ustawienia publikacji</b>')}\n\n` +
@@ -375,9 +518,11 @@ function buildSettingsMessage(settings: TelegramSettings): string {
     `${localize(lang, '📝 Стиль:', '📝 Style:', '📝 Styl:')} ${escapeHtml(getStyleLabel(settings.contentStyle))}\n` +
     `${localize(lang, '🖼️ Картинок:', '🖼️ Images:', '🖼️ Obrazy:')} ${settings.imagesCount}\n` +
     `${localize(lang, '📸 Источник:', '📸 Source:', '📸 Źródło:')} ${escapeHtml(getEffectiveImageLabel(settings, lang))}\n` +
+    `${localize(lang, '🧩 Multi URL:', '🧩 Multi URL:', '🧩 Multi URL:')} ${escapeHtml(multiUrlModeLabel)}\n` +
     `${settings.autoPublish ? '✅' : '📝'} ${localize(lang, 'Публикация:', 'Publish mode:', 'Tryb publikacji:')} ${publicationLabel}\n\n` +
     `${localize(lang, '<b>Быстрые команды:</b>', '<b>Quick commands:</b>', '<b>Szybkie komendy:</b>')}\n` +
     `• /language ru|en|pl\n` +
+    `• /mode single|batch\n` +
     `• /style journalistic|keep_as_is|seo|academic|casual|technical\n` +
     `• /images 0|1|2|3\n` +
     `• /source unsplash|ai|none\n` +
@@ -411,6 +556,7 @@ async function handleQueueCommand(
     }
 
     const processing = userSubmissions.filter((item) => item.status === 'processing').length;
+    const queued = userSubmissions.filter((item) => item.status === 'queued').length;
     const published = userSubmissions.filter((item) => item.status === 'published').length;
     const failed = userSubmissions.filter((item) => item.status === 'failed').length;
 
@@ -418,7 +564,13 @@ async function handleQueueCommand(
       .slice(0, 5)
       .map((item, index) => {
         const icon =
-          item.status === 'published' ? '✅' : item.status === 'failed' ? '❌' : '⏳';
+          item.status === 'published'
+            ? '✅'
+            : item.status === 'failed'
+              ? '❌'
+              : item.status === 'queued'
+                ? '📥'
+                : '⏳';
         const typeLabel = item.submission_type === 'url' ? 'URL' : 'TEXT';
         if (item.status === 'published' && item.article_url_en) {
           return `${index + 1}. ${icon} ${typeLabel} • <a href="${item.article_url_en}">EN</a>${
@@ -435,18 +587,21 @@ async function handleQueueCommand(
         lang,
         `📊 <b>Ваш статус обработки</b>\n\n` +
           `• Всего: ${userSubmissions.length}\n` +
+          `• В очереди: ${queued}\n` +
           `• В обработке: ${processing}\n` +
           `• Успешно: ${published}\n` +
           `• Ошибки: ${failed}\n\n` +
           `🕒 <b>Последние 5:</b>\n${recentLines}`,
         `📊 <b>Your processing status</b>\n\n` +
           `• Total: ${userSubmissions.length}\n` +
+          `• Queued: ${queued}\n` +
           `• Processing: ${processing}\n` +
           `• Published: ${published}\n` +
           `• Failed: ${failed}\n\n` +
           `🕒 <b>Last 5:</b>\n${recentLines}`,
         `📊 <b>Status przetwarzania</b>\n\n` +
           `• Łącznie: ${userSubmissions.length}\n` +
+          `• W kolejce: ${queued}\n` +
           `• W trakcie: ${processing}\n` +
           `• Opublikowane: ${published}\n` +
           `• Błędy: ${failed}\n\n` +
@@ -468,10 +623,11 @@ async function handleQueueCommand(
 }
 
 async function markStaleSubmissionsAsFailed(userId: number): Promise<number> {
-  const submissions = await getTelegramSubmissions(200, 'processing');
+  const submissions = await getTelegramSubmissions(300);
   const now = Date.now();
   const stale = submissions.filter((item) => {
     if (item.user_id !== userId) return false;
+    if (!['queued', 'processing'].includes(item.status)) return false;
     if (!item.submitted_at) return false;
     const submittedAt = new Date(item.submitted_at).getTime();
     if (!Number.isFinite(submittedAt)) return false;
@@ -509,7 +665,7 @@ async function findRecentDuplicateSubmission(
     (item) =>
       item.user_id === userId &&
       item.submission_content === submissionContent &&
-      ['processing', 'published'].includes(item.status) &&
+      ['queued', 'processing', 'published'].includes(item.status) &&
       isRecentSubmission(item.submitted_at)
   );
 }
@@ -558,31 +714,19 @@ async function buildCombinedUrlContent(urls: string[], additionalContext?: strin
   };
 }
 
-async function processSubmission(input: ProcessSubmissionInput): Promise<ProcessSubmissionResult> {
+export async function processSubmission(input: ProcessSubmissionInput): Promise<ProcessSubmissionResult> {
   const startTime = Date.now();
   const normalizedText = input.rawText.trim();
-  const detectedUrls = extractUrls(normalizedText);
-  const candidateUrls = Array.from(
-    new Set(
-      [
-        ...(input.urls || []),
-        ...(input.url ? [input.url] : []),
-        ...detectedUrls,
-      ]
-        .map((url) => url.trim())
-        .filter(Boolean)
-    )
-  ).slice(0, MAX_BATCH_URLS);
-  const combineUrlsAsSingle = Boolean(input.combineUrlsAsSingle && candidateUrls.length > 1);
-  const additionalContext = (input.additionalContext || extractAdditionalContext(normalizedText, candidateUrls)).trim();
-  const singleUrl = candidateUrls[0] || null;
-  const submissionType: 'url' | 'text' = singleUrl ? 'url' : 'text';
-  const submissionContent = (
-    combineUrlsAsSingle
-      ? `single:${candidateUrls.join('|')}${additionalContext ? `|context:${additionalContext}` : ''}`
-      : singleUrl || normalizedText
-  ).slice(0, 8000);
-  let submissionId: number | null = null;
+  const meta = buildSubmissionMeta(input);
+  const {
+    candidateUrls,
+    combineUrlsAsSingle,
+    additionalContext,
+    singleUrl,
+    submissionType,
+    submissionContent,
+  } = meta;
+  let submissionId: number | null = input.existingSubmissionId || null;
 
   try {
     const settings = input.settingsOverride || (await loadTelegramSettings(input.chatId, input.languageCode));
@@ -619,78 +763,92 @@ async function processSubmission(input: ProcessSubmissionInput): Promise<Process
       };
     }
 
-    const duplicate = await findRecentDuplicateSubmission(input.userId, submissionContent);
-    if (duplicate) {
-      const durationMs = Date.now() - startTime;
-      if (duplicate.status === 'processing') {
-        if (input.sendResultMessage !== false) {
-          await sendTelegramMessage(
-            input.chatId,
-            localize(
-              uiLang,
-              '⏳ <b>Запрос уже обрабатывается</b>\n\nПодождите завершения или используйте /queue.',
-              '⏳ <b>This request is already processing</b>\n\nPlease wait or use /queue.',
-              '⏳ <b>To żądanie jest już przetwarzane</b>\n\nPoczekaj lub użyj /queue.'
-            )
-          );
+    if (!input.skipDuplicateCheck && !submissionId) {
+      const duplicate = await findRecentDuplicateSubmission(input.userId, submissionContent);
+      if (duplicate) {
+        const durationMs = Date.now() - startTime;
+        if (['queued', 'processing'].includes(duplicate.status)) {
+          if (input.sendResultMessage !== false) {
+            await sendTelegramMessage(
+              input.chatId,
+              localize(
+                uiLang,
+                '⏳ <b>Запрос уже в очереди/обработке</b>\n\nПодождите завершения или используйте /queue.',
+                '⏳ <b>This request is already queued/processing</b>\n\nPlease wait or use /queue.',
+                '⏳ <b>To żądanie jest już w kolejce lub w trakcie</b>\n\nPoczekaj lub użyj /queue.'
+              )
+            );
+          }
+
+          return {
+            success: false,
+            submissionId: duplicate.id || null,
+            submissionType,
+            error: 'Duplicate processing request',
+            durationMs,
+          };
         }
 
-        return {
-          success: false,
-          submissionId: duplicate.id || null,
-          submissionType,
-          error: 'Duplicate processing request',
-          durationMs,
-        };
-      }
+        if (duplicate.status === 'published' && duplicate.article_url_en) {
+          if (input.sendResultMessage !== false) {
+            await sendTelegramMessage(
+              input.chatId,
+              localize(
+                uiLang,
+                `✅ <b>Уже обработано</b>\n\n` +
+                  `🔗 EN: ${duplicate.article_url_en}\n` +
+                  `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`,
+                `✅ <b>Already processed</b>\n\n` +
+                  `🔗 EN: ${duplicate.article_url_en}\n` +
+                  `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`,
+                `✅ <b>Już przetworzone</b>\n\n` +
+                  `🔗 EN: ${duplicate.article_url_en}\n` +
+                  `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`
+              )
+            );
+          }
 
-      if (duplicate.status === 'published' && duplicate.article_url_en) {
-        if (input.sendResultMessage !== false) {
-          await sendTelegramMessage(
-            input.chatId,
-            localize(
-              uiLang,
-              `✅ <b>Уже обработано</b>\n\n` +
-                `🔗 EN: ${duplicate.article_url_en}\n` +
-                `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`,
-              `✅ <b>Already processed</b>\n\n` +
-                `🔗 EN: ${duplicate.article_url_en}\n` +
-                `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`,
-              `✅ <b>Już przetworzone</b>\n\n` +
-                `🔗 EN: ${duplicate.article_url_en}\n` +
-                `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`
-            )
-          );
+          return {
+            success: true,
+            submissionId: duplicate.id || null,
+            submissionType,
+            enUrl: duplicate.article_url_en,
+            plUrl: duplicate.article_url_pl,
+            durationMs,
+          };
         }
-
-        return {
-          success: true,
-          submissionId: duplicate.id || null,
-          submissionType,
-          enUrl: duplicate.article_url_en,
-          plUrl: duplicate.article_url_pl,
-          durationMs,
-        };
       }
     }
 
-    submissionId = await createTelegramSubmission({
-      user_id: input.userId,
-      username: input.username,
-      first_name: input.firstName,
-      last_name: input.lastName,
-      submission_type: submissionType,
-      submission_content: submissionContent,
-      status: 'processing',
-      language: settings.interfaceLanguage,
-    });
+    if (submissionId) {
+      await updateTelegramSubmission(submissionId, {
+        status: 'processing',
+        error_message: '',
+        error_details: {},
+      });
+    } else {
+      submissionId = await createTelegramSubmission({
+        user_id: input.userId,
+        username: input.username,
+        first_name: input.firstName,
+        last_name: input.lastName,
+        submission_type: submissionType,
+        submission_content: submissionContent,
+        status: 'processing',
+        language: settings.interfaceLanguage,
+      });
+    }
 
     await logTelegramActivity({
       chatId: input.chatId,
       username: input.username,
       firstName: input.firstName,
       action: 'parse',
-      actionLabel: singleUrl ? 'Received URL from Telegram' : 'Received text from Telegram',
+      actionLabel: submissionId && input.existingSubmissionId
+        ? 'Started queued Telegram submission'
+        : singleUrl
+          ? 'Received URL from Telegram'
+          : 'Received text from Telegram',
       entityType: 'article',
       entityId: submissionId ? String(submissionId) : undefined,
       metadata: {
@@ -903,6 +1061,222 @@ async function processSubmission(input: ProcessSubmissionInput): Promise<Process
   }
 }
 
+async function enqueueSubmission(input: ProcessSubmissionInput): Promise<ProcessSubmissionResult> {
+  const startTime = Date.now();
+  const normalizedText = input.rawText.trim();
+  const meta = buildSubmissionMeta(input);
+  const {
+    candidateUrls,
+    combineUrlsAsSingle,
+    additionalContext,
+    singleUrl,
+    submissionType,
+    submissionContent,
+  } = meta;
+
+  const settings =
+    input.settingsOverride || (await loadTelegramSettings(input.chatId, input.languageCode));
+  const uiLang = settings.interfaceLanguage || getLanguageFromTelegramCode(input.languageCode);
+
+  if (!singleUrl && normalizedText.length < 100) {
+    if (input.sendResultMessage !== false) {
+      await sendTelegramMessage(
+        input.chatId,
+        localize(
+          uiLang,
+          `📝 <b>Текст слишком короткий</b>\n\nМинимум: 100 символов`,
+          `📝 <b>Text is too short</b>\n\nMinimum: 100 characters`,
+          `📝 <b>Tekst jest za krótki</b>\n\nMinimum: 100 znaków`
+        )
+      );
+    }
+
+    return {
+      success: false,
+      submissionId: null,
+      submissionType,
+      error: 'Text is too short',
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  const duplicate = await findRecentDuplicateSubmission(input.userId, submissionContent);
+  if (duplicate) {
+    const durationMs = Date.now() - startTime;
+    if (['queued', 'processing'].includes(duplicate.status)) {
+      if (input.sendResultMessage !== false) {
+        await sendTelegramMessage(
+          input.chatId,
+          localize(
+            uiLang,
+            '⏳ <b>Запрос уже в очереди/обработке</b>\n\nИспользуйте /queue для статуса.',
+            '⏳ <b>This request is already queued/processing</b>\n\nUse /queue for status.',
+            '⏳ <b>To żądanie jest już w kolejce lub w trakcie</b>\n\nUżyj /queue, aby sprawdzić status.'
+          )
+        );
+      }
+      return {
+        success: false,
+        submissionId: duplicate.id || null,
+        submissionType,
+        error: 'Duplicate processing request',
+        durationMs,
+      };
+    }
+    if (duplicate.status === 'published' && duplicate.article_url_en) {
+      if (input.sendResultMessage !== false) {
+        await sendTelegramMessage(
+          input.chatId,
+          localize(
+            uiLang,
+            `✅ <b>Уже обработано</b>\n\n🔗 EN: ${duplicate.article_url_en}`,
+            `✅ <b>Already processed</b>\n\n🔗 EN: ${duplicate.article_url_en}`,
+            `✅ <b>Już przetworzone</b>\n\n🔗 EN: ${duplicate.article_url_en}`
+          )
+        );
+      }
+      return {
+        success: true,
+        submissionId: duplicate.id || null,
+        submissionType,
+        enUrl: duplicate.article_url_en,
+        plUrl: duplicate.article_url_pl,
+        durationMs,
+      };
+    }
+  }
+
+  let submissionId = await createTelegramSubmission({
+    user_id: input.userId,
+    username: input.username,
+    first_name: input.firstName,
+    last_name: input.lastName,
+    submission_type: submissionType,
+    submission_content: submissionContent,
+    status: 'queued',
+    language: settings.interfaceLanguage,
+  });
+
+  // Backward compatibility if DB status check does not include "queued" yet.
+  if (!submissionId) {
+    submissionId = await createTelegramSubmission({
+      user_id: input.userId,
+      username: input.username,
+      first_name: input.firstName,
+      last_name: input.lastName,
+      submission_type: submissionType,
+      submission_content: submissionContent,
+      status: 'processing',
+      language: settings.interfaceLanguage,
+    });
+  }
+
+  if (!submissionId) {
+    return {
+      success: false,
+      submissionId: null,
+      submissionType,
+      error: 'Failed to create queued submission',
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  const payload: TelegramSimpleQueuePayload = {
+    chatId: input.chatId,
+    userId: input.userId,
+    username: input.username,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    languageCode: input.languageCode,
+    rawText: normalizedText,
+    url: singleUrl || undefined,
+    urls: candidateUrls,
+    combineUrlsAsSingle,
+    additionalContext,
+    settingsOverride: settings,
+    existingSubmissionId: submissionId,
+    sendProgressMessage: input.sendProgressMessage ?? true,
+    sendResultMessage: input.sendResultMessage ?? true,
+  };
+
+  const jobId = await enqueueTelegramSimpleJob(payload, 2);
+  if (!jobId) {
+    await updateTelegramSubmission(submissionId, {
+      status: 'failed',
+      error_message: 'Queue insertion failed',
+    });
+    return {
+      success: false,
+      submissionId,
+      submissionType,
+      error: 'Queue insertion failed',
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  await logTelegramActivity({
+    chatId: input.chatId,
+    username: input.username,
+    firstName: input.firstName,
+    action: 'parse',
+    actionLabel: 'Queued Telegram submission',
+    entityType: 'queue',
+    entityId: jobId,
+    metadata: {
+      source: 'telegram-simple',
+      submissionId,
+      jobId,
+      submissionType,
+      combineUrlsAsSingle,
+      sourceUrlsCount: candidateUrls.length,
+      status: 'queued',
+    },
+  });
+
+  if (input.sendResultMessage !== false) {
+    await sendTelegramMessage(
+      input.chatId,
+      localize(
+        uiLang,
+        `📥 <b>Добавлено в очередь</b>\n\n` +
+          `ID: <code>${jobId}</code>\n` +
+          `Проверьте прогресс через /queue.`,
+        `📥 <b>Queued for processing</b>\n\n` +
+          `ID: <code>${jobId}</code>\n` +
+          `Track progress with /queue.`,
+        `📥 <b>Dodano do kolejki</b>\n\n` +
+          `ID: <code>${jobId}</code>\n` +
+          `Sprawdź postęp przez /queue.`
+      )
+    );
+  }
+
+  return {
+    success: true,
+    queued: true,
+    jobId,
+    submissionId,
+    submissionType,
+    durationMs: Date.now() - startTime,
+  };
+}
+
+function triggerTelegramSimpleWorker(request: NextRequest): void {
+  const origin = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://app.icoffio.com';
+  const workerSecret = process.env.TELEGRAM_WORKER_SECRET || process.env.CRON_SECRET;
+  const headers: Record<string, string> = {};
+  if (workerSecret) {
+    headers.Authorization = `Bearer ${workerSecret}`;
+  }
+
+  fetch(`${origin}/api/telegram-simple/worker`, {
+    method: 'POST',
+    headers,
+  }).catch((error) => {
+    console.warn('[TelegramSimple] Failed to trigger worker:', error);
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!verifyTelegramRequest(request)) {
@@ -916,9 +1290,132 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 });
     }
 
+    const callbackQuery = update.callback_query;
+    const callbackChatId = Number(callbackQuery?.message?.chat?.id || 0) || undefined;
+    const callbackUserId = Number(callbackQuery?.from?.id || 0) || undefined;
+    const messageChatId =
+      Number(update?.message?.chat?.id || update?.channel_post?.chat?.id || 0) || undefined;
+    const messageUserId =
+      Number(update?.message?.from?.id || update?.channel_post?.from?.id || 0) || undefined;
+
     const updateId = Number(update?.update_id);
-    if (Number.isInteger(updateId) && isDuplicateTelegramUpdate(updateId)) {
+    if (
+      Number.isInteger(updateId) &&
+      (await isDuplicateTelegramUpdatePersistent(
+        updateId,
+        callbackChatId || messageChatId,
+        callbackUserId || messageUserId,
+        callbackQuery ? 'callback_query' : 'message'
+      ))
+    ) {
       return NextResponse.json({ ok: true, message: 'Duplicate update ignored' });
+    }
+
+    if (callbackQuery?.message?.chat?.id) {
+      const chatId = Number(callbackQuery.message.chat.id);
+      const userId = callbackQuery.from?.id || chatId;
+      const username = callbackQuery.from?.username;
+      const firstName = callbackQuery.from?.first_name;
+      const languageCode = callbackQuery.from?.language_code;
+      const settings = await loadTelegramSettings(chatId, languageCode);
+      const uiLang = settings.interfaceLanguage || getLanguageFromTelegramCode(languageCode);
+      const callbackData = String(callbackQuery.data || '');
+
+      if (callbackData.startsWith('lang:')) {
+        const selectedLanguage = normalizeInterfaceLanguage(callbackData.replace('lang:', ''));
+        if (selectedLanguage) {
+          const updated = await saveTelegramSettings(
+            chatId,
+            { interfaceLanguage: selectedLanguage },
+            languageCode
+          );
+          await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+            reply_markup: buildQuickActionsKeyboard(updated),
+          });
+          await answerCallbackQuery(
+            callbackQuery.id,
+            localize(
+              updated.interfaceLanguage,
+              'Язык обновлен',
+              'Language updated',
+              'Zaktualizowano język'
+            )
+          );
+        } else {
+          await answerCallbackQuery(
+            callbackQuery.id,
+            localize(uiLang, 'Некорректный язык', 'Invalid language', 'Nieprawidłowy język')
+          );
+        }
+
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      if (callbackData.startsWith('mode:')) {
+        const modeValue = callbackData.replace('mode:', '');
+        const combineUrlsAsSingle = normalizeCombineMode(modeValue);
+        if (combineUrlsAsSingle === null) {
+          await answerCallbackQuery(
+            callbackQuery.id,
+            localize(uiLang, 'Некорректный режим', 'Invalid mode', 'Nieprawidłowy tryb')
+          );
+          return NextResponse.json({ ok: true, callback: callbackData });
+        }
+
+        const updated = await saveTelegramSettings(
+          chatId,
+          { combineUrlsAsSingle },
+          languageCode
+        );
+        await logTelegramActivity({
+          chatId,
+          username,
+          firstName,
+          action: 'parse',
+          actionLabel: 'Updated Telegram multi URL mode',
+          entityType: 'settings',
+          metadata: {
+            source: 'telegram-simple',
+            combineUrlsAsSingle,
+            trigger: 'callback_query',
+          },
+        });
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+          reply_markup: buildQuickActionsKeyboard(updated),
+        });
+        await answerCallbackQuery(
+          callbackQuery.id,
+          combineUrlsAsSingle
+            ? localize(updated.interfaceLanguage, 'Single режим включен', 'Single mode enabled', 'Włączono tryb single')
+            : localize(updated.interfaceLanguage, 'Batch режим включен', 'Batch mode enabled', 'Włączono tryb batch')
+        );
+
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      if (callbackData === 'reload:stale') {
+        const resetCount = await markStaleSubmissionsAsFailed(userId);
+        await sendTelegramMessage(
+          chatId,
+          localize(
+            uiLang,
+            `🔄 <b>Сброшено задач:</b> ${resetCount}\nПроверьте /queue.`,
+            `🔄 <b>Reset jobs:</b> ${resetCount}\nCheck /queue.`,
+            `🔄 <b>Zresetowane zadania:</b> ${resetCount}\nSprawdź /queue.`
+          )
+        );
+        await answerCallbackQuery(
+          callbackQuery.id,
+          localize(uiLang, 'Сброс выполнен', 'Reload complete', 'Przeładowanie zakończone')
+        );
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      await answerCallbackQuery(
+        callbackQuery.id,
+        localize(uiLang, 'Команда не распознана', 'Unknown action', 'Nieznana akcja')
+      );
+      return NextResponse.json({ ok: true, callback: callbackData });
     }
 
     if (update.edited_message || update.edited_channel_post) {
@@ -972,6 +1469,7 @@ export async function POST(request: NextRequest) {
             `/settings - Твои настройки\n` +
             `/queue - История и статус\n` +
             `/language ru|en|pl - Язык интерфейса\n` +
+            `/mode single|batch - Режим multi URL\n` +
             `/reload - Сброс зависших задач\n` +
             `/help - Справка`,
           `🤖 <b>Hello! I'm icoffio Bot</b>\n\n` +
@@ -982,6 +1480,7 @@ export async function POST(request: NextRequest) {
             `/settings - Your settings\n` +
             `/queue - History and status\n` +
             `/language ru|en|pl - Interface language\n` +
+            `/mode single|batch - Multi URL mode\n` +
             `/reload - Reset stuck jobs\n` +
             `/help - Help`,
           `🤖 <b>Cześć! Jestem icoffio Bot</b>\n\n` +
@@ -992,8 +1491,21 @@ export async function POST(request: NextRequest) {
             `/settings - Twoje ustawienia\n` +
             `/queue - Historia i status\n` +
             `/language ru|en|pl - Język interfejsu\n` +
+            `/mode single|batch - Tryb multi URL\n` +
             `/reload - Reset zawieszonych zadań\n` +
             `/help - Pomoc`
+        );
+        await sendTelegramMessage(
+          chatId,
+          localize(
+            settings.interfaceLanguage,
+            '⚡ Быстрые кнопки:',
+            '⚡ Quick actions:',
+            '⚡ Szybkie akcje:'
+          ),
+          {
+            reply_markup: buildQuickActionsKeyboard(settings),
+          }
         );
         return NextResponse.json({ ok: true });
       }
@@ -1011,6 +1523,7 @@ export async function POST(request: NextRequest) {
             `/settings\n` +
             `/queue (или /status)\n` +
             `/language ru|en|pl\n` +
+            `/mode single|batch\n` +
             `/style &lt;value&gt;\n` +
             `/images &lt;0-3&gt;\n` +
             `/source &lt;unsplash|ai|none&gt;\n` +
@@ -1028,6 +1541,7 @@ export async function POST(request: NextRequest) {
             `/settings\n` +
             `/queue (or /status)\n` +
             `/language ru|en|pl\n` +
+            `/mode single|batch\n` +
             `/style &lt;value&gt;\n` +
             `/images &lt;0-3&gt;\n` +
             `/source &lt;unsplash|ai|none&gt;\n` +
@@ -1045,6 +1559,7 @@ export async function POST(request: NextRequest) {
             `/settings\n` +
             `/queue (lub /status)\n` +
             `/language ru|en|pl\n` +
+            `/mode single|batch\n` +
             `/style &lt;value&gt;\n` +
             `/images &lt;0-3&gt;\n` +
             `/source &lt;unsplash|ai|none&gt;\n` +
@@ -1056,7 +1571,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (command === '/settings') {
-        await sendTelegramMessage(chatId, buildSettingsMessage(settings));
+        await sendTelegramMessage(chatId, buildSettingsMessage(settings), {
+          reply_markup: buildQuickActionsKeyboard(settings),
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -1104,7 +1621,63 @@ export async function POST(request: NextRequest) {
           metadata: { source: 'telegram-simple', interfaceLanguage: updated.interfaceLanguage },
         });
 
-        await sendTelegramMessage(chatId, buildSettingsMessage(updated));
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+          reply_markup: buildQuickActionsKeyboard(updated),
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (command === '/mode') {
+        if (!firstArg) {
+          await sendLocalized(
+            `🧩 <b>Режим multi URL</b>\n\n` +
+              `single — несколько URL как одна статья\n` +
+              `batch — каждый URL как отдельная статья\n\n` +
+              `Пример: <code>/mode single</code>`,
+            `🧩 <b>Multi URL mode</b>\n\n` +
+              `single — several URLs as one article\n` +
+              `batch — each URL as separate article\n\n` +
+              `Example: <code>/mode single</code>`,
+            `🧩 <b>Tryb multi URL</b>\n\n` +
+              `single — wiele URL jako jeden artykuł\n` +
+              `batch — każdy URL jako osobny artykuł\n\n` +
+              `Przykład: <code>/mode single</code>`
+          );
+          return NextResponse.json({ ok: true });
+        }
+
+        const combineUrlsAsSingle = normalizeCombineMode(firstArg);
+        if (combineUrlsAsSingle === null) {
+          await sendLocalized(
+            '❌ Некорректный режим. Используйте: single или batch.',
+            '❌ Invalid mode. Use: single or batch.',
+            '❌ Nieprawidłowy tryb. Użyj: single albo batch.'
+          );
+          return NextResponse.json({ ok: true });
+        }
+
+        const updated = await saveTelegramSettings(
+          chatId,
+          { combineUrlsAsSingle },
+          languageCode
+        );
+        await logTelegramActivity({
+          chatId,
+          username,
+          firstName,
+          action: 'parse',
+          actionLabel: 'Updated Telegram multi URL mode',
+          entityType: 'settings',
+          metadata: {
+            source: 'telegram-simple',
+            combineUrlsAsSingle,
+            trigger: 'command',
+          },
+        });
+
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+          reply_markup: buildQuickActionsKeyboard(updated),
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -1139,7 +1712,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true });
         }
 
-        const singleResult = await processSubmission({
+        const singleResult = await enqueueSubmission({
           chatId,
           userId,
           username,
@@ -1154,6 +1727,9 @@ export async function POST(request: NextRequest) {
           sendProgressMessage: true,
           sendResultMessage: true,
         });
+        if (singleResult.success) {
+          triggerTelegramSimpleWorker(request);
+        }
 
         return NextResponse.json({
           ok: singleResult.success,
@@ -1400,13 +1976,13 @@ export async function POST(request: NextRequest) {
       await sendLocalized(
         `❓ Неизвестная команда.\n\n` +
           `Поддерживается:\n` +
-          `/help\n/settings\n/queue\n/language\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`,
+          `/help\n/settings\n/queue\n/language\n/mode\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`,
         `❓ Unknown command.\n\n` +
           `Available:\n` +
-          `/help\n/settings\n/queue\n/language\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`,
+          `/help\n/settings\n/queue\n/language\n/mode\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`,
         `❓ Nieznana komenda.\n\n` +
           `Dostępne:\n` +
-          `/help\n/settings\n/queue\n/language\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`
+          `/help\n/settings\n/queue\n/language\n/mode\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`
       );
       return NextResponse.json({ ok: true });
     }
@@ -1415,11 +1991,13 @@ export async function POST(request: NextRequest) {
     if (urls.length > 1) {
       const lowerText = text.toLowerCase();
       const singleArticleMarkers = ['#single', '#one', 'one article', 'одна статья', 'jeden artykuł'];
-      const shouldCombineIntoSingle = singleArticleMarkers.some((marker) => lowerText.includes(marker));
+      const shouldCombineIntoSingle =
+        settings.combineUrlsAsSingle ||
+        singleArticleMarkers.some((marker) => lowerText.includes(marker));
       const batchUrls = urls.slice(0, MAX_BATCH_URLS);
 
       if (shouldCombineIntoSingle) {
-        const singleResult = await processSubmission({
+        const singleResult = await enqueueSubmission({
           chatId,
           userId,
           username,
@@ -1434,6 +2012,7 @@ export async function POST(request: NextRequest) {
           sendProgressMessage: true,
           sendResultMessage: true,
         });
+        triggerTelegramSimpleWorker(request);
 
         return NextResponse.json({
           ok: singleResult.success,
@@ -1446,22 +2025,22 @@ export async function POST(request: NextRequest) {
       await sendLocalized(
         `📦 <b>Пакетная обработка</b>\n\n` +
           `Получено URL: ${urls.length}\n` +
-          `В обработку: ${batchUrls.length}${urls.length > MAX_BATCH_URLS ? ` (лимит ${MAX_BATCH_URLS})` : ''}\n\n` +
-          `Начинаю обработку по очереди.`,
+          `В очередь: ${batchUrls.length}${urls.length > MAX_BATCH_URLS ? ` (лимит ${MAX_BATCH_URLS})` : ''}\n\n` +
+          `Добавляю задания в очередь.`,
         `📦 <b>Batch processing</b>\n\n` +
           `Received URLs: ${urls.length}\n` +
-          `Processing: ${batchUrls.length}${urls.length > MAX_BATCH_URLS ? ` (limit ${MAX_BATCH_URLS})` : ''}\n\n` +
-          `Starting sequential processing.`,
+          `Queued: ${batchUrls.length}${urls.length > MAX_BATCH_URLS ? ` (limit ${MAX_BATCH_URLS})` : ''}\n\n` +
+          `Adding jobs to queue.`,
         `📦 <b>Przetwarzanie pakietowe</b>\n\n` +
           `Otrzymane URL: ${urls.length}\n` +
-          `Przetwarzanie: ${batchUrls.length}${urls.length > MAX_BATCH_URLS ? ` (limit ${MAX_BATCH_URLS})` : ''}\n\n` +
-          `Rozpoczynam przetwarzanie po kolei.`
+          `W kolejce: ${batchUrls.length}${urls.length > MAX_BATCH_URLS ? ` (limit ${MAX_BATCH_URLS})` : ''}\n\n` +
+          `Dodaję zadania do kolejki.`
       );
 
       const results: Array<{ url: string; result: ProcessSubmissionResult }> = [];
       for (let index = 0; index < batchUrls.length; index++) {
         const url = batchUrls[index];
-        const result = await processSubmission({
+        const result = await enqueueSubmission({
           chatId,
           userId,
           username,
@@ -1471,25 +2050,14 @@ export async function POST(request: NextRequest) {
           rawText: url,
           url,
           settingsOverride: settings,
-          sendProgressMessage: true,
+          sendProgressMessage: false,
           sendResultMessage: false,
-          progressLabel: `[${index + 1}/${batchUrls.length}]`,
         });
         results.push({ url, result });
       }
 
       const success = results.filter((item) => item.result.success);
       const failed = results.filter((item) => !item.result.success);
-
-      const successLines = success
-        .slice(0, 5)
-        .map(
-          (item, idx) =>
-            `${idx + 1}. ✅ <a href="${item.result.enUrl}">EN</a>${
-              item.result.plUrl ? ` | <a href="${item.result.plUrl}">PL</a>` : ''
-            }`
-        )
-        .join('\n');
       const failedLines = failed
         .slice(0, 5)
         .map(
@@ -1499,36 +2067,36 @@ export async function POST(request: NextRequest) {
         .join('\n');
 
       await sendLocalized(
-        `📊 <b>Пакет завершен</b>\n\n` +
+        `📊 <b>Пакет поставлен в очередь</b>\n\n` +
           `• Всего: ${batchUrls.length}\n` +
-          `• Успешно: ${success.length}\n` +
-          `• С ошибкой: ${failed.length}\n\n` +
-          `${successLines ? `✅ <b>Ссылки:</b>\n${successLines}\n\n` : ''}` +
+          `• В очереди: ${success.length}\n` +
+          `• Ошибки валидации: ${failed.length}\n\n` +
           `${failedLines ? `❌ <b>Ошибки:</b>\n${failedLines}` : ''}`,
-        `📊 <b>Batch complete</b>\n\n` +
+        `📊 <b>Batch queued</b>\n\n` +
           `• Total: ${batchUrls.length}\n` +
-          `• Success: ${success.length}\n` +
-          `• Failed: ${failed.length}\n\n` +
-          `${successLines ? `✅ <b>Links:</b>\n${successLines}\n\n` : ''}` +
+          `• Queued: ${success.length}\n` +
+          `• Validation failures: ${failed.length}\n\n` +
           `${failedLines ? `❌ <b>Errors:</b>\n${failedLines}` : ''}`,
-        `📊 <b>Pakiet zakończony</b>\n\n` +
+        `📊 <b>Pakiet dodany do kolejki</b>\n\n` +
           `• Łącznie: ${batchUrls.length}\n` +
-          `• Sukces: ${success.length}\n` +
-          `• Błędy: ${failed.length}\n\n` +
-          `${successLines ? `✅ <b>Linki:</b>\n${successLines}\n\n` : ''}` +
+          `• W kolejce: ${success.length}\n` +
+          `• Błędy walidacji: ${failed.length}\n\n` +
           `${failedLines ? `❌ <b>Błędy:</b>\n${failedLines}` : ''}`
       );
+      if (success.length > 0) {
+        triggerTelegramSimpleWorker(request);
+      }
 
       return NextResponse.json({
         ok: true,
         batch: true,
         total: batchUrls.length,
-        success: success.length,
+        queued: success.length,
         failed: failed.length,
       });
     }
 
-    const singleResult = await processSubmission({
+    const singleResult = await enqueueSubmission({
       chatId,
       userId,
       username,
@@ -1540,6 +2108,9 @@ export async function POST(request: NextRequest) {
       sendProgressMessage: true,
       sendResultMessage: true,
     });
+    if (singleResult.success) {
+      triggerTelegramSimpleWorker(request);
+    }
 
     return NextResponse.json({
       ok: singleResult.success,
@@ -1563,7 +2134,7 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     service: 'telegram-simple-webhook',
-    version: '1.4.0',
+    version: '1.5.0',
     timestamp: new Date().toISOString(),
   });
 }

@@ -187,7 +187,7 @@ export interface TelegramSubmission {
   last_name?: string;
   submission_type: 'url' | 'text';
   submission_content: string;
-  status: 'processing' | 'published' | 'failed';
+  status: 'queued' | 'processing' | 'published' | 'failed';
   article_slug_en?: string;
   article_slug_pl?: string;
   article_url_en?: string;
@@ -269,7 +269,7 @@ export async function updateTelegramSubmission(
  */
 export async function getTelegramSubmissions(
   limit: number = 50,
-  status?: 'processing' | 'published' | 'failed'
+  status?: 'queued' | 'processing' | 'published' | 'failed'
 ): Promise<TelegramSubmission[]> {
   const client = getSupabaseClient();
   if (!client) return [];

@@ -43,6 +43,7 @@ COMMANDS_EN='[
   {"command": "queue", "description": "My processing history"},
   {"command": "status", "description": "Alias for /queue"},
   {"command": "language", "description": "Set interface language"},
+  {"command": "mode", "description": "Set multi-URL mode"},
   {"command": "style", "description": "Set writing style"},
   {"command": "images", "description": "Set number of images"},
   {"command": "source", "description": "Set image source"},
@@ -60,6 +61,7 @@ COMMANDS_RU='[
   {"command": "queue", "description": "История и статусы"},
   {"command": "status", "description": "То же, что /queue"},
   {"command": "language", "description": "Язык интерфейса"},
+  {"command": "mode", "description": "Режим multi URL"},
   {"command": "style", "description": "Стиль публикации"},
   {"command": "images", "description": "Количество картинок"},
   {"command": "source", "description": "Источник картинок"},
@@ -77,6 +79,7 @@ COMMANDS_PL='[
   {"command": "queue", "description": "Historia i statusy"},
   {"command": "status", "description": "To samo co /queue"},
   {"command": "language", "description": "Język interfejsu"},
+  {"command": "mode", "description": "Tryb multi URL"},
   {"command": "style", "description": "Styl publikacji"},
   {"command": "images", "description": "Liczba obrazów"},
   {"command": "source", "description": "Źródło obrazów"},
@@ -143,7 +146,6 @@ echo "  1. Open your Telegram bot"
 echo "  2. Click the menu button (/) or hamburger icon"
 echo "  3. See all available commands"
 echo ""
-
 
 
 

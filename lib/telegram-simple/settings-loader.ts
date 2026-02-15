@@ -48,6 +48,7 @@ export async function loadTelegramSettings(
     imagesSource: 'unsplash',
     autoPublish: true,
     interfaceLanguage: fallbackLanguage,
+    combineUrlsAsSingle: false,
   };
 
   if (!supabase) {
@@ -97,6 +98,8 @@ export async function loadTelegramSettings(
       interfaceLanguage: normalizeInterfaceLanguage(
         resolvedSettings?.language || defaultSettings.interfaceLanguage
       ),
+      combineUrlsAsSingle:
+        resolvedSettings?.combine_urls_as_single ?? defaultSettings.combineUrlsAsSingle,
     };
 
     console.log('[SettingsLoader] ✅ Loaded settings:', settings);

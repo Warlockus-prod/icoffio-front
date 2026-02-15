@@ -1,7 +1,7 @@
 /**
- * TELEGRAM SIMPLE - NOTIFIER v2.0
- * 
- * Отправка сообщений и inline-клавиатур в Telegram
+ * TELEGRAM SIMPLE - NOTIFIER v2.1
+ *
+ * Sending messages and callback answers to Telegram.
  */
 
 export interface InlineButton {
@@ -10,7 +10,7 @@ export interface InlineButton {
 }
 
 /**
- * Send message to Telegram chat (with optional inline keyboard)
+ * Send message to Telegram chat (supports inline keyboard)
  */
 export async function sendTelegramMessage(
   chatId: number,
@@ -54,7 +54,6 @@ export async function sendTelegramMessage(
     }
 
     return true;
-
   } catch (error) {
     console.error('[TelegramSimple] Error sending message:', error);
     return false;
@@ -62,17 +61,14 @@ export async function sendTelegramMessage(
 }
 
 /**
- * Answer a callback query (dismiss "loading" indicator on button)
+ * Answer callback query to stop Telegram loading spinner
  */
-export async function answerCallbackQuery(
-  callbackQueryId: string,
-  text?: string
-): Promise<boolean> {
+export async function answerCallbackQuery(callbackQueryId: string, text?: string): Promise<boolean> {
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) return false;
 
-    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+    const response = await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -81,50 +77,8 @@ export async function answerCallbackQuery(
       }),
     });
 
-    return true;
+    return response.ok;
   } catch {
     return false;
   }
 }
-
-/**
- * Edit an existing message (e.g. to remove inline keyboard after selection)
- */
-export async function editTelegramMessage(
-  chatId: number,
-  messageId: number,
-  text: string,
-  options?: {
-    parse_mode?: 'HTML' | 'Markdown';
-    reply_markup?: {
-      inline_keyboard: InlineButton[][];
-    };
-  }
-): Promise<boolean> {
-  try {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) return false;
-
-    const body: Record<string, unknown> = {
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      parse_mode: options?.parse_mode || 'HTML',
-    };
-
-    if (options?.reply_markup) {
-      body.reply_markup = options.reply_markup;
-    }
-
-    await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-

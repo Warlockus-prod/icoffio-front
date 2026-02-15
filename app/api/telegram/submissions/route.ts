@@ -4,7 +4,7 @@
  * GET /api/telegram/submissions
  * Query params:
  * - limit: number (default: 50)
- * - status: 'processing' | 'published' | 'failed' (optional)
+ * - status: 'queued' | 'processing' | 'published' | 'failed' (optional)
  * 
  * Returns list of telegram submissions with full details
  */
@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     const limit = parseInt(searchParams.get('limit') || '50');
-    const status = searchParams.get('status') as 'processing' | 'published' | 'failed' | undefined;
+    const status = searchParams.get('status') as
+      | 'queued'
+      | 'processing'
+      | 'published'
+      | 'failed'
+      | undefined;
 
     // Validate limit
     if (limit < 1 || limit > 200) {
@@ -31,9 +36,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate status
-    if (status && !['processing', 'published', 'failed'].includes(status)) {
+    if (status && !['queued', 'processing', 'published', 'failed'].includes(status)) {
       return NextResponse.json(
-        { error: 'Invalid status. Must be: processing, published, or failed' },
+        { error: 'Invalid status. Must be: queued, processing, published, or failed' },
         { status: 400 }
       );
     }
@@ -44,6 +49,7 @@ export async function GET(request: NextRequest) {
     // Calculate stats
     const stats = {
       total: submissions.length,
+      queued: submissions.filter(s => s.status === 'queued').length,
       processing: submissions.filter(s => s.status === 'processing').length,
       published: submissions.filter(s => s.status === 'published').length,
       failed: submissions.filter(s => s.status === 'failed').length,
@@ -75,7 +81,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 
 
 

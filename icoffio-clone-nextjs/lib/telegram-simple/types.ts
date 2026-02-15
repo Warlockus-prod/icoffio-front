@@ -53,4 +53,5 @@ export interface TelegramSettings {
   imagesSource: ImagesSource;
   autoPublish: boolean;
   interfaceLanguage: InterfaceLanguage;
+  combineUrlsAsSingle: boolean;
 }

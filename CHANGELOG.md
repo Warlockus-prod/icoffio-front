@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.20] - 2026-02-15 - 🤖 Telegram Persistent Queue Worker + DB Idempotency + Inline Actions
+
+### 🎯 Что сделано
+- Тяжелая обработка Telegram webhook переведена в персистентную очередь (`telegram_jobs`) с отдельным worker endpoint.
+- Добавлена персистентная идемпотентность по `update_id` в БД (таблица `telegram_webhook_updates`), чтобы исключить повторную обработку retry updates.
+- Добавлены inline кнопки в боте для:
+  - смены языка (`RU/EN/PL`)
+  - переключения multi-URL режима (`single/batch`)
+  - сброса зависших задач (`reload`)
+- Добавлен дефолт-переключатель multi-URL режима в настройки (`combineUrlsAsSingle`) в API, loader, админке и Telegram settings.
+
+### 🔧 Реализация
+- `app/api/telegram-simple/webhook/route.ts`
+  - callback_query обработка с inline actions;
+  - enqueue flow вместо тяжелой синхронной обработки в webhook;
+  - best-effort trigger worker после постановки в очередь;
+  - DB idempotency fallback на memory dedup;
+  - новая версия health: `1.5.0`.
+- `app/api/telegram-simple/worker/route.ts`
+  - новый queue worker endpoint (GET/POST);
+  - claim/retry/stale recycle jobs;
+  - обработка queued задач через существующий pipeline `processSubmission`.
+- `lib/telegram-simple/job-queue.ts`
+  - enqueue/claim/complete/fail/recycle API для `telegram_jobs`.
+- `supabase/migrations/20260215_telegram_worker_queue_and_idempotency.sql`
+  - новая таблица `telegram_webhook_updates`;
+  - новое поле `telegram_user_preferences.combine_urls_as_single`;
+  - расширение status-check `telegram_submissions` для `queued`.
+- `app/api/telegram/settings/route.ts`, `lib/telegram-simple/settings-loader.ts`, `lib/telegram-simple/types.ts`, `components/admin/TelegramSettings.tsx`
+  - поддержка `combineUrlsAsSingle`.
+- `app/api/telegram/submissions/route.ts`, `lib/supabase-analytics.ts`
+  - поддержка статуса `queued`.
+- `lib/telegram-simple/telegram-notifier.ts`
+  - поддержка inline keyboard + `answerCallbackQuery`.
+- `scripts/setup-telegram-menu.sh`
+  - добавлена команда `/mode`.
+- `vercel.json`
+  - добавлен cron запуск worker: `*/1 * * * *`.
+- `package.json`, `package-lock.json`, `icoffio-clone-nextjs/package.json`, `icoffio-clone-nextjs/package-lock.json`
+  - версия обновлена до `8.6.20`.
+
 ## [8.6.19] - 2026-02-15 - 🤖 Telegram Stability + Multi-URL Single Article + Language Controls
 
 ### 🎯 Что исправлено и улучшено

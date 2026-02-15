@@ -40,7 +40,7 @@ interface TelegramSubmission {
   username?: string;
   first_name?: string;
   submission_type: 'url' | 'text';
-  status: 'processing' | 'published' | 'failed';
+  status: 'queued' | 'processing' | 'published' | 'failed';
   submitted_at?: string;
   processed_at?: string;
   processing_time_ms?: number;
@@ -62,6 +62,7 @@ export function TelegramSettings() {
     imagesSource: 'unsplash',
     autoPublish: true,
     interfaceLanguage: 'ru',
+    combineUrlsAsSingle: false,
   });
 
   // Load settings on mount
@@ -150,6 +151,9 @@ export function TelegramSettings() {
   };
 
   const getStatusBadge = (status: TelegramSubmission['status']) => {
+    if (status === 'queued') {
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+    }
     if (status === 'published') {
       return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
     }
@@ -159,6 +163,7 @@ export function TelegramSettings() {
     return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
   };
 
+  const queuedCount = submissions.filter((item) => item.status === 'queued').length;
   const publishedCount = submissions.filter((item) => item.status === 'published').length;
   const failedCount = submissions.filter((item) => item.status === 'failed').length;
   const processingCount = submissions.filter((item) => item.status === 'processing').length;
@@ -361,6 +366,26 @@ export function TelegramSettings() {
             </div>
           </div>
         </label>
+
+        <label className="mt-4 flex items-start p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600">
+          <input
+            type="checkbox"
+            checked={settings.combineUrlsAsSingle}
+            onChange={(e) =>
+              setSettings({ ...settings, combineUrlsAsSingle: e.target.checked })
+            }
+            className="mt-1"
+          />
+          <div className="ml-3 flex-1">
+            <div className="font-medium text-gray-900 dark:text-white">
+              🧩 Multi-URL default mode: one article
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              If enabled, a message with multiple URLs is treated as one combined article by default.
+              You can still override this in Telegram with /mode and /single.
+            </div>
+          </div>
+        </label>
       </div>
 
       {/* Save Button */}
@@ -394,10 +419,14 @@ export function TelegramSettings() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
             <div className="text-2xl font-bold text-gray-900 dark:text-white">{submissions.length}</div>
             <div className="text-xs text-gray-600 dark:text-gray-400">Total</div>
+          </div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{queuedCount}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Queued</div>
           </div>
           <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">{publishedCount}</div>

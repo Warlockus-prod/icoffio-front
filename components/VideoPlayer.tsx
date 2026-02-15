@@ -187,6 +187,11 @@ export default function VideoPlayer({
 
   const dimensions = getContainerDimensions();
   const outstreamMinHeight = 'height' in dimensions ? dimensions.height : '250px';
+  const isSidebarOutstreamPrefetch =
+    type === 'outstream' &&
+    position === 'sidebar-sticky' &&
+    !adLoaded &&
+    hasAdContent;
 
   const resolvedPoster = (() => {
     if (posterUrl) return posterUrl;
@@ -228,7 +233,17 @@ export default function VideoPlayer({
         backgroundColor: '#000',
         borderRadius: '12px',
         overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        ...(isSidebarOutstreamPrefetch
+          ? {
+              position: 'fixed',
+              left: '-10000px',
+              top: '-10000px',
+              margin: 0,
+              boxShadow: 'none',
+              borderRadius: 0,
+            }
+          : {})
       }}
       data-player-type={type}
       data-position={position}
@@ -317,15 +332,9 @@ export default function VideoPlayer({
                 data-ad-placement="video"
                 className="w-full h-full"
                 style={{
-                  minHeight: outstreamMinHeight,
-                  backgroundColor: '#f5f5f5'
+                  minHeight: outstreamMinHeight
                 }}
               />
-              {!adLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm bg-white/80 pointer-events-none">
-                  Loading advertisement...
-                </div>
-              )}
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">

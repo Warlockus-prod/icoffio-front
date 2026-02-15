@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import type { TelegramSettings } from '@/lib/telegram-simple/types';
+import type { InterfaceLanguage, TelegramSettings } from '@/lib/telegram-simple/types';
 
 function getSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,6 +18,15 @@ function getSupabase() {
   }
 
   return createClient(supabaseUrl, supabaseKey);
+}
+
+function normalizeInterfaceLanguage(raw?: string | null): InterfaceLanguage {
+  if (!raw) return 'ru';
+  const value = raw.toLowerCase();
+  if (value.startsWith('en')) return 'en';
+  if (value.startsWith('pl')) return 'pl';
+  if (value.startsWith('ru')) return 'ru';
+  return 'ru';
 }
 
 /**
@@ -56,6 +65,7 @@ export async function GET(request: NextRequest) {
       imagesCount: data?.images_count ?? 2,
       imagesSource: data?.images_source || 'unsplash',
       autoPublish: data?.auto_publish ?? true,
+      interfaceLanguage: normalizeInterfaceLanguage(data?.language || 'ru'),
     };
 
     return NextResponse.json({ success: true, settings });
@@ -76,7 +86,15 @@ export async function POST(request: NextRequest) {
   try {
     const body: TelegramSettings = await request.json();
 
-    const { chatId, contentStyle, imagesCount, imagesSource, autoPublish } = body;
+    const {
+      chatId,
+      contentStyle,
+      imagesCount,
+      imagesSource,
+      autoPublish,
+      interfaceLanguage,
+    } = body;
+    const normalizedLanguage = normalizeInterfaceLanguage(interfaceLanguage || 'ru');
 
     // Валидация
     if (!chatId) {
@@ -104,6 +122,7 @@ export async function POST(request: NextRequest) {
         images_count: imagesCount,
         images_source: imagesSource,
         auto_publish: autoPublish,
+        language: normalizedLanguage,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'chat_id',
@@ -120,6 +139,7 @@ export async function POST(request: NextRequest) {
       imagesCount,
       imagesSource,
       autoPublish,
+      interfaceLanguage: normalizedLanguage,
     });
 
     return NextResponse.json({
@@ -131,6 +151,7 @@ export async function POST(request: NextRequest) {
         imagesCount,
         imagesSource,
         autoPublish,
+        interfaceLanguage: normalizedLanguage,
       },
     });
 
@@ -142,4 +163,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

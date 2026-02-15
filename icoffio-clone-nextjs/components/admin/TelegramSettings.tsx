@@ -28,6 +28,12 @@ const IMAGE_SOURCES = [
   { value: 'none', label: 'No Images', description: 'Text only' },
 ];
 
+const INTERFACE_LANGUAGES = [
+  { value: 'ru', label: 'Русский' },
+  { value: 'en', label: 'English' },
+  { value: 'pl', label: 'Polski' },
+];
+
 interface TelegramSubmission {
   id: number;
   user_id: number;
@@ -55,6 +61,7 @@ export function TelegramSettings() {
     imagesCount: 2,
     imagesSource: 'unsplash',
     autoPublish: true,
+    interfaceLanguage: 'ru',
   });
 
   // Load settings on mount
@@ -214,6 +221,38 @@ export function TelegramSettings() {
                 </div>
               </div>
             </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Interface Language */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          🌍 Bot Interface Language
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Language for Telegram bot commands and responses.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {INTERFACE_LANGUAGES.map((lang) => (
+            <button
+              key={lang.value}
+              type="button"
+              onClick={() =>
+                setSettings({
+                  ...settings,
+                  interfaceLanguage: lang.value as TelegramSettingsType['interfaceLanguage'],
+                })
+              }
+              className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
+                settings.interfaceLanguage === lang.value
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300'
+              }`}
+            >
+              {lang.label}
+            </button>
           ))}
         </div>
       </div>

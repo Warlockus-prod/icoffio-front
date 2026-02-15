@@ -44,6 +44,7 @@ export type ContentStyle =
   | 'technical';
 
 export type ImagesSource = 'unsplash' | 'ai' | 'none';
+export type InterfaceLanguage = 'ru' | 'en' | 'pl';
 
 export interface TelegramSettings {
   chatId: number;
@@ -51,5 +52,5 @@ export interface TelegramSettings {
   imagesCount: number; // 0-3
   imagesSource: ImagesSource;
   autoPublish: boolean;
+  interfaceLanguage: InterfaceLanguage;
 }
-

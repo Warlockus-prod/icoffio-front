@@ -5,7 +5,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import type { TelegramSettings } from './types';
+import type { InterfaceLanguage, TelegramSettings } from './types';
 
 function getSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -19,13 +19,26 @@ function getSupabase() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
+function normalizeInterfaceLanguage(raw?: string | null): InterfaceLanguage {
+  if (!raw) return 'ru';
+  const value = raw.toLowerCase();
+  if (value.startsWith('en')) return 'en';
+  if (value.startsWith('pl')) return 'pl';
+  if (value.startsWith('ru')) return 'ru';
+  return 'ru';
+}
+
 /**
  * Load settings for specific chat_id
  */
-export async function loadTelegramSettings(chatId: number): Promise<TelegramSettings> {
+export async function loadTelegramSettings(
+  chatId: number,
+  fallbackLanguageCode?: string
+): Promise<TelegramSettings> {
   console.log(`[SettingsLoader] Loading settings for chat ${chatId}...`);
 
   const supabase = getSupabase();
+  const fallbackLanguage = normalizeInterfaceLanguage(fallbackLanguageCode);
   
   // Default settings (fallback)
   const defaultSettings: TelegramSettings = {
@@ -34,6 +47,7 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
     imagesCount: 2,
     imagesSource: 'unsplash',
     autoPublish: true,
+    interfaceLanguage: fallbackLanguage,
   };
 
   if (!supabase) {
@@ -80,6 +94,9 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
       imagesCount: resolvedSettings?.images_count ?? defaultSettings.imagesCount,
       imagesSource: resolvedSettings?.images_source || defaultSettings.imagesSource,
       autoPublish: resolvedSettings?.auto_publish ?? defaultSettings.autoPublish,
+      interfaceLanguage: normalizeInterfaceLanguage(
+        resolvedSettings?.language || defaultSettings.interfaceLanguage
+      ),
     };
 
     console.log('[SettingsLoader] ✅ Loaded settings:', settings);

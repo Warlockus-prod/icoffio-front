@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.19] - 2026-02-15 - 🤖 Telegram Stability + Multi-URL Single Article + Language Controls
+
+### 🎯 Что исправлено и улучшено
+- Исправлен `/help` в Telegram simple webhook (убраны HTML-ошибки из-за неэкранированных `<...>` placeholders).
+- Добавлены новые команды:
+  - `/single <url1> <url2> ...` для создания **одной статьи** из нескольких URL.
+  - `/language ru|en|pl` для выбора языка интерфейса бота.
+  - `/reload` для сброса зависших `processing` задач пользователя.
+- Добавлена защита от зацикливания обработки:
+  - дедупликация повторных Telegram updates по `update_id`;
+  - дедупликация недавних одинаковых submissions;
+  - игнор `edited_message`/`edited_channel_post`.
+- Расширена локализация ответов бота (RU/EN/PL) для настроек и служебных команд.
+- В админке и API Telegram-настроек добавлено поле языка интерфейса и его сохранение в `telegram_user_preferences.language`.
+- Обновлен Telegram menu setup script: добавлены `language`, `single`, `reload`.
+
+### 🔧 Реализация
+- `app/api/telegram-simple/webhook/route.ts`
+  - новые команды и сценарии multi-URL single article;
+  - анти-цикл/anti-duplicate защита;
+  - локализация и улучшенные статусы;
+  - версия health endpoint обновлена до `1.4.0`.
+- `app/api/telegram/settings/route.ts`
+  - чтение/запись `interfaceLanguage` в БД.
+- `lib/telegram-simple/types.ts`
+  - добавлен `InterfaceLanguage` и новое поле `interfaceLanguage`.
+- `lib/telegram-simple/settings-loader.ts`
+  - загрузка языка интерфейса с fallback по `message.from.language_code`.
+- `components/admin/TelegramSettings.tsx`
+  - добавлен выбор языка интерфейса бота.
+- `scripts/setup-telegram-menu.sh`
+  - обновлен список команд для EN/RU/PL.
+- `package.json`, `package-lock.json`, `icoffio-clone-nextjs/package.json`, `icoffio-clone-nextjs/package-lock.json`
+  - версия обновлена до `8.6.19`.
+
 ## [8.6.18] - 2026-02-15 - 🔗 Multi-Source Article Creation (URL + Text Hybrid)
 
 ### 🎯 Что сделано

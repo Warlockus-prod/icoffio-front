@@ -42,9 +42,12 @@ COMMANDS_EN='[
   {"command": "settings", "description": "Show current settings"},
   {"command": "queue", "description": "My processing history"},
   {"command": "status", "description": "Alias for /queue"},
+  {"command": "language", "description": "Set interface language"},
   {"command": "style", "description": "Set writing style"},
   {"command": "images", "description": "Set number of images"},
   {"command": "source", "description": "Set image source"},
+  {"command": "single", "description": "One article from many URLs"},
+  {"command": "reload", "description": "Reset stuck processing"},
   {"command": "autopublish", "description": "Toggle auto publish"},
   {"command": "admin", "description": "Open admin panel"}
 ]'
@@ -56,9 +59,12 @@ COMMANDS_RU='[
   {"command": "settings", "description": "Текущие настройки"},
   {"command": "queue", "description": "История и статусы"},
   {"command": "status", "description": "То же, что /queue"},
+  {"command": "language", "description": "Язык интерфейса"},
   {"command": "style", "description": "Стиль публикации"},
   {"command": "images", "description": "Количество картинок"},
   {"command": "source", "description": "Источник картинок"},
+  {"command": "single", "description": "Одна статья из нескольких URL"},
+  {"command": "reload", "description": "Сброс зависших задач"},
   {"command": "autopublish", "description": "Автопубликация on/off"},
   {"command": "admin", "description": "Открыть админку"}
 ]'
@@ -70,9 +76,12 @@ COMMANDS_PL='[
   {"command": "settings", "description": "Aktualne ustawienia"},
   {"command": "queue", "description": "Historia i statusy"},
   {"command": "status", "description": "To samo co /queue"},
+  {"command": "language", "description": "Język interfejsu"},
   {"command": "style", "description": "Styl publikacji"},
   {"command": "images", "description": "Liczba obrazów"},
   {"command": "source", "description": "Źródło obrazów"},
+  {"command": "single", "description": "Jeden artykuł z wielu URL"},
+  {"command": "reload", "description": "Reset zawieszonych zadań"},
   {"command": "autopublish", "description": "Auto publikacja on/off"},
   {"command": "admin", "description": "Otwórz panel admina"}
 ]'
@@ -134,7 +143,6 @@ echo "  1. Open your Telegram bot"
 echo "  2. Click the menu button (/) or hamburger icon"
 echo "  3. See all available commands"
 echo ""
-
 
 
 

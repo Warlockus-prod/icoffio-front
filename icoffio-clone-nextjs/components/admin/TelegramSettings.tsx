@@ -28,10 +28,27 @@ const IMAGE_SOURCES = [
   { value: 'none', label: 'No Images', description: 'Text only' },
 ];
 
+interface TelegramSubmission {
+  id: number;
+  user_id: number;
+  username?: string;
+  first_name?: string;
+  submission_type: 'url' | 'text';
+  status: 'processing' | 'published' | 'failed';
+  submitted_at?: string;
+  processed_at?: string;
+  processing_time_ms?: number;
+  article_url_en?: string;
+  article_url_pl?: string;
+  error_message?: string;
+}
+
 export function TelegramSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [chatId, setChatId] = useState('');
+  const [submissions, setSubmissions] = useState<TelegramSubmission[]>([]);
   const [settings, setSettings] = useState<TelegramSettingsType>({
     chatId: 0,
     contentStyle: 'journalistic',
@@ -42,8 +59,8 @@ export function TelegramSettings() {
 
   // Load settings on mount
   useEffect(() => {
-    // Try to get chat_id from last published article or default
     loadDefaultSettings();
+    loadRecentSubmissions();
   }, []);
 
   const loadDefaultSettings = async () => {
@@ -63,6 +80,22 @@ export function TelegramSettings() {
       console.error('Failed to load settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecentSubmissions = async () => {
+    setSubmissionsLoading(true);
+    try {
+      const response = await fetch('/api/telegram/submissions?limit=20');
+      const data = await response.json();
+
+      if (data.success && Array.isArray(data.submissions)) {
+        setSubmissions(data.submissions);
+      }
+    } catch (error) {
+      console.error('Failed to load submissions:', error);
+    } finally {
+      setSubmissionsLoading(false);
     }
   };
 
@@ -92,6 +125,36 @@ export function TelegramSettings() {
       setSaving(false);
     }
   };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return '—';
+    return new Date(value).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatDuration = (ms?: number) => {
+    if (!ms || ms <= 0) return '—';
+    return `${Math.round(ms / 1000)}s`;
+  };
+
+  const getStatusBadge = (status: TelegramSubmission['status']) => {
+    if (status === 'published') {
+      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+    }
+    if (status === 'failed') {
+      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+    }
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+  };
+
+  const publishedCount = submissions.filter((item) => item.status === 'published').length;
+  const failedCount = submissions.filter((item) => item.status === 'failed').length;
+  const processingCount = submissions.filter((item) => item.status === 'processing').length;
 
   if (loading) {
     return (
@@ -267,6 +330,118 @@ export function TelegramSettings() {
         </button>
       </div>
 
+      {/* Recent Telegram Submissions */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              📊 Recent Telegram Submissions
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Last 20 requests from Telegram bot
+            </p>
+          </div>
+          <button
+            onClick={loadRecentSubmissions}
+            disabled={submissionsLoading}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            {submissionsLoading ? '⏳ Loading...' : '🔄 Refresh'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{submissions.length}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Total</div>
+          </div>
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{publishedCount}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Published</div>
+          </div>
+          <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{failedCount}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Failed</div>
+          </div>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{processingCount}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Processing</div>
+          </div>
+        </div>
+
+        {submissionsLoading ? (
+          <div className="py-8 text-center text-gray-500 dark:text-gray-400">Loading submissions...</div>
+        ) : submissions.length === 0 ? (
+          <div className="py-8 text-center text-gray-500 dark:text-gray-400">No Telegram submissions yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 uppercase">Submitted</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400 uppercase">Links</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {submissions.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                      {item.submission_type === 'url' ? '🔗 URL' : '📝 Text'}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(item.status)}`}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                      {item.username ? `@${item.username}` : item.first_name || `user_${item.user_id}`}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                      {formatDateTime(item.submitted_at)}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                      {formatDuration(item.processing_time_ms)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {item.status === 'published' && item.article_url_en ? (
+                        <div className="flex gap-2">
+                          <a
+                            href={item.article_url_en}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                          >
+                            EN
+                          </a>
+                          {item.article_url_pl && (
+                            <a
+                              href={item.article_url_pl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                            >
+                              PL
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {item.error_message ? '❌ Error' : '—'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Info */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -277,4 +452,3 @@ export function TelegramSettings() {
     </div>
   );
 }
-

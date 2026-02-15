@@ -1,299 +1,454 @@
 /**
  * TELEGRAM SIMPLE - WEBHOOK
- * 
- * Упрощенная версия Telegram бота
- * Быстро, надежно, просто
- * 
- * @version 1.0.0
- * @date 2025-12-05
+ *
+ * Single production webhook for Telegram ingestion.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { sendTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
 import { parseUrl } from '@/lib/telegram-simple/url-parser';
 import { processText } from '@/lib/telegram-simple/content-processor';
 import { publishArticle } from '@/lib/telegram-simple/publisher';
 import { loadTelegramSettings } from '@/lib/telegram-simple/settings-loader';
+import {
+  createTelegramSubmission,
+  getTelegramSubmissions,
+  updateTelegramSubmission,
+} from '@/lib/supabase-analytics';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60; // 60 seconds max
+export const maxDuration = 60;
 
-/**
- * Main webhook handler
- */
+interface TelegramActivityInput {
+  chatId: number;
+  username?: string;
+  firstName?: string;
+  action: 'parse' | 'publish';
+  actionLabel: string;
+  entityType?: 'article' | 'image' | 'settings' | 'queue';
+  entityId?: string;
+  entityTitle?: string;
+  entityUrl?: string;
+  entityUrlPl?: string;
+  metadata?: Record<string, any>;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getStyleLabel(style: string): string {
+  const labels: Record<string, string> = {
+    journalistic: 'Journalistic',
+    keep_as_is: 'Keep As Is',
+    seo_optimized: 'SEO',
+    academic: 'Academic',
+    casual: 'Casual',
+    technical: 'Technical',
+  };
+  return labels[style] || style;
+}
+
+function extractUrl(text: string): string | null {
+  const match = text.match(/https?:\/\/[^\s<>"')]+/i);
+  return match ? match[0] : null;
+}
+
+function verifyTelegramRequest(request: NextRequest): boolean {
+  const secret = process.env.TELEGRAM_SECRET_TOKEN || process.env.TELEGRAM_BOT_SECRET;
+  if (!secret) {
+    console.warn('[TelegramSimple] Secret token is not configured; request accepted without verification');
+    return true;
+  }
+
+  const receivedSecret = request.headers.get('x-telegram-bot-api-secret-token');
+  if (!receivedSecret || receivedSecret !== secret) {
+    console.warn('[TelegramSimple] Invalid webhook secret token');
+    return false;
+  }
+
+  return true;
+}
+
+async function handleQueueCommand(chatId: number, userId: number): Promise<void> {
+  try {
+    const submissions = await getTelegramSubmissions(100);
+    const userSubmissions = submissions.filter((item) => item.user_id === userId);
+
+    if (userSubmissions.length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        '📭 <b>История пуста</b>\n\nЕще нет обработанных запросов. Отправьте ссылку или текст.'
+      );
+      return;
+    }
+
+    const processing = userSubmissions.filter((item) => item.status === 'processing').length;
+    const published = userSubmissions.filter((item) => item.status === 'published').length;
+    const failed = userSubmissions.filter((item) => item.status === 'failed').length;
+    const latest = userSubmissions[0];
+
+    await sendTelegramMessage(
+      chatId,
+      `📊 <b>Ваш статус обработки</b>\n\n` +
+        `• Всего: ${userSubmissions.length}\n` +
+        `• В обработке: ${processing}\n` +
+        `• Успешно: ${published}\n` +
+        `• Ошибки: ${failed}\n\n` +
+        `🕒 Последний запрос: ${escapeHtml((latest.submission_type || 'text').toUpperCase())}`
+    );
+  } catch (error) {
+    console.error('[TelegramSimple] Queue command failed:', error);
+    await sendTelegramMessage(chatId, '❌ Не удалось получить статус. Попробуйте позже.');
+  }
+}
+
+function getActivitySupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseKey);
+}
+
+async function logTelegramActivity(input: TelegramActivityInput): Promise<void> {
+  const supabase = getActivitySupabaseClient();
+  if (!supabase) return;
+
+  const userName = input.username ? `@${input.username}` : input.firstName || `User ${input.chatId}`;
+
+  const { error } = await supabase.from('activity_logs').insert([
+    {
+      user_name: userName,
+      user_source: 'telegram',
+      telegram_username: input.username || null,
+      telegram_chat_id: input.chatId,
+      action: input.action,
+      action_label: input.actionLabel,
+      entity_type: input.entityType || null,
+      entity_id: input.entityId || null,
+      entity_title: input.entityTitle || null,
+      entity_url: input.entityUrl || null,
+      entity_url_pl: input.entityUrlPl || null,
+      metadata: input.metadata || {},
+    },
+  ]);
+
+  if (error && error.code !== '42P01') {
+    console.warn('[TelegramSimple] Failed to write activity log:', error.message);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  
-  try {
-    // Parse update from Telegram
-    const update = await request.json();
-    console.log('[TelegramSimple] 📨 Webhook called');
+  let chatId: number | null = null;
+  let submissionId: number | null = null;
+  let telegramUsername: string | undefined;
+  let telegramFirstName: string | undefined;
+  let submissionType: 'url' | 'text' = 'text';
 
-    // Extract message
-    const message = update.message || update.edited_message;
-    if (!message) {
-      return NextResponse.json({ ok: true, message: 'No message' });
+  try {
+    if (!verifyTelegramRequest(request)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const chatId = message.chat.id;
-    const text = message.text?.trim() || '';
+    let update: any;
+    try {
+      update = await request.json();
+    } catch {
+      return NextResponse.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
+
+    const message =
+      update.message ||
+      update.edited_message ||
+      update.channel_post ||
+      update.edited_channel_post;
+    if (!message?.chat?.id) {
+      return NextResponse.json({ ok: true, message: 'No message payload' });
+    }
+
+    const resolvedChatId = Number(message.chat.id);
+    chatId = resolvedChatId;
+    const userId = message.from?.id || resolvedChatId;
+    const username = message.from?.username;
+    const firstName = message.from?.first_name;
+    const lastName = message.from?.last_name;
+    const languageCode = message.from?.language_code;
+    const text =
+      typeof message.text === 'string'
+        ? message.text.trim()
+        : typeof message.caption === 'string'
+          ? message.caption.trim()
+          : '';
 
     if (!text) {
-      return NextResponse.json({ ok: true, message: 'Empty message' });
+      return NextResponse.json({ ok: true, message: 'Empty text message' });
     }
 
-    console.log(`[TelegramSimple] 💬 From chat ${chatId}: "${text.substring(0, 50)}..."`);
+    telegramUsername = username;
+    telegramFirstName = firstName;
 
-    // ========================================
-    // HANDLE COMMANDS
-    // ========================================
-    
+    console.log(`[TelegramSimple] Incoming message from chat ${resolvedChatId}: "${text.slice(0, 80)}"`);
+
     if (text.startsWith('/')) {
-      const command = text.toLowerCase();
+      const command = text.split(/\s+/)[0].toLowerCase();
 
       if (command === '/start') {
         await sendTelegramMessage(
-          chatId,
-          `🤖 <b>Привет! Я icoffio Bot v8.5</b>\n\n` +
-          `📝 <b>Что я умею:</b>\n` +
-          `• Создавать статьи из текста\n` +
-          `• Парсить статьи по URL\n` +
-          `• Публиковать на EN + PL 🇬🇧🇵🇱\n\n` +
-          `💡 <b>Просто отправь:</b>\n` +
-          `• URL статьи для парсинга\n` +
-          `• Текст (минимум 100 символов)\n\n` +
-          `⚙️ <b>Команды:</b>\n` +
-          `/settings - Твои настройки\n` +
-          `/help - Справка\n\n` +
-          `⚡ Обработка: ~15-25 секунд\n` +
-          `🚀 Начни прямо сейчас!`
+          resolvedChatId,
+          `🤖 <b>Привет! Я icoffio Bot</b>\n\n` +
+            `Отправь ссылку или текст, и я создам публикацию.\n\n` +
+            `⚙️ Команды:\n` +
+            `/settings - Твои настройки\n` +
+            `/queue - История и статус\n` +
+            `/help - Справка`
         );
         return NextResponse.json({ ok: true });
       }
 
       if (command === '/help') {
         await sendTelegramMessage(
-          chatId,
-          `📚 <b>Справка icoffio Bot</b>\n\n` +
-          `<b>Как использовать:</b>\n` +
-          `1. Отправь URL или текст\n` +
-          `2. Жди ~15-25 секунд\n` +
-          `3. Получи ссылку на статью\n\n` +
-          `<b>Минимальные требования:</b>\n` +
-          `• Текст: минимум 100 символов\n` +
-          `• URL: любая статья\n\n` +
-          `<b>Команды:</b>\n` +
-          `/settings - Текущие настройки\n` +
-          `/help - Эта справка\n\n` +
-          `<b>Что получишь:</b>\n` +
-          `✅ Профессиональная статья (EN + PL)\n` +
-          `✅ Обработка по твоим настройкам\n` +
-          `✅ Готова к редактированию в админке`
+          resolvedChatId,
+          `📚 <b>Как использовать:</b>\n\n` +
+            `1. Отправь URL статьи или текст (от 100 символов)\n` +
+            `2. Подожди обработку\n` +
+            `3. Получи EN + PL ссылки\n\n` +
+            `Команды:\n` +
+            `/settings\n` +
+            `/queue\n` +
+            `/help`
         );
         return NextResponse.json({ ok: true });
       }
 
       if (command === '/settings') {
-        const settings = await loadTelegramSettings(chatId);
+        const settings = await loadTelegramSettings(resolvedChatId);
         await sendTelegramMessage(
-          chatId,
-          `⚙️ <b>Ваши настройки публикации</b>\n\n` +
-          `📝 <b>Стиль:</b> ${getStyleLabel(settings.contentStyle)}\n` +
-          `🖼️ <b>Картинок:</b> ${settings.imagesCount}\n` +
-          `📸 <b>Источник:</b> ${settings.imagesSource === 'unsplash' ? 'Unsplash' : settings.imagesSource === 'ai' ? 'AI Generated' : 'Нет'}\n` +
-          `${settings.autoPublish ? '✅' : '📝'} <b>Публикация:</b> ${settings.autoPublish ? 'Автоматически' : 'Черновик'}\n\n` +
-          `💡 <b>Изменить настройки:</b>\n` +
-          `🔗 <a href="https://app.icoffio.com/en/admin">app.icoffio.com/en/admin</a>\n\n` +
-          `Откройте админ панель → вкладка "🤖 Telegram"`
+          resolvedChatId,
+          `⚙️ <b>Настройки публикации</b>\n\n` +
+            `📝 Стиль: ${escapeHtml(getStyleLabel(settings.contentStyle))}\n` +
+            `🖼️ Картинок: ${settings.imagesCount}\n` +
+            `📸 Источник: ${settings.imagesSource === 'unsplash' ? 'Unsplash' : settings.imagesSource === 'ai' ? 'AI' : 'Нет'}\n` +
+            `${settings.autoPublish ? '✅' : '📝'} Публикация: ${settings.autoPublish ? 'Автоматически' : 'Черновик'}\n\n` +
+            `Редактирование: https://app.icoffio.com/en/admin`
         );
         return NextResponse.json({ ok: true });
       }
 
-      // Unknown command
-      await sendTelegramMessage(chatId, '❓ Неизвестная команда. Используйте /help');
+      if (command === '/queue') {
+        await handleQueueCommand(resolvedChatId, userId);
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendTelegramMessage(resolvedChatId, '❓ Неизвестная команда. Используйте /help');
       return NextResponse.json({ ok: true });
     }
 
-    // ========================================
-    // VALIDATE TEXT LENGTH
-    // ========================================
-    
-    if (text.length < 100 && !isUrl(text)) {
+    const url = extractUrl(text);
+    submissionType = url ? 'url' : 'text';
+    if (!url && text.length < 100) {
       await sendTelegramMessage(
-        chatId,
+        resolvedChatId,
         `📝 <b>Текст слишком короткий</b>\n\n` +
-        `Минимум: 100 символов\n` +
-        `У вас: ${text.length} символов\n\n` +
-        `Или отправьте URL статьи для парсинга.`
+          `Минимум: 100 символов\n` +
+          `Сейчас: ${text.length}\n\n` +
+          `Либо отправьте ссылку на статью.`
       );
       return NextResponse.json({ ok: true });
     }
 
-    // ========================================
-    // LOAD USER SETTINGS (v8.5.0)
-    // ========================================
-    
-    console.log('[TelegramSimple] 📋 Loading user settings...');
-    const settings = await loadTelegramSettings(chatId);
-    console.log('[TelegramSimple] ⚙️ Settings:', {
-      contentStyle: settings.contentStyle,
-      imagesCount: settings.imagesCount,
-      imagesSource: settings.imagesSource,
-      autoPublish: settings.autoPublish,
+    submissionId = await createTelegramSubmission({
+      user_id: userId,
+      username,
+      first_name: firstName,
+      last_name: lastName,
+      submission_type: url ? 'url' : 'text',
+      submission_content: text.slice(0, 8000),
+      status: 'processing',
+      language: languageCode,
     });
 
-    // ========================================
-    // PROCESS ARTICLE
-    // ========================================
-    
+    await logTelegramActivity({
+      chatId: resolvedChatId,
+      username,
+      firstName,
+      action: 'parse',
+      actionLabel: url ? 'Received URL from Telegram' : 'Received text from Telegram',
+      entityType: 'article',
+      entityId: submissionId ? String(submissionId) : undefined,
+      metadata: {
+        source: 'telegram-simple',
+        submissionId,
+        submissionType,
+        status: 'processing',
+      },
+    });
+
+    const settings = await loadTelegramSettings(resolvedChatId);
     const estimatedTime = settings.imagesCount > 0 ? '20-35 секунд' : '15-25 секунд';
-    
+
     await sendTelegramMessage(
-      chatId,
+      resolvedChatId,
       `⏳ <b>Обрабатываю...</b>\n\n` +
-      `${isUrl(text) ? '🔗 Парсю URL' : '📝 Обрабатываю текст'}\n` +
-      `📝 Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
-      `🖼️ Картинок: ${settings.imagesCount} ${settings.imagesCount > 0 ? `(${settings.imagesSource})` : ''}\n` +
-      `⏱️ Примерно ${estimatedTime}`
+        `${url ? '🔗 Обрабатываю ссылку' : '📝 Обрабатываю текст'}\n` +
+        `📝 Стиль: ${escapeHtml(getStyleLabel(settings.contentStyle))}\n` +
+        `🖼️ Картинок: ${settings.imagesCount}${settings.imagesCount > 0 ? ` (${settings.imagesSource})` : ''}\n` +
+        `⏱️ Ориентировочно: ${estimatedTime}`
     );
 
     let article;
-
-    if (isUrl(text)) {
-      // URL → Parse → Process
-      console.log('[TelegramSimple] 🔗 Processing URL...');
-      const parsed = await parseUrl(text);
+    if (url) {
+      const parsed = await parseUrl(url);
       article = await processText(parsed.content, parsed.title, settings.contentStyle);
     } else {
-      // Text → Process directly
-      console.log('[TelegramSimple] 📝 Processing text...');
       article = await processText(text, undefined, settings.contentStyle);
     }
 
-    // ========================================
-    // PUBLISH TO SUPABASE (with autoPublish + images)
-    // ========================================
-    
-    console.log(`[TelegramSimple] 📤 ${settings.autoPublish ? 'Publishing' : 'Saving as draft'}...`);
-    const result = await publishArticle(
-      article, 
-      chatId, 
-      settings.autoPublish,
-      {
-        imagesCount: settings.imagesCount,
-        imagesSource: settings.imagesSource,
-      }
-    );
+    const publishResult = await publishArticle(article, resolvedChatId, settings.autoPublish, {
+      imagesCount: settings.imagesCount,
+      imagesSource: settings.imagesSource,
+    });
 
-    if (!result.success) {
-      throw new Error(result.error || 'Publication failed');
+    if (!publishResult.success) {
+      throw new Error(publishResult.error || 'Publication failed');
     }
 
-    // ========================================
-    // SEND SUCCESS NOTIFICATION (DUAL-LANGUAGE)
-    // ========================================
-    
-    const duration = Math.round((Date.now() - startTime) / 1000);
-    
-    const statusEmoji = settings.autoPublish ? '✅' : '📝';
+    const durationMs = Date.now() - startTime;
+    const durationSec = Math.round(durationMs / 1000);
+
+    if (submissionId) {
+      await updateTelegramSubmission(submissionId, {
+        status: 'published',
+        article_slug_en: publishResult.en.slug,
+        article_slug_pl: publishResult.pl.slug,
+        article_url_en: publishResult.en.url,
+        article_url_pl: publishResult.pl.url,
+        processing_time_ms: durationMs,
+        category: article.category,
+      });
+    }
+
+    await logTelegramActivity({
+      chatId: resolvedChatId,
+      username,
+      firstName,
+      action: 'publish',
+      actionLabel: settings.autoPublish
+        ? 'Published article from Telegram'
+        : 'Saved Telegram article as draft',
+      entityType: 'article',
+      entityId: submissionId ? String(submissionId) : undefined,
+      entityTitle: article.title,
+      entityUrl: publishResult.en.url,
+      entityUrlPl: publishResult.pl.url,
+      metadata: {
+        source: 'telegram-simple',
+        submissionId,
+        submissionType,
+        autoPublish: settings.autoPublish,
+        imagesCount: settings.imagesCount,
+        imagesSource: settings.imagesSource,
+        durationMs,
+      },
+    });
+
     const statusText = settings.autoPublish ? 'ОПУБЛИКОВАНО' : 'СОХРАНЕНО КАК ЧЕРНОВИК';
-    const statusNote = settings.autoPublish 
-      ? '✨ Статья опубликована на сайте (2 языка)!'
-      : '💡 Черновик сохранен. Опубликуйте через админ панель.';
-    
-    const imagesInfo = settings.imagesCount > 0 
-      ? `• Изображений: ${settings.imagesCount} (${settings.imagesSource})\n`
-      : '';
-    
+    const statusNote = settings.autoPublish
+      ? 'Статья опубликована на сайте.'
+      : 'Черновик сохранен. Опубликуйте через админ панель.';
+
     await sendTelegramMessage(
-      chatId,
-      `${statusEmoji} <b>${statusText}!</b>\n\n` +
-      `📝 <b>Заголовок:</b>\n${article.title}\n\n` +
-      `📊 <b>Статистика:</b>\n` +
-      `• Стиль: ${getStyleLabel(settings.contentStyle)}\n` +
-      `• Слов: ${article.wordCount}\n` +
-      `${imagesInfo}` +
-      `• Категория: ${article.category}\n` +
-      `• Время: ${duration}s\n\n` +
-      `🔗 <b>Ссылки:</b>\n` +
-      `🇬🇧 <b>EN:</b> ${result.en.url}\n` +
-      `🇵🇱 <b>PL:</b> ${result.pl.url}\n\n` +
-      `${statusNote}\n` +
-      `🎨 Редактировать: app.icoffio.com/en/admin`,
+      resolvedChatId,
+      `${settings.autoPublish ? '✅' : '📝'} <b>${statusText}</b>\n\n` +
+        `📝 <b>Заголовок:</b> ${escapeHtml(article.title)}\n` +
+        `📊 <b>Статистика:</b>\n` +
+        `• Слов: ${article.wordCount}\n` +
+        `• Категория: ${escapeHtml(article.category)}\n` +
+        `• Время: ${durationSec}s\n\n` +
+        `🔗 <b>Ссылки:</b>\n` +
+        `🇬🇧 EN: ${publishResult.en.url}\n` +
+        `🇵🇱 PL: ${publishResult.pl.url}\n\n` +
+        `${statusNote}\n` +
+        `🎨 Редактирование: https://app.icoffio.com/en/admin`,
       { disable_web_page_preview: false }
     );
 
-    console.log(`[TelegramSimple] ✅ SUCCESS (${duration}s):`);
-    console.log(`  🇬🇧 EN: ${result.en.url}`);
-    console.log(`  🇵🇱 PL: ${result.pl.url}`);
-
-    return NextResponse.json({ ok: true, result });
-
+    return NextResponse.json({
+      ok: true,
+      submissionId,
+      result: publishResult,
+      durationMs,
+    });
   } catch (error: any) {
-    console.error('[TelegramSimple] ❌ ERROR:', error);
+    const durationMs = Date.now() - startTime;
+    const message = error instanceof Error ? error.message : 'Unknown processing error';
+    console.error('[TelegramSimple] Processing error:', message, error);
 
-    const duration = Math.round((Date.now() - startTime) / 1000);
+    if (submissionId) {
+      await updateTelegramSubmission(submissionId, {
+        status: 'failed',
+        error_message: message,
+        error_details: { message },
+        processing_time_ms: durationMs,
+      });
+    }
 
-    // Try to send error notification
-    try {
-      const update = await request.json();
-      const chatId = update.message?.chat?.id;
-      
-      if (chatId) {
-        await sendTelegramMessage(
-          chatId,
-          `❌ <b>Ошибка обработки</b>\n\n` +
-          `📋 ${error.message}\n\n` +
-          `⏱️ Время: ${duration}s\n\n` +
-          `Попробуйте еще раз или обратитесь к администратору.`
-        );
-      }
-    } catch (notifyError) {
-      console.error('[TelegramSimple] Failed to send error notification:', notifyError);
+    if (chatId) {
+      await logTelegramActivity({
+        chatId,
+        username: telegramUsername,
+        firstName: telegramFirstName,
+        action: 'parse',
+        actionLabel: 'Telegram processing failed',
+        entityType: 'article',
+        entityId: submissionId ? String(submissionId) : undefined,
+        metadata: {
+          source: 'telegram-simple',
+          submissionId,
+          submissionType,
+          status: 'failed',
+          error: message,
+          durationMs,
+        },
+      });
+    }
+
+    if (chatId) {
+      await sendTelegramMessage(
+        chatId,
+        `❌ <b>Ошибка обработки</b>\n\n` +
+          `Причина: ${escapeHtml(message)}\n` +
+          `⏱️ Время: ${Math.round(durationMs / 1000)}s\n\n` +
+          `Попробуйте снова через пару минут.`
+      );
     }
 
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: error.message,
-        duration 
+      {
+        ok: false,
+        error: message,
+        durationMs,
       },
       { status: 500 }
     );
   }
 }
 
-/**
- * Health check endpoint
- */
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
     service: 'telegram-simple-webhook',
-    version: '1.0.0',
+    version: '1.2.0',
     timestamp: new Date().toISOString(),
   });
 }
-
-/**
- * Get human-readable style label
- */
-function getStyleLabel(style: string): string {
-  const labels: Record<string, string> = {
-    'journalistic': '📰 Journalistic',
-    'keep_as_is': '✋ Keep As Is',
-    'seo_optimized': '🔍 SEO',
-    'academic': '🎓 Academic',
-    'casual': '💬 Casual',
-    'technical': '⚙️ Technical',
-  };
-  return labels[style] || style;
-}
-
-/**
- * Check if text is URL
- */
-function isUrl(text: string): boolean {
-  return /^https?:\/\//i.test(text.trim());
-}
-

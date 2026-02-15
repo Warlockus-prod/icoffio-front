@@ -105,7 +105,7 @@ def manage_webhook(bot_token, secret_token):
     print_step(3, 4, "Managing Telegram webhook...")
     
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_url = "https://app.icoffio.com/api/telegram/webhook"
+    webhook_url = "https://app.icoffio.com/api/telegram-simple/webhook"
     
     # Get current webhook info
     print_info("Fetching current webhook info...")

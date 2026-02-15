@@ -8,6 +8,7 @@ interface ArticleItem {
   slug: string;
   category: string;
   language: string;
+  source?: string;
   createdAt: string;
   status: 'static' | 'dynamic' | 'admin';
   url: string;
@@ -59,6 +60,22 @@ export default function MobileArticleCard({
     };
     return map[status] || '';
   };
+
+  const getSourceBadge = (source?: string) => {
+    if (!source) return { label: '📌 unknown', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' };
+    if (source.startsWith('telegram')) {
+      return { label: '📱 Telegram', className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400' };
+    }
+    if (source.includes('admin')) {
+      return { label: '👤 Admin', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' };
+    }
+    if (source.includes('static')) {
+      return { label: '🔒 Static', className: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' };
+    }
+    return { label: `📌 ${source}`, className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' };
+  };
+
+  const sourceBadge = getSourceBadge(article.source);
 
   return (
     <div
@@ -114,6 +131,9 @@ export default function MobileArticleCard({
         <div className="flex items-center gap-2 flex-wrap mb-3">
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(article.status)}`}>
             {article.status}
+          </span>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${sourceBadge.className}`}>
+            {sourceBadge.label}
           </span>
           {article.publishStatus && (
             <span
@@ -182,6 +202,12 @@ export default function MobileArticleCard({
                 {article.slug}
               </span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-gray-400">Source:</span>
+              <span className="text-gray-900 dark:text-white text-xs">
+                {sourceBadge.label}
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -217,7 +243,6 @@ export default function MobileArticleCard({
     </div>
   );
 }
-
 
 
 

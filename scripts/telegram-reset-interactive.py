@@ -55,8 +55,8 @@ def get_env_or_input(var_name, prompt, secret=False):
         return input(f"Enter {prompt}: ").strip()
 
 def reset_supabase_queue(supabase_url, service_key):
-    """Reset Telegram queue in Supabase"""
-    print_step(2, 4, "Resetting Supabase queue...")
+    """Reset Telegram tables in Supabase"""
+    print_step(2, 4, "Resetting Supabase telegram tables...")
     
     # Extract project ID
     project_id = supabase_url.split('//')[1].split('.')[0]
@@ -68,44 +68,49 @@ def reset_supabase_queue(supabase_url, service_key):
         'Content-Type': 'application/json'
     }
     
-    # Delete all jobs
-    print_info("Deleting all jobs from telegram_jobs...")
-    try:
-        response = requests.delete(
-            f"{supabase_url}/rest/v1/telegram_jobs?id=not.is.null",
-            headers=headers
-        )
-        if response.status_code in [200, 204]:
-            print_success("All jobs deleted")
-        else:
-            print_warning(f"Delete response: {response.status_code} - {response.text[:100]}")
-    except Exception as e:
-        print_error(f"Failed to delete jobs: {e}")
-    
-    # Verify queue is empty
-    print_info("Verifying queue is empty...")
-    try:
-        response = requests.get(
-            f"{supabase_url}/rest/v1/telegram_jobs?select=count",
-            headers=headers
-        )
-        data = response.json()
-        if len(data) == 0 or (isinstance(data, list) and len(data) == 0):
-            print_success("Queue is empty (0 jobs)")
-            return True
-        else:
-            print_warning(f"Queue count: {data}")
-            return True
-    except Exception as e:
-        print_error(f"Failed to verify queue: {e}")
-        return False
+    for table in ["telegram_jobs", "telegram_submissions"]:
+        print_info(f"Deleting all rows from {table}...")
+        try:
+            response = requests.delete(
+                f"{supabase_url}/rest/v1/{table}?id=not.is.null",
+                headers=headers
+            )
+            if response.status_code in [200, 204]:
+                print_success(f"{table} cleared")
+            elif response.status_code == 404:
+                print_warning(f"{table} not found (skipped)")
+            else:
+                print_warning(f"{table} delete response: {response.status_code} - {response.text[:120]}")
+        except Exception as e:
+            print_warning(f"Failed to clear {table}: {e}")
+
+        print_info(f"Verifying {table}...")
+        try:
+            verify = requests.get(
+                f"{supabase_url}/rest/v1/{table}?select=id&limit=1",
+                headers=headers
+            )
+            if verify.status_code == 404:
+                print_warning(f"{table} not found during verify (skipped)")
+            elif verify.status_code in [200, 206]:
+                rows = verify.json()
+                if len(rows) == 0:
+                    print_success(f"{table} is empty")
+                else:
+                    print_warning(f"{table} still has data")
+            else:
+                print_warning(f"{table} verify response: {verify.status_code} - {verify.text[:120]}")
+        except Exception as e:
+            print_warning(f"Failed to verify {table}: {e}")
+
+    return True
 
 def manage_webhook(bot_token, secret_token):
     """Manage Telegram webhook"""
     print_step(3, 4, "Managing Telegram webhook...")
     
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_url = "https://app.icoffio.com/api/telegram/webhook"
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://app.icoffio.com/api/telegram-simple/webhook")
     
     # Get current webhook info
     print_info("Fetching current webhook info...")
@@ -135,7 +140,7 @@ def manage_webhook(bot_token, secret_token):
     webhook_data = {
         'url': webhook_url,
         'secret_token': secret_token,
-        'allowed_updates': ['message', 'callback_query'],
+        'allowed_updates': ['message', 'edited_message', 'channel_post', 'edited_channel_post'],
         'max_connections': 40,
         'drop_pending_updates': True
     }
@@ -234,7 +239,7 @@ def main():
     print(f"{BLUE}{'=' * 50}{NC}\n")
     
     print(f"{BOLD}📊 Summary:{NC}")
-    print("  ✅ Supabase queue reset (0 jobs)")
+    print("  ✅ Supabase telegram tables reset")
     print("  ✅ Webhook deleted")
     print("  ✅ Webhook recreated")
     print("  ✅ Webhook verified")
@@ -267,4 +272,3 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
-

@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.11] - 2026-02-15 - 🤖 Telegram Observability + Admin Source Visibility + Production Release
+
+### 🎯 Что сделано
+- Стабилизирован Telegram webhook pipeline и добавлена серверная запись активности в `activity_logs`.
+- В админке добавлена явная видимость источника статей (`source`) с акцентом на Telegram.
+- В Telegram admin tab добавлена таблица последних submission для оперативного анализа.
+- Обновлены версии проекта и релизная нумерация до `8.6.11`.
+
+### 🔧 Реализация
+- `app/api/telegram-simple/webhook/route.ts`
+  - backend activity logging для Telegram (`parse`/`publish`/`failed`) в `activity_logs`;
+  - логирование метаданных: тип submission, статус, длительность, ссылки EN/PL;
+  - health/version обновлен до `1.2.0`.
+- `components/admin/ArticlesManager.tsx`
+  - добавлено поле `source` для статей из Supabase/admin/static;
+  - источник добавлен в поиск и в таблицу как отдельная колонка с badge;
+  - добавлена метрика Telegram-источника в summary cards.
+- `components/admin/MobileArticleCard.tsx`
+  - badge и детализация источника на мобильной карточке статьи.
+- `components/admin/TelegramSettings.tsx`
+  - блок `Recent Telegram Submissions` (последние 20 заявок: тип, статус, пользователь, время, ссылки).
+- `package.json`, `icoffio-clone-nextjs/package.json`
+  - версия обновлена до `8.6.11`.
+
 ## [8.6.10] - 2026-02-15 - ✅ P1 Tech Debt Closure (Image Metadata Persistence + Text Error UX)
 
 ### 🎯 Что сделано

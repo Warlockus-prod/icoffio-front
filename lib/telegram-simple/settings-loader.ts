@@ -42,29 +42,44 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
   }
 
   try {
-    const { data, error } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('telegram_user_preferences')
       .select('*')
       .eq('chat_id', chatId)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
+    if (userError && userError.code !== 'PGRST116') {
       // PGRST116 = no rows found (normal for new user)
-      console.error('[SettingsLoader] Error:', error);
+      console.error('[SettingsLoader] Error loading user settings:', userError);
       return defaultSettings;
     }
 
-    if (!data) {
-      console.log('[SettingsLoader] No settings found, using defaults');
-      return defaultSettings;
+    let resolvedSettings = userData;
+
+    // Fallback to global admin defaults (chat_id=0)
+    if (!resolvedSettings) {
+      const { data: globalData, error: globalError } = await supabase
+        .from('telegram_user_preferences')
+        .select('*')
+        .eq('chat_id', 0)
+        .single();
+
+      if (globalError && globalError.code !== 'PGRST116') {
+        console.error('[SettingsLoader] Error loading global settings:', globalError);
+      }
+
+      if (globalData) {
+        console.log('[SettingsLoader] Using global settings from chat_id=0');
+        resolvedSettings = globalData;
+      }
     }
 
     const settings: TelegramSettings = {
       chatId,
-      contentStyle: data.content_style || defaultSettings.contentStyle,
-      imagesCount: data.images_count ?? defaultSettings.imagesCount,
-      imagesSource: data.images_source || defaultSettings.imagesSource,
-      autoPublish: data.auto_publish ?? defaultSettings.autoPublish,
+      contentStyle: resolvedSettings?.content_style || defaultSettings.contentStyle,
+      imagesCount: resolvedSettings?.images_count ?? defaultSettings.imagesCount,
+      imagesSource: resolvedSettings?.images_source || defaultSettings.imagesSource,
+      autoPublish: resolvedSettings?.auto_publish ?? defaultSettings.autoPublish,
     };
 
     console.log('[SettingsLoader] ✅ Loaded settings:', settings);
@@ -75,4 +90,3 @@ export async function loadTelegramSettings(chatId: number): Promise<TelegramSett
     return defaultSettings;
   }
 }
-

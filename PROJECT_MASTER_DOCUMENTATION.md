@@ -884,7 +884,7 @@ DB URL: postgresql://postgres:[PASSWORD]@db.dlellopouivlmbrmjhoz.supabase.co:543
 **Bot Details:**
 - Bot Name: icoffio Bot
 - Username: @icoffio_bot (пример, уточните актуальный)
-- Webhook URL: `https://app.icoffio.com/api/telegram/webhook`
+- Webhook URL: `https://app.icoffio.com/api/telegram-simple/webhook`
 
 **Webhook Setup:**
 ```bash
@@ -892,7 +892,7 @@ DB URL: postgresql://postgres:[PASSWORD]@db.dlellopouivlmbrmjhoz.supabase.co:543
 curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://app.icoffio.com/api/telegram/webhook",
+    "url": "https://app.icoffio.com/api/telegram-simple/webhook",
     "secret_token": "<TELEGRAM_SECRET_TOKEN>"
   }'
 ```

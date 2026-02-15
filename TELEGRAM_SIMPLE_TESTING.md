@@ -1,7 +1,7 @@
 # 🧪 TELEGRAM SIMPLE BOT - TESTING GUIDE
 
 **Версия:** v8.0.0  
-**Дата:** 2025-12-05  
+**Дата:** 2026-02-15  
 **Статус:** ✅ READY FOR TESTING
 
 ---
@@ -169,7 +169,7 @@ https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz
 ### 1. Бот не отвечает:
 ```bash
 # Проверить webhook
-curl https://api.telegram.org/bot7978267759:AAGuVKnd3Rz5oGgDIlYJBwhinUp1egVcq08/getWebhookInfo
+curl https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
 ```
 
 **Должно быть:**

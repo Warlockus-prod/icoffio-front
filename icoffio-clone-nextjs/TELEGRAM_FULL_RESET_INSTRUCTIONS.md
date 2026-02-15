@@ -43,7 +43,7 @@ nano telegram-reset-config.json
 {
   "telegram_bot_token": "ВАШ_TELEGRAM_BOT_TOKEN",
   "telegram_secret_token": "любая_случайная_строка_32_символа",
-  "webhook_url": "https://app.icoffio.com/api/telegram/webhook"
+  "webhook_url": "https://app.icoffio.com/api/telegram-simple/webhook"
 }
 ```
 

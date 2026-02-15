@@ -1,7 +1,7 @@
 {
   "name": "icoffio-clone",
   "private": true,
-  "version": "8.6.10",
+  "version": "8.6.11",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

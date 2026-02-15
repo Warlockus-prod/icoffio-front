@@ -121,7 +121,7 @@ echo ""
 echo "📋 Step 3/4: Managing Telegram webhook..."
 
 TELEGRAM_API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}"
-WEBHOOK_URL="https://app.icoffio.com/api/telegram/webhook"
+WEBHOOK_URL="https://app.icoffio.com/api/telegram-simple/webhook"
 
 # Get current webhook info
 echo "Fetching current webhook info..."

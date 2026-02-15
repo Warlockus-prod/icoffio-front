@@ -39,8 +39,8 @@
 3. Settings → Environment Variables
 4. Добавь (если еще нет):
    ```
-   TELEGRAM_BOT_TOKEN = 7978267759:AAGuVKnd3Rz5oGgDIlYJBwhinUp1egVcq08
-   TELEGRAM_CHAT_ID = 386781503
+   TELEGRAM_BOT_TOKEN = <TELEGRAM_BOT_TOKEN>
+   TELEGRAM_CHAT_ID = <TELEGRAM_CHAT_ID>
    ```
 5. Нажми **Save**
 6. **Redeploy** проект для применения переменных

@@ -81,7 +81,7 @@ def main():
     print("\n📋 Step 3/4: Managing Telegram webhook...")
     
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_url = "https://app.icoffio.com/api/telegram/webhook"
+    webhook_url = "https://app.icoffio.com/api/telegram-simple/webhook"
     
     try:
         print("   Getting current webhook...")

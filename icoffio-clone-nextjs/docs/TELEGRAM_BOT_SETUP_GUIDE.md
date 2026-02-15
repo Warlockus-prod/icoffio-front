@@ -45,7 +45,7 @@ TELEGRAM_BOT_SECRET=your_random_secret_string_here
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://app.icoffio.com/api/telegram/webhook",
+    "url": "https://app.icoffio.com/api/telegram-simple/webhook",
     "secret_token": "your_random_secret_string_here"
   }'
 ```
@@ -205,7 +205,7 @@ Bot verifies requests using `X-Telegram-Bot-Api-Secret-Token` header.
 ```bash
 # When setting webhook, include secret_token
 curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -d "url=https://app.icoffio.com/api/telegram/webhook" \
+  -d "url=https://app.icoffio.com/api/telegram-simple/webhook" \
   -d "secret_token=your_secret_here"
 ```
 
@@ -231,7 +231,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/getWebhookInfo"
 {
   "ok": true,
   "result": {
-    "url": "https://app.icoffio.com/api/telegram/webhook",
+    "url": "https://app.icoffio.com/api/telegram-simple/webhook",
     "has_custom_certificate": false,
     "pending_update_count": 0
   }
@@ -242,7 +242,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/getWebhookInfo"
 
 ```bash
 # Health check
-curl https://app.icoffio.com/api/telegram/webhook
+curl https://app.icoffio.com/api/telegram-simple/webhook
 
 # Expected:
 {
@@ -299,7 +299,7 @@ Check Vercel logs for:
 ```bash
 # Reset webhook
 curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -d "url=https://app.icoffio.com/api/telegram/webhook"
+  -d "url=https://app.icoffio.com/api/telegram-simple/webhook"
 ```
 
 ### Queue not processing

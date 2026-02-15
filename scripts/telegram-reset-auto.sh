@@ -79,38 +79,54 @@ echo -e "${GREEN}✅ All required variables present${NC}"
 echo ""
 
 # ============================================
-# 2. RESET SUPABASE QUEUE
+# 2. RESET SUPABASE TELEGRAM TABLES
 # ============================================
 
-echo "📋 Step 2/4: Resetting Supabase queue..."
+echo "📋 Step 2/4: Resetting Supabase telegram tables..."
 
 # Extract project ID from URL
 SUPABASE_PROJECT_ID=$(echo $NEXT_PUBLIC_SUPABASE_URL | sed 's/https:\/\/\([^.]*\).*/\1/')
 echo "Project ID: $SUPABASE_PROJECT_ID"
 
-# SQL to reset queue
-SQL_RESET='DELETE FROM telegram_jobs; ALTER SEQUENCE IF EXISTS telegram_jobs_id_seq RESTART WITH 1;'
+for TABLE in telegram_jobs telegram_submissions; do
+    echo "Clearing ${TABLE}..."
+    DELETE_RESPONSE=$(curl -s -o /tmp/telegram_reset_delete.out -w "%{http_code}" -X DELETE \
+        "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${TABLE}?id=not.is.null" \
+        -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+        -H "Content-Type: application/json" \
+        -H "Prefer: return=minimal")
 
-echo "Executing SQL reset..."
-RESET_RESPONSE=$(curl -s -X POST \
-    "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/exec_sql" \
-    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "{\"query\": \"${SQL_RESET}\"}")
+    if [[ "$DELETE_RESPONSE" == "200" || "$DELETE_RESPONSE" == "204" ]]; then
+        echo -e "${GREEN}✅ ${TABLE} cleared${NC}"
+    elif [[ "$DELETE_RESPONSE" == "404" ]]; then
+        echo -e "${YELLOW}⚠️  ${TABLE} not found (skipped)${NC}"
+    else
+        echo -e "${YELLOW}⚠️  ${TABLE} clear response: ${DELETE_RESPONSE}${NC}"
+        cat /tmp/telegram_reset_delete.out 2>/dev/null || true
+    fi
 
-# Verify queue is empty
-echo "Verifying queue is empty..."
-QUEUE_COUNT=$(curl -s -X GET \
-    "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/telegram_jobs?select=count" \
-    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+    echo "Verifying ${TABLE}..."
+    VERIFY_RESPONSE=$(curl -s -o /tmp/telegram_reset_verify.out -w "%{http_code}" -X GET \
+        "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${TABLE}?select=id&limit=1" \
+        -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+        -H "Content-Type: application/json")
+    VERIFY_BODY=$(cat /tmp/telegram_reset_verify.out 2>/dev/null || echo "")
 
-if [[ $QUEUE_COUNT == *"\"count\":0"* ]] || [[ $QUEUE_COUNT == *"[]"* ]]; then
-    echo -e "${GREEN}✅ Queue reset successful (0 jobs)${NC}"
-else
-    echo -e "${YELLOW}⚠️  Queue count: $QUEUE_COUNT${NC}"
-fi
+    if [[ "$VERIFY_RESPONSE" == "404" ]]; then
+        echo -e "${YELLOW}⚠️  ${TABLE} not found during verify (skipped)${NC}"
+    elif [[ "$VERIFY_RESPONSE" == "200" || "$VERIFY_RESPONSE" == "206" ]]; then
+        if [[ "$VERIFY_BODY" == "[]" ]]; then
+            echo -e "${GREEN}✅ ${TABLE} is empty${NC}"
+        else
+            echo -e "${YELLOW}⚠️  ${TABLE} still has rows: ${VERIFY_BODY}${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  ${TABLE} verify response: ${VERIFY_RESPONSE}${NC}"
+        echo "$VERIFY_BODY"
+    fi
+done
 
 echo ""
 
@@ -121,7 +137,7 @@ echo ""
 echo "📋 Step 3/4: Managing Telegram webhook..."
 
 TELEGRAM_API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}"
-WEBHOOK_URL="https://app.icoffio.com/api/telegram/webhook"
+WEBHOOK_URL="${TELEGRAM_WEBHOOK_URL:-https://app.icoffio.com/api/telegram-simple/webhook}"
 
 # Get current webhook info
 echo "Fetching current webhook info..."
@@ -148,7 +164,7 @@ WEBHOOK_PAYLOAD=$(cat <<EOF
 {
   "url": "${WEBHOOK_URL}",
   "secret_token": "${TELEGRAM_SECRET_TOKEN}",
-  "allowed_updates": ["message", "callback_query"],
+  "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post"],
   "max_connections": 40,
   "drop_pending_updates": true
 }
@@ -198,7 +214,7 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 echo "📊 Summary:"
-echo "  ✅ Supabase queue reset (0 jobs)"
+echo "  ✅ Supabase telegram tables reset"
 echo "  ✅ Webhook deleted"
 echo "  ✅ Webhook recreated"
 echo "  ✅ Webhook verified"
@@ -225,4 +241,3 @@ echo "  3. Vercel logs for errors"
 echo ""
 
 echo -e "${GREEN}Done! 🚀${NC}"
-

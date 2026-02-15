@@ -63,6 +63,7 @@ async function generateImages(
   category: string
 ): Promise<string[]> {
   console.log(`[TelegramImages] Generating ${count} images from ${source}...`);
+  const apiSource = source === 'ai' ? 'dalle' : 'unsplash';
 
   // Create N parallel requests
   const requests = Array.from({ length: count }, (_, index) => {
@@ -75,7 +76,7 @@ async function generateImages(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        source: source,
+        source: apiSource,
         title: prompt,
         excerpt: excerpt || title,
         category: category
@@ -156,4 +157,3 @@ function calculateImagePositions(paragraphCount: number, imageCount: number): nu
 
   return positions;
 }
-

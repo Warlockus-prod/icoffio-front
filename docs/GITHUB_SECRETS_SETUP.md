@@ -7,7 +7,7 @@ Quick guide для настройки GitHub Secrets для Telegram notificatio
 ## 📋 ТВОЙ CHAT ID
 
 ```
-386781503
+<TELEGRAM_CHAT_ID>
 ```
 
 ---
@@ -29,7 +29,7 @@ Quick guide для настройки GitHub Secrets для Telegram notificatio
 
 ```
 Name: TELEGRAM_BOT_TOKEN
-Value: 7978267759:AAGuVKnd3Rz5oGgDIlYJBwhinUp1egVcq08
+Value: <TELEGRAM_BOT_TOKEN>
 
 Click: Add secret
 ```
@@ -40,7 +40,7 @@ Click: Add secret
 
 ```
 Name: TELEGRAM_CHAT_ID
-Value: 386781503
+Value: <TELEGRAM_CHAT_ID>
 
 Click: Add secret
 ```
@@ -206,8 +206,8 @@ git push origin main
   - docs/VERCEL_DEPLOYMENT_GUIDE.md
 
 ✅ Telegram Bot:
-  - Token: 7978267759:AAGuVKnd...
-  - Chat ID: 386781503
+  - Token: <TELEGRAM_BOT_TOKEN>
+  - Chat ID: <TELEGRAM_CHAT_ID>
   - Menu: 9 commands (RU/PL/EN)
 ```
 
@@ -239,8 +239,8 @@ git push origin main
 
 ```
 REQUIRED (для release notifications):
-✅ TELEGRAM_BOT_TOKEN: 7978267759:AAGuVKnd...
-✅ TELEGRAM_CHAT_ID: 386781503
+✅ TELEGRAM_BOT_TOKEN: <TELEGRAM_BOT_TOKEN>
+✅ TELEGRAM_CHAT_ID: <TELEGRAM_CHAT_ID>
 
 OPTIONAL (для build monitoring):
 🟡 VERCEL_TOKEN: [создай на vercel.com]
@@ -277,7 +277,7 @@ TIME: 5 min (required) + 5 min (optional)
 
 **Last Updated:** 2025-10-28  
 **Version:** v7.5.0  
-**Your Chat ID:** 386781503  
+**Your Chat ID:** <TELEGRAM_CHAT_ID>  
 **Status:** ✅ Ready to Configure
 
 

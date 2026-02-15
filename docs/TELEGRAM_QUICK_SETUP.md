@@ -7,8 +7,8 @@
 ## 📋 ТВОИ ДАННЫЕ:
 
 ```
-✅ Bot Token: 7978267759:AAGuVKnd3Rz5oGgDIlYJBwhinUp1egVcq08
-✅ Chat ID: 386781503
+✅ Bot Token: <TELEGRAM_BOT_TOKEN>
+✅ Chat ID: <TELEGRAM_CHAT_ID>
 ✅ Bot: @icoffio_bot
 ```
 
@@ -25,12 +25,12 @@
 
 3. Добавь первый secret:
    Name: TELEGRAM_BOT_TOKEN
-   Value: 7978267759:AAGuVKnd3Rz5oGgDIlYJBwhinUp1egVcq08
+   Value: <TELEGRAM_BOT_TOKEN>
    [Add secret]
 
 4. Добавь второй secret:
    Name: TELEGRAM_CHAT_ID
-   Value: 386781503
+   Value: <TELEGRAM_CHAT_ID>
    [Add secret]
 ```
 
@@ -113,7 +113,7 @@ git push origin main --tags
 ```
 SETUP COMPLETE:
 ✅ Bot Token: Set
-✅ Chat ID: Set (386781503)
+✅ Chat ID: Set (<TELEGRAM_CHAT_ID>)
 ✅ Workflows: Ready
 ✅ Scripts: Ready
 ✅ Docs: Complete
@@ -179,7 +179,7 @@ RESULT: Automatic Telegram notifications! 🎉
 
 **Last Updated:** 2025-10-28  
 **Version:** v7.5.0  
-**Your Chat ID:** 386781503  
+**Your Chat ID:** <TELEGRAM_CHAT_ID>  
 **Status:** ✅ Ready for Setup
 
 

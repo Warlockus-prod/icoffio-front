@@ -14,6 +14,7 @@ interface ArticleItem {
   slug: string;
   category: string;
   language: string;
+  source?: string;
   createdAt: string;
   status: 'static' | 'dynamic' | 'admin';
   url: string;
@@ -73,7 +74,8 @@ export default function ArticlesManager() {
     total: 0,
     byLanguage: { en: 0, pl: 0 },
     byCategory: { ai: 0, apple: 0, tech: 0, games: 0, digital: 0 },
-    byStatus: { static: 0, dynamic: 0, admin: 0 }
+    byStatus: { static: 0, dynamic: 0, admin: 0 },
+    bySource: { telegram: 0, admin: 0, other: 0 },
   });
   const [visibleColumns, setVisibleColumns] = useState({
     title: true,
@@ -82,6 +84,7 @@ export default function ArticlesManager() {
     status: true,
     created: true,
     author: true,
+    source: true,
     views: true,
     lastEdit: true,
     publishStatus: true,
@@ -111,6 +114,7 @@ export default function ArticlesManager() {
                 slug: article.slug_en,
                 category: article.category || 'tech',
                 language: 'en',
+                source: article.source || 'supabase',
                 createdAt: article.created_at,
                 status: 'dynamic' as const,
                 url: `https://app.icoffio.com/en/article/${article.slug_en}`,
@@ -131,6 +135,7 @@ export default function ArticlesManager() {
                 slug: article.slug_pl,
                 category: article.category || 'tech',
                 language: 'pl',
+                source: article.source || 'supabase',
                 createdAt: article.created_at,
                 status: 'dynamic' as const,
                 url: `https://app.icoffio.com/pl/article/${article.slug_pl}`,
@@ -155,6 +160,7 @@ export default function ArticlesManager() {
                 slug: article.slug,
                 category: article.category?.slug || article.category || 'tech',
                 language: inferredLanguage,
+                source: article.source || 'supabase',
                 createdAt: article.date || article.created_at || new Date().toISOString(),
                 status: 'dynamic' as const,
                 url: `https://app.icoffio.com/${inferredLanguage}/article/${article.slug}`,
@@ -184,6 +190,7 @@ export default function ArticlesManager() {
           slug: article.slug,
           category: article.category,
           language,
+          source: 'admin-local',
           createdAt: article.createdAt,
           status: 'admin',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
@@ -208,6 +215,7 @@ export default function ArticlesManager() {
           slug: article.slug,
           category: typeof article.category === 'string' ? article.category : article.category.slug,
           language,
+          source: 'static-local',
           author: 'icoffio Editorial Team',
           views: normalizeViews((article as any).views, (article as any).total_views),
           lastEdit: article.publishedAt || article.date || new Date().toISOString(),
@@ -267,7 +275,8 @@ export default function ArticlesManager() {
       total: articlesList.length,
       byLanguage: { en: 0, pl: 0 },
       byCategory: { ai: 0, apple: 0, tech: 0, games: 0, digital: 0 },
-      byStatus: { static: 0, dynamic: 0, admin: 0 }
+      byStatus: { static: 0, dynamic: 0, admin: 0 },
+      bySource: { telegram: 0, admin: 0, other: 0 },
     };
     
     articlesList.forEach(article => {
@@ -281,6 +290,14 @@ export default function ArticlesManager() {
       
       if (article.status in stats.byStatus) {
         stats.byStatus[article.status as keyof typeof stats.byStatus]++;
+      }
+
+      if ((article.source || '').startsWith('telegram')) {
+        stats.bySource.telegram++;
+      } else if ((article.source || '').includes('admin')) {
+        stats.bySource.admin++;
+      } else {
+        stats.bySource.other++;
       }
     });
     
@@ -304,7 +321,8 @@ export default function ArticlesManager() {
       const matchesTitle = article.title.toLowerCase().includes(searchLower);
       const matchesExcerpt = article.excerpt.toLowerCase().includes(searchLower);
       const matchesAuthor = article.author?.toLowerCase().includes(searchLower);
-      if (!matchesTitle && !matchesExcerpt && !matchesAuthor) return false;
+      const matchesSource = article.source?.toLowerCase().includes(searchLower);
+      if (!matchesTitle && !matchesExcerpt && !matchesAuthor && !matchesSource) return false;
     }
     
     // Date range filter
@@ -446,6 +464,22 @@ export default function ArticlesManager() {
     }
   };
 
+  const getSourceLabel = (source?: string) => {
+    if (!source) return 'unknown';
+    if (source.startsWith('telegram')) return '📱 Telegram';
+    if (source.includes('admin')) return '👤 Admin';
+    if (source.includes('static')) return '🔒 Static';
+    return source;
+  };
+
+  const getSourceColor = (source?: string) => {
+    if (!source) return 'bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400';
+    if (source.startsWith('telegram')) return 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400';
+    if (source.includes('admin')) return 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400';
+    if (source.includes('static')) return 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400';
+    return 'bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400';
+  };
+
   return (
     <div className="space-y-6">
       {/* Advanced Search */}
@@ -488,7 +522,7 @@ export default function ArticlesManager() {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
             <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
             <div className="text-xs text-gray-600 dark:text-gray-400">Total Articles</div>
@@ -517,6 +551,10 @@ export default function ArticlesManager() {
             <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.byStatus.admin}</div>
             <div className="text-xs text-gray-600 dark:text-gray-400">Editable</div>
           </div>
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.bySource.telegram}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Telegram</div>
+          </div>
         </div>
 
 
@@ -542,6 +580,7 @@ export default function ArticlesManager() {
                   {key === 'status' && '🔖 Type'}
                   {key === 'created' && '📅 Created'}
                   {key === 'author' && '✍️ Author'}
+                  {key === 'source' && '📌 Source'}
                   {key === 'views' && '👁️ Views'}
                   {key === 'lastEdit' && '🕐 Last Edit'}
                   {key === 'publishStatus' && '📤 Status'}
@@ -610,6 +649,7 @@ export default function ArticlesManager() {
                 {visibleColumns.category && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>}
                 {visibleColumns.language && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Language</th>}
                 {visibleColumns.author && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>}
+                {visibleColumns.source && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Source</th>}
                 {visibleColumns.status && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>}
                 {visibleColumns.publishStatus && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
                 {visibleColumns.views && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Views</th>}
@@ -679,6 +719,13 @@ export default function ArticlesManager() {
                         <span>✍️</span>
                         <span>{article.author || 'Unknown'}</span>
                       </div>
+                    </td>
+                  )}
+                  {visibleColumns.source && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSourceColor(article.source)}`}>
+                        {getSourceLabel(article.source)}
+                      </span>
                     </td>
                   )}
                   {visibleColumns.status && (

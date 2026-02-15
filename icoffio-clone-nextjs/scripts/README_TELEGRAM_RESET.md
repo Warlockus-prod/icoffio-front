@@ -50,21 +50,21 @@ python3 scripts/telegram-reset-simple.py
 📋 Step 1/4: Loading configuration...
 ✅ Configuration loaded
 
-📋 Step 2/4: Resetting Supabase queue...
-   Deleting all jobs...
-   ✅ All jobs deleted
-   Verifying queue is empty...
-   ✅ Queue is empty (0 jobs)
+📋 Step 2/4: Resetting Supabase telegram tables...
+   Deleting all rows from telegram_jobs...
+   ✅ telegram_jobs cleared
+   Deleting all rows from telegram_submissions...
+   ✅ telegram_submissions cleared
 
 📋 Step 3/4: Managing Telegram webhook...
    Getting current webhook...
-   Current: https://app.icoffio.com/api/telegram/webhook
+   Current: https://app.icoffio.com/api/telegram-simple/webhook
    Deleting webhook...
    ✅ Webhook deleted
    Setting new webhook...
    ✅ Webhook set successfully
    Verifying webhook...
-   ✅ Webhook verified: https://app.icoffio.com/api/telegram/webhook
+   ✅ Webhook verified: https://app.icoffio.com/api/telegram-simple/webhook
    Pending updates: 0
 
 📋 Step 4/4: Final status
@@ -130,12 +130,10 @@ https://vercel.com/andreys-projects-a55f75b3/icoffio-front/logs
 
 **Ищите:**
 ```
-[Queue] 🚀 processQueue() called
-[Queue] ✅ Starting queue processing...
-[Queue] 📋 Found 1 pending job(s) in Supabase
-[Queue] 🚀 Starting job: job_*
-[Dual-Lang] Starting dual-language publishing
-[Queue] ✅ Job completed: job_* (8s)
+[TelegramSimple] Incoming message
+[TelegramSimple] Processing...
+[TelegramSimple] Publishing dual-language
+[TelegramSimple] ✅ Message sent to chat
 ```
 
 ### Supabase Dashboard:
@@ -148,13 +146,12 @@ https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz
 ```sql
 SELECT 
   id,
-  type,
+  submission_type,
   status,
-  created_at,
-  started_at,
-  completed_at
-FROM telegram_jobs
-ORDER BY created_at DESC
+  submitted_at,
+  processed_at
+FROM telegram_submissions
+ORDER BY submitted_at DESC
 LIMIT 5;
 ```
 
@@ -174,7 +171,7 @@ cp scripts/telegram-config.example.json scripts/telegram-config.json
 
 **Решение:** Замените `YOUR_BOT_TOKEN` и `YOUR_SERVICE_ROLE_KEY` на реальные значения.
 
-### Ошибка: "Failed to delete jobs"
+### Ошибка: "Failed to clear tables"
 
 **Решение:** Проверьте `service_role_key` в конфигурации. Должен быть именно Service Role Key, не Anon Key.
 
@@ -200,8 +197,9 @@ cp scripts/telegram-config.example.json scripts/telegram-config.json
 
 ```sql
 DELETE FROM telegram_jobs;
-ALTER SEQUENCE IF EXISTS telegram_jobs_id_seq RESTART WITH 1;
+DELETE FROM telegram_submissions;
 SELECT COUNT(*) FROM telegram_jobs; -- Должно вернуть 0
+SELECT COUNT(*) FROM telegram_submissions; -- Должно вернуть 0
 ```
 
 ### 2. Telegram Webhook (curl):
@@ -216,9 +214,9 @@ curl -X POST "https://api.telegram.org/bot<YOUR_TOKEN>/deleteWebhook"
 curl -X POST "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://app.icoffio.com/api/telegram/webhook",
+    "url": "https://app.icoffio.com/api/telegram-simple/webhook",
     "secret_token": "<YOUR_SECRET>",
-    "allowed_updates": ["message", "callback_query"],
+    "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post"],
     "max_connections": 40,
     "drop_pending_updates": true
   }'
@@ -254,4 +252,3 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/getWebhookInfo"
 ---
 
 **v7.14.1 - Serverless Queue Fix** 🚀
-

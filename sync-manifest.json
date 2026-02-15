@@ -1,0 +1,15 @@
+{
+  "sourceRoot": "icoffio-clone-nextjs",
+  "paths": [
+    "app/api/admin/generate-image/route.ts",
+    "app/api/articles/route.ts",
+    "app/api/supabase-articles/route.ts",
+    "components/admin/ArticleCreatorModal.tsx",
+    "components/admin/ArticlesManager.tsx",
+    "components/admin/MobileArticleCard.tsx",
+    "components/admin/URLParser/AIGenerate.tsx",
+    "components/admin/URLParser/ParsingQueue.tsx",
+    "lib/stores/admin-store.ts",
+    "lib/utils/content-formatter.ts"
+  ]
+}

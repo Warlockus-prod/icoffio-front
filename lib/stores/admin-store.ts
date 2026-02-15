@@ -183,9 +183,9 @@ interface AdminStore {
   generateImage: (prompt: string) => Promise<void>;
   selectImage: (imageId: string) => void;
   
-  // ✨ NEW: Staged Processing Actions
+  // Staged Processing Actions
   generateImageOptions: (articleId: string) => Promise<void>;
-  selectImageOption: (articleId: string, optionIds: string[], uploadedImages?: UploadedImageData[]) => void; // ✅ v8.2.0: до 5 изображений + uploaded
+  selectImageOption: (articleId: string, optionIds: string[], uploadedImages?: UploadedImageData[]) => void;
   regenerateImageOptions: (articleId: string) => Promise<void>;
   skipImageSelection: (articleId: string) => void;
   setArticleStage: (articleId: string, stage: Article['processingStage']) => void;
@@ -193,6 +193,10 @@ interface AdminStore {
   // Statistics Actions
   updateStatistics: () => Promise<void>;
   addActivity: (activity: Omit<ActivityItem, 'id' | 'timestamp'>) => void;
+
+  // Internal parsing methods (exposed on interface to avoid `as any` casts)
+  startParsing: (jobId: string, url: string, category: string, contentStyle?: ContentStyleType) => Promise<void>;
+  startTextProcessing: (jobId: string, title: string, content: string, category: string, options?: TextProcessingOptions) => Promise<void>;
 }
 
 // Store Implementation
@@ -219,23 +223,8 @@ export const useAdminStore = create<AdminStore>()(
         recentActivity: []
       },
 
-      // Authentication Actions
-      // ✅ v7.32.1 - Simple password authentication with hardcoded fallback
+      // Authentication — always via server-side API (no client-side passwords)
       authenticate: async (password: string) => {
-        // Primary password - always works
-        const ADMIN_PASSWORD = 'icoffio2025';
-        
-        // Simple local check first (most reliable)
-        if (password === ADMIN_PASSWORD) {
-          adminLogger.info('user', 'login_success', 'User successfully authenticated');
-          set({ isAuthenticated: true });
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('icoffio_admin_auth', 'authenticated');
-          }
-          return true;
-        }
-        
-        // If local check failed, try API as backup
         try {
           const response = await fetch('/api/admin/auth', {
             method: 'POST',
@@ -245,17 +234,19 @@ export const useAdminStore = create<AdminStore>()(
           
           const result = await response.json();
           
-          if (result.success && result.token) {
+          if (result.success) {
             adminLogger.info('user', 'login_success', 'User authenticated via API');
             set({ isAuthenticated: true });
             if (typeof window !== 'undefined') {
-              localStorage.setItem('icoffio_admin_token', result.token);
+              if (result.token) {
+                localStorage.setItem('icoffio_admin_token', result.token);
+              }
               localStorage.setItem('icoffio_admin_auth', 'authenticated');
             }
             return true;
           }
         } catch (error) {
-          console.error('API auth error (non-critical):', error);
+          console.error('API auth error:', error);
         }
         
         adminLogger.warn('user', 'login_failed', 'Invalid password');
@@ -309,7 +300,7 @@ export const useAdminStore = create<AdminStore>()(
         });
 
       // Trigger parsing via API
-      (get() as any).startParsing(newJob.id, url, category, contentStyle);
+      get().startParsing(newJob.id, url, category, contentStyle);
     },
 
     addTextToQueue: async (title, content, category, options) => {
@@ -333,7 +324,7 @@ export const useAdminStore = create<AdminStore>()(
 
       // Trigger text processing via API
       try {
-        await (get() as any).startTextProcessing(newJob.id, title, content, category, options);
+        await get().startTextProcessing(newJob.id, title, content, category, options);
       } catch (error) {
         get().updateJobStatus(newJob.id, 'failed', 0);
         console.error('Error processing text:', error);
@@ -711,7 +702,7 @@ export const useAdminStore = create<AdminStore>()(
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              errorMessage = `Таймаут парсинга URL (60s): ${url}`;
+              errorMessage = `Таймаут парсинга URL (180s): ${url}`;
             } else if (error.message.includes('fetch')) {
               errorMessage = `Сетевая ошибка при парсинге: ${url}`;
             } else {
@@ -739,7 +730,7 @@ export const useAdminStore = create<AdminStore>()(
         }
       },
 
-      startTextProcessing: async (jobId: string, title: string, content: string, category: string, options?: TextProcessingOptions) => {
+      startTextProcessing: async (jobId: string, title: string, content: string, category: string, options) => {
         try {
           get().updateJobStatus(jobId, 'parsing', 10);
           const normalizedCategory = ['ai', 'apple', 'games', 'tech'].includes(category) ? category : 'tech';
@@ -825,7 +816,7 @@ export const useAdminStore = create<AdminStore>()(
           
           if (error instanceof Error) {
             if (error.name === 'AbortError') {
-              errorMessage = `Таймаут обработки текста (60s): ${title}`;
+              errorMessage = `Таймаут обработки текста (180s): ${title}`;
             } else if (error.message.includes('fetch')) {
               errorMessage = `Сетевая ошибка при обработке текста: ${title}`;
             } else {

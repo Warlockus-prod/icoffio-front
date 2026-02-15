@@ -1,11 +1,13 @@
 {
   "name": "icoffio-clone",
   "private": true,
-  "version": "8.6.7",
+  "version": "8.6.8",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "sync:check": "node scripts/sync-mirror.js --check",
+    "sync:apply": "node scripts/sync-mirror.js --write",
     "ad:live-debug": "node scripts/live-ad-debug.js",
     "clean-problematic": "node scripts/clean-problematic-articles.js",
     "clean-problematic:dry": "node scripts/clean-problematic-articles.js --dry-run",

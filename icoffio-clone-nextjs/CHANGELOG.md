@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.8] - 2026-02-15 - 🧭 Source-Of-Truth Guard + Mirror Sync Workflow
+
+### 🎯 Что сделано
+- Добавлен workflow, который фиксирует canonical source для критических файлов и предотвращает drift.
+- В CI добавлена обязательная проверка зеркала перед install/build.
+- Добавлена документация для релизного процесса синхронизации.
+
+### 🔧 Реализация
+- `sync-manifest.json` (manifest критических mirrored путей)
+- `scripts/sync-mirror.js` (check/apply режимы)
+- package scripts:
+  - `sync:check`
+  - `sync:apply`
+- CI update:
+  - `.github/workflows/ci.yml` -> `sync:check`
+- docs:
+  - `docs/SOURCE_OF_TRUTH_WORKFLOW.md`
+
+### 🧪 Audit note
+- Это безопасный шаг #1 к полной консолидации структуры без рискованного массового рефактора за один релиз.
+
 ## [8.6.7] - 2026-02-15 - ✅ Admin Pipeline Stabilization (Images + AI Generate + Cleanup)
 
 ### 🎯 Что зафиксировано

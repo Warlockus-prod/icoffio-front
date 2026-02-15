@@ -164,7 +164,7 @@ WEBHOOK_PAYLOAD=$(cat <<EOF
 {
   "url": "${WEBHOOK_URL}",
   "secret_token": "${TELEGRAM_SECRET_TOKEN}",
-  "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post"],
+  "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post", "callback_query"],
   "max_connections": 40,
   "drop_pending_updates": true
 }

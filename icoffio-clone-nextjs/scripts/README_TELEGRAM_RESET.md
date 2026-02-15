@@ -216,7 +216,7 @@ curl -X POST "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook" \
   -d '{
     "url": "https://app.icoffio.com/api/telegram-simple/webhook",
     "secret_token": "<YOUR_SECRET>",
-    "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post"],
+    "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post", "callback_query"],
     "max_connections": 40,
     "drop_pending_updates": true
   }'

@@ -112,7 +112,13 @@ def main():
         webhook_data = {
             'url': webhook_url,
             'secret_token': secret_token,
-            'allowed_updates': ['message', 'edited_message', 'channel_post', 'edited_channel_post'],
+            'allowed_updates': [
+                'message',
+                'edited_message',
+                'channel_post',
+                'edited_channel_post',
+                'callback_query'
+            ],
             'max_connections': 40,
             'drop_pending_updates': True
         }

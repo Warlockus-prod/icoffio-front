@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.21] - 2026-02-15 - 🛠 Telegram Reset Scripts: callback_query Safety
+
+### 🎯 Что сделано
+- Исправлены reset-скрипты Telegram, чтобы при переустановке webhook не терялась поддержка inline-кнопок.
+- Во все `allowed_updates` добавлен `callback_query`.
+- Обновлена документация ресета, чтобы примеры соответствовали рабочей конфигурации.
+
+### 🔧 Измененные файлы
+- `scripts/README_TELEGRAM_RESET.md`
+
 ## [8.6.20] - 2026-02-15 - 🤖 Telegram Persistent Queue Worker + DB Idempotency + Inline Actions
 
 ### 🎯 Что сделано

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.22] - 2026-02-15 - 🧩 Article Ads: Responsive Visibility + Empty Video Placeholder Fix
+
+### 🎯 Что исправлено
+- Устранен регресс по responsive-показу рекламных слотов на странице статьи:
+  - desktop placement'ы больше не протекают в mobile,
+  - mobile placement'ы больше не протекают в desktop.
+- Убран «пустой» video placeholder (включая sidebar `300x250` без креатива):
+  - `instream` без `videoUrl` больше не рендерится,
+  - ad-only video контейнеры скрываются быстрее, если креатив не появился.
+- `UniversalAd` больше не переопределяет `display` так, чтобы ломать внешние `hidden/xl:block` классы.
+
+### 🔧 Измененные файлы
+- `app/[locale]/(site)/article/[slug]/page.tsx`
+- `components/VideoPlayer.tsx`
+- `components/UniversalAd.tsx`
+- `styles/globals.css`
+
 ## [8.6.21] - 2026-02-15 - 🛠 Telegram Reset Scripts: callback_query Safety
 
 ### 🎯 Что сделано

@@ -216,7 +216,6 @@ export function UniversalAd({
     // Common styles for all placements
     const commonStyle: React.CSSProperties = {
       ...baseStyle,
-      display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       marginLeft: 'auto',

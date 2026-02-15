@@ -48,8 +48,35 @@ export default function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [adLoaded, setAdLoaded] = useState(false);
   const [hasAdContent, setHasAdContent] = useState(true); // hide if no content after timeout
+
+  const getElementSize = (element: Element | null): { width: number; height: number } => {
+    if (!element) return { width: 0, height: 0 };
+    const htmlElement = element as HTMLElement;
+    const rect = htmlElement.getBoundingClientRect();
+    return {
+      width: Math.max(rect.width, htmlElement.clientWidth || 0, htmlElement.scrollWidth || 0),
+      height: Math.max(rect.height, htmlElement.clientHeight || 0, htmlElement.scrollHeight || 0),
+    };
+  };
+
+  const hasRenderableAdContent = (container: HTMLDivElement): boolean => {
+    const adEl = container.querySelector('[data-hyb-ssp-ad-place]');
+    if (!adEl) return false;
+
+    const creativeCandidates = Array.from(
+      adEl.querySelectorAll('iframe, img, video, canvas, object, embed')
+    );
+
+    if (creativeCandidates.length === 0) {
+      return false;
+    }
+
+    return creativeCandidates.some((candidate) => {
+      const { width, height } = getElementSize(candidate);
+      return width >= 120 && height >= 60;
+    });
+  };
 
   // Intersection Observer для autoplay on scroll (outstream)
   useEffect(() => {
@@ -78,39 +105,58 @@ export default function VideoPlayer({
     return () => observer.disconnect();
   }, [type, autoplay]);
 
-  // VOX ad integration — relies on global SSP loaded by layout.tsx
+  // VOX ad integration — relies on global SSP loaded by layout.tsx.
+  // We keep the container only if a real creative is rendered.
   useEffect(() => {
     if (!voxPlaceId) return;
 
-    // VOX script is loaded globally in layout.tsx, just init the placement
+    const container = playerRef.current;
+    if (!container) return;
+
+    // VOX script is loaded globally in layout.tsx, just init the placement.
     function initializeVoxAd() {
       if ((window as any)._tx) {
         (window as any)._tx.cmds = (window as any)._tx.cmds || [];
         (window as any)._tx.cmds.push(() => {
           (window as any)._tx.init();
-          setAdLoaded(true);
         });
       }
     }
 
     initializeVoxAd();
 
-    // Hide container if no ad content after timeout
-    const timeout = setTimeout(() => {
-      const container = playerRef.current;
-      if (!container) return;
-      const adEl = container.querySelector('[data-hyb-ssp-ad-place]');
-      if (adEl) {
-        const hasContent = adEl.children.length > 0 &&
-          !adEl.querySelector('.text-gray-400'); // exclude our own placeholder text
-        if (!hasContent) {
-          setHasAdContent(false);
-        }
+    const evaluate = () => {
+      if (videoUrl) {
+        setHasAdContent(true);
+        return;
       }
-    }, 5000);
 
-    return () => clearTimeout(timeout);
-  }, [voxPlaceId]);
+      const ready = hasRenderableAdContent(container);
+      if (ready) {
+        setHasAdContent(true);
+      }
+    };
+
+    evaluate();
+
+    const observer = new MutationObserver(() => {
+      evaluate();
+    });
+    observer.observe(container, { childList: true, subtree: true, attributes: true });
+
+    // Hard cutoff: if no creative is actually rendered, hide the block.
+    const hardTimeout = setTimeout(() => {
+      if (videoUrl) return;
+      if (!hasRenderableAdContent(container)) {
+        setHasAdContent(false);
+      }
+    }, 3500);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(hardTimeout);
+    };
+  }, [videoUrl, voxPlaceId]);
 
   // Получить размеры контейнера по типу
   const getContainerDimensions = () => {
@@ -133,7 +179,12 @@ export default function VideoPlayer({
 
   const dimensions = getContainerDimensions();
 
-  // If no video URL and no ad content loaded after timeout — hide entirely
+  // Instream блоки без видеофайла не показываем: иначе получаем пустой/зависший placeholder.
+  if (type === 'instream' && !videoUrl) {
+    return null;
+  }
+
+  // If no ad content loaded after timeout — hide entirely.
   if (!videoUrl && !hasAdContent) {
     return null;
   }
@@ -279,4 +330,3 @@ export function insertOutstreamInContent(
   
   return paragraphs.join('\n\n');
 }
-

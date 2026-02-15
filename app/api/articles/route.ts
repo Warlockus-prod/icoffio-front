@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
 import { wordpressService } from '@/lib/wordpress-service';
 // v7.30.0: Centralized content formatting utility
-import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText } from '@/lib/utils/content-formatter';
+import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 
@@ -591,10 +591,11 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   
   // Основная статья (всегда EN теперь)
   const normalizedEnContent = normalizeAiGeneratedText(article.content || '');
+  const normalizedEnExcerpt = sanitizeExcerptText(article.excerpt || article.title || '', 200);
   posts.en = {
     slug: article.slug,
     title: article.title,
-    excerpt: article.excerpt,
+    excerpt: normalizedEnExcerpt,
     publishedAt: article.publishedAt,
     image: article.image,
     category: {
@@ -611,10 +612,14 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   for (const [lang, translation] of Object.entries(article.translations || {})) {
     if (lang === 'pl') { // Только польский
       const normalizedPlContent = normalizeAiGeneratedText((translation as any).content || '');
+      const normalizedPlExcerpt = sanitizeExcerptText(
+        (translation as any).excerpt || (translation as any).title || article.excerpt || '',
+        200
+      );
       posts[lang] = {
         slug: (translation as any).slug,
         title: (translation as any).title,
-        excerpt: (translation as any).excerpt,
+        excerpt: normalizedPlExcerpt,
         publishedAt: article.publishedAt,
         image: article.image,
         category: {
@@ -721,6 +726,11 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!
     const enSlug = `${baseSlug}-en`;
     const plSlug = `${baseSlug}-pl`;
+    const cleanExcerptEn = sanitizeExcerptText(article.excerpt || article.title, 200);
+    const cleanExcerptPl = sanitizeExcerptText(
+      article.translations?.pl?.excerpt || article.translations?.pl?.title || cleanExcerptEn,
+      200
+    );
     
     // Подготовка данных для Supabase
     const supabaseData = {
@@ -730,8 +740,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       slug_pl: plSlug,
       content_en: contentEn,
       content_pl: contentPl,
-      excerpt_en: article.excerpt || article.title.substring(0, 150),
-      excerpt_pl: article.translations?.pl?.excerpt || article.excerpt,
+      excerpt_en: cleanExcerptEn,
+      excerpt_pl: cleanExcerptPl,
       image_url: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
       category: article.category || 'tech',
       author: article.author || 'AI Editorial Team',
@@ -740,7 +750,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       languages: article.translations?.pl ? ['en', 'pl'] : ['en'],
       source: 'admin-panel',
       original_input: article.title,
-      meta_description: article.excerpt?.substring(0, 160),
+      meta_description: cleanExcerptEn.substring(0, 160),
       published: true,
       featured: false,
       url_en: `https://app.icoffio.com/en/article/${enSlug}`,
@@ -765,7 +775,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     const enPost = {
       slug: enSlug,
       title: article.title,
-      excerpt: article.excerpt || article.title.substring(0, 150),
+      excerpt: cleanExcerptEn,
       publishedAt,
       image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
       category: { name: article.category || 'Technology', slug: article.category || 'tech' },
@@ -782,7 +792,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       const plPost = {
         slug: plSlug,
         title: article.translations.pl.title,
-        excerpt: article.translations.pl.excerpt || article.translations.pl.title.substring(0, 150),
+        excerpt: cleanExcerptPl,
         publishedAt,
         image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
         category: { name: article.category || 'Technology', slug: article.category || 'tech' },
@@ -803,7 +813,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
           id: article.id || `article-${Date.now()}`,
           title: article.title,
           content: contentEn,
-          excerpt: article.excerpt,
+          excerpt: cleanExcerptEn,
           slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
           category: article.category || 'technology',
           tags: ['imported', 'ai-processed'],

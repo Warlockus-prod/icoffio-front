@@ -91,6 +91,49 @@ export function normalizeAiGeneratedText(content: string): string {
 }
 
 /**
+ * Clean short summary/excerpt text from markdown artifacts.
+ * Keeps plain readable sentence-style text for cards, meta and previews.
+ */
+export function sanitizeExcerptText(content: string, maxLength: number = 160): string {
+  if (!content || typeof content !== 'string') {
+    return '';
+  }
+
+  let cleaned = content.replace(/\r\n/g, '\n').trim();
+
+  // Remove heading/list markers and markdown wrappers.
+  cleaned = cleaned
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+
+  cleaned = cleaned
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^["'`«»„”]+|["'`«»„”]+$/g, '')
+    .trim();
+
+  if (!cleaned) {
+    return '';
+  }
+
+  if (maxLength > 0 && cleaned.length > maxLength) {
+    const truncated = cleaned.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > maxLength * 0.7) {
+      return truncated.substring(0, lastSpace).trim() + '...';
+    }
+    return truncated.trim() + '...';
+  }
+
+  return cleaned;
+}
+
+/**
  * Format plain text content to HTML with Markdown-like syntax support
  * 
  * Supported syntax:
@@ -180,7 +223,7 @@ export function contentToPlainText(content: string): string {
  * @param maxLength - Maximum length of excerpt (default 160)
  */
 export function generateExcerpt(content: string, maxLength: number = 160): string {
-  const plainText = contentToPlainText(content);
+  const plainText = sanitizeExcerptText(contentToPlainText(content), maxLength);
   
   if (plainText.length <= maxLength) {
     return plainText;

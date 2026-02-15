@@ -1,5 +1,5 @@
 import { getTranslation } from './i18n';
-import { normalizeAiGeneratedText } from './utils/content-formatter';
+import { normalizeAiGeneratedText, sanitizeExcerptText } from './utils/content-formatter';
 
 interface TranslationRequest {
   content: string;
@@ -135,9 +135,14 @@ Please provide ONLY the translation, without any additional comments or explanat
       // Удаляем одинарные кавычки в начале и конце (если они не часть текста)
       translatedText = translatedText.replace(/^['\'`]+|['\'`]+$/g, '');
 
-      // ✅ Убираем артефакты форматирования (например, **Section**) и нормализуем структуру
+      // ✅ Убираем артефакты форматирования и нормализуем структуру по типу контента
       if (contentType === 'body') {
         translatedText = normalizeAiGeneratedText(translatedText);
+      } else if (contentType === 'excerpt') {
+        translatedText = sanitizeExcerptText(translatedText, 200);
+      } else if (contentType === 'title') {
+        translatedText = sanitizeExcerptText(translatedText, 220)
+          .replace(/[.]{3,}\s*$/, '');
       }
 
       return {

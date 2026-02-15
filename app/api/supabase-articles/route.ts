@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sanitizeExcerptText } from '@/lib/utils/content-formatter';
 
 const DEFAULT_THUMBNAIL_MARKER = 'photo-1485827404703-89b55fcc595e';
 
@@ -169,7 +170,7 @@ export async function GET(request: Request) {
         id: article.id.toString(),
         title: article.title,
         slug: slug,
-        excerpt: excerpt || '',
+        excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
         content: content || '',
         date: article.created_at,
         image: article.image_url || '',
@@ -258,7 +259,7 @@ export async function POST(request: Request) {
         id: article.id.toString(),
         title: isEn ? article.title : plTitle,
         slug: isEn ? article.slug_en : article.slug_pl,
-        excerpt: isEn ? article.excerpt_en : article.excerpt_pl,
+        excerpt: sanitizeExcerptText(isEn ? article.excerpt_en : article.excerpt_pl, 200),
         content: isEn ? article.content_en : plContent,
         date: article.created_at,
         image: article.image_url || '',
@@ -323,7 +324,7 @@ export async function POST(request: Request) {
           id: article.id.toString(),
           title: article.title,
           slug: isEn ? article.slug_en : article.slug_pl,
-          excerpt: isEn ? article.excerpt_en : article.excerpt_pl,
+          excerpt: sanitizeExcerptText(isEn ? article.excerpt_en : article.excerpt_pl, 200),
           image: article.image_url || '',
           category: {
             name: article.category || 'General',

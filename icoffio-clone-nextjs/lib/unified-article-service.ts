@@ -9,7 +9,7 @@ import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
 import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
-import { formatContentToHtml, normalizeAiGeneratedText } from './utils/content-formatter';
+import { formatContentToHtml, normalizeAiGeneratedText, sanitizeExcerptText } from './utils/content-formatter';
 import { getPromptTemplateByStyle, type ContentProcessingStyle } from './config/content-prompts';
 import type { Post } from './types';
 
@@ -247,7 +247,7 @@ class UnifiedArticleService {
                 ...articleData,
                 title: enTitle.translatedText,
                 content: normalizeAiGeneratedText(enContent.translatedText),
-                excerpt: enExcerpt.translatedText,
+                excerpt: sanitizeExcerptText(enExcerpt.translatedText, 200),
                 language: 'en' // ✅ КРИТИЧНО: Устанавливаем язык в 'en'!
               };
               console.log('✅ English translation completed (now primary, language=en)');
@@ -279,7 +279,7 @@ class UnifiedArticleService {
               translations.pl = {
                 title: plTitle.translatedText,
                 content: normalizeAiGeneratedText(plContent.translatedText),
-                excerpt: plExcerpt.translatedText,
+                excerpt: sanitizeExcerptText(plExcerpt.translatedText, 200),
                 slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl (система требует!)
               };
               console.log('✅ Polish translation completed');
@@ -288,7 +288,7 @@ class UnifiedArticleService {
               translations.pl = {
                 title: articleData.title,
                 content: normalizeAiGeneratedText(articleData.content),
-                excerpt: articleData.excerpt || articleData.title.substring(0, 100),
+                excerpt: sanitizeExcerptText(articleData.excerpt || articleData.title, 200),
                 slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl
               };
               console.log('✅ Source is already Polish, using original');
@@ -304,7 +304,7 @@ class UnifiedArticleService {
             pl: {
               title: articleData.title,
               content: normalizeAiGeneratedText(articleData.content),
-              excerpt: articleData.excerpt || articleData.title.substring(0, 100),
+              excerpt: sanitizeExcerptText(articleData.excerpt || articleData.title, 200),
               slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: С суффиксом -pl
             }
           };
@@ -314,6 +314,7 @@ class UnifiedArticleService {
       // Используем финальную (возможно переведенную на EN) версию как основную статью
       articleData = finalArticleData;
       articleData.content = normalizeAiGeneratedText(articleData.content || '');
+      articleData.excerpt = sanitizeExcerptText(articleData.excerpt || articleData.title || '', 200);
       
       // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно устанавливаем язык в 'en'
       // После перевода на английский, основная статья ВСЕГДА английская
@@ -520,7 +521,7 @@ class UnifiedArticleService {
         ...articleData,
         title: enhanced.title,
         content: normalizeAiGeneratedText(enhanced.content || articleData.content),
-        excerpt: enhanced.excerpt,
+        excerpt: sanitizeExcerptText(enhanced.excerpt || articleData.excerpt || articleData.content || '', 200),
         tags: enhanced.tags,
         metaDescription: enhanced.metaDescription
       };
@@ -597,7 +598,7 @@ class UnifiedArticleService {
           formattedTranslations[language] = {
             title: typedTranslation.title || articleData.title,
             content: typedTranslation.body || typedTranslation.content || articleData.content,
-            excerpt: typedTranslation.excerpt || articleData.excerpt,
+            excerpt: sanitizeExcerptText(typedTranslation.excerpt || articleData.excerpt || articleData.title || '', 200),
             slug: this.generateSlug(typedTranslation.title || articleData.title)
           };
         }
@@ -622,7 +623,7 @@ class UnifiedArticleService {
       id: articleId,
       title: articleData.title,
       content: articleData.content,
-      excerpt: articleData.excerpt || articleData.content.substring(0, 200) + '...',
+      excerpt: sanitizeExcerptText(articleData.excerpt || articleData.content, 200),
       slug: `${baseSlug}-en`, // ✅ ИСПРАВЛЕНО: С суффиксом -en для основной статьи!
       
       category: articleData.category,

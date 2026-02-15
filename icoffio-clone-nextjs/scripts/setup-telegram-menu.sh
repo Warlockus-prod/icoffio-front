@@ -37,41 +37,44 @@ fi
 
 # Define menu commands (English)
 COMMANDS_EN='[
-  {"command": "start", "description": "Start bot & welcome message"},
-  {"command": "help", "description": "Show help & available commands"},
-  {"command": "compose", "description": "Start composing multi-message article"},
-  {"command": "publish", "description": "Publish composed article"},
-  {"command": "cancel", "description": "Cancel current operation"},
-  {"command": "delete", "description": "Delete article by URL"},
-  {"command": "queue", "description": "View queue status"},
-  {"command": "status", "description": "Check system status"},
-  {"command": "language", "description": "Change interface language"}
+  {"command": "start", "description": "Start bot"},
+  {"command": "help", "description": "How to use bot"},
+  {"command": "settings", "description": "Show current settings"},
+  {"command": "queue", "description": "My processing history"},
+  {"command": "status", "description": "Alias for /queue"},
+  {"command": "style", "description": "Set writing style"},
+  {"command": "images", "description": "Set number of images"},
+  {"command": "source", "description": "Set image source"},
+  {"command": "autopublish", "description": "Toggle auto publish"},
+  {"command": "admin", "description": "Open admin panel"}
 ]'
 
 # Define menu commands (Russian)
 COMMANDS_RU='[
-  {"command": "start", "description": "Запустить бот"},
-  {"command": "help", "description": "Помощь и команды"},
-  {"command": "compose", "description": "Режим составления статьи"},
-  {"command": "publish", "description": "Опубликовать составленное"},
-  {"command": "cancel", "description": "Отменить операцию"},
-  {"command": "delete", "description": "Удалить статью по ссылке"},
-  {"command": "queue", "description": "Статус очереди"},
-  {"command": "status", "description": "Статус системы"},
-  {"command": "language", "description": "Выбор языка"}
+  {"command": "start", "description": "Запустить бота"},
+  {"command": "help", "description": "Как пользоваться"},
+  {"command": "settings", "description": "Текущие настройки"},
+  {"command": "queue", "description": "История и статусы"},
+  {"command": "status", "description": "То же, что /queue"},
+  {"command": "style", "description": "Стиль публикации"},
+  {"command": "images", "description": "Количество картинок"},
+  {"command": "source", "description": "Источник картинок"},
+  {"command": "autopublish", "description": "Автопубликация on/off"},
+  {"command": "admin", "description": "Открыть админку"}
 ]'
 
 # Define menu commands (Polish)
 COMMANDS_PL='[
   {"command": "start", "description": "Uruchom bota"},
-  {"command": "help", "description": "Pomoc i komendy"},
-  {"command": "compose", "description": "Tryb komponowania artykułu"},
-  {"command": "publish", "description": "Opublikuj skomponowane"},
-  {"command": "cancel", "description": "Anuluj operację"},
-  {"command": "delete", "description": "Usuń artykuł po linku"},
-  {"command": "queue", "description": "Status kolejki"},
-  {"command": "status", "description": "Status systemu"},
-  {"command": "language", "description": "Wybór języka"}
+  {"command": "help", "description": "Jak korzystać"},
+  {"command": "settings", "description": "Aktualne ustawienia"},
+  {"command": "queue", "description": "Historia i statusy"},
+  {"command": "status", "description": "To samo co /queue"},
+  {"command": "style", "description": "Styl publikacji"},
+  {"command": "images", "description": "Liczba obrazów"},
+  {"command": "source", "description": "Źródło obrazów"},
+  {"command": "autopublish", "description": "Auto publikacja on/off"},
+  {"command": "admin", "description": "Otwórz panel admina"}
 ]'
 
 API_URL="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands"
@@ -131,7 +134,6 @@ echo "  1. Open your Telegram bot"
 echo "  2. Click the menu button (/) or hamburger icon"
 echo "  3. See all available commands"
 echo ""
-
 
 
 

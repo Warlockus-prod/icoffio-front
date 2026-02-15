@@ -23,19 +23,6 @@ npm run dev
 \`\`\`
 Откройте [http://localhost:3000](http://localhost:3000)
 
-#### Mobile (React Native):
-\`\`\`bash
-cd icoffioApp
-npm install
-
-# iOS (только macOS)
-cd ios && pod install && cd ..
-npm run ios
-
-# Android
-npm run android
-\`\`\`
-
 ---
 
 ## 🌿 Работа с ветками
@@ -86,7 +73,7 @@ git commit -m "feat(telegram): add retry mechanism for failed jobs"
 - \`chore\` — обновление зависимостей, конфигов
 
 **Модули:**
-- \`admin\`, \`parser\`, \`telegram\`, \`ads\`, \`home\`, \`analytics\`, \`mobile\`
+- \`admin\`, \`parser\`, \`telegram\`, \`ads\`, \`home\`, \`analytics\`
 
 ### 3. Push
 \`\`\`bash
@@ -148,13 +135,6 @@ npm run build   # проверьте, что билд проходит
 npm run start   # запустите prod-версию
 \`\`\`
 
-#### Mobile (React Native):
-\`\`\`bash
-cd icoffioApp
-npm test
-# Запустите на реальном девайсе/эмуляторе
-\`\`\`
-
 ### Линтинг
 \`\`\`bash
 npm run lint
@@ -179,14 +159,6 @@ icoffio-front/
 ├── lib/                 # Утилиты, сервисы
 ├── scripts/             # Утилиты для разработки
 ├── supabase/            # Миграции БД
-│
-└── icoffioApp/          # React Native Mobile
-    ├── src/
-    │   ├── screens/
-    │   ├── components/
-    │   └── services/
-    ├── ios/
-    └── android/
 \`\`\`
 
 ---
@@ -203,24 +175,6 @@ npm run dev
 **Логи API:**
 - Проверьте терминал, где запущен \`npm run dev\`
 - Supabase Studio: [https://supabase.com/dashboard](https://supabase.com/dashboard)
-
-### Mobile (React Native)
-\`\`\`bash
-# Откройте инспектор
-# iOS: Cmd+D → Debug
-# Android: Cmd+M → Debug
-\`\`\`
-
-**Логи:**
-\`\`\`bash
-# iOS
-npx react-native log-ios
-
-# Android
-npx react-native log-android
-\`\`\`
-
----
 
 ## 🔐 Переменные окружения
 
@@ -246,7 +200,6 @@ VERCEL_BLOB_READ_WRITE_TOKEN=vercel_blob_...
 - **Supabase:** [supabase.com/dashboard](https://supabase.com/dashboard)
 - **Vercel (деплой):** [vercel.com/dashboard](https://vercel.com/dashboard)
 - **Next.js Docs:** [nextjs.org/docs](https://nextjs.org/docs)
-- **React Native Docs:** [reactnative.dev](https://reactnative.dev)
 
 ---
 

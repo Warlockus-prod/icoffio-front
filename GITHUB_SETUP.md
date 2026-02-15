@@ -11,7 +11,7 @@
 2. Нажмите **"+"** → **"New repository"**
 3. Заполните:
    - **Repository name:** \`icoffio-front\` (или любое имя)
-   - **Description:** "ICoffio News — Next.js + React Native monorepo"
+   - **Description:** "ICoffio News — Next.js platform"
    - **Visibility:** **Private** (рекомендуется) или Public
    - **⚠️ НЕ инициализируйте** с README/gitignore/license (у нас уже есть)
 4. Нажмите **"Create repository"**
@@ -85,7 +85,6 @@ git push origin --tags
 | \`module:ads\` | \`#FBCA04\` | Рекламные блоки |
 | \`module:home\` | \`#D93F0B\` | Главная страница |
 | \`module:analytics\` | \`#0E8A16\` | Аналитика и статистика |
-| \`module:mobile\` | \`#F9D0C4\` | React Native приложение |
 
 Дополнительно:
 - \`bug\` (красный)
@@ -167,19 +166,6 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run lint
-
-  lint-mobile:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: icoffioApp
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run lint
 WORKFLOW_END
 
 git add .github/workflows/lint.yml
@@ -216,9 +202,6 @@ git push origin main
    \`\`\`bash
    # Web
    npm install
-
-   # Mobile
-   cd ../icoffioApp && npm install
    \`\`\`
 
 3. Настройте .env:

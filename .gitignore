@@ -57,6 +57,7 @@ telegram-reset-config.json
 
 # Legacy duplicate app tree (retired)
 icoffio-clone-nextjs/
+icoffioApp/
 
 # VPS documentation
 VPS_*.md

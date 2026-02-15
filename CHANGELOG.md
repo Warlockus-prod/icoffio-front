@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.24] - 2026-02-16 - 🧹 Tooling Cleanup: ad debug dependency + mobile module archive
+
+### 🎯 Что сделано
+- Добавлена локальная dev-зависимость `playwright` для стабильного запуска `npm run ad:live-debug`.
+- Подтвержден рабочий прогон `ad:live-debug` (desktop/tablet/mobile, en/pl) с сохранением отчета.
+- Удален архивируемый legacy-модуль `icoffioApp` из активного репозитория, чтобы убрать двусмысленность структуры.
+- Обновлены документы и конфиги под единый web-root:
+  - `CONTRIBUTING.md`
+  - `GITHUB_SETUP.md`
+  - `MODULE_MANAGEMENT.md`
+  - `VERIFICATION_REPORT.md`
+  - `.gitignore`, `tsconfig.json`
+
+### ✅ Проверки
+- `npm run ad:live-debug` — OK
+- `npm run type-check` — OK
+- `npm test` — OK
+- `npm run build` — OK
+
 ## [8.6.23] - 2026-02-16 - 🧹 Single-Root Cutover (Git + Vercel)
 
 ### 🎯 Что сделано

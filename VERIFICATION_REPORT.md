@@ -22,14 +22,13 @@ eb22861 docs: add module management and contribution guides
 
 ---
 
-## 2. ✅ Ветки (всего: 9)
+## 2. ✅ Ветки (исторический снимок)
 
 ### Основные:
 - ✅ \`main\` — продакшн
 - ✅ \`develop\` — интеграция
 
 ### Модульные:
-- ✅ \`feature/module-mobile-app\` — React Native приложение
 - ✅ \`feature/module-web-admin\` — Админ-панель
 - ✅ \`feature/module-web-ads\` — Рекламные блоки
 - ✅ \`feature/module-web-analytics\` — Статистика
@@ -108,13 +107,8 @@ eb22861 docs: add module management and contribution guides
 - **Компоненты:** \`ArticlePopularityStats.tsx\`, \`ActivityLog.tsx\`
 - **Функции:** Трекинг просмотров, популярные статьи, activity log
 
-### Mobile (React Native): \`icoffioApp/\`
-
-#### Модуль: Mobile App
-- **Скрины:** Home, Article, Search, Categories, WebView
-- **Компоненты:** \`MobileAd.tsx\`
-- **Платформы:** iOS + Android
-- **Функции:** Навигация, реклама, API-интеграция с веб-бэкендом
+### Mobile (React Native)
+- Архивирован и удалён из активного репозитория в рамках консолидации структуры.
 
 ---
 
@@ -128,8 +122,8 @@ eb22861 docs: add module management and contribution guides
 
 ## 7. ✅ Что работает правильно
 
-1. **Монорепа:** Web + Mobile в одном репо
-2. **Модульность:** Чёткое разделение на 7 модулей
+1. **Монорепа:** единый рабочий web-root
+2. **Модульность:** чёткое разделение web-модулей
 3. **Безопасность:** Секреты не попали в коммиты
 4. **Документация:** Полная (менеджер + разработчики + GitHub)
 5. **Ветки:** Логичная структура (main, develop, feature/module-*)

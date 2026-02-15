@@ -3,8 +3,7 @@
 ## 📋 Структура проекта
 
 Это монорепозиторий, содержащий:
-- **Web-приложение** (Next.js): ``
-- **Мобильное приложение** (React Native): `icoffioApp/`
+- **Web-приложение** (Next.js): `repo root`
 
 ## 🌿 Структура веток
 
@@ -14,7 +13,6 @@
 
 ### Модульные ветки (долгоживущие)
 ```
-feature/module-mobile-app        — React Native приложение
 feature/module-web-admin         — Админ-панель (управление контентом)
 feature/module-web-parser        — Парсинг статей (TechCrunch, Wylsa и др.)
 feature/module-web-telegram      — Telegram-бот и интеграция
@@ -113,17 +111,9 @@ feature/module-web-analytics     — Статистика, просмотры, �
 
 ---
 
-### 7. **module-mobile-app** — React Native
-**Файлы:**
-- `icoffioApp/` (весь каталог)
-- `icoffioApp/src/screens/` (Home, Article, Search, Categories)
-- `icoffioApp/src/components/MobileAd.tsx`
-
-**Функции:**
-- iOS/Android приложение
-- WebView для статей
-- Мобильная реклама
-- Bottom Tab навигация
+### 7. **module-mobile-app** — архивирован
+- Модуль `icoffioApp` удалён из активного репозитория при консолидации структуры.
+- Восстановление возможно из истории Git при необходимости.
 
 ---
 
@@ -182,7 +172,6 @@ git push -u origin feature/telegram-date-filter
 - \`module:ads\`
 - \`module:home\`
 - \`module:analytics\`
-- \`module:mobile\`
 
 Пример:
 \`\`\`
@@ -247,7 +236,6 @@ test(module): добавил тесты
 \`\`\`
 feat(telegram): add retry logic for failed jobs
 fix(admin): correct image upload validation
-chore(mobile): bump react-native to 0.82.1
 \`\`\`
 
 ---

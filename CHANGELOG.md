@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [8.6.12] - 2026-02-15 - 🚑 Telegram Webhook Secret Recovery Hotfix
+## [8.6.13] - 2026-02-15 - 🚑 Telegram Webhook Secret Recovery Hotfix
 
 ### 🎯 Что исправлено
 - Восстановлена работа Telegram webhook после `401 Unauthorized` из-за рассинхрона secret token.

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.26] - 2026-02-16 - 📱 Mobile Bottom Banner: Safe Format Mapping
+
+### 🎯 Что исправлено
+- Исправлен «сплющенный» баннер в конце статьи на mobile.
+- Для `mobile-2` (позиция `content-bottom`) переключен формат на безопасный `320x50`.
+- `mobile-2` переведен на проверенный mobile PlaceID `68f644dc70e7b26b58596f34`, чтобы не показывать деформированные креативы.
+
+### 🔧 Измененные файлы
+- `lib/config/adPlacements.ts`
+- `package.json`
+- `package-lock.json`
+
 ## [8.6.25] - 2026-02-16 - 🎥 Sidebar Outstream: Background Prefetch Without White Flash
 
 ### 🎯 Что исправлено

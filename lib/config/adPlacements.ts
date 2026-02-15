@@ -111,11 +111,11 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
   },
   {
     id: 'mobile-2',
-    placeId: '68f645bf810d98e1a08f272f',
-    format: '320x100',
+    placeId: '68f644dc70e7b26b58596f34',
+    format: '320x50',
     placement: 'mobile',
-    name: 'Large Mobile Banner',
-    description: '320x100 banner after content (Mobile)',
+    name: 'Mobile Banner Bottom',
+    description: '320x50 banner after content (Mobile, safe format)',
     location: 'article',
     position: 'content-bottom',
     enabled: true,
@@ -263,4 +263,3 @@ export function getAdPlacementsStats() {
     }
   };
 }
-

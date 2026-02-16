@@ -58,14 +58,18 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
   if (relatedPosts.length === 0) return null;
 
   return (
-    <section className="mt-16 pt-8 border-t border-neutral-200 dark:border-neutral-800">
+    <section
+      className="mt-16 pt-8 border-t border-neutral-200 dark:border-neutral-800"
+      data-related-articles="1"
+      data-no-inimage="1"
+    >
       <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">
         {t.relatedArticles}
       </h2>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {relatedPosts.map((post) => (
-          <article key={post.slug} className="group">
+          <article key={post.slug} className="group" data-no-inimage="1">
             <Link 
               href={`/${locale}/article/${post.slug}`}
               className="block rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-sm transition-shadow"

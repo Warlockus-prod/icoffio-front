@@ -54,7 +54,11 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
   };
   
   return (
-    <article className="group rounded-2xl overflow-hidden border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg hover:shadow-neutral-200/50 dark:hover:shadow-neutral-800/50 transition-all duration-300">
+    <article
+      className="group rounded-2xl overflow-hidden border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-lg hover:shadow-neutral-200/50 dark:hover:shadow-neutral-800/50 transition-all duration-300"
+      data-article-card="1"
+      data-no-inimage="1"
+    >
       <Link href={`/${locale}/article/${post.slug}`} className="block">
         <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
           <OptimizedImage

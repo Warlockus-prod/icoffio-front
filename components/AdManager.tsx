@@ -75,12 +75,15 @@ export function AdManager() {
           placeId: IN_IMAGE_PLACE_ID,
           fetchSelector: true,
           excludeSelectors: [
+            '[data-no-inimage] img',
+            '[data-related-articles] img',
+            '[data-article-card] img',
+            'a[href*="/article/"] img',
             '.group img',
             '[class*="aspect-"] img',
             'nav img',
             'header img',
-            'footer img',
-            'a[href*="/article/"] img:not(.prose img):not(article > div > img)'
+            'footer img'
           ].join(', ')
         });
       }

@@ -7,7 +7,6 @@ import type { Post } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 const LIST_LIMIT = 12;
-const POPULAR_LOOKUP_LIMIT = 50;
 
 interface ArticlesListProps {
   posts: Post[];       // Server-side initial data (SSR)
@@ -19,13 +18,9 @@ interface ArticlesApiResponse {
   articles?: Post[];
 }
 
-interface PopularArticleRow {
-  article_slug?: string;
-}
-
 interface PopularArticlesApiResponse {
   success?: boolean;
-  articles?: PopularArticleRow[];
+  articles?: Post[];
 }
 
 function normalizeTimestamp(value?: string) {
@@ -77,9 +72,10 @@ export function ArticlesList({ posts: serverPosts, locale }: ArticlesListProps) 
 
   // Popularity ranking from analytics for "Popular" tab
   const { data: popularData } = useSWR<PopularArticlesApiResponse>(
-    `/api/analytics/popular-articles?locale=${locale}&limit=${POPULAR_LOOKUP_LIMIT}`,
+    `/api/analytics/popular-posts?lang=${locale}&limit=${LIST_LIMIT}`,
     fetcher,
     {
+      fallbackData: { success: true, articles: serverPosts },
       revalidateOnFocus: false,
       revalidateOnMount: true,
       dedupingInterval: 60_000,
@@ -94,33 +90,11 @@ export function ArticlesList({ posts: serverPosts, locale }: ArticlesListProps) 
   const postsPool = dedupeBySlug([...latestPosts, ...serverPosts]);
   const newestPosts = sortByDateDesc(postsPool).slice(0, LIST_LIMIT);
 
-  const popularSlugs = (popularData?.success && Array.isArray(popularData.articles))
-    ? popularData.articles
-        .map((row) => row.article_slug)
-        .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0)
-    : [];
-
-  const popularRank = new Map(popularSlugs.map((slug, index) => [slug, index]));
-  const popularPosts = [...postsPool]
-    .sort((a, b) => {
-      const aRank = popularRank.get(a.slug);
-      const bRank = popularRank.get(b.slug);
-
-      const aHasRank = Number.isInteger(aRank);
-      const bHasRank = Number.isInteger(bRank);
-
-      if (aHasRank && bHasRank) {
-        return (aRank as number) - (bRank as number);
-      }
-
-      if (aHasRank) return -1;
-      if (bHasRank) return 1;
-
-      const bTs = normalizeTimestamp(b.publishedAt || b.date);
-      const aTs = normalizeTimestamp(a.publishedAt || a.date);
-      return bTs - aTs;
-    })
-    .slice(0, LIST_LIMIT);
+  const popularPosts = (
+    popularData?.success && Array.isArray(popularData.articles) && popularData.articles.length > 0
+      ? dedupeBySlug(popularData.articles)
+      : dedupeBySlug(serverPosts)
+  ).slice(0, LIST_LIMIT);
 
   const visiblePosts = sortBy === 'popular' ? popularPosts : newestPosts;
 

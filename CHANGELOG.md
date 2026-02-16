@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.30] - 2026-02-16 - 📊 Popular Top-N API (Full Articles) + Stats Validation
+
+### 🎯 Что исправлено
+- Добавлен новый backend endpoint `GET /api/analytics/popular-posts` с возвратом **полных карточек статей** в порядке популярности.
+- Вкладка `Popular` на главной теперь берет данные из нового endpoint, а не из локального пула последних статей.
+- Реализован strict ranking pipeline:
+  - приоритетно используется SQL-функция `get_popular_articles` (top-N по всей базе),
+  - fallback на `article_popularity` materialized view, если RPC недоступен.
+- Сохранен UX fallback: если API временно пустой/недоступен, `Popular` не остается пустым на клиенте.
+
+### 🔧 Измененные файлы
+- `app/api/analytics/popular-posts/route.ts`
+- `components/ArticlesList.tsx`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+- Production stats sanity-check:
+  - `popular-articles` сортируется по `popularity_score` корректно,
+  - locale-фильтр по суффиксу slug работает (`-en`/`-pl`),
+  - `track-view` увеличивает счетчик просмотров (проверка delta `+1`).
+
 ## [8.6.29] - 2026-02-16 - 🔥 Popular Tab Uses Real Analytics Ranking
 
 ### 🎯 Что исправлено

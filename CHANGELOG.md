@@ -11,9 +11,11 @@ All notable changes to this project will be documented in this file.
   - приоритетно используется SQL-функция `get_popular_articles` (top-N по всей базе),
   - fallback на `article_popularity` materialized view, если RPC недоступен.
 - Сохранен UX fallback: если API временно пустой/недоступен, `Popular` не остается пустым на клиенте.
+- Исправлен источник Supabase-ключа в `popular-articles` (приоритет `SUPABASE_SERVICE_ROLE_KEY`) для консистентного refresh/чтения статистики.
 
 ### 🔧 Измененные файлы
 - `app/api/analytics/popular-posts/route.ts`
+- `app/api/analytics/popular-articles/route.ts`
 - `components/ArticlesList.tsx`
 - `package.json`
 - `package-lock.json`

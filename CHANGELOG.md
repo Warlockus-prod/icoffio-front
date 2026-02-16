@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.39] - 2026-02-16 - 🎬 Instream Safety: Block DSP/VAST URLs as Content Video
+
+### 🎯 Что исправлено
+- Добавлена защита `VideoPlayer`, чтобы DSP/VAST ссылки не воспринимались как `videoUrl` контентного ролика.
+- Заблокированы ad-tag источники вида:
+  - `ssp.hybrid.ai`
+  - `dsa-eu.hybrid.ai`
+  - URL с маркерами `vast`, `adtag`, `ad_tag`, `/seance/`, `/DeliverySeance/`
+- Если в `videoUrl`/`videoPlaylist` передан ad-tag, плеер теперь игнорирует его и пишет предупреждение в консоль.
+- Это устраняет сценарий, когда preroll-tag ошибочно запускался как «фильм instream».
+
+### 🔧 Измененные файлы
+- `components/VideoPlayer.tsx`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm run build` — OK
+
 ## [8.6.38] - 2026-02-16 - 🔧 InImage Ads Restore (fetchSelector rollback)
 
 ### 🎯 Что исправлено

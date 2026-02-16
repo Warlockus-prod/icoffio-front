@@ -30,6 +30,22 @@ interface VideoPlayerProps {
   className?: string;
 }
 
+function isLikelyAdTagUrl(value: string): boolean {
+  const url = value.trim().toLowerCase();
+  if (!url) return false;
+
+  // DSP/VAST tag endpoints and tracking links must never be treated as content videos.
+  return (
+    url.includes('ssp.hybrid.ai') ||
+    url.includes('dsa-eu.hybrid.ai') ||
+    url.includes('/seance/') ||
+    url.includes('/deliveryseance/') ||
+    url.includes('vast') ||
+    url.includes('adtag') ||
+    url.includes('ad_tag')
+  );
+}
+
 export default function VideoPlayer({
   type,
   position,
@@ -50,12 +66,34 @@ export default function VideoPlayer({
   const [hasAdContent, setHasAdContent] = useState(true);
   const [playlistIndex, setPlaylistIndex] = useState(0);
 
-  const playlist = useMemo(() => {
+  const { playlist, blockedAdLikeSources } = useMemo(() => {
     const values = [videoUrl, ...videoPlaylist].filter((item): item is string => Boolean(item && item.trim()));
-    return Array.from(new Set(values));
+    const unique = Array.from(new Set(values));
+
+    const blocked: string[] = [];
+    const safe = unique.filter((value) => {
+      if (isLikelyAdTagUrl(value)) {
+        blocked.push(value);
+        return false;
+      }
+      return true;
+    });
+
+    return {
+      playlist: safe,
+      blockedAdLikeSources: blocked,
+    };
   }, [videoPlaylist, videoUrl]);
 
   const currentVideo = playlist[playlistIndex];
+
+  useEffect(() => {
+    if (blockedAdLikeSources.length === 0) return;
+    console.warn(
+      `[VideoPlayer] Blocked ${blockedAdLikeSources.length} ad-tag source(s) in instream videoUrl/videoPlaylist. ` +
+      'Use DSP/VAST URLs only as ad tags, not as content video URLs.'
+    );
+  }, [blockedAdLikeSources]);
 
   const getElementSize = (element: Element | null): { width: number; height: number } => {
     if (!element) return { width: 0, height: 0 };

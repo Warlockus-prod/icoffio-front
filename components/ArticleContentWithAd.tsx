@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useRef } from 'react';
 import { UniversalAd } from './UniversalAd';
 import type { AdPlacementConfig } from '@/lib/config/adPlacements';
 
@@ -19,6 +19,7 @@ export function ArticleContentWithAd({
   adsDesktop, 
   adsMobile 
 }: ArticleContentWithAdProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const insertionTargets = Math.max(adsDesktop.length, adsMobile.length);
 
   // Разбиваем контент на сегменты и вставляем рекламу между ними.
@@ -66,16 +67,48 @@ export function ArticleContentWithAd({
     };
   }, [content, insertionTargets]);
 
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const hideBrokenImage = (img: HTMLImageElement) => {
+      img.style.display = 'none';
+      img.setAttribute('aria-hidden', 'true');
+
+      const paragraph = img.closest('p');
+      if (paragraph) {
+        const clone = paragraph.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll('img').forEach((node) => node.remove());
+        if (!clone.textContent?.trim()) {
+          paragraph.remove();
+        }
+      }
+    };
+
+    const cleanupFns: Array<() => void> = [];
+    root.querySelectorAll('img').forEach((img) => {
+      const onError = () => hideBrokenImage(img);
+      img.addEventListener('error', onError);
+      cleanupFns.push(() => img.removeEventListener('error', onError));
+
+      if (img.complete && img.naturalWidth === 0) {
+        hideBrokenImage(img);
+      }
+    });
+
+    return () => cleanupFns.forEach((cleanup) => cleanup());
+  }, [content, insertions]);
+
   if (insertions === 0) {
     return (
-      <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
+      <div ref={rootRef} className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
         <div dangerouslySetInnerHTML={{ __html: content }} />
       </div>
     );
   }
 
   return (
-    <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
+    <div ref={rootRef} className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
       {segments.map((segment, index) => {
         const desktopAd = adsDesktop[index];
         const mobileAd = adsMobile[index];

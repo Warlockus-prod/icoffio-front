@@ -10,6 +10,36 @@ import type { ProcessedArticle, PublishResult } from './types';
 import { translateToPolish } from './translator';
 import { insertImages, type ImageGenerationOptions } from './image-generator';
 
+function isRenderableImageUrl(url: string): boolean {
+  const normalized = (url || '').trim();
+  if (!normalized) return false;
+  if (!/^https?:\/\//i.test(normalized)) return false;
+  if (/\/photo-1(?:[/?]|$)/i.test(normalized)) return false;
+  if (/\/(?:undefined|null|nan)(?:[/?]|$)/i.test(normalized)) return false;
+  return true;
+}
+
+function extractImageUrlsFromContent(content: string): string[] {
+  if (!content) return [];
+
+  const found = new Set<string>();
+  const markdownRegex = /!\[[^\]]*]\((https?:\/\/[^\s)]+)\)/gim;
+  const htmlRegex = /<img[^>]+src=["'](https?:\/\/[^"']+)["'][^>]*>/gim;
+
+  let match: RegExpExecArray | null = null;
+  while ((match = markdownRegex.exec(content)) !== null) {
+    const url = (match[1] || '').trim();
+    if (isRenderableImageUrl(url)) found.add(url);
+  }
+
+  while ((match = htmlRegex.exec(content)) !== null) {
+    const url = (match[1] || '').trim();
+    if (isRenderableImageUrl(url)) found.add(url);
+  }
+
+  return Array.from(found);
+}
+
 /**
  * Get Supabase client
  */
@@ -74,6 +104,9 @@ export async function publishArticle(
       console.log('[TelegramSimple] ℹ️ No images requested');
     }
 
+    const extractedImageUrls = extractImageUrlsFromContent(finalContentEn);
+    const heroImageUrl = extractedImageUrls[0] || '';
+
     // Step 3: Prepare article data for BOTH languages
     
     // Prepend Polish title as H1 to content (frontend will extract it)
@@ -98,6 +131,7 @@ export async function publishArticle(
       content_pl: contentPlWithTitle,
       excerpt_pl: polish.excerpt,
       url_pl: `https://app.icoffio.com/pl/article/${slug}-pl`,
+      image_url: heroImageUrl || null,
       
       // Store Polish title in tags for easier retrieval
       tags: [polish.title],

@@ -7,6 +7,42 @@ marked.use({
   gfm: true, // GitHub Flavored Markdown
 });
 
+const INVALID_IMAGE_SRC_PATTERNS = [
+  /^$/i,
+  /^null$/i,
+  /^undefined$/i,
+  /^nan$/i,
+  /\/photo-1(?:[/?]|$)/i,
+];
+
+function isInvalidImageSrc(src: string): boolean {
+  const normalized = (src || '').trim();
+  const isHttp = /^https?:\/\//i.test(normalized);
+  const isRootRelative = normalized.startsWith('/');
+  const isDataUrl = /^data:image\//i.test(normalized);
+  if (!isHttp && !isRootRelative && !isDataUrl) return true;
+  return INVALID_IMAGE_SRC_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function stripInvalidMarkdownImages(markdown: string): string {
+  return markdown.replace(/!\[[^\]]*]\(([^)]+)\)/g, (full, rawUrl) => {
+    const url = String(rawUrl || '').trim().replace(/^['"]|['"]$/g, '');
+    return isInvalidImageSrc(url) ? '' : full;
+  });
+}
+
+function sanitizeHtmlImages(html: string): string {
+  const withoutInvalidImages = html.replace(/<img\b[^>]*>/gi, (tag) => {
+    const match = tag.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    const src = (match?.[1] || match?.[2] || match?.[3] || '').trim();
+    if (isInvalidImageSrc(src)) return '';
+    return tag;
+  });
+
+  // Убираем пустые абзацы после удаления битых изображений.
+  return withoutInvalidImages.replace(/<p>\s*(?:<br\s*\/?>\s*)*<\/p>/gi, '');
+}
+
 /**
  * Конвертирует Markdown в HTML
  * Безопасно обрабатывает markdown контент и возвращает HTML
@@ -49,18 +85,18 @@ export function isMarkdown(content: string): boolean {
  */
 export function renderContent(content: string): string {
   if (!content) return '';
+  const cleanedInput = stripInvalidMarkdownImages(content);
   
   // Если контент уже HTML (содержит теги), возвращаем как есть
-  if (content.includes('<p>') || content.includes('<div>') || content.includes('<h1>')) {
-    return content;
+  if (cleanedInput.includes('<p>') || cleanedInput.includes('<div>') || cleanedInput.includes('<h1>')) {
+    return sanitizeHtmlImages(cleanedInput);
   }
   
   // Если markdown - парсим
-  if (isMarkdown(content)) {
-    return parseMarkdown(content);
+  if (isMarkdown(cleanedInput)) {
+    return sanitizeHtmlImages(parseMarkdown(cleanedInput));
   }
   
   // Обычный текст - оборачиваем в параграфы
-  return content.split('\n\n').map(p => `<p>${p}</p>`).join('');
+  return cleanedInput.split('\n\n').map(p => `<p>${p}</p>`).join('');
 }
-

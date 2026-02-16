@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.28] - 2026-02-16 - 🖼 Telegram Image Reliability + Smarter Keywords (Title + Context)
+
+### 🎯 Что исправлено
+- Убран источник битых inline-изображений в статьях Telegram (`images.unsplash.com/photo-1?...`).
+- Добавлена защита рендера: если inline-изображение не загрузилось, оно скрывается без «битого» значка в контенте.
+- Добавлена санация контента: невалидные `img src` и markdown-изображения удаляются до рендера.
+- Улучшен подбор ключевых слов для изображений: теперь используется не только `title`, но и `excerpt` + `category`.
+- Для статей без `image_url` hero/metadata теперь берутся из первого валидного изображения контента (с fallback), вместо постоянной дефолтной обложки.
+- В Telegram publisher теперь сохраняется `image_url` (hero) из валидного контентного изображения.
+
+### 🔧 Измененные файлы
+- `lib/image-keywords.ts`
+- `lib/image-generation-service.ts`
+- `lib/telegram-simple/image-generator.ts`
+- `lib/telegram-simple/publisher.ts`
+- `lib/markdown.ts`
+- `components/ArticleContentWithAd.tsx`
+- `app/[locale]/(site)/article/[slug]/page.tsx`
+- `lib/dual-language-publisher.ts`
+- `__tests__/image-pipeline.test.ts`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.6.27] - 2026-02-16 - 🤖 Telegram Intake Recovery: Supabase URL Resolution Hardening
 
 ### 🎯 Что исправлено

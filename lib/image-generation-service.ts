@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { buildTitleKeywordPhrase, extractTitleKeywords } from './image-keywords';
+import { buildImageKeywordPhrase, extractImageKeywords } from './image-keywords';
 
 // Ленивая инициализация OpenAI клиента (только когда нужен)
 let openaiInstance: OpenAI | null = null;
@@ -44,13 +44,75 @@ export interface ImageGenerationResult {
   revisedPrompt?: string;
 }
 
+const FALLBACK_UNSPLASH_IMAGES = {
+  wearables: [
+    'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1',
+    'https://images.unsplash.com/photo-1576243345690-4e4b79b63288',
+    'https://images.unsplash.com/photo-1544117519-31a4b719223d'
+  ],
+  apple: [
+    'https://images.unsplash.com/photo-1611532736597-de2d4265fba3',
+    'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37',
+    'https://images.unsplash.com/photo-1603898037225-1c97b27ebc8f'
+  ],
+  ai: [
+    'https://images.unsplash.com/photo-1677442136019-21780ecad995',
+    'https://images.unsplash.com/photo-1620712943543-bcc4688e7485',
+    'https://images.unsplash.com/photo-1485827404703-89b55fcc595e'
+  ],
+  games: [
+    'https://images.unsplash.com/photo-1538481199705-c710c4e965fc',
+    'https://images.unsplash.com/photo-1511512578047-dfb367046420',
+    'https://images.unsplash.com/photo-1550745165-9bc0b252726f'
+  ],
+  tech: [
+    'https://images.unsplash.com/photo-1518770660439-4636190af475',
+    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085'
+  ]
+} as const;
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let index = 0; index < input.length; index++) {
+    hash = (hash << 5) - hash + input.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getFallbackPoolForQuery(query: string): readonly string[] {
+  const normalized = query.toLowerCase();
+
+  if (/(garmin|fenix|watch|smartwatch|wearable|fitness|runner|running|gps)/.test(normalized)) {
+    return FALLBACK_UNSPLASH_IMAGES.wearables;
+  }
+  if (/(iphone|ipad|mac|apple|ios|airpods|watchos)/.test(normalized)) {
+    return FALLBACK_UNSPLASH_IMAGES.apple;
+  }
+  if (/(ai|artificial|machine|neural|llm|robot|automation|gpt)/.test(normalized)) {
+    return FALLBACK_UNSPLASH_IMAGES.ai;
+  }
+  if (/(game|gaming|xbox|playstation|nintendo|steam|esport)/.test(normalized)) {
+    return FALLBACK_UNSPLASH_IMAGES.games;
+  }
+
+  return FALLBACK_UNSPLASH_IMAGES.tech;
+}
+
+function getKeywordAwareFallbackUnsplashUrl(query: string): string {
+  const pool = getFallbackPoolForQuery(query);
+  const selected = pool[hashString(query || 'technology') % pool.length];
+  return `${selected}?w=1200&h=800&fit=crop&auto=format&q=80`;
+}
+
 /**
  * Генерирует оптимизированный prompt для DALL-E 3
  */
 function generateImagePrompt(params: ImageGenerationParams): string {
-  const { title, category } = params;
-  const keywordPhrase = buildTitleKeywordPhrase(title, 5);
-  const keywordList = extractTitleKeywords(title, 5);
+  const { title, excerpt, category } = params;
+  const keywordPhrase = buildImageKeywordPhrase({ title, excerpt, category }, 6);
+  const keywordList = extractImageKeywords({ title, excerpt, category }, 6);
   const keywordText = keywordList.length > 0 ? keywordList.join(', ') : keywordPhrase;
   
   // Генерируем prompt строго из ключевых слов title (без полного заголовка/excerpt)
@@ -202,9 +264,8 @@ export async function getUnsplashImage(
     const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY;
     
     if (!unsplashAccessKey) {
-      // Fallback к search-based URL если нет API ключа (3:2 aspect ratio)
-      const encodedQuery = encodeURIComponent(query);
-      const url = `https://images.unsplash.com/photo-1?q=${encodedQuery}&w=1200&h=800&fit=crop`;
+      const url = getKeywordAwareFallbackUnsplashUrl(query);
+      console.warn('[ImageService] UNSPLASH_ACCESS_KEY is missing, using curated fallback image');
       
       return {
         success: true,
@@ -228,7 +289,11 @@ export async function getUnsplashImage(
     }
     
     const data = await response.json();
-    const url = `${data.urls.raw}&w=1200&h=800&fit=crop`; // 3:2 aspect ratio для inimage
+    const rawUrl = data?.urls?.raw;
+    if (!rawUrl) {
+      throw new Error('Unsplash API returned empty image URL');
+    }
+    const url = `${rawUrl}&w=1200&h=800&fit=crop`; // 3:2 aspect ratio для inimage
     
     return {
       success: true,
@@ -239,9 +304,7 @@ export async function getUnsplashImage(
   } catch (error) {
     console.error('Unsplash API error:', error);
     
-    // Fallback к прямому URL
-    const encodedQuery = encodeURIComponent(query);
-    const url = `https://images.unsplash.com/photo-1?q=${encodedQuery}&w=1200&h=400&fit=crop`;
+    const url = getKeywordAwareFallbackUnsplashUrl(query);
     
     return {
       success: true,
@@ -270,7 +333,14 @@ export async function getArticleImage(
       
     case 'unsplash':
       let query: string;
-      const keywordQuery = buildTitleKeywordPhrase(params.title, 4);
+      const keywordQuery = buildImageKeywordPhrase(
+        {
+          title: params.title,
+          excerpt: params.excerpt,
+          category: params.category,
+        },
+        5
+      );
       
       if (params.customQuery) {
         // Используем кастомный query если указан

@@ -9,7 +9,7 @@
 import { translateArticleContent } from './ai-copywriting-service';
 import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
 import { getPublicationStyle, PublicationStyle } from './telegram-user-preferences';
-import { buildTitleKeywordPhrase, extractTitleKeywords } from './image-keywords';
+import { buildImageKeywordPhrase, extractImageKeywords } from './image-keywords';
 
 const BASE_URL = 'https://app.icoffio.com';
 
@@ -237,8 +237,8 @@ async function insertImagesIntoContent(
   category: string
 ): Promise<string> {
   try {
-    const keywordPhrase = buildTitleKeywordPhrase(title, 5);
-    const keywords = extractTitleKeywords(title, 5);
+    const keywordPhrase = buildImageKeywordPhrase({ title, excerpt, category }, 6);
+    const keywords = extractImageKeywords({ title, excerpt, category }, 7);
     const secondaryKeyword = keywords[1] || keywords[0] || keywordPhrase;
 
     console.log(`[DualLang] 🚀 FAST MODE: Getting 2 images (1 Unsplash + 1 AI) from title keywords...`);

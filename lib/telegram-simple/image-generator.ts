@@ -5,9 +5,18 @@
  * Based on user settings (count, source)
  */
 
-import { buildTitleKeywordPhrase, extractTitleKeywords } from '../image-keywords';
+import { buildImageKeywordPhrase, extractImageKeywords } from '../image-keywords';
 
 const BASE_URL = 'https://app.icoffio.com';
+
+function isRenderableImageUrl(url: string): boolean {
+  const normalized = (url || '').trim();
+  if (!normalized) return false;
+  if (!/^https?:\/\//i.test(normalized)) return false;
+  if (/\/photo-1(?:[/?]|$)/i.test(normalized)) return false;
+  if (/\/(?:undefined|null|nan)(?:[/?]|$)/i.test(normalized)) return false;
+  return true;
+}
 
 export interface ImageGenerationOptions {
   imagesCount: number; // 0-3
@@ -65,8 +74,8 @@ async function generateImages(
   category: string
 ): Promise<string[]> {
   const sourcePlan = buildImageSourcePlan(count, source);
-  const keywordPhrase = buildTitleKeywordPhrase(title, 5);
-  const keywords = extractTitleKeywords(title, 5);
+  const keywordPhrase = buildImageKeywordPhrase({ title, excerpt, category }, 6);
+  const keywords = extractImageKeywords({ title, excerpt, category }, 8);
 
   console.log(
     `[TelegramImages] Generating ${count} images (requested source: ${source}, plan: ${sourcePlan.join(' + ')})...`
@@ -78,7 +87,7 @@ async function generateImages(
     const keywordVariant = keywords[index % Math.max(1, keywords.length)] || keywordPhrase;
     const prompt =
       apiSource === 'dalle'
-        ? `${keywordPhrase} ${keywordVariant} ${category} digital concept`
+        ? `${keywordPhrase} ${keywordVariant} ${category} product concept`
         : `${keywordPhrase} ${keywordVariant}`;
 
     return fetch(`${BASE_URL}/api/admin/generate-image`, {
@@ -101,7 +110,7 @@ async function generateImages(
   for (const response of responses) {
     if (response.ok) {
       const data = await response.json();
-      if (data.url && data.url.length > 0) {
+      if (isRenderableImageUrl(data.url)) {
         imageUrls.push(data.url);
       }
     }

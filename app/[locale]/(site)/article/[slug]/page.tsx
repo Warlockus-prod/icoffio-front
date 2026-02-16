@@ -30,6 +30,35 @@ import { mockPostsFull as mockPosts, getMockPostBySlug, getRelatedMockPosts } fr
 
 export const revalidate = 3600; // 1 hour
 
+function isRenderableArticleImage(url: string): boolean {
+  const normalized = (url || '').trim();
+  if (!normalized) return false;
+  if (!/^https?:\/\//i.test(normalized)) return false;
+  if (/\/photo-1(?:[/?]|$)/i.test(normalized)) return false;
+  if (/\/(?:undefined|null|nan)(?:[/?]|$)/i.test(normalized)) return false;
+  return true;
+}
+
+function extractFirstContentImage(content: string): string {
+  if (!content) return '';
+
+  const markdownRegex = /!\[[^\]]*]\((https?:\/\/[^\s)]+)\)/gi;
+  let markdownMatch: RegExpExecArray | null = null;
+  while ((markdownMatch = markdownRegex.exec(content)) !== null) {
+    const markdownUrl = (markdownMatch[1] || '').trim();
+    if (isRenderableArticleImage(markdownUrl)) return markdownUrl;
+  }
+
+  const htmlRegex = /<img[^>]+src=["'](https?:\/\/[^"']+)["'][^>]*>/gi;
+  let htmlMatch: RegExpExecArray | null = null;
+  while ((htmlMatch = htmlRegex.exec(content)) !== null) {
+    const htmlUrl = (htmlMatch[1] || '').trim();
+    if (isRenderableArticleImage(htmlUrl)) return htmlUrl;
+  }
+
+  return '';
+}
+
 // Helper functions using centralized mock data
 const getPostBySlugFromMocks = getMockPostBySlug;
 const getRelatedFromMocks = getRelatedMockPosts;
@@ -52,6 +81,10 @@ export async function generateMetadata({ params }: { params: { locale: string; s
 
   const publishedTime = new Date(post.publishedAt || post.date || new Date()).toISOString();
   const url = `${process.env.NEXT_PUBLIC_SITE_URL}/${params.locale}/article/${post.slug}`;
+  const contentImage = extractFirstContentImage(post.content || post.contentHtml || '');
+  const metadataImage = isRenderableArticleImage(post.image || '')
+    ? (post.image as string)
+    : (contentImage || "/og.png");
 
   return {
     title: post.title,
@@ -65,7 +98,7 @@ export async function generateMetadata({ params }: { params: { locale: string; s
       siteName: "icoffio",
       images: [
         {
-          url: post.image || "/og.png",
+          url: metadataImage,
           width: 1200,
           height: 630,
           alt: post.imageAlt || post.title,
@@ -81,7 +114,7 @@ export async function generateMetadata({ params }: { params: { locale: string; s
       card: "summary_large_image",
       title: post.title,
       description: post.excerpt || `${post.title} - detailed article on icoffio`,
-      images: [post.image || "/og.png"],
+      images: [metadataImage],
     },
     robots: {
       index: true,
@@ -159,6 +192,10 @@ export default async function Article({ params }: { params: { locale: string; sl
   const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
   
   const fallback = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop";
+  const contentDerivedHero = extractFirstContentImage(cleanArticleContent);
+  const heroImage = isRenderableArticleImage(post.image || '')
+    ? (post.image as string)
+    : (contentDerivedHero || fallback);
 
   const breadcrumbItems = [
     { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },
@@ -214,7 +251,7 @@ export default async function Article({ params }: { params: { locale: string; sl
             {/* Hero Image */}
             <div className="mb-8">
               <img 
-                src={post.image || fallback} 
+                src={heroImage} 
                 alt={post.imageAlt || post.title} 
                 className="w-full rounded-xl aspect-[16/9] object-cover" 
               />

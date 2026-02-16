@@ -143,14 +143,16 @@ interface ArticleBodySanitizeOptions {
 
 const PARSER_HARD_STOP_PATTERNS: RegExp[] = [
   /\b(spider'?s web|google discover)\b/i,
-  /\b(czytaj też|read also|read more|polecamy)\b/i,
   /\bnajnowsze\d{1,2}[:.]\d{2}/i,
   /\b(aktualizacja|updated?)\s*:\s*\d{4}-\d{2}-\d{2}t/i,
   /\btagi\s*:/i,
 ];
 
 const PARSER_INLINE_NOISE_PATTERNS: RegExp[] = [
-  /\b(REKLAMA|ADVERTISEMENT|ADVERTISMENT|SPONSORED)\b[:\s-]*/gi,
+  /\bREKLAMA\s*/g,
+  /\bADVERTISEMENT\s*/gi,
+  /\bADVERTISMENT\s*/gi,
+  /\bSPONSORED\s*/gi,
   /\b(czytaj też|read also|read more|polecamy)\s*:?\s*/gi,
   /\b(aktualizacja|updated?)\s*:\s*\d{4}-\d{2}-\d{2}t[^\s]*/gi,
   /\bhttps?:\/\/[^\s)]+/gi,
@@ -233,6 +235,11 @@ export function sanitizeArticleBodyText(
   for (const rawParagraph of rawParagraphs) {
     const isHeading = /^#{1,6}\s+/.test(rawParagraph);
     let paragraph = rawParagraph;
+
+    if (!isHeading && /(czytaj też|read also|read more|polecamy)/i.test(paragraph)) {
+      // "Read also" blocks are recommendation widgets, not article body.
+      continue;
+    }
 
     // If obvious side-column/news-ticker section starts, drop the tail of the article.
     const shouldStop = PARSER_HARD_STOP_PATTERNS.some((pattern) => pattern.test(paragraph));

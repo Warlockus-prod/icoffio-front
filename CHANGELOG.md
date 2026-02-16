@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.41] - 2026-02-16 - 🔧 Parser Noise Regex Follow-up
+
+### 🎯 Что исправлено
+- Дочищены «склеенные» маркеры в польских текстах типа `REKLAMACzytaj też`.
+- Для body-sanitizer:
+  - убран жесткий stop по `Czytaj też`, чтобы не отрезать полезный текст ниже,
+  - добавлен явный drop recommendation-абзацев (`Czytaj też` / `Read also` / `Read more` / `Polecamy`),
+  - удаление токена `REKLAMA` теперь работает и в склейках без пробела.
+
+### 🔧 Измененные файлы
+- `lib/utils/content-formatter.ts`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+
 ## [8.6.40] - 2026-02-16 - 🧹 Parser Cleanup + Final AI Editorial Quality Gate
 
 ### 🎯 Что исправлено

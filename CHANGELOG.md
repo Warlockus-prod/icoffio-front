@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.31] - 2026-02-16 - ✅ Popular Stats Consistency Hardening
+
+### 🎯 Что доработано
+- Доработан `popular-articles`:
+  - добавлен live-путь для locale-запросов (`get_popular_articles` + агрегация `article_views`),
+  - оставлен materialized-view fallback для отказоустойчивости.
+- Добавлен служебный признак `source` в ответ `popular-articles` для прозрачной диагностики (`live-rpc` / `materialized-view`).
+- Главная вкладка `Popular` продолжает работать через `popular-posts` (full article cards + strict ranking по аналитике).
+
+### 🔧 Измененные файлы
+- `app/api/analytics/popular-articles/route.ts`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+- Production API sanity-check:
+  - `popular-articles` отвечает стабильно и сортируется корректно,
+  - `track-view` фиксируется и отражается в популярности после refresh цикла.
+
 ## [8.6.30] - 2026-02-16 - 📊 Popular Top-N API (Full Articles) + Stats Validation
 
 ### 🎯 Что исправлено

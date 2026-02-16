@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.43] - 2026-02-16 - 🎞 Instream DSP Preroll + Ads-Only Loop
+
+### 🎯 Что исправлено
+- Добавлен выделенный поток для DSP/VAST preroll:
+  - `adTagUrl` и `adTagPlaylist` обрабатываются отдельно от `videoUrl` редакционного контента.
+- Добавлен API-резолвер VAST:
+  - `GET /api/video/preroll?tagUrl=...`,
+  - серверный fetch XML, выбор лучшего `MediaFile` (mp4/bitrate), возврат `mediaUrl`.
+- В instream-плеере реализован lifecycle preroll:
+  - `loading -> ready -> playing -> completed/failed`,
+  - кнопка `Skip ad` через 5 секунд,
+  - fallback на VOX-контейнер при недоступном DSP preroll.
+- Плеер теперь работает и без контентного `videoUrl`:
+  - режим «только реклама»,
+  - циклический показ рекламы по кругу (round-robin),
+  - поддержка очереди ad tags через `adTagPlaylist`.
+- Если один ad tag падает, остальные из очереди продолжают работать (`allSettled`).
+
+### 🔧 Измененные файлы
+- `components/VideoPlayer.tsx`
+- `app/api/video/preroll/route.ts`
+- `lib/config/video-players.ts`
+- `app/[locale]/(site)/article/[slug]/page.tsx`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm run build` — OK
+
 ## [8.6.42] - 2026-02-16 - 🗄 One-time Supabase Physical Sanitization Script
 
 ### 🎯 Что добавлено

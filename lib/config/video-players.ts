@@ -20,12 +20,20 @@ export interface VideoPlayerConfig {
   type: VideoPlayerType;
   position: VideoPlayerPosition;
   voxPlaceId: string;            // VOX Display PlaceID для рекламы
+  videoUrl?: string;             // URL редакционного видео (контент ролик)
+  videoPlaylist?: string[];      // Плейлист редакционных роликов
+  adTagUrl?: string;             // DSP/VAST preroll ad tag
+  adTagPlaylist?: string[];      // Очередь DSP/VAST preroll ad tag
   enabled: boolean;
   autoplay: boolean;
   muted: boolean;
   device: 'desktop' | 'mobile' | 'all';
   description: string;
 }
+
+const DEFAULT_DSP_PREROLL_AD_TAG =
+  process.env.NEXT_PUBLIC_DSP_PREROLL_AD_TAG ||
+  'https://ssp.hybrid.ai/?sKFoyZmDLeuKiI+KoajZYLWIx8rE3Y7V3QOnqIDJDcL11YVST0NUYKQtJ5Y5zw/Sd1ZIeA9rtoRkIQWE2uCpo20QOOBuBrWgNaAPT9Qe/cM=';
 
 /**
  * Конфигурация всех видео плееров
@@ -38,6 +46,7 @@ export const VIDEO_PLAYERS: VideoPlayerConfig[] = [
     type: 'instream',
     position: 'article-end',
     voxPlaceId: '68f70a1c810d98e1a08f2740', // TODO: Заменить на реальный VOX PlaceID
+    adTagUrl: DEFAULT_DSP_PREROLL_AD_TAG,
     enabled: true,
     autoplay: false,
     muted: true,
@@ -50,6 +59,7 @@ export const VIDEO_PLAYERS: VideoPlayerConfig[] = [
     type: 'instream',
     position: 'article-middle',
     voxPlaceId: '68f70a1c810d98e1a08f2741', // TODO: Заменить на реальный VOX PlaceID
+    adTagUrl: DEFAULT_DSP_PREROLL_AD_TAG,
     enabled: false, // Отключен по умолчанию (может мешать чтению)
     autoplay: false,
     muted: true,

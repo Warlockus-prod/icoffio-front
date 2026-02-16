@@ -308,6 +308,10 @@ export default async function Article({ params }: { params: { locale: string; sl
                   key={player.id}
                   type={player.type}
                   position={player.position}
+                  videoUrl={player.videoUrl}
+                  videoPlaylist={player.videoPlaylist}
+                  adTagUrl={player.adTagUrl}
+                  adTagPlaylist={player.adTagPlaylist}
                   voxPlaceId={player.voxPlaceId}
                   autoplay={player.autoplay}
                   muted={player.muted}
@@ -340,6 +344,10 @@ export default async function Article({ params }: { params: { locale: string; sl
                   key={player.id}
                   type={player.type}
                   position={player.position}
+                  videoUrl={player.videoUrl}
+                  videoPlaylist={player.videoPlaylist}
+                  adTagUrl={player.adTagUrl}
+                  adTagPlaylist={player.adTagPlaylist}
                   voxPlaceId={player.voxPlaceId}
                   autoplay={player.autoplay}
                   muted={player.muted}

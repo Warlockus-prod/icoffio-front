@@ -14,7 +14,7 @@
  * @date 2025-10-30
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { VideoPlayerPosition, VideoPlayerType } from '@/lib/config/video-players';
 
 interface VideoPlayerProps {
@@ -22,6 +22,8 @@ interface VideoPlayerProps {
   position: VideoPlayerPosition;
   videoUrl?: string;              // URL видео для instream
   videoPlaylist?: string[];       // Последовательность роликов (опционально)
+  adTagUrl?: string;              // DSP/VAST ad tag для preroll
+  adTagPlaylist?: string[];       // Очередь DSP/VAST ad tag (опционально)
   posterUrl?: string;             // Явный постер (опционально)
   videoTitle?: string;            // Заголовок видео
   voxPlaceId?: string;            // VOX PlaceID для рекламы
@@ -46,11 +48,25 @@ function isLikelyAdTagUrl(value: string): boolean {
   );
 }
 
+const PREROLL_SKIP_DELAY_MS = 5000;
+const PREROLL_MAX_WAIT_MS = 30000;
+
+type PrerollStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'completed' | 'failed';
+
+interface PrerollResolveResponse {
+  success?: boolean;
+  mediaUrl?: string;
+  durationSeconds?: number | null;
+  error?: string;
+}
+
 export default function VideoPlayer({
   type,
   position,
   videoUrl,
   videoPlaylist = [],
+  adTagUrl,
+  adTagPlaylist = [],
   posterUrl,
   videoTitle,
   voxPlaceId,
@@ -65,6 +81,20 @@ export default function VideoPlayer({
   const [adLoaded, setAdLoaded] = useState(false);
   const [hasAdContent, setHasAdContent] = useState(true);
   const [playlistIndex, setPlaylistIndex] = useState(0);
+  const [prerollStatus, setPrerollStatus] = useState<PrerollStatus>('idle');
+  const [prerollMediaUrl, setPrerollMediaUrl] = useState<string | null>(null);
+  const [prerollDurationSeconds, setPrerollDurationSeconds] = useState<number | null>(null);
+  const [prerollError, setPrerollError] = useState<string | null>(null);
+  const [showPreroll, setShowPreroll] = useState(false);
+  const [prerollNeedsInteraction, setPrerollNeedsInteraction] = useState(false);
+  const [skipAvailable, setSkipAvailable] = useState(false);
+  const [skipCountdown, setSkipCountdown] = useState(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
+  const [prerollQueue, setPrerollQueue] = useState<string[]>([]);
+  const [prerollQueueIndex, setPrerollQueueIndex] = useState(0);
+  const [prerollPlaybackKey, setPrerollPlaybackKey] = useState(0);
+  const prerollVideoRef = useRef<HTMLVideoElement>(null);
+  const skipTimeoutRef = useRef<number | null>(null);
+  const skipCountdownIntervalRef = useRef<number | null>(null);
 
   const { playlist, blockedAdLikeSources } = useMemo(() => {
     const values = [videoUrl, ...videoPlaylist].filter((item): item is string => Boolean(item && item.trim()));
@@ -86,6 +116,38 @@ export default function VideoPlayer({
   }, [videoPlaylist, videoUrl]);
 
   const currentVideo = playlist[playlistIndex];
+  const normalizedAdTagUrls = useMemo(() => {
+    const rawValues = [adTagUrl, ...adTagPlaylist]
+      .flatMap((value) => (value || '').split(/\r?\n+/))
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    const uniqueValues = Array.from(new Set(rawValues));
+    const validValues: string[] = [];
+    const invalidValues: string[] = [];
+
+    uniqueValues.forEach((value) => {
+      if (/^https?:\/\//i.test(value)) {
+        validValues.push(value);
+      } else {
+        invalidValues.push(value);
+      }
+    });
+
+    if (invalidValues.length > 0) {
+      console.warn(
+        `[VideoPlayer] Ignored ${invalidValues.length} invalid adTag URL(s). ` +
+          'Every adTag must be an absolute http/https URL.'
+      );
+    }
+
+    return validValues;
+  }, [adTagPlaylist, adTagUrl]);
+
+  const shouldResolvePreroll = type === 'instream' && normalizedAdTagUrls.length > 0;
+  const shouldUseVoxInstreamOverlay =
+    type === 'instream' && Boolean(voxPlaceId) && (!shouldResolvePreroll || prerollStatus === 'failed');
+  const hasInstreamRenderableContent = Boolean(currentVideo || shouldResolvePreroll || shouldUseVoxInstreamOverlay);
 
   useEffect(() => {
     if (blockedAdLikeSources.length === 0) return;
@@ -134,6 +196,227 @@ export default function VideoPlayer({
     return () => video.removeEventListener('ended', handleEnded);
   }, [playlist.length]);
 
+  const clearPrerollTimers = useCallback(() => {
+    if (skipTimeoutRef.current !== null) {
+      window.clearTimeout(skipTimeoutRef.current);
+      skipTimeoutRef.current = null;
+    }
+    if (skipCountdownIntervalRef.current !== null) {
+      window.clearInterval(skipCountdownIntervalRef.current);
+      skipCountdownIntervalRef.current = null;
+    }
+  }, []);
+
+  const completePreroll = useCallback((status: 'completed' | 'failed') => {
+    clearPrerollTimers();
+    setSkipAvailable(false);
+    setSkipCountdown(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
+
+    if (prerollVideoRef.current) {
+      prerollVideoRef.current.pause();
+    }
+
+    const shouldLoopAdsOnly = status === 'completed' && !currentVideo && prerollQueue.length > 0;
+    if (shouldLoopAdsOnly) {
+      const nextIndex = (prerollQueueIndex + 1) % prerollQueue.length;
+      const nextMediaUrl = prerollQueue[nextIndex] || prerollQueue[0];
+
+      setPrerollQueueIndex(nextIndex);
+      setPrerollMediaUrl(nextMediaUrl);
+      setPrerollDurationSeconds(null);
+      setPrerollError(null);
+      setPrerollNeedsInteraction(false);
+      setShowPreroll(true);
+      setPrerollStatus('ready');
+      setPrerollPlaybackKey((prev) => prev + 1);
+      return;
+    }
+
+    setShowPreroll(false);
+    setPrerollNeedsInteraction(false);
+    setPrerollStatus(status);
+
+    if (status === 'completed' && currentVideo && videoRef.current) {
+      videoRef.current.play().catch(() => {
+        // Autoplay may be blocked by browser policy.
+      });
+    }
+  }, [clearPrerollTimers, currentVideo, prerollQueue, prerollQueueIndex]);
+
+  const armSkipCountdown = useCallback(() => {
+    clearPrerollTimers();
+    setSkipAvailable(false);
+    setSkipCountdown(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
+
+    skipTimeoutRef.current = window.setTimeout(() => {
+      setSkipAvailable(true);
+      setSkipCountdown(0);
+    }, PREROLL_SKIP_DELAY_MS);
+
+    skipCountdownIntervalRef.current = window.setInterval(() => {
+      setSkipCountdown((prev) => {
+        if (prev <= 1) {
+          if (skipCountdownIntervalRef.current !== null) {
+            window.clearInterval(skipCountdownIntervalRef.current);
+            skipCountdownIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [clearPrerollTimers]);
+
+  const handleSkipPreroll = useCallback(() => {
+    completePreroll('completed');
+  }, [completePreroll]);
+
+  const handlePrerollEnded = useCallback(() => {
+    completePreroll('completed');
+  }, [completePreroll]);
+
+  const handlePrerollPlaybackError = useCallback(() => {
+    setPrerollError('Preroll media playback failed');
+    completePreroll('failed');
+  }, [completePreroll]);
+
+  useEffect(() => {
+    if (!shouldResolvePreroll) {
+      clearPrerollTimers();
+      setPrerollQueue([]);
+      setPrerollQueueIndex(0);
+      setPrerollMediaUrl(null);
+      setPrerollDurationSeconds(null);
+      setPrerollError(null);
+      setShowPreroll(false);
+      setPrerollNeedsInteraction(false);
+      setPrerollStatus('idle');
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), PREROLL_MAX_WAIT_MS);
+
+    const resolvePreroll = async () => {
+      setPrerollQueue([]);
+      setPrerollQueueIndex(0);
+      setPrerollMediaUrl(null);
+      setPrerollDurationSeconds(null);
+      setPrerollError(null);
+      setShowPreroll(false);
+      setPrerollNeedsInteraction(false);
+      setPrerollStatus('loading');
+      setPrerollPlaybackKey((prev) => prev + 1);
+
+      try {
+        const settledItems = await Promise.allSettled(
+          normalizedAdTagUrls.map(async (tagUrl) => {
+            if (/\.(mp4|webm|ogg)(\?|$)/i.test(tagUrl)) {
+              return {
+                mediaUrl: tagUrl,
+                durationSeconds: null,
+              };
+            }
+
+            const response = await fetch(
+              `/api/video/preroll?tagUrl=${encodeURIComponent(tagUrl)}`,
+              {
+                method: 'GET',
+                cache: 'no-store',
+                signal: controller.signal,
+              }
+            );
+
+            const payload = (await response.json().catch(() => null)) as PrerollResolveResponse | null;
+            if (!response.ok || !payload?.success || !payload?.mediaUrl) {
+              throw new Error(payload?.error || `Preroll resolver failed (${response.status})`);
+            }
+
+            return {
+              mediaUrl: payload.mediaUrl,
+              durationSeconds:
+                typeof payload.durationSeconds === 'number' ? payload.durationSeconds : null,
+            };
+          })
+        );
+
+        if (cancelled) return;
+
+        const resolvedItems = settledItems.flatMap((item, index) => {
+          if (item.status === 'fulfilled') {
+            return [item.value];
+          }
+          const reason = item.reason instanceof Error ? item.reason.message : String(item.reason);
+          console.warn(`[VideoPlayer] Failed to resolve adTag #${index + 1}: ${reason}`);
+          return [];
+        });
+
+        const mediaQueue = resolvedItems
+          .map((item) => item.mediaUrl)
+          .filter((value, index, self) => self.indexOf(value) === index);
+
+        if (mediaQueue.length === 0) {
+          throw new Error('No playable preroll media found');
+        }
+
+        const firstItem = resolvedItems.find((item) => item.mediaUrl === mediaQueue[0]) || null;
+
+        setPrerollQueue(mediaQueue);
+        setPrerollQueueIndex(0);
+        setPrerollMediaUrl(mediaQueue[0]);
+        setPrerollDurationSeconds(firstItem?.durationSeconds ?? null);
+        setPrerollError(null);
+        setShowPreroll(true);
+        setPrerollNeedsInteraction(false);
+        setPrerollStatus('ready');
+        setPrerollPlaybackKey((prev) => prev + 1);
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Unknown preroll resolver error';
+        console.warn('[VideoPlayer] DSP preroll resolve failed:', message);
+        setPrerollQueue([]);
+        setPrerollQueueIndex(0);
+        setPrerollError(message);
+        setShowPreroll(false);
+        setPrerollNeedsInteraction(false);
+        setPrerollStatus('failed');
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    resolvePreroll();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [clearPrerollTimers, normalizedAdTagUrls, shouldResolvePreroll]);
+
+  useEffect(() => {
+    if (type !== 'instream') return;
+    if (!showPreroll || !prerollMediaUrl) return;
+
+    const prerollVideo = prerollVideoRef.current;
+    if (!prerollVideo) return;
+
+    const timerId = window.setTimeout(() => {
+      prerollVideo.play().catch(() => {
+        setPrerollNeedsInteraction(true);
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [prerollMediaUrl, showPreroll, type, prerollPlaybackKey]);
+
+  useEffect(() => {
+    return () => {
+      clearPrerollTimers();
+    };
+  }, [clearPrerollTimers]);
+
   // Intersection Observer для autoplay on scroll (outstream)
   useEffect(() => {
     if (type !== 'outstream' || !playerRef.current) return;
@@ -159,10 +442,13 @@ export default function VideoPlayer({
     return () => observer.disconnect();
   }, [type, autoplay]);
 
+  const shouldObserveVoxSlot =
+    Boolean(voxPlaceId) && (type === 'outstream' || shouldUseVoxInstreamOverlay);
+
   // Отслеживаем, когда VOX наполнил рекламный контейнер.
   useEffect(() => {
     const slot = adSlotRef.current;
-    if (!voxPlaceId || !slot) return;
+    if (!shouldObserveVoxSlot || !slot) return;
 
     const markLoaded = () => {
       const hasPayload = hasRenderableAdContent(slot);
@@ -195,7 +481,7 @@ export default function VideoPlayer({
       timers.forEach((timerId) => window.clearTimeout(timerId));
       window.clearTimeout(hardTimeout);
     };
-  }, [currentVideo, voxPlaceId]);
+  }, [currentVideo, shouldObserveVoxSlot]);
 
   // Получить размеры контейнера по типу
   const getContainerDimensions = () => {
@@ -238,8 +524,12 @@ export default function VideoPlayer({
     return `${currentVideo.replace(/\/$/, '')}/thumbnail.jpg`;
   })();
 
-  // Instream without actual video source produces a bad UX placeholder.
-  if (type === 'instream' && !currentVideo) {
+  const shouldRenderPrerollOverlay =
+    type === 'instream' && showPreroll && Boolean(prerollMediaUrl);
+  const shouldShowVoxLoader = shouldUseVoxInstreamOverlay && !adLoaded && !isPlaying;
+
+  // Instream should render only when we have at least one monetizable/content source.
+  if (type === 'instream' && !hasInstreamRenderableContent) {
     return null;
   }
 
@@ -295,11 +585,18 @@ export default function VideoPlayer({
               <video
                 ref={videoRef}
                 className="w-full h-full object-cover"
-                controls
+                controls={!shouldRenderPrerollOverlay}
                 playsInline
                 muted={muted}
                 poster={resolvedPoster}
-                onPlay={() => setIsPlaying(true)}
+                onPlay={(event) => {
+                  if (shouldRenderPrerollOverlay) {
+                    event.currentTarget.pause();
+                    setIsPlaying(false);
+                    return;
+                  }
+                  setIsPlaying(true);
+                }}
                 onPause={() => setIsPlaying(false)}
               >
                 <source src={currentVideo} type="video/mp4" />
@@ -307,27 +604,27 @@ export default function VideoPlayer({
               </video>
 
               {/* VOX Preroll Ad Container */}
-              {voxPlaceId && (
+              {shouldUseVoxInstreamOverlay && (
                 <div
                   ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
                   data-ad-placement="video"
                   className="absolute inset-0 z-10"
                   style={{
-                    display: isPlaying ? 'none' : 'block',
+                    display: isPlaying || shouldRenderPrerollOverlay ? 'none' : 'block',
                     pointerEvents: 'auto'
                   }}
                 />
               )}
 
-              {voxPlaceId && !adLoaded && !isPlaying && (
+              {shouldShowVoxLoader && !shouldRenderPrerollOverlay && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
                   Loading video advertisement...
                 </div>
               )}
 
               {/* Video Title Overlay */}
-              {videoTitle && !isPlaying && (
+              {videoTitle && !isPlaying && !shouldRenderPrerollOverlay && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 z-5">
                   <h3 className="text-white font-semibold text-lg">
                     {videoTitle}
@@ -337,8 +634,8 @@ export default function VideoPlayer({
             </>
           ) : (
             // Нет видео - только реклама
-            <div className="w-full min-h-[250px] flex items-center justify-center bg-gray-900/90">
-              {voxPlaceId ? (
+            <div className="w-full min-h-[250px] flex items-center justify-center bg-gray-900/90 relative">
+              {shouldUseVoxInstreamOverlay ? (
                 <div
                   ref={adSlotRef}
                   data-hyb-ssp-ad-place={voxPlaceId}
@@ -346,16 +643,99 @@ export default function VideoPlayer({
                   className="w-full flex items-center justify-center"
                   style={{ minHeight: '250px' }}
                 />
-              ) : (
+              ) : !shouldRenderPrerollOverlay ? (
                 <p className="text-gray-400">Video content not available</p>
-              )}
-              {voxPlaceId && !adLoaded && (
+              ) : null}
+              {shouldUseVoxInstreamOverlay && !adLoaded && !shouldRenderPrerollOverlay && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
                   Loading video advertisement...
                 </div>
               )}
             </div>
           )}
+
+          {shouldResolvePreroll && prerollStatus === 'loading' && !shouldRenderPrerollOverlay && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 text-white text-sm pointer-events-none">
+              Loading preroll...
+            </div>
+          )}
+
+          {shouldRenderPrerollOverlay && prerollMediaUrl && (
+            <div className="absolute inset-0 z-30 bg-black">
+              <video
+                key={`${prerollMediaUrl}-${prerollPlaybackKey}`}
+                ref={prerollVideoRef}
+                className="w-full h-full object-cover"
+                playsInline
+                autoPlay
+                muted
+                controls={false}
+                onPlay={() => {
+                  setPrerollNeedsInteraction(false);
+                  setPrerollStatus('playing');
+                  armSkipCountdown();
+                }}
+                onEnded={handlePrerollEnded}
+                onError={handlePrerollPlaybackError}
+                onLoadedMetadata={(event) => {
+                  if (prerollDurationSeconds) return;
+                  const duration = event.currentTarget.duration;
+                  if (Number.isFinite(duration) && duration > 0) {
+                    setPrerollDurationSeconds(duration);
+                  }
+                }}
+              >
+                <source src={prerollMediaUrl} type="video/mp4" />
+                Your browser does not support video playback.
+              </video>
+
+              <div className="absolute top-3 right-3 z-40">
+                {skipAvailable ? (
+                  <button
+                    type="button"
+                    onClick={handleSkipPreroll}
+                    className="px-3 py-1 rounded bg-black/75 hover:bg-black/90 text-white text-xs font-medium"
+                  >
+                    Skip ad
+                  </button>
+                ) : (
+                  <div className="px-3 py-1 rounded bg-black/65 text-white text-xs">
+                    Skip in {skipCountdown}s
+                  </div>
+                )}
+              </div>
+
+              {prerollNeedsInteraction && (
+                <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      prerollVideoRef.current?.play().catch(() => undefined);
+                    }}
+                    className="pointer-events-auto px-4 py-2 rounded bg-white/90 hover:bg-white text-black text-sm font-semibold"
+                  >
+                    Play ad
+                  </button>
+                </div>
+              )}
+
+              <div className="absolute left-3 bottom-3 z-40 bg-black/65 text-white text-xs px-2 py-1 rounded">
+                Ad
+                {typeof prerollDurationSeconds === 'number' && prerollDurationSeconds > 0
+                  ? ` · ${Math.ceil(prerollDurationSeconds)}s`
+                  : ''}
+              </div>
+            </div>
+          )}
+
+          {shouldResolvePreroll &&
+            prerollStatus === 'failed' &&
+            prerollError &&
+            !shouldUseVoxInstreamOverlay && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
+                  {currentVideo ? 'Preroll unavailable. Content playback only.' : 'Preroll unavailable.'}
+                </div>
+            )}
         </div>
       )}
 

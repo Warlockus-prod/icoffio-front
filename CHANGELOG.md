@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.34] - 2026-02-16 - 🎯 InImage Whitelist Mode for Article Images Only
+
+### 🎯 Что исправлено
+- Для InImage включен строгий whitelist-селектор вместо общего `fetchSelector`.
+- Теперь InImage инициализируется только на:
+  - `main article > div img` (hero/крупные изображения статьи),
+  - `main article .prose img` (изображения в теле статьи).
+- Миниатюры и рекомендательные блоки исключены на уровне селектора и дополнительных исключений.
+- Исправлен мобильный кейс, где InImage реклама появлялась в блоке `Related articles`.
+
+### 🔧 Измененные файлы
+- `lib/vox-advertising.ts`
+- `components/AdManager.tsx`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm run build` — OK
+
 ## [8.6.33] - 2026-02-16 - 🖼 InImage Scope Fix: Only Full Article Images
 
 ### 🎯 Что исправлено

@@ -73,7 +73,10 @@ export function AdManager() {
       if (isArticlePage) {
         window._tx.integrateInImage({
           placeId: IN_IMAGE_PLACE_ID,
-          fetchSelector: true,
+          selector: [
+            'main article > div img',
+            'main article .prose img'
+          ].join(', '),
           excludeSelectors: [
             '[data-no-inimage] img',
             '[data-related-articles] img',

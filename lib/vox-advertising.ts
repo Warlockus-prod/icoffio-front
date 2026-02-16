@@ -116,7 +116,10 @@ function initVOX(reason) {
     if (isArticle) {
       window._tx.integrateInImage({
         placeId: "${VOX_IN_IMAGE_PLACE_ID}",
-        fetchSelector: true,
+        selector: [
+          'main article > div img',
+          'main article .prose img'
+        ].join(', '),
         excludeSelectors: [
           '[data-no-inimage] img',
           '[data-related-articles] img',

@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function getSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -38,7 +41,7 @@ function getPeriodDate(period: string): Date | null {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const period = searchParams.get('period') || 'all';
     const periodDate = getPeriodDate(period);
 
@@ -132,4 +135,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

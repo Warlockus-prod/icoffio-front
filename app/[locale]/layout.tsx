@@ -14,11 +14,11 @@ import { TestPanel } from "@/components/TestPanel";
 import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
+import { AdManager } from "@/components/AdManager";
 
 import { getTranslation } from "@/lib/i18n";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import { notFound } from "next/navigation";
-import { VOX_SCRIPT } from "@/lib/vox-advertising";
 
 const locales = ['en', 'pl'];
 
@@ -192,12 +192,10 @@ export default function LocaleLayout({
               <TestPanel locale={params.locale} />
               <CookieConsent locale={params.locale} />
               <CookieSettingsManager locale={params.locale} />
+              <AdManager />
             </SearchProvider>
           </ToastProvider>
         </ThemeProvider>
-
-        {/* VOX SSP — реклама */}
-        <script dangerouslySetInnerHTML={{ __html: VOX_SCRIPT }} />
       </body>
     </html>
   );

@@ -5,12 +5,10 @@
  * Mock data moved to lib/mock-data.ts for centralization
  */
 
-import { getPostBySlug, getAllSlugs, getRelated } from "@/lib/data";
+import { getPostBySlug, getRelated } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
-import { Prose } from "@/components/Prose";
 import { ArticleContentWithAd } from "@/components/ArticleContentWithAd";
-import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
@@ -25,9 +23,6 @@ import { extractMonetizationSettingsFromContent } from "@/lib/monetization-setti
 import { buildSiteUrl } from "@/lib/site-url";
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { Post } from "@/lib/types";
-// v7.30.0: Centralized mock data
-import { mockPostsFull as mockPosts, getMockPostBySlug, getRelatedMockPosts } from "@/lib/mock-data";
 
 export const revalidate = 3600; // 1 hour
 
@@ -60,24 +55,8 @@ function extractFirstContentImage(content: string): string {
   return '';
 }
 
-// Helper functions using centralized mock data
-const getPostBySlugFromMocks = getMockPostBySlug;
-const getRelatedFromMocks = getRelatedMockPosts;
-
 export async function generateMetadata({ params }: { params: { locale: string; slug: string } }): Promise<Metadata> {
-  // Try GraphQL first, fallback to mocks
-  let post: Post | null = null;
-  
-  try {
-    post = await getPostBySlug(params.slug, params.locale);
-  } catch (error) {
-    console.error('GraphQL Error, using mock data:', error);
-  }
-  
-  if (!post) {
-    post = getPostBySlugFromMocks(params.slug);
-  }
-  
+  const post = await getPostBySlug(params.slug, params.locale);
   if (!post) return {};
 
   const publishedTime = new Date(post.publishedAt || post.date || new Date()).toISOString();
@@ -132,27 +111,10 @@ export async function generateMetadata({ params }: { params: { locale: string; s
 }
 
 export default async function Article({ params }: { params: { locale: string; slug: string } }) {
-  // Try to get post from GraphQL, fallback to mocks
-  let post: Post | null = null;
-  let related: Post[] = [];
-  
-  try {
-    post = await getPostBySlug(params.slug, params.locale);
-    if (post) {
-      related = await getRelated(post.category, post.slug, 4);
-    }
-  } catch (error) {
-    console.error('GraphQL Error, using mock data:', error);
-  }
-  
-  if (!post) {
-    post = getPostBySlugFromMocks(params.slug);
-    if (post) {
-      related = getRelatedFromMocks(post.category.slug, post.slug, 4);
-    }
-  }
-  
+  const post = await getPostBySlug(params.slug, params.locale);
   if (!post) return notFound();
+
+  const related = await getRelated(post.category, post.slug, 4);
 
   // Per-article monetization overrides are stored as a hidden comment in content.
   const { settings: articleMonetizationSettings, cleanContent: cleanArticleContent } =
@@ -397,7 +359,7 @@ export default async function Article({ params }: { params: { locale: string; sl
         {/* Related Articles - Full Width */}
         <div className="mt-16">
           <RelatedArticles 
-            posts={related.length > 0 ? related : mockPosts}
+            posts={related}
             locale={params.locale}
             currentPostSlug={post.slug}
             currentPost={post}

@@ -3,39 +3,9 @@ import { getLocalArticles as getLocalArticlesFromFile, getLocalArticleBySlug as 
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client';
 import { sanitizeExcerptText, sanitizeArticleBodyText, normalizeAiGeneratedText } from './utils/content-formatter';
 
-const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
-
 // Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
 const getLocalArticleBySlug = getLocalArticleBySlugFromFile;
-
-/** WordPress GraphQL query — used only as fallback for category fetching */
-async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
-  if (!WP || WP === "undefined") {
-    throw new Error("WordPress GraphQL endpoint not configured");
-  }
-
-  const res = await fetch(WP, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-    next: { revalidate: 120 },
-  });
-
-  if (!res.ok) {
-    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
-  }
-
-  const json = await res.json();
-
-  if (json.errors) {
-    throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
-  }
-
-  return json.data;
-}
-
-const strip = (s?: string) => (s || "").replace(/<[^>]+>/g, "").trim();
 
 /**
  * Normalize category from API response.
@@ -49,6 +19,16 @@ function normalizeCategory(raw: unknown): Category {
     return { name: raw, slug: raw.toLowerCase().replace(/\s+/g, '-') };
   }
   return { name: "General", slug: "general" };
+}
+
+function toValidCategory(raw: unknown): Category | null {
+  const normalized = normalizeCategory(raw);
+  const slug = (normalized.slug || '').trim();
+  if (!slug || slug === 'general') return null;
+  return {
+    name: (normalized.name || slug).trim(),
+    slug,
+  };
 }
 
 // ========== SUPABASE DIRECT HELPERS ==========
@@ -347,42 +327,30 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
 export async function getRelated(cat: Category, excludeSlug: string, limit = 4): Promise<Post[]> {
   const locale = excludeSlug.endsWith('-pl') ? 'pl' : 'en';
   const isEn = locale === 'en';
+  const targetCategorySlug = (cat?.slug || '').trim();
 
   try {
     if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
 
     const supabase = getSupabaseClient();
 
-    // Try category first
-    let { data: articles, error } = await supabase
+    const { data: articles, error } = await supabase
       .from('published_articles')
       .select('*')
-      .eq('category', cat.slug || cat.name)
       .eq('published', true)
       .not(isEn ? 'slug_en' : 'slug_pl', 'eq', excludeSlug)
       .order('created_at', { ascending: false })
-      .limit(limit);
-
-    // Fallback: if no articles in category, get latest from any category
-    if (!error && (!articles || articles.length === 0)) {
-      const fallback = await supabase
-        .from('published_articles')
-        .select('*')
-        .eq('published', true)
-        .not(isEn ? 'slug_en' : 'slug_pl', 'eq', excludeSlug)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (fallback.data) {
-        articles = fallback.data;
-      }
-    }
+      .limit(240);
 
     if (error) throw new Error(`Supabase related query failed: ${error.message}`);
 
     const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
+    const sameCategory = targetCategorySlug
+      ? uniqueArticles.filter((article: any) => normalizeCategory(article.category).slug === targetCategorySlug)
+      : [];
+    const sourceArticles = sameCategory.length > 0 ? sameCategory : uniqueArticles;
 
-    return uniqueArticles.map((article: any) => {
+    return sourceArticles.slice(0, limit).map((article: any) => {
       const slug = isEn ? article.slug_en : article.slug_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
       return {
@@ -442,26 +410,37 @@ const getLocalCategories = (locale: string): Category[] => {
 };
 
 export async function getCategories(locale: string = 'en'): Promise<Category[]> {
+  const localCategories = getLocalCategories(locale);
+  const categoriesMap = new Map<string, Category>(
+    localCategories.map((category) => [category.slug, category])
+  );
+
   try {
-    // Try WordPress for categories
-    const q = `query{ categories(first:100){ nodes{ name slug } } }`;
-    const d = await gql<{categories:{nodes:Category[]}}>(q);
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('published_articles')
+        .select('category')
+        .eq('published', true)
+        .not('category', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1200);
 
-    const localCategories = getLocalCategories(locale);
-    const wpCategories = d.categories.nodes || [];
-    const allCategories = [...localCategories];
+      if (error) {
+        throw new Error(`Supabase category query failed: ${error.message}`);
+      }
 
-    for (const wpCat of wpCategories) {
-      if (!allCategories.find(cat => cat.slug === wpCat.slug)) {
-        allCategories.push(wpCat);
+      for (const row of data || []) {
+        const category = toValidCategory(row.category);
+        if (!category || categoriesMap.has(category.slug)) continue;
+        categoriesMap.set(category.slug, category);
       }
     }
-
-    return allCategories;
   } catch (error) {
-    console.warn('[data] WordPress categories unavailable, using local:', error);
-    return getLocalCategories(locale);
+    console.warn('[data] Supabase categories unavailable, using local only:', error);
   }
+
+  return Array.from(categoriesMap.values());
 }
 
 export async function getCategorySlugs(): Promise<string[]> {
@@ -492,8 +471,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
     let query = supabase
       .from('published_articles')
       .select('*')
-      .eq('published', true)
-      .eq('category', slug);
+      .eq('published', true);
 
     if (isEn) {
       query = query.not('content_en', 'is', null);
@@ -501,13 +479,17 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
       query = query.not('content_pl', 'is', null);
     }
 
-    query = query.order('created_at', { ascending: false }).limit(limit);
+    query = query.order('created_at', { ascending: false }).limit(Math.max(limit * 10, 240));
 
     const { data: articles, error } = await query;
 
     if (error) throw new Error(`Supabase query failed: ${error.message}`);
 
-    const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
+    const categoryFiltered = (articles || []).filter((article: any) => {
+      return normalizeCategory(article.category).slug === slug;
+    });
+
+    const uniqueArticles = dedupeArticlesBySlug(categoryFiltered, isEn ? 'en' : 'pl');
 
     supabasePosts = uniqueArticles.map((article: any) =>
       transformSupabaseArticleToPost(article, isEn)

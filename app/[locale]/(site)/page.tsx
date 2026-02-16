@@ -1,33 +1,20 @@
-/**
- * 🏠 HOMEPAGE - icoffio v7.30.0
- * 
- * Main landing page with articles listing
- * Mock data moved to lib/mock-data.ts for centralization
- */
-
 import Link from "next/link";
-import { Suspense } from "react";
-import { getAllPosts, getTopPosts, getCategories } from "@/lib/data";
+import { getAllPosts, getCategories } from "@/lib/data";
 import { getPopularArticles } from "@/lib/supabase-analytics";
-import { ArticleCard } from "@/components/ArticleCard";
-import { ArticlesList } from "@/components/ArticlesList";
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
-import { SearchModalWrapper } from "@/components/SearchModalWrapper";
-import { ArticleCardSkeleton, CategoryNavSkeleton } from "@/components/LoadingSkeleton";
+import { ArticlesList } from "@/components/ArticlesList";
 import { UniversalAd } from "@/components/UniversalAd";
 import { VOX_PLACES } from "@/lib/vox-advertising";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 import { getSiteBaseUrl } from "@/lib/site-url";
-// v7.30.0: Centralized mock data
-import { mockCategories, mockPostsShort as mockPosts } from "@/lib/mock-data";
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = getTranslation(params.locale as any);
   const siteUrl = getSiteBaseUrl();
-  
+
   return {
     title: t.siteTitle,
     description: t.siteDescription,
@@ -66,72 +53,40 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     alternates: {
       canonical: `${siteUrl}/${params.locale}`,
       languages: {
-        'en': '/en',
-        'pl': '/pl',
+        en: '/en',
+        pl: '/pl',
       },
     },
   };
 }
 
-export const revalidate = 60; // 1 minute for testing (change to 3600 in production)
-
-// Mock data is now imported from lib/mock-data.ts (v7.30.0)
+export const revalidate = 300;
 
 export default async function Page({ params }: { params: { locale: string } }) {
   const t = getTranslation(params.locale as any);
-  
-  // Инициализация с моками как fallback
-  let heroPosts: any[] = mockPosts.slice(0, 3);
-  let posts: any[] = mockPosts.slice(0, 9);
-  let cats: any[] = mockCategories;
-  
+
+  const [allPosts, cats] = await Promise.all([
+    getAllPosts(20, params.locale),
+    getCategories(params.locale),
+  ]);
+
+  const heroPosts = allPosts.slice(0, 3);
+  let posts = allPosts.slice(0, 9);
+
   try {
-    // 1. HERO: Топ 3 статьи из GraphQL
-    const graphqlHeroPosts = await getTopPosts(3);
-    if (graphqlHeroPosts && graphqlHeroPosts.length > 0) {
-      heroPosts = graphqlHeroPosts;
-      console.log(`[Home] ✅ Hero: ${graphqlHeroPosts.length} posts from GraphQL`);
-    }
-    
-    // 2. CATEGORIES: Из GraphQL
-    const graphqlCats = await getCategories(params.locale);
-    if (graphqlCats && graphqlCats.length > 0) {
-      cats = graphqlCats;
-    }
-    
-    // 3. LATEST/POPULAR: Сначала пробуем популярные из Supabase
     const popularSlugs = await getPopularArticles(12, params.locale);
-    
-    // 4. Получаем ВСЕ статьи из GraphQL (независимо от Supabase)
-    const allPosts = await getAllPosts(20, params.locale);
-    
-    if (allPosts && allPosts.length > 0) {
-      if (popularSlugs && popularSlugs.length > 0) {
-        // Есть популярные - сортируем по ним
-        const popularPosts = popularSlugs
-          .map(slug => allPosts.find(p => p.slug === slug))
-          .filter(Boolean)
-          .slice(0, 9);
-        
-        if (popularPosts.length >= 3) {
-          posts = popularPosts;
-          console.log(`[Home] ✅ Showing ${popularPosts.length} POPULAR articles for ${params.locale}`);
-        } else {
-          // Мало популярных - показываем последние
-          posts = allPosts.slice(0, 9);
-          console.log(`[Home] ℹ️ Not enough popular, showing ${posts.length} LATEST for ${params.locale}`);
-        }
-      } else {
-        // Supabase пустой - показываем последние из GraphQL
-        posts = allPosts.slice(0, 9);
-        console.log(`[Home] ℹ️ No Supabase data, showing ${posts.length} LATEST for ${params.locale}`);
+    if (popularSlugs && popularSlugs.length > 0) {
+      const popularPosts = popularSlugs
+        .map((slug) => allPosts.find((post) => post.slug === slug))
+        .filter(Boolean)
+        .slice(0, 9);
+
+      if (popularPosts.length >= 3) {
+        posts = popularPosts as typeof allPosts;
       }
-    } else {
-      console.log(`[Home] ⚠️ No GraphQL posts for ${params.locale}, using mocks`);
     }
-    
   } catch (error) {
-    console.error('[Home] ❌ Error fetching data, using mocks:', error);
+    console.warn('[home] Popular stats unavailable, showing latest:', error);
   }
 
   return (
@@ -140,34 +95,31 @@ export default async function Page({ params }: { params: { locale: string } }) {
         <CategoryNav categories={cats} locale={params.locale} />
       </Container>
 
-      {heroPosts && heroPosts.length > 0 && <Hero posts={heroPosts} locale={params.locale} />}
+      {heroPosts.length > 0 && <Hero posts={heroPosts} locale={params.locale} />}
 
-      {/* Articles list with Newest/Popular tabs */}
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="mx-auto mt-6 max-w-6xl px-4">
         <ArticlesList posts={posts} locale={params.locale} />
 
         <div className="mt-12 text-center">
-          <Link 
+          <Link
             href={`/${params.locale}/articles`}
-            className="group relative inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+            className="group relative inline-block rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:shadow-blue-500/25 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
           >
             <span className="relative z-10 flex items-center gap-2">
               {t.showMore}
-              <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </span>
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 blur-sm transition-opacity duration-300 group-hover:opacity-100" />
           </Link>
         </div>
 
-        {/* AD: 970x250 — Desktop, после списка статей */}
-        <div className="mt-16 hidden xl:block text-center">
+        <div className="mt-16 hidden text-center xl:block">
           <UniversalAd placeId={VOX_PLACES.LARGE_LEADERBOARD} format="970x250" placement="inline" />
         </div>
-        
-        {/* AD: 320x100 — Mobile, после списка статей */}
-        <div className="mt-12 xl:hidden flex justify-center">
+
+        <div className="mt-12 flex justify-center xl:hidden">
           <UniversalAd placeId={VOX_PLACES.MOBILE_LARGE} format="320x100" placement="mobile" />
         </div>
       </div>

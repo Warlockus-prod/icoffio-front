@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Post } from "@/lib/types";
 import { OptimizedImage } from "./OptimizedImage";
 import { getTranslation } from "@/lib/i18n";
@@ -58,7 +59,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
       data-article-card="1"
       data-no-inimage="1"
     >
-      <a href={`/${locale}/article/${post.slug}`} className="block">
+      <Link href={`/${locale}/article/${post.slug}`} className="block">
         <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
           <OptimizedImage
             src={img}
@@ -70,7 +71,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
             quality={80}
           />
         </div>
-      </a>
+      </Link>
 
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-300">
@@ -80,11 +81,11 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
           <time>{formatDate(post.publishedAt || post.date || '')}</time>
         </div>
         
-        <a href={`/${locale}/article/${post.slug}`}>
+        <Link href={`/${locale}/article/${post.slug}`}>
           <h3 className="text-[18px] font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
             {post.title}
           </h3>
-        </a>
+        </Link>
         
         <p className="text-sm text-neutral-600 dark:text-neutral-200 line-clamp-3 leading-relaxed">
           {post.excerpt}
@@ -92,7 +93,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
         
         {/* Кнопка "Читать далее" */}
         <div className="pt-2">
-          <a
+          <Link
             href={`/${locale}/article/${post.slug}`}
             className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 group/link"
           >
@@ -105,7 +106,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
-          </a>
+          </Link>
         </div>
       </div>
     </article>

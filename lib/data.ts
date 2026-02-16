@@ -1,9 +1,9 @@
 import type { Post, Category } from "./types";
 import { getLocalArticles as getLocalArticlesFromFile, getLocalArticleBySlug as getLocalArticleBySlugFromFile } from "./local-articles";
-import { getSiteBaseUrl } from './site-url';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase-client';
+import { sanitizeExcerptText, sanitizeArticleBodyText, normalizeAiGeneratedText } from './utils/content-formatter';
 
 const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
-const SITE_BASE_URL = getSiteBaseUrl();
 
 // Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
@@ -14,24 +14,24 @@ async function gql<T>(query: string, variables?: Record<string, unknown>): Promi
   if (!WP || WP === "undefined") {
     throw new Error("WordPress GraphQL endpoint not configured");
   }
-  
+
   const res = await fetch(WP, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
     next: { revalidate: 120 },
   });
-  
+
   if (!res.ok) {
     throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
   }
-  
+
   const json = await res.json();
-  
+
   if (json.errors) {
     throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
   }
-  
+
   return json.data;
 }
 
@@ -49,6 +49,99 @@ function normalizeCategory(raw: unknown): Category {
     return { name: raw, slug: raw.toLowerCase().replace(/\s+/g, '-') };
   }
   return { name: "General", slug: "general" };
+}
+
+// ========== SUPABASE DIRECT HELPERS ==========
+// These replace the previous self-fetch approach (fetch to own /api/supabase-articles)
+// which caused 500 errors during RSC rendering on Vercel (serverless deadlock).
+
+const DEFAULT_THUMBNAIL_MARKER = 'photo-1485827404703-89b55fcc595e';
+
+function hasCustomImage(imageUrl?: string | null): boolean {
+  return !!imageUrl && !imageUrl.includes(DEFAULT_THUMBNAIL_MARKER);
+}
+
+function articleTimestamp(article: any): number {
+  const value = article?.updated_at || article?.created_at;
+  const timestamp = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function scoreArticle(article: any, language: 'en' | 'pl'): number {
+  const content = language === 'pl' ? article?.content_pl : article?.content_en;
+  const excerpt = language === 'pl' ? article?.excerpt_pl : article?.excerpt_en;
+  const contentLength = typeof content === 'string' ? content.length : 0;
+
+  let score = 0;
+  if (hasCustomImage(article?.image_url)) score += 100;
+  if (contentLength > 0) score += Math.min(contentLength, 5000) / 50;
+  if (typeof excerpt === 'string' && excerpt.trim().length > 0) score += 10;
+  if (article?.featured) score += 2;
+  return score;
+}
+
+function selectBestArticleVersion(articles: any[], language: 'en' | 'pl'): any | null {
+  if (!articles || articles.length === 0) return null;
+
+  return articles.reduce((best: any, candidate: any) => {
+    if (!best) return candidate;
+
+    const bestScore = scoreArticle(best, language);
+    const candidateScore = scoreArticle(candidate, language);
+
+    if (candidateScore > bestScore) return candidate;
+    if (candidateScore < bestScore) return best;
+
+    return articleTimestamp(candidate) > articleTimestamp(best) ? candidate : best;
+  }, null);
+}
+
+function dedupeArticlesBySlug(articles: any[], language: 'en' | 'pl'): any[] {
+  const groupedBySlug = new Map<string, any[]>();
+
+  for (const article of articles || []) {
+    const slugKey = language === 'en' ? article?.slug_en : article?.slug_pl;
+    if (!slugKey) continue;
+
+    const existingGroup = groupedBySlug.get(slugKey) || [];
+    existingGroup.push(article);
+    groupedBySlug.set(slugKey, existingGroup);
+  }
+
+  return Array.from(groupedBySlug.values())
+    .map(group => selectBestArticleVersion(group, language))
+    .filter(Boolean) as any[];
+}
+
+function prepareArticleContentForFrontend(content: string, language: 'en' | 'pl'): string {
+  const sanitized = sanitizeArticleBodyText(content || '', {
+    language,
+    aggressive: true,
+  });
+  return sanitized || normalizeAiGeneratedText(content || '');
+}
+
+/** Transform a raw Supabase row into a Post for list views */
+function transformSupabaseArticleToPost(article: any, isEn: boolean): Post {
+  const slug = isEn ? article.slug_en : article.slug_pl;
+  const content = isEn ? article.content_en : article.content_pl;
+  const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
+  const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
+
+  return {
+    slug: slug,
+    title: article.title || "Untitled",
+    excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
+    date: article.created_at,
+    publishedAt: article.created_at,
+    image: article.image_url || '',
+    category: normalizeCategory(article.category),
+    contentHtml: prepareArticleContentForFrontend(content || '', languageKey),
+    content: prepareArticleContentForFrontend(content || '', languageKey),
+    tags: Array.isArray(article.tags)
+      ? article.tags.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') }))
+      : []
+  };
 }
 
 // Детектирование кириллицы в тексте
@@ -70,82 +163,76 @@ function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
   if (!['en', 'pl'].includes(locale)) {
     return [];
   }
-  
+
   return articles.filter(article => {
     const slugContainsLocale = article.slug.includes(`-${locale}`);
     const contentToCheck = `${article.title} ${article.excerpt || ''} ${article.content || ''}`;
-    
+
     if (locale === 'en') {
       // Exclude articles with Cyrillic or Polish-specific characters
       if (hasCyrillic(contentToCheck) || hasPolish(contentToCheck)) return false;
       return slugContainsLocale || (!hasCyrillic(contentToCheck) && !hasPolish(contentToCheck));
     }
-    
+
     if (locale === 'pl') {
       // Require -pl in slug and exclude Cyrillic
       if (hasCyrillic(contentToCheck)) return false;
       return slugContainsLocale;
     }
-    
+
     return false;
   });
 }
 
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
-  // ✅ ПРИОРИТЕТ: Сначала проверяем runtime статьи (свежие, только что созданные)
+  // PRIORITY: Check runtime articles first (freshly created)
   const localArticles = await getLocalArticles();
   const runtimeFiltered = filterArticlesByLanguage(localArticles, locale);
-  
-  // Если есть runtime статьи, показываем их первыми
-  if (runtimeFiltered.length > 0) {
-    console.log(`✅ Found ${runtimeFiltered.length} local/runtime articles for ${locale}`);
-  }
-  
-  try {
-    // ✅ v7.14.0: Используем Supabase API для старых статей
-    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=${locale}&limit=${limit}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 60 } // ✅ Уменьшен кеш до 60 сек для быстрого обновления
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Supabase API failed: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(`Supabase API error: ${data.error}`);
-    }
-    
-    // Transform Supabase API data into Post format
-    const dbPosts: Post[] = data.articles.map((article: Record<string, unknown>) => ({
-      slug: article.slug as string,
-      title: (article.title as string) || "Untitled",
-      excerpt: (article.excerpt as string) || "",
-      date: article.date as string,
-      publishedAt: article.date as string,
-      image: article.image && (article.image as string).trim() !== '' ? article.image as string : '',
-      category: normalizeCategory(article.category),
-      contentHtml: (article.content as string) || "",
-      content: (article.content as string) || "",
-      tags: Array.isArray(article.tags) ? (article.tags as string[]).map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) : []
-    }));
 
-    // ✅ ВАЖНО: Runtime статьи ПЕРВЫМИ, затем Supabase статьи
+  if (runtimeFiltered.length > 0) {
+    console.log(`[data] Found ${runtimeFiltered.length} local/runtime articles for ${locale}`);
+  }
+
+  try {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const supabase = getSupabaseClient();
+    const isEn = locale === 'en';
+
+    let query = supabase
+      .from('published_articles')
+      .select('*')
+      .eq('published', true);
+
+    if (isEn) {
+      query = query.not('content_en', 'is', null);
+    } else {
+      query = query.not('content_pl', 'is', null);
+    }
+
+    query = query.order('created_at', { ascending: false }).limit(limit);
+
+    const { data: articles, error } = await query;
+
+    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+
+    const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
+
+    const dbPosts: Post[] = uniqueArticles.map((article: any) =>
+      transformSupabaseArticleToPost(article, isEn)
+    );
+
+    // Runtime articles FIRST, then Supabase articles
     const combined = [...runtimeFiltered, ...dbPosts];
-    
-    // Удаляем дубликаты по slug (runtime имеют приоритет)
+
+    // Dedupe by slug (runtime takes priority)
     const unique = combined.filter((article, index, self) =>
       index === self.findIndex((a) => a.slug === article.slug)
     );
-    
+
     return unique.slice(0, limit);
   } catch (error) {
-    console.warn('Ошибка загрузки Supabase статей, используем только локальные:', error);
-    
-    // Fallback к только локальным статьям (включая runtime)
+    console.warn('[data] Supabase query failed, using local only:', error);
     return runtimeFiltered.slice(0, limit);
   }
 }
@@ -154,144 +241,173 @@ export async function getTopPosts(limit = 1) { return getAllPosts(limit); }
 
 export async function getAllSlugs(): Promise<string[]> {
   try {
-    // ✅ v8.5.2: Используем SUPABASE вместо WordPress
-    const responses = await Promise.all([
-      fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=en&limit=200`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        next: { revalidate: 120 }
-      }),
-      fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=pl&limit=200`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        next: { revalidate: 120 }
-      })
-    ]);
-    
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const supabase = getSupabaseClient();
+
+    const { data: articles, error } = await supabase
+      .from('published_articles')
+      .select('slug_en, slug_pl')
+      .eq('published', true)
+      .order('created_at', { ascending: false })
+      .limit(400);
+
+    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+
     const allSlugs: string[] = [];
-    
-    for (const response of responses) {
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.success && data.articles) {
-          // Собираем slug'и из Supabase
-          const slugs = data.articles.map((article: any) => article.slug);
-          allSlugs.push(...slugs);
-        }
-      }
+    for (const article of articles || []) {
+      if (article.slug_en) allSlugs.push(article.slug_en);
+      if (article.slug_pl) allSlugs.push(article.slug_pl);
     }
-    
+
     if (allSlugs.length > 0) {
-      // Добавляем локальные slug'и
       const localArticles = await getLocalArticles();
       const localSlugs = localArticles.map(article => article.slug);
-      
-      // Объединяем и убираем дубликаты
       return [...new Set([...allSlugs, ...localSlugs])];
     }
   } catch (error) {
-    console.warn('Supabase API unavailable for getAllSlugs, using local articles:', error);
+    console.warn('[data] Supabase unavailable for getAllSlugs:', error);
   }
-  
-  // Fallback к только локальным статьям
+
   const localArticles = await getLocalArticles();
   return localArticles.map(article => article.slug);
 }
 
 export async function getPostBySlug(slug: string, locale: string = 'en'): Promise<Post|null> {
-  // Сначала ищем в локальных статьях
+  // Check local articles first
   const localArticle = await getLocalArticleBySlug(slug);
   if (localArticle) {
     return localArticle;
   }
 
-  // ✅ v7.14.0: Используем Supabase API вместо WordPress
+  // Direct Supabase query (no self-fetch)
   try {
-    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        action: 'get-by-slug', 
-        slug, 
-        language: locale 
-      }),
-      next: { revalidate: 120 }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data.success && data.article) {
-        const article = data.article;
-        return {
-          slug: article.slug,
-          title: article.title,
-          excerpt: article.excerpt,
-          date: article.date,
-          publishedAt: article.date,
-          image: article.image || "",
-          category: normalizeCategory(article.category),
-          contentHtml: article.content || "",
-          content: article.content || "",
-          tags: article.tags?.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) || []
-        };
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const supabase = getSupabaseClient();
+
+    const { data: articles, error } = await supabase
+      .from('published_articles')
+      .select('*')
+      .or(`slug_en.eq.${slug},slug_pl.eq.${slug}`)
+      .eq('published', true)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const articleLanguage = slug?.endsWith('-pl') || locale === 'pl' ? 'pl' : 'en';
+    const article = selectBestArticleVersion(articles || [], articleLanguage);
+
+    if (error || !article) return null;
+
+    const isEn = locale === 'en' || article.slug_en === slug;
+
+    // Extract Polish title from content/excerpt
+    let plTitle = article.title;
+    let plContent = article.content_pl || '';
+    const cleanedPlExcerpt = sanitizeExcerptText(article.excerpt_pl || '', 220).replace(/[.]{3,}\s*$/, '');
+
+    if (!isEn && article.content_pl) {
+      const headingMatch = article.content_pl.match(/^#\s+(.+)$/m);
+      if (headingMatch) {
+        plTitle = headingMatch[1];
+      } else if (cleanedPlExcerpt && cleanedPlExcerpt.length <= 140) {
+        plTitle = cleanedPlExcerpt;
       }
     }
+
+    // Remove first # heading from Polish content (to avoid duplication)
+    if (!isEn && plContent) {
+      plContent = plContent.replace(/^#\s+.+\n\n?/m, '');
+    }
+
+    const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
+    const rawContent = isEn ? article.content_en || '' : plContent || '';
+
+    return {
+      slug: isEn ? article.slug_en : article.slug_pl,
+      title: isEn ? article.title : plTitle,
+      excerpt: sanitizeExcerptText(isEn ? article.excerpt_en : article.excerpt_pl, 200),
+      date: article.created_at,
+      publishedAt: article.created_at,
+      image: article.image_url || "",
+      category: normalizeCategory(article.category),
+      contentHtml: prepareArticleContentForFrontend(rawContent, languageKey),
+      content: prepareArticleContentForFrontend(rawContent, languageKey),
+      tags: Array.isArray(article.tags)
+        ? article.tags.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') }))
+        : []
+    };
   } catch (error) {
-    console.warn('Supabase API unavailable, using only local articles:', error);
+    console.warn('[data] Supabase unavailable for getPostBySlug:', error);
   }
-  
+
   return null;
 }
 
 export async function getRelated(cat: Category, excludeSlug: string, limit = 4): Promise<Post[]> {
-  // Detect language from slug
   const locale = excludeSlug.endsWith('-pl') ? 'pl' : 'en';
-  
+  const isEn = locale === 'en';
+
   try {
-    // ✅ v7.14.0: Используем Supabase API
-    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        action: 'get-related',
-        category: cat.slug || cat.name,
-        excludeSlug,
-        language: locale,
-        limit
-      }),
-      next: { revalidate: 120 }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data.success && data.articles) {
-        return data.articles.map((article: Record<string, unknown>) => ({
-          slug: article.slug as string,
-          title: article.title as string,
-          excerpt: article.excerpt as string,
-          date: article.date as string,
-          publishedAt: article.date as string,
-          image: (article.image as string) || "",
-          category: normalizeCategory(article.category) || cat,
-          contentHtml: "",
-        }));
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const supabase = getSupabaseClient();
+
+    // Try category first
+    let { data: articles, error } = await supabase
+      .from('published_articles')
+      .select('*')
+      .eq('category', cat.slug || cat.name)
+      .eq('published', true)
+      .not(isEn ? 'slug_en' : 'slug_pl', 'eq', excludeSlug)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    // Fallback: if no articles in category, get latest from any category
+    if (!error && (!articles || articles.length === 0)) {
+      const fallback = await supabase
+        .from('published_articles')
+        .select('*')
+        .eq('published', true)
+        .not(isEn ? 'slug_en' : 'slug_pl', 'eq', excludeSlug)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (fallback.data) {
+        articles = fallback.data;
       }
     }
+
+    if (error) throw new Error(`Supabase related query failed: ${error.message}`);
+
+    const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
+
+    return uniqueArticles.map((article: any) => {
+      const slug = isEn ? article.slug_en : article.slug_pl;
+      const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
+      return {
+        slug: slug,
+        title: article.title,
+        excerpt: sanitizeExcerptText(excerpt || '', 200),
+        date: article.created_at,
+        publishedAt: article.created_at,
+        image: article.image_url || "",
+        category: normalizeCategory(article.category) || cat,
+        contentHtml: "",
+      } as Post;
+    });
   } catch (error) {
-    console.warn('Supabase API unavailable for getRelated:', error);
+    console.warn('[data] Supabase unavailable for getRelated:', error);
   }
-  
-  // Fallback к локальным статьям
+
+  // Fallback to local articles
   const localArticles = await getLocalArticles();
   return localArticles
     .filter(article => article.category.slug === cat.slug && article.slug !== excludeSlug)
     .slice(0, limit);
 }
 
-// Локальные категории только для английского и польского языков
+// Local categories for English and Polish
 const getLocalCategories = (locale: string): Category[] => {
   switch (locale) {
     case 'en':
@@ -313,7 +429,6 @@ const getLocalCategories = (locale: string): Category[] => {
         { name: "Wiadomości", slug: "news-2" }
       ];
     default:
-      // Для неподдерживаемых языков возвращаем английские категории
       console.warn(`Unsupported locale: ${locale}. Returning English categories.`);
       return [
         { name: "Artificial Intelligence", slug: "ai" },
@@ -328,32 +443,29 @@ const getLocalCategories = (locale: string): Category[] => {
 
 export async function getCategories(locale: string = 'en'): Promise<Category[]> {
   try {
-    // Пробуем получить категории из WordPress
+    // Try WordPress for categories
     const q = `query{ categories(first:100){ nodes{ name slug } } }`;
     const d = await gql<{categories:{nodes:Category[]}}>(q);
-    
-    // Получаем локализованные категории
+
     const localCategories = getLocalCategories(locale);
     const wpCategories = d.categories.nodes || [];
     const allCategories = [...localCategories];
-    
-    // Добавляем уникальные категории из WordPress (только slug, имя остается локализованным)
+
     for (const wpCat of wpCategories) {
       if (!allCategories.find(cat => cat.slug === wpCat.slug)) {
-        // Для WordPress категорий используем их имена как есть
         allCategories.push(wpCat);
       }
     }
-    
+
     return allCategories;
   } catch (error) {
-    console.warn('WordPress категории недоступны, используем локальные:', error);
+    console.warn('[data] WordPress categories unavailable, using local:', error);
     return getLocalCategories(locale);
   }
 }
 
 export async function getCategorySlugs(): Promise<string[]> {
-  const cats = await getCategories('en'); // Default to English for slugs
+  const cats = await getCategories('en');
   return cats.map(c => c.slug);
 }
 
@@ -363,53 +475,53 @@ export async function getCategoryBySlug(slug: string, locale: string = 'en'): Pr
 }
 
 export async function getPostsByCategory(slug: string, limit = 24, locale: string = 'en'): Promise<Post[]> {
-  // Получаем локальные статьи и фильтруем по категории
   const localArticles = await getLocalArticles();
-  
+
   const localFiltered = localArticles.filter(article => {
-    const categoryMatch = article.category.slug === slug;
-    return categoryMatch;
+    return article.category.slug === slug;
   });
 
-  // ✅ v8.5.2: Используем SUPABASE вместо WordPress (Single Source of Truth)
+  const isEn = locale === 'en';
   let supabasePosts: Post[] = [];
+
   try {
-    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=${locale}&category=${slug}&limit=${limit}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 120 }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data.success && data.articles) {
-        supabasePosts = data.articles.map((article: Record<string, unknown>) => ({
-          slug: article.slug as string,
-          title: article.title as string,
-          excerpt: strip((article.excerpt as string) || ''),
-          date: article.date as string,
-          publishedAt: article.date as string,
-          image: (article.image as string) || "",
-          category: normalizeCategory(article.category),
-          contentHtml: (article.content as string) || "",
-          content: (article.content as string) || "",
-          tags: Array.isArray(article.tags) ? (article.tags as string[]).map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') })) : []
-        }));
-        
-        console.log(`✅ Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);
-      }
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+
+    const supabase = getSupabaseClient();
+
+    let query = supabase
+      .from('published_articles')
+      .select('*')
+      .eq('published', true)
+      .eq('category', slug);
+
+    if (isEn) {
+      query = query.not('content_en', 'is', null);
+    } else {
+      query = query.not('content_pl', 'is', null);
     }
+
+    query = query.order('created_at', { ascending: false }).limit(limit);
+
+    const { data: articles, error } = await query;
+
+    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+
+    const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
+
+    supabasePosts = uniqueArticles.map((article: any) =>
+      transformSupabaseArticleToPost(article, isEn)
+    );
+
+    console.log(`[data] Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);
   } catch (error) {
-    // Supabase API недоступен, используем только локальные статьи
-    console.warn('Supabase API недоступен для категории, используем локальные статьи:', error);
+    console.warn('[data] Supabase unavailable for category, using local:', error);
   }
 
-  // Объединяем Supabase и локальные статьи
   const combinedPosts = [...localFiltered, ...supabasePosts];
-  
-  // Сортируем по дате публикации (новые сверху)
+
+  // Sort by date (newest first)
   combinedPosts.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
-  
+
   return combinedPosts.slice(0, limit);
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Container } from "./Container";
 import { getTranslation } from "@/lib/i18n";
 import type { Post } from "@/lib/types";
@@ -29,7 +30,7 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
     <Container>
       <section className="py-8 grid md:grid-cols-3 gap-6">
         {/* Main Article - 2 columns */}
-        <a href={`/${locale}/article/${main.slug}`} className="group col-span-2 block">
+        <Link href={`/${locale}/article/${main.slug}`} className="group col-span-2 block">
           <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100">
             <img 
               src={getImage(main)} 
@@ -48,12 +49,12 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
               {main.excerpt || t.mostActualEvents}
             </p>
           </div>
-        </a>
+        </Link>
 
         {/* Secondary Articles - 1 column */}
         <div className="flex flex-col gap-6">
           {rest.map((post, index) => (
-            <a key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
+            <Link key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
               <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
                 <img 
                   src={getImage(post)} 
@@ -69,7 +70,7 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
                   {post.title}
                 </h3>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </section>

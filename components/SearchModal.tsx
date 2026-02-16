@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import type { Post } from '@/lib/types';
 
 interface SearchModalProps {
@@ -87,7 +88,7 @@ export function SearchModal({ isOpen, onClose, posts, locale }: SearchModalProps
                       Found {results.length} result{results.length !== 1 ? 's' : ''}
                     </div>
                     {results.map((post) => (
-                      <a
+                      <Link
                         key={post.slug}
                         href={`/${locale}/article/${post.slug}`}
                         onClick={onClose}
@@ -118,7 +119,7 @@ export function SearchModal({ isOpen, onClose, posts, locale }: SearchModalProps
                             </span>
                           </div>
                         </div>
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 ) : (

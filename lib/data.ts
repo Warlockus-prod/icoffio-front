@@ -334,23 +334,33 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
 
     const supabase = getSupabaseClient();
 
-    const { data: articles, error } = await supabase
-      .from('published_articles')
-      .select('*')
-      .eq('published', true)
-      .not(isEn ? 'slug_en' : 'slug_pl', 'eq', excludeSlug)
-      .order('created_at', { ascending: false })
-      .limit(240);
+    const fetchRows = async (categorySlug?: string) => {
+      let query = supabase
+        .from('published_articles')
+        .select('*')
+        .eq('published', true)
+        .not(isEn ? 'slug_en' : 'slug_pl', 'eq', excludeSlug);
 
-    if (error) throw new Error(`Supabase related query failed: ${error.message}`);
+      if (categorySlug) {
+        query = query.eq('category', categorySlug);
+      }
 
-    const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
-    const sameCategory = targetCategorySlug
-      ? uniqueArticles.filter((article: any) => normalizeCategory(article.category).slug === targetCategorySlug)
-      : [];
-    const sourceArticles = sameCategory.length > 0 ? sameCategory : uniqueArticles;
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(240);
 
-    return sourceArticles.slice(0, limit).map((article: any) => {
+      if (error) throw new Error(`Supabase related query failed: ${error.message}`);
+      return data || [];
+    };
+
+    let rows = targetCategorySlug ? await fetchRows(targetCategorySlug) : [];
+    if (rows.length === 0) {
+      rows = await fetchRows();
+    }
+
+    const uniqueArticles = dedupeArticlesBySlug(rows, isEn ? 'en' : 'pl');
+
+    return uniqueArticles.slice(0, limit).map((article: any) => {
       const slug = isEn ? article.slug_en : article.slug_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
       return {
@@ -370,8 +380,16 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
 
   // Fallback to local articles
   const localArticles = await getLocalArticles();
-  return localArticles
+  const sameCategory = localArticles
     .filter(article => article.category.slug === cat.slug && article.slug !== excludeSlug)
+    .slice(0, limit);
+
+  if (sameCategory.length > 0) {
+    return sameCategory;
+  }
+
+  return localArticles
+    .filter(article => article.slug !== excludeSlug)
     .slice(0, limit);
 }
 
@@ -468,42 +486,65 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
 
     const supabase = getSupabaseClient();
 
-    let query = supabase
-      .from('published_articles')
-      .select('*')
-      .eq('published', true);
+    const fetchRows = async (categorySlug?: string) => {
+      let query = supabase
+        .from('published_articles')
+        .select('*')
+        .eq('published', true);
 
-    if (isEn) {
-      query = query.not('content_en', 'is', null);
-    } else {
-      query = query.not('content_pl', 'is', null);
-    }
+      if (categorySlug) {
+        query = query.eq('category', categorySlug);
+      }
 
-    query = query.order('created_at', { ascending: false }).limit(Math.max(limit * 10, 240));
+      if (isEn) {
+        query = query.not('content_en', 'is', null);
+      } else {
+        query = query.not('content_pl', 'is', null);
+      }
 
-    const { data: articles, error } = await query;
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(Math.max(limit * 10, 240));
 
-    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+      if (error) throw new Error(`Supabase query failed: ${error.message}`);
+      return data || [];
+    };
 
-    const categoryFiltered = (articles || []).filter((article: any) => {
-      return normalizeCategory(article.category).slug === slug;
-    });
+    const categoryRows = await fetchRows(slug);
 
-    const uniqueArticles = dedupeArticlesBySlug(categoryFiltered, isEn ? 'en' : 'pl');
+    const uniqueArticles = dedupeArticlesBySlug(categoryRows, isEn ? 'en' : 'pl');
 
     supabasePosts = uniqueArticles.map((article: any) =>
       transformSupabaseArticleToPost(article, isEn)
     );
 
     console.log(`[data] Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);
+
+    const combinedByCategory = [...localFiltered, ...supabasePosts];
+    combinedByCategory.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
+
+    if (combinedByCategory.length > 0) {
+      return combinedByCategory.slice(0, limit);
+    }
+
+    const fallbackRows = await fetchRows();
+    const fallbackUnique = dedupeArticlesBySlug(fallbackRows, isEn ? 'en' : 'pl');
+    const fallbackSupabasePosts = fallbackUnique.map((article: any) =>
+      transformSupabaseArticleToPost(article, isEn)
+    );
+    const fallbackLocalPosts = filterArticlesByLanguage(localArticles, locale);
+    const fallbackCombined = [...fallbackLocalPosts, ...fallbackSupabasePosts];
+    fallbackCombined.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
+    return fallbackCombined.slice(0, limit);
   } catch (error) {
     console.warn('[data] Supabase unavailable for category, using local:', error);
   }
 
-  const combinedPosts = [...localFiltered, ...supabasePosts];
+  if (localFiltered.length > 0) {
+    const sortedLocal = [...localFiltered];
+    sortedLocal.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
+    return sortedLocal.slice(0, limit);
+  }
 
-  // Sort by date (newest first)
-  combinedPosts.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
-
-  return combinedPosts.slice(0, limit);
+  return filterArticlesByLanguage(localArticles, locale).slice(0, limit);
 }

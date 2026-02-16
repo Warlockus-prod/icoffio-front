@@ -12,7 +12,7 @@ declare global {
 }
 
 const IN_IMAGE_PLACE_ID = "63d93bb54d506e95f039e2e3";
-const RETRY_DELAYS_MS = [200, 800, 1800, 3200];
+const RETRY_DELAYS_MS = [500, 2500];
 const MAX_CONTAINER_INIT_ATTEMPTS = 3;
 const ENABLED_DISPLAY_PLACE_IDS = new Set(
   AD_PLACEMENTS.filter((ad) => ad.enabled).map((ad) => ad.placeId)

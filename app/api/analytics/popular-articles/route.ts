@@ -50,6 +50,100 @@ export async function GET(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Live path for locale-specific stats (en/pl): uses article_views aggregation via RPC
+    // to avoid stale materialized-view reads.
+    if (locale) {
+      const rpcLimit = Math.min(limit * 4, 100);
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_popular_articles', {
+        lang: locale,
+        article_limit: rpcLimit,
+      });
+
+      if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+        const rankedRows = rpcData
+          .map((row: any) => ({
+            article_slug: row?.slug,
+            total_views: Number(row?.view_count || 0),
+          }))
+          .filter((row: any) => typeof row.article_slug === 'string' && row.article_slug.length > 0)
+          .slice(0, limit);
+
+        const slugs = rankedRows.map((row: any) => row.article_slug);
+        let bySlugMeta = new Map<string, { unique_views: number; last_viewed: string | null }>();
+
+        if (slugs.length > 0) {
+          const { data: viewRows, error: viewsError } = await supabase
+            .from('article_views')
+            .select('article_slug,user_ip,viewed_at')
+            .in('article_slug', slugs);
+
+          if (viewsError) {
+            console.warn('[Popular Articles API] Failed to fetch live view rows:', viewsError.message);
+          } else if (Array.isArray(viewRows)) {
+            const agg = new Map<string, { users: Set<string>; last: number }>();
+
+            for (const row of viewRows) {
+              const slug = row.article_slug as string;
+              if (!slug) continue;
+
+              const current = agg.get(slug) || { users: new Set<string>(), last: 0 };
+              if (typeof row.user_ip === 'string' && row.user_ip.length > 0) {
+                current.users.add(row.user_ip);
+              }
+
+              const viewedAt = row.viewed_at ? new Date(row.viewed_at).getTime() : 0;
+              if (Number.isFinite(viewedAt) && viewedAt > current.last) {
+                current.last = viewedAt;
+              }
+
+              agg.set(slug, current);
+            }
+
+            bySlugMeta = new Map(
+              Array.from(agg.entries()).map(([slug, value]) => [
+                slug,
+                {
+                  unique_views: value.users.size,
+                  last_viewed: value.last > 0 ? new Date(value.last).toISOString() : null,
+                },
+              ])
+            );
+          }
+        }
+
+        const now = Date.now();
+        const articles = rankedRows.map((row: any) => {
+          const meta = bySlugMeta.get(row.article_slug);
+          const lastViewedTs = meta?.last_viewed ? new Date(meta.last_viewed).getTime() : 0;
+          const daysSinceLastView = lastViewedTs > 0 ? (now - lastViewedTs) / 86_400_000 : 365;
+
+          return {
+            article_slug: row.article_slug,
+            total_views: row.total_views,
+            unique_views: meta?.unique_views || 0,
+            last_viewed: meta?.last_viewed,
+            popularity_score: row.total_views * 0.7 + daysSinceLastView * -0.3,
+          };
+        });
+
+        const totalViews = articles.reduce((sum, article) => sum + (article.total_views || 0), 0);
+        const totalUniqueViews = articles.reduce((sum, article) => sum + (article.unique_views || 0), 0);
+
+        return NextResponse.json({
+          success: true,
+          articles,
+          count: articles.length,
+          stats: {
+            total_views: totalViews,
+            total_unique_views: totalUniqueViews,
+            articles_tracked: articles.length,
+          },
+          limit,
+          source: 'live-rpc',
+        });
+      }
+    }
+
     // Refresh materialized view (optional, can be slow)
     try {
       await supabase.rpc('refresh_article_popularity');

@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
   - fallback на `article_popularity` materialized view, если RPC недоступен.
 - Сохранен UX fallback: если API временно пустой/недоступен, `Popular` не остается пустым на клиенте.
 - Исправлен источник Supabase-ключа в `popular-articles` (приоритет `SUPABASE_SERVICE_ROLE_KEY`) для консистентного refresh/чтения статистики.
+- Для `popular-articles?locale=en|pl` добавлен live-режим через `get_popular_articles` + агрегацию `article_views`, чтобы убрать рассинхрон со stale materialized view.
 
 ### 🔧 Измененные файлы
 - `app/api/analytics/popular-posts/route.ts`

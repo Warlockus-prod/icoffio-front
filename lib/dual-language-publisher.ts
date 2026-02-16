@@ -10,8 +10,9 @@ import { translateArticleContent } from './ai-copywriting-service';
 import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
 import { getPublicationStyle, PublicationStyle } from './telegram-user-preferences';
 import { buildImageKeywordPhrase, extractImageKeywords } from './image-keywords';
+import { getSiteBaseUrl } from './site-url';
 
-const BASE_URL = 'https://app.icoffio.com';
+const BASE_URL = getSiteBaseUrl();
 
 export interface DualLanguagePublishResult {
   success: boolean;

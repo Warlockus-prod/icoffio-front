@@ -16,6 +16,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 
 import { getTranslation } from "@/lib/i18n";
+import { getSiteBaseUrl } from "@/lib/site-url";
 import { notFound } from "next/navigation";
 import { VOX_SCRIPT } from "@/lib/vox-advertising";
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   }
 
   const t = getTranslation(params.locale as any);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://icoffio.com";
+  const siteUrl = getSiteBaseUrl();
   
   return {
     metadataBase: new URL(siteUrl),

@@ -26,6 +26,7 @@ import {
   getTelegramSubmissions,
   updateTelegramSubmission,
 } from '@/lib/supabase-analytics';
+import { getSiteBaseUrl } from '@/lib/site-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -1283,7 +1284,7 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
 }
 
 function triggerTelegramSimpleWorker(request: NextRequest): void {
-  const origin = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://app.icoffio.com';
+  const origin = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || getSiteBaseUrl();
   const workerSecret = process.env.TELEGRAM_WORKER_SECRET || process.env.CRON_SECRET;
   const headers: Record<string, string> = {};
   if (workerSecret) {

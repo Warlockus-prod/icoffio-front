@@ -20,11 +20,13 @@ import { UniversalAd } from "@/components/UniversalAd";
 import { VOX_PLACES } from "@/lib/vox-advertising";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
+import { getSiteBaseUrl } from "@/lib/site-url";
 // v7.30.0: Centralized mock data
 import { mockCategories, mockPostsShort as mockPosts } from "@/lib/mock-data";
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = getTranslation(params.locale as any);
+  const siteUrl = getSiteBaseUrl();
   
   return {
     title: t.siteTitle,
@@ -34,7 +36,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     openGraph: {
       title: t.siteTitle,
       description: t.siteDescription,
-      url: process.env.NEXT_PUBLIC_SITE_URL,
+      url: `${siteUrl}/${params.locale}`,
       siteName: "icoffio",
       images: [
         {
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
       },
     },
     alternates: {
-      canonical: process.env.NEXT_PUBLIC_SITE_URL,
+      canonical: `${siteUrl}/${params.locale}`,
       languages: {
         'en': '/en',
         'pl': '/pl',

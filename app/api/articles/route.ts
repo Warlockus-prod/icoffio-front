@@ -13,6 +13,7 @@ import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeArti
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settings';
 import { editorialQualityService } from '@/lib/editorial-quality-service';
+import { buildSiteUrl } from '@/lib/site-url';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const PLACEHOLDER_IMAGE_MARKERS = [
@@ -1142,8 +1143,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       meta_description: cleanExcerptEn.substring(0, 160),
       published: true,
       featured: false,
-      url_en: `https://app.icoffio.com/en/article/${enSlug}`,
-      url_pl: `https://app.icoffio.com/pl/article/${plSlug}`
+      url_en: buildSiteUrl(`/en/article/${enSlug}`),
+      url_pl: buildSiteUrl(`/pl/article/${plSlug}`)
     };
     
     // Сохраняем в Supabase
@@ -1231,10 +1232,10 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       message: `Article "${article.title}" successfully published`,
       locallyPublished: true,
       wordpressPublished,
-      url: `https://app.icoffio.com/en/article/${enSlug}`, // ✅ Ссылка с суффиксом -en
+      url: buildSiteUrl(`/en/article/${enSlug}`), // ✅ Ссылка с суффиксом -en
       urls: {
-        en: `https://app.icoffio.com/en/article/${enSlug}`, // ✅ slug-name-en
-        pl: article.translations?.pl ? `https://app.icoffio.com/pl/article/${plSlug}` : null // ✅ slug-name-pl
+        en: buildSiteUrl(`/en/article/${enSlug}`), // ✅ slug-name-en
+        pl: article.translations?.pl ? buildSiteUrl(`/pl/article/${plSlug}`) : null // ✅ slug-name-pl
       }
     });
 

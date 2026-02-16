@@ -6,8 +6,9 @@
  */
 
 import { buildImageKeywordPhrase, extractImageKeywords } from '../image-keywords';
+import { getSiteBaseUrl } from '../site-url';
 
-const BASE_URL = 'https://app.icoffio.com';
+const BASE_URL = getSiteBaseUrl();
 
 function isRenderableImageUrl(url: string): boolean {
   const normalized = (url || '').trim();

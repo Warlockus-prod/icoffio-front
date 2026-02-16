@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.44] - 2026-02-16 - 🛡 Domain Outage Hardening (app primary + centralized URLs)
+
+### 🎯 Что исправлено
+- Убраны риски от смешанных доменов в прод-потоках публикации/выдачи.
+- Добавлен единый helper базового домена:
+  - `lib/site-url.ts` (`getSiteBaseUrl`, `buildSiteUrl`),
+  - `app.icoffio.com` зафиксирован как primary host, legacy/alternate hosts нормализуются через helper.
+- Критичные маршруты и сервисы переведены на канонический URL-генератор:
+  - публикация статей, ссылки EN/PL, revalidate URL,
+  - sitemap/base URL,
+  - fetch к `supabase-articles` из `lib/data`,
+  - queue/telegram image/publisher пути и worker origin fallback,
+  - URL метаданных при регенерации изображений.
+- Удалены устаревшие хардкоды смешанных host-URL из рабочих код-путей.
+
+### 🧰 Операционная устойчивость
+- Добавлен health-check скрипт:
+  - `scripts/check-prod-health.sh`
+  - проверяет `icoffio.com`, `www`, `app`, `vercel.app` + DNS snapshot.
+- Добавлен runbook восстановления доменных инцидентов:
+  - `docs/DOMAIN_OUTAGE_RUNBOOK.md`
+  - шаги диагностики (Vercel alias/domain/cert + DNS) и recovery-процедура.
+
+### 🔧 Измененные файлы
+- `lib/site-url.ts`
+- `lib/data.ts`
+- `app/sitemap.ts`
+- `app/api/articles/route.ts`
+- `app/api/admin/publish-article/route.ts`
+- `app/api/admin/regenerate-image/route.ts`
+- `lib/queue-service.ts`
+- `lib/dual-language-publisher.ts`
+- `lib/telegram-simple/image-generator.ts`
+- `lib/telegram-simple/publisher.ts`
+- `app/api/telegram-simple/webhook/route.ts`
+- `app/api/vercel-webhook/route.ts`
+- `scripts/check-prod-health.sh`
+- `docs/DOMAIN_OUTAGE_RUNBOOK.md`
+
+### ✅ Проверки
+- `npm run build` — OK
+- `npm test` — OK (58/58)
+
 ## [8.6.43] - 2026-02-16 - 🎞 Instream DSP Preroll + Ads-Only Loop
 
 ### 🎯 Что исправлено

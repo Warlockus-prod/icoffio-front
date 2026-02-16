@@ -3,6 +3,7 @@ import { translationService } from '@/lib/translation-service';
 import { copywritingService } from '@/lib/copywriting-service';
 import { imageService } from '@/lib/image-service';
 import { wordpressService } from '@/lib/wordpress-service';
+import { getSiteBaseUrl } from '@/lib/site-url';
 
 // Интерфейсы для данных
 interface TelegramArticle {
@@ -331,7 +332,7 @@ function generateSlug(title: string): string {
 
 // Генерация URL для статей
 function generateArticleUrls(slug: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://icoffio.com';
+  const baseUrl = getSiteBaseUrl();
   return {
     en: `${baseUrl}/en/article/${slug}`,
     pl: `${baseUrl}/pl/article/${slug}`,

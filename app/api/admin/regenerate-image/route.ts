@@ -28,6 +28,7 @@ import {
   ImageMetadata,
   createDefaultImageMetadata
 } from '@/lib/types/image-metadata';
+import { buildSiteUrl } from '@/lib/site-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -490,10 +491,10 @@ async function persistImageMetadata(params: {
         : requestedArticleId,
       entity_title: articleData.title,
       entity_url: articleData.slugEn
-        ? `https://app.icoffio.com/en/article/${articleData.slugEn}`
+        ? buildSiteUrl(`/en/article/${articleData.slugEn}`)
         : null,
       entity_url_pl: articleData.slugPl
-        ? `https://app.icoffio.com/pl/article/${articleData.slugPl}`
+        ? buildSiteUrl(`/pl/article/${articleData.slugPl}`)
         : null,
       metadata: {
         requestedArticleId,

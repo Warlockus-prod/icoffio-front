@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { buildSiteUrl, getSiteBaseUrl } from '@/lib/site-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -94,6 +95,8 @@ export async function POST(request: NextRequest) {
     // Generate slug
     const slug = generateSlug(title, language);
 
+    const frontendUrl = getSiteBaseUrl();
+
     // Prepare article data
     const articleData: any = {
       title,
@@ -118,12 +121,12 @@ export async function POST(request: NextRequest) {
       articleData.slug_en = slug;
       articleData.content_en = content;
       articleData.excerpt_en = excerpt;
-      articleData.url_en = `https://app.icoffio.com/en/article/${slug}`;
+      articleData.url_en = buildSiteUrl(`/en/article/${slug}`);
     } else if (language === 'pl') {
       articleData.slug_pl = slug;
       articleData.content_pl = content;
       articleData.excerpt_pl = excerpt;
-      articleData.url_pl = `https://app.icoffio.com/pl/article/${slug}`;
+      articleData.url_pl = buildSiteUrl(`/pl/article/${slug}`);
     }
 
     // Insert into Supabase
@@ -149,7 +152,6 @@ export async function POST(request: NextRequest) {
     console.log(`[Publish] ✅ Article published: ID ${insertedArticle.id}, slug: ${slug}`);
 
     // Generate frontend URL
-    const frontendUrl = 'https://app.icoffio.com';
     const postUrl = `${frontendUrl}/${language}/article/${slug}`;
 
     // Revalidate Next.js pages

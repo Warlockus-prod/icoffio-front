@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { ProcessedArticle, PublishResult } from './types';
 import { translateToPolish } from './translator';
 import { insertImages, type ImageGenerationOptions } from './image-generator';
+import { buildSiteUrl } from '../site-url';
 
 function isRenderableImageUrl(url: string): boolean {
   const normalized = (url || '').trim();
@@ -39,6 +40,9 @@ function extractImageUrlsFromContent(content: string): string[] {
 
   return Array.from(found);
 }
+
+const buildArticleUrl = (locale: 'en' | 'pl', slug: string) =>
+  buildSiteUrl(`/${locale}/article/${slug}`);
 
 /**
  * Get Supabase client
@@ -124,13 +128,13 @@ export async function publishArticle(
       slug_en: `${slug}-en`,
       content_en: finalContentEn,
       excerpt_en: article.excerpt,
-      url_en: `https://app.icoffio.com/en/article/${slug}-en`,
+      url_en: buildArticleUrl('en', `${slug}-en`),
       
       // Polish content (with title prepended as # heading and images if requested)
       slug_pl: `${slug}-pl`,
       content_pl: contentPlWithTitle,
       excerpt_pl: polish.excerpt,
-      url_pl: `https://app.icoffio.com/pl/article/${slug}-pl`,
+      url_pl: buildArticleUrl('pl', `${slug}-pl`),
       image_url: heroImageUrl || null,
       
       // Store Polish title in tags for easier retrieval
@@ -176,12 +180,12 @@ export async function publishArticle(
       en: {
         id: data.id,
         slug: data.slug_en,
-        url: data.url_en || `https://app.icoffio.com/en/article/${data.slug_en}`,
+        url: data.url_en || buildArticleUrl('en', data.slug_en),
       },
       pl: {
         id: data.id, // Same ID, different slug
         slug: data.slug_pl,
-        url: data.url_pl || `https://app.icoffio.com/pl/article/${data.slug_pl}`,
+        url: data.url_pl || buildArticleUrl('pl', data.slug_pl),
       },
     };
 

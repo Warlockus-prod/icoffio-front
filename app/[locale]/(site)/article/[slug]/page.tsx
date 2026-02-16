@@ -22,6 +22,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
 import { extractMonetizationSettingsFromContent } from "@/lib/monetization-settings";
+import { buildSiteUrl } from "@/lib/site-url";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Post } from "@/lib/types";
@@ -80,7 +81,7 @@ export async function generateMetadata({ params }: { params: { locale: string; s
   if (!post) return {};
 
   const publishedTime = new Date(post.publishedAt || post.date || new Date()).toISOString();
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/${params.locale}/article/${post.slug}`;
+  const url = buildSiteUrl(`/${params.locale}/article/${post.slug}`);
   const contentImage = extractFirstContentImage(post.content || post.contentHtml || '');
   const metadataImage = isRenderableArticleImage(post.image || '')
     ? (post.image as string)

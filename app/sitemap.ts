@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next';
 import { getAllPosts } from '@/lib/data';
+import { getSiteBaseUrl } from '@/lib/site-url';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.icoffio.com';
+  const base = getSiteBaseUrl();
   const locales = ['en', 'pl'];
   const categories = ['ai', 'apple', 'digital', 'tech', 'games', 'news-2'];
 

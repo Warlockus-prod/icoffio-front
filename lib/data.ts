@@ -1,7 +1,9 @@
 import type { Post, Category } from "./types";
 import { getLocalArticles as getLocalArticlesFromFile, getLocalArticleBySlug as getLocalArticleBySlugFromFile } from "./local-articles";
+import { getSiteBaseUrl } from './site-url';
 
 const WP = process.env.NEXT_PUBLIC_WP_ENDPOINT || "https://icoffio.com/graphql";
+const SITE_BASE_URL = getSiteBaseUrl();
 
 // Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
@@ -101,7 +103,7 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
   
   try {
     // ✅ v7.14.0: Используем Supabase API для старых статей
-    const response = await fetch(`https://app.icoffio.com/api/supabase-articles?lang=${locale}&limit=${limit}`, {
+    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=${locale}&limit=${limit}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 60 } // ✅ Уменьшен кеш до 60 сек для быстрого обновления
@@ -154,12 +156,12 @@ export async function getAllSlugs(): Promise<string[]> {
   try {
     // ✅ v8.5.2: Используем SUPABASE вместо WordPress
     const responses = await Promise.all([
-      fetch('https://app.icoffio.com/api/supabase-articles?lang=en&limit=200', {
+      fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=en&limit=200`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         next: { revalidate: 120 }
       }),
-      fetch('https://app.icoffio.com/api/supabase-articles?lang=pl&limit=200', {
+      fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=pl&limit=200`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         next: { revalidate: 120 }
@@ -206,7 +208,7 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
 
   // ✅ v7.14.0: Используем Supabase API вместо WordPress
   try {
-    const response = await fetch('https://app.icoffio.com/api/supabase-articles', {
+    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -249,7 +251,7 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
   
   try {
     // ✅ v7.14.0: Используем Supabase API
-    const response = await fetch('https://app.icoffio.com/api/supabase-articles', {
+    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -372,7 +374,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
   // ✅ v8.5.2: Используем SUPABASE вместо WordPress (Single Source of Truth)
   let supabasePosts: Post[] = [];
   try {
-    const response = await fetch(`https://app.icoffio.com/api/supabase-articles?lang=${locale}&category=${slug}&limit=${limit}`, {
+    const response = await fetch(`${SITE_BASE_URL}/api/supabase-articles?lang=${locale}&category=${slug}&limit=${limit}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       next: { revalidate: 120 }

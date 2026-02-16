@@ -19,6 +19,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { publishDualLanguageArticle } from './dual-language-publisher';
+import { getSiteBaseUrl } from './site-url';
 
 /**
  * Send Telegram notification
@@ -560,7 +561,7 @@ class QueueService {
       throw new Error('URL is required');
     }
 
-    const baseUrl = 'https://app.icoffio.com';
+    const baseUrl = getSiteBaseUrl();
     const parseResponse = await fetch(`${baseUrl}/api/admin/parse-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -59,16 +59,26 @@ export function ArticlePopularityStats() {
   const [stats, setStats] = useState<PopularityStats | null>(null);
   const [source, setSource] = useState<PopularitySource>('unknown');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPopularity();
   }, []);
 
-  async function fetchPopularity() {
+  async function fetchPopularity(options: { background?: boolean } = {}) {
+    const isBackgroundRefresh = options.background === true;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (isBackgroundRefresh) {
+        setIsRefreshing(true);
+        setRefreshError(null);
+      } else {
+        setLoading(true);
+        setError(null);
+      }
 
       const response = await fetch('/api/analytics/popular-articles?limit=10');
       
@@ -80,12 +90,25 @@ export function ArticlePopularityStats() {
       setArticles(data.articles || []);
       setStats(data.stats);
       setSource(normalizeSource(data.source));
+      setLastUpdatedAt(new Date().toISOString());
+      setError(null);
+      setRefreshError(null);
     } catch (err) {
       console.error('Failed to fetch article popularity:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      setSource('unknown');
+      const message = err instanceof Error ? err.message : 'Unknown error';
+
+      if (isBackgroundRefresh) {
+        setRefreshError(message);
+      } else {
+        setError(message);
+        setSource('unknown');
+      }
     } finally {
-      setLoading(false);
+      if (isBackgroundRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }
 
@@ -111,6 +134,11 @@ export function ArticlePopularityStats() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
+  }
+
+  function formatLastUpdated(dateString: string | null): string {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleTimeString();
   }
 
   const sourceMeta = getSourceMeta(source);
@@ -186,12 +214,31 @@ export function ArticlePopularityStats() {
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
               Source: {sourceMeta.description}
             </p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              Last sync: {formatLastUpdated(lastUpdatedAt)}
+            </p>
           </div>
         </div>
-        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${sourceMeta.className}`}>
-          {sourceMeta.label}
-        </span>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchPopularity({ background: true })}
+            disabled={isRefreshing}
+            className="inline-flex items-center rounded-lg border border-neutral-300 dark:border-neutral-600 px-3 py-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${sourceMeta.className}`}>
+            {sourceMeta.label}
+          </span>
+        </div>
       </div>
+
+      {refreshError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+          Refresh failed: {refreshError}
+        </div>
+      )}
 
       {/* Stats Summary */}
       {stats && (
@@ -263,7 +310,6 @@ export function ArticlePopularityStats() {
     </div>
   );
 }
-
 
 
 

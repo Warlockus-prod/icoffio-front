@@ -7,7 +7,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 
 interface ArticlePopularity {
   article_slug: string;
@@ -23,9 +22,42 @@ interface PopularityStats {
   articles_tracked: number;
 }
 
+type PopularitySource = 'live-rpc' | 'materialized-view' | 'unknown';
+
+function normalizeSource(value: unknown): PopularitySource {
+  if (value === 'live-rpc') return 'live-rpc';
+  if (value === 'materialized-view') return 'materialized-view';
+  return 'unknown';
+}
+
+function getSourceMeta(source: PopularitySource) {
+  if (source === 'live-rpc') {
+    return {
+      label: 'Live RPC',
+      description: 'Real-time aggregation from views table',
+      className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    };
+  }
+
+  if (source === 'materialized-view') {
+    return {
+      label: 'Materialized View',
+      description: 'Cached popularity snapshot',
+      className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    };
+  }
+
+  return {
+    label: 'Unknown Source',
+    description: 'Source metadata unavailable',
+    className: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300',
+  };
+}
+
 export function ArticlePopularityStats() {
   const [articles, setArticles] = useState<ArticlePopularity[]>([]);
   const [stats, setStats] = useState<PopularityStats | null>(null);
+  const [source, setSource] = useState<PopularitySource>('unknown');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,9 +79,11 @@ export function ArticlePopularityStats() {
       const data = await response.json();
       setArticles(data.articles || []);
       setStats(data.stats);
+      setSource(normalizeSource(data.source));
     } catch (err) {
       console.error('Failed to fetch article popularity:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
+      setSource('unknown');
     } finally {
       setLoading(false);
     }
@@ -78,6 +112,8 @@ export function ArticlePopularityStats() {
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   }
+
+  const sourceMeta = getSourceMeta(source);
 
   if (loading) {
     return (
@@ -147,8 +183,14 @@ export function ArticlePopularityStats() {
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Top {articles.length} most viewed
             </p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Source: {sourceMeta.description}
+            </p>
           </div>
         </div>
+        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${sourceMeta.className}`}>
+          {sourceMeta.label}
+        </span>
       </div>
 
       {/* Stats Summary */}
@@ -221,7 +263,6 @@ export function ArticlePopularityStats() {
     </div>
   );
 }
-
 
 
 

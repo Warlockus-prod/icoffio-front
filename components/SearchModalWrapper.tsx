@@ -3,7 +3,7 @@
 import { useSearch } from './SearchProvider';
 import { AdvancedSearch } from './AdvancedSearch';
 import type { Post } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SearchModalWrapperProps {
   posts: Post[];
@@ -14,10 +14,12 @@ export function SearchModalWrapper({ posts: initialPosts, locale }: SearchModalW
   const { isSearchOpen, closeSearch } = useSearch();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [isLoading, setIsLoading] = useState(false);
+  const hasFetchedRef = useRef(false);
 
-  // Загружаем посты client-side если их нет
+  // Загружаем посты client-side если их нет (один раз)
   useEffect(() => {
-    if (initialPosts.length === 0 && !isLoading) {
+    if (initialPosts.length === 0 && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       setIsLoading(true);
       fetch(`/api/articles?locale=${locale}&limit=50`)
         .then(res => res.json())
@@ -29,7 +31,7 @@ export function SearchModalWrapper({ posts: initialPosts, locale }: SearchModalW
         .catch(err => console.error('Failed to load articles for search:', err))
         .finally(() => setIsLoading(false));
     }
-  }, [initialPosts.length, locale, isLoading]);
+  }, [initialPosts.length, locale]);
 
   return (
     <AdvancedSearch

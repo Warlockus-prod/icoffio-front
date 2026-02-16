@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 export type AdFormat =
   | '728x90' | '970x250'
@@ -44,21 +44,20 @@ export function UniversalAd({
   const containerRef = useRef<HTMLDivElement>(null);
   const [adStatus, setAdStatus] = useState<'loading' | 'ready' | 'unsuitable'>('loading');
   const lastUnsuitableReasonRef = useRef<string>('');
-
-  if (!enabled) return null;
+  const evaluateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dimensions = AD_DIMENSIONS[format];
   const expectedWidth = Number.parseInt(dimensions.width, 10);
   const expectedHeight = Number.parseInt(dimensions.height, 10);
   const formatMaxWidth = dimensions.width;
 
-  const parseSize = (value: string | null | undefined): number => {
+  const parseSize = useCallback((value: string | null | undefined): number => {
     if (!value) return 0;
     const parsed = Number.parseFloat(value.replace('px', '').trim());
     return Number.isFinite(parsed) ? parsed : 0;
-  };
+  }, []);
 
-  const resolveElementSize = (element: Element): { width: number; height: number } => {
+  const resolveElementSize = useCallback((element: Element): { width: number; height: number } => {
     const htmlElement = element as HTMLElement;
     const rect = htmlElement.getBoundingClientRect();
     const computed = window.getComputedStyle(htmlElement);
@@ -84,62 +83,67 @@ export function UniversalAd({
     );
 
     return { width, height };
-  };
+  }, [parseSize]);
 
-  const checkSuitability = (container: HTMLDivElement): { status: 'loading' | 'ready' | 'unsuitable'; reason?: string } => {
-    const hasContent = (
-      container.children.length > 0 ||
-      container.querySelector('iframe') !== null ||
-      container.innerHTML.trim() !== ''
-    );
-
-    if (!hasContent) {
-      return { status: 'loading' };
-    }
-
-    const creative = container.querySelector('iframe') || container.firstElementChild;
-    if (!creative) {
-      return { status: 'loading' };
-    }
-
-    const measured = resolveElementSize(creative);
-    if (measured.width <= 0 || measured.height <= 0) {
-      return { status: 'loading' };
-    }
-
-    // Разрешаем масштабирование, но не пропускаем явный mismatch.
-    const widthMin = expectedWidth * 0.65;
-    const widthMax = expectedWidth * 1.1;
-    const heightMin = expectedHeight * 0.7;
-    const heightMax = expectedHeight * 1.35;
-
-    const widthOk = measured.width >= widthMin && measured.width <= widthMax;
-    const heightOk = measured.height >= heightMin && measured.height <= heightMax;
-
-    if (widthOk && heightOk) {
-      return { status: 'ready' };
-    }
-
-    return {
-      status: 'unsuitable',
-      reason: `expected~${expectedWidth}x${expectedHeight}, got~${Math.round(measured.width)}x${Math.round(measured.height)}`,
-    };
-  };
-
+  // All hooks are above this early return — Rules of Hooks compliant
   useEffect(() => {
+    if (!enabled) return;
+
     const container = containerRef.current;
     if (!container) return;
     setAdStatus('loading');
     lastUnsuitableReasonRef.current = '';
 
     const evaluateAd = () => {
-      const result = checkSuitability(container);
-      setAdStatus(result.status);
+      const hasContent = (
+        container.children.length > 0 ||
+        container.querySelector('iframe') !== null ||
+        container.innerHTML.trim() !== ''
+      );
 
-      if (result.status === 'unsuitable' && result.reason && lastUnsuitableReasonRef.current !== result.reason) {
-        lastUnsuitableReasonRef.current = result.reason;
-        console.log(`[VOX] Hiding unsuitable ad ${placeId} (${format}): ${result.reason}`);
+      if (!hasContent) {
+        setAdStatus('loading');
+        return;
       }
+
+      const creative = container.querySelector('iframe') || container.firstElementChild;
+      if (!creative) {
+        setAdStatus('loading');
+        return;
+      }
+
+      const measured = resolveElementSize(creative);
+      if (measured.width <= 0 || measured.height <= 0) {
+        setAdStatus('loading');
+        return;
+      }
+
+      // Разрешаем масштабирование, но не пропускаем явный mismatch.
+      const widthMin = expectedWidth * 0.65;
+      const widthMax = expectedWidth * 1.1;
+      const heightMin = expectedHeight * 0.7;
+      const heightMax = expectedHeight * 1.35;
+
+      const widthOk = measured.width >= widthMin && measured.width <= widthMax;
+      const heightOk = measured.height >= heightMin && measured.height <= heightMax;
+
+      if (widthOk && heightOk) {
+        setAdStatus('ready');
+        return;
+      }
+
+      const reason = `expected~${expectedWidth}x${expectedHeight}, got~${Math.round(measured.width)}x${Math.round(measured.height)}`;
+      setAdStatus('unsuitable');
+
+      if (lastUnsuitableReasonRef.current !== reason) {
+        lastUnsuitableReasonRef.current = reason;
+        console.log(`[VOX] Hiding unsuitable ad ${placeId} (${format}): ${reason}`);
+      }
+    };
+
+    const debouncedEvaluate = () => {
+      if (evaluateDebounceRef.current) clearTimeout(evaluateDebounceRef.current);
+      evaluateDebounceRef.current = setTimeout(evaluateAd, 150);
     };
 
     const timers = [2500, 5000, 8000, 12000].map((delay) =>
@@ -147,13 +151,19 @@ export function UniversalAd({
     );
 
     const observer = new MutationObserver((mutations) => {
-      const hasRelevantMutation = mutations.some((mutation) => (
-        (mutation.type === 'childList' && (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)) ||
-        mutation.type === 'attributes'
-      ));
+      // Filter out attribute changes on the container itself (caused by React re-rendering data-ad-status)
+      const hasRelevantMutation = mutations.some((mutation) => {
+        if (mutation.type === 'attributes' && mutation.target === container) {
+          return false; // Ignore self-attribute changes to prevent feedback loop
+        }
+        return (
+          (mutation.type === 'childList' && (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)) ||
+          mutation.type === 'attributes'
+        );
+      });
 
       if (hasRelevantMutation) {
-        evaluateAd();
+        debouncedEvaluate();
       }
     });
 
@@ -161,6 +171,7 @@ export function UniversalAd({
       childList: true,
       subtree: true,
       attributes: true,
+      attributeFilter: ['style', 'class', 'width', 'height', 'src'], // Only relevant attributes, NOT data-ad-status
     });
 
     evaluateAd();
@@ -168,8 +179,12 @@ export function UniversalAd({
     return () => {
       observer.disconnect();
       timers.forEach((timerId) => window.clearTimeout(timerId));
+      if (evaluateDebounceRef.current) clearTimeout(evaluateDebounceRef.current);
     };
-  }, [expectedHeight, expectedWidth, format, placeId]);
+  }, [enabled, expectedHeight, expectedWidth, format, placeId, resolveElementSize]);
+
+  // Early return after all hooks
+  if (!enabled) return null;
 
   const isAdLoaded = adStatus === 'ready';
 

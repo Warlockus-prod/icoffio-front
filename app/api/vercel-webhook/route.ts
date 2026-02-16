@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         `<b>Commit:</b> ${commitMessage}\n` +
         `<b>Author:</b> ${author}\n` +
         `<b>SHA:</b> <code>${shortSha}</code>\n\n` +
-        `🌐 <a href="https://app.icoffio.com">app.icoffio.com</a>\n` +
+        `🌐 <a href="https://www.icoffio.com">www.icoffio.com</a>\n` +
         `📊 <a href="https://vercel.com/dashboard">Vercel Dashboard</a>`
       );
       

@@ -77,8 +77,11 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Smooth transitions for dark mode (only for color properties) */
-*:not(button):not(a) {
+/* Smooth transitions for dark mode — limited to semantic containers only.
+   Wildcard * selector caused layout thrashing with MutationObservers. */
+main, section, article, aside, nav, header, footer,
+div[class*="bg-"], div[class*="text-"], div[class*="border-"],
+.prose, .dark-mode-transition {
   transition-property: background-color, color, border-color;
   transition-duration: 0.3s;
   transition-timing-function: ease;

@@ -8,8 +8,6 @@
 import { buildImageKeywordPhrase, extractImageKeywords } from '../image-keywords';
 import { getSiteBaseUrl } from '../site-url';
 
-const BASE_URL = getSiteBaseUrl();
-
 function isRenderableImageUrl(url: string): boolean {
   const normalized = (url || '').trim();
   if (!normalized) return false;
@@ -91,7 +89,7 @@ async function generateImages(
         ? `${keywordPhrase} ${keywordVariant} ${category} product concept`
         : `${keywordPhrase} ${keywordVariant}`;
 
-    return fetch(`${BASE_URL}/api/admin/generate-image`, {
+    return fetch(`${getSiteBaseUrl()}/api/admin/generate-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

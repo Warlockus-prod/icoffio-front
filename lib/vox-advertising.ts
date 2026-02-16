@@ -75,6 +75,11 @@ var _voxUrl = '';
 var _voxRetryTimers = [];
 var _voxObserver = null;
 var _voxUrlIntervalStarted = false;
+var _voxUrlIntervalId = null;
+var _voxInitializing = false;
+var _voxMutationDebounce = null;
+var _voxTotalInits = 0;
+var _voxMaxInits = 30;
 
 var VOX_ALLOWED_DISPLAY_IDS = {
   "${VOX_PLACES.LEADERBOARD}": true,
@@ -109,6 +114,11 @@ function containerHasContent(container) {
 function initVOX(reason) {
   if (!hasAdvertisingConsent()) return;
   if (typeof window._tx === 'undefined' || !window._tx.integrateInImage || !window._tx.init) return;
+  if (_voxInitializing) return;
+  if (_voxTotalInits >= _voxMaxInits) return;
+
+  _voxInitializing = true;
+  _voxTotalInits++;
 
   try {
     var isArticle = window.location.pathname.indexOf('/article/') !== -1;
@@ -160,6 +170,8 @@ function initVOX(reason) {
     }
   } catch (err) {
     console.error('VOX error:', err);
+  } finally {
+    _voxInitializing = false;
   }
 }
 
@@ -176,6 +188,7 @@ function scheduleRetries(reason) {
 function checkUrlAndReinit() {
   if (window.location.href !== _voxUrl) {
     _voxUrl = window.location.href;
+    _voxTotalInits = 0; // Reset init counter on route change
     scheduleRetries('route-change');
   }
 }
@@ -197,7 +210,10 @@ function ensureDomObserver() {
     });
 
     if (hasNewAdContainer) {
-      scheduleRetries('dom-mutation');
+      if (_voxMutationDebounce) clearTimeout(_voxMutationDebounce);
+      _voxMutationDebounce = setTimeout(function() {
+        scheduleRetries('dom-mutation');
+      }, 500);
     }
   });
 
@@ -208,7 +224,13 @@ function startUrlTracking() {
   if (_voxUrlIntervalStarted) return;
   _voxUrlIntervalStarted = true;
   _voxUrl = window.location.href;
-  setInterval(checkUrlAndReinit, 1200);
+  // Use recursive setTimeout instead of setInterval to prevent overlap
+  // and allow garbage collection on page unload
+  function tick() {
+    checkUrlAndReinit();
+    _voxUrlIntervalId = setTimeout(tick, 2000);
+  }
+  _voxUrlIntervalId = setTimeout(tick, 2000);
 }
 
 function bootstrapVOX() {

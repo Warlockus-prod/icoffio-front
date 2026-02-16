@@ -1,4 +1,4 @@
-const FALLBACK_SITE_URL = 'https://app.icoffio.com';
+const FALLBACK_SITE_URL = 'https://www.icoffio.com';
 const LEGACY_HOSTS = new Set(['app.icoffio.com', 'www.icoffio.com', 'icoffio.com']);
 
 function normalizeSiteUrl(raw: string): string | null {

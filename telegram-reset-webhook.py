@@ -20,7 +20,7 @@ def load_config():
 {
   "telegram_bot_token": "YOUR_BOT_TOKEN",
   "telegram_secret_token": "random_32_chars_string",
-  "webhook_url": "https://app.icoffio.com/api/telegram-simple/webhook"
+  "webhook_url": "https://www.icoffio.com/api/telegram-simple/webhook"
 }
         """)
         sys.exit(1)

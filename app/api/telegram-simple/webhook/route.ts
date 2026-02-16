@@ -551,7 +551,7 @@ function buildSettingsMessage(settings: TelegramSettings): string {
     `• /single &lt;url1&gt; &lt;url2&gt; ...\n` +
     `• /reload\n` +
     `• /autopublish on|off\n\n` +
-    `${localize(lang, '🎨 Полные настройки:', '🎨 Full settings:', '🎨 Pełne ustawienia:')} https://app.icoffio.com/en/admin`
+    `${localize(lang, '🎨 Полные настройки:', '🎨 Full settings:', '🎨 Pełne ustawienia:')} https://www.icoffio.com/en/admin`
   );
 }
 
@@ -995,7 +995,7 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
           `🇬🇧 EN: ${publishResult.en.url}\n` +
           `🇵🇱 PL: ${publishResult.pl.url}\n\n` +
           `${statusNote}\n` +
-          `🎨 Редактирование: https://app.icoffio.com/en/admin`,
+          `🎨 Редактирование: https://www.icoffio.com/en/admin`,
         { disable_web_page_preview: false }
       );
     }
@@ -2036,9 +2036,9 @@ export async function POST(request: NextRequest) {
 
       if (command === '/admin') {
         await sendLocalized(
-          '🎨 Админ-панель: https://app.icoffio.com/en/admin',
-          '🎨 Admin panel: https://app.icoffio.com/en/admin',
-          '🎨 Panel admina: https://app.icoffio.com/en/admin'
+          '🎨 Админ-панель: https://www.icoffio.com/en/admin',
+          '🎨 Admin panel: https://www.icoffio.com/en/admin',
+          '🎨 Panel admina: https://www.icoffio.com/en/admin'
         );
         return NextResponse.json({ ok: true });
       }

@@ -1,5 +1,5 @@
 import { getTranslation } from './i18n';
-import { normalizeAiGeneratedText, sanitizeExcerptText } from './utils/content-formatter';
+import { normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from './utils/content-formatter';
 
 interface TranslationRequest {
   content: string;
@@ -137,7 +137,12 @@ Please provide ONLY the translation, without any additional comments or explanat
 
       // ✅ Убираем артефакты форматирования и нормализуем структуру по типу контента
       if (contentType === 'body') {
-        translatedText = normalizeAiGeneratedText(translatedText);
+        translatedText =
+          sanitizeArticleBodyText(normalizeAiGeneratedText(translatedText), {
+            language: targetLanguage,
+            aggressive: true,
+            preserveMonetizationMarker: false,
+          }) || normalizeAiGeneratedText(translatedText);
       } else if (contentType === 'excerpt') {
         translatedText = sanitizeExcerptText(translatedText, 200);
       } else if (contentType === 'title') {

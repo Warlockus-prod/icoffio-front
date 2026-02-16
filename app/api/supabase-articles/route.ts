@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sanitizeExcerptText } from '@/lib/utils/content-formatter';
+import { normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
 
 const DEFAULT_THUMBNAIL_MARKER = 'photo-1485827404703-89b55fcc595e';
 
@@ -77,6 +77,14 @@ function dedupeArticlesBySlug(articles: any[], language: 'en' | 'pl'): any[] {
   return Array.from(groupedBySlug.values())
     .map(group => selectBestArticleVersion(group, language))
     .filter(Boolean) as any[];
+}
+
+function prepareArticleContentForFrontend(content: string, language: 'en' | 'pl'): string {
+  const sanitized = sanitizeArticleBodyText(content || '', {
+    language,
+    aggressive: true,
+  });
+  return sanitized || normalizeAiGeneratedText(content || '');
 }
 
 export async function GET(request: Request) {
@@ -172,13 +180,14 @@ export async function GET(request: Request) {
       const slug = isEn ? article.slug_en : article.slug_pl;
       const content = isEn ? article.content_en : article.content_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
+      const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
 
       return {
         id: article.id.toString(),
         title: article.title,
         slug: slug,
         excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
-        content: content || '',
+        content: prepareArticleContentForFrontend(content || '', languageKey),
         date: article.created_at,
         image: article.image_url || '',
         category: {
@@ -270,7 +279,10 @@ export async function POST(request: Request) {
         excerpt: isEn
           ? sanitizeExcerptText(article.excerpt_en, 200)
           : sanitizeExcerptText(article.excerpt_pl, 200),
-        content: isEn ? article.content_en : plContent,
+        content: prepareArticleContentForFrontend(
+          isEn ? article.content_en || '' : plContent || '',
+          isEn ? 'en' : 'pl'
+        ),
         date: article.created_at,
         image: article.image_url || '',
         category: {

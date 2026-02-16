@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.40] - 2026-02-16 - 🧹 Parser Cleanup + Final AI Editorial Quality Gate
+
+### 🎯 Что исправлено
+- Закрыт кейс с мусором в теле статьи после парсинга (`REKLAMA`, `Czytaj też`, ленты `Aktualizacja`, сырой URL/таймстампы, sidebar/news-ticker блоки).
+- Добавлена многоуровневая зачистка контента:
+  - детерминированный sanitizer для body-контента (`sanitizeArticleBodyText`),
+  - оценка артефактов парсера (`getParserArtifactScore`, `hasSevereParserArtifacts`),
+  - дедупликация/фильтрация шумных абзацев.
+- Перед публикацией включен финальный quality-gate:
+  - deterministic cleanup,
+  - AI editorial review (если доступен `OPENAI_API_KEY`) с фолбэком на deterministic режим.
+- Очистка применена и на выдаче API (`supabase-articles`), чтобы уже опубликованные проблемные статьи читались корректно без ручного редактирования в БД.
+
+### 🔧 Измененные файлы
+- `lib/utils/content-formatter.ts`
+- `lib/editorial-quality-service.ts`
+- `lib/url-parser-service.ts`
+- `lib/unified-article-service.ts`
+- `lib/translation-service.ts`
+- `app/api/articles/route.ts`
+- `app/api/supabase-articles/route.ts`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm run build` — OK
+
 ## [8.6.39] - 2026-02-16 - 🎬 Instream Safety: Block DSP/VAST URLs as Content Video
 
 ### 🎯 Что исправлено

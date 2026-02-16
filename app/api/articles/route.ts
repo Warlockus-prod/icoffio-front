@@ -8,10 +8,11 @@ import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-
 import { wordpressService } from '@/lib/wordpress-service';
 import { urlParserService } from '@/lib/url-parser-service';
 // v7.30.0: Centralized content formatting utility
-import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
+import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settings';
+import { editorialQualityService } from '@/lib/editorial-quality-service';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const PLACEHOLDER_IMAGE_MARKERS = [
@@ -131,7 +132,12 @@ async function buildMultiSourceDigest(
         maxContentLength: MAX_SOURCE_CHARS_PER_URL
       });
       const cleanContent = truncateText(
-        normalizeAiGeneratedText(extracted.content || '').trim(),
+        (
+          sanitizeArticleBodyText(normalizeAiGeneratedText(extracted.content || ''), {
+            aggressive: true,
+            preserveMonetizationMarker: false,
+          }) || normalizeAiGeneratedText(extracted.content || '')
+        ).trim(),
         MAX_SOURCE_CHARS_PER_URL
       );
 
@@ -859,7 +865,12 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   console.log('📋 formatPostsForAdmin - translations available:', Object.keys(article.translations || {}));
   
   // Основная статья (всегда EN теперь)
-  const normalizedEnContent = normalizeAiGeneratedText(article.content || '');
+  const normalizedEnContent =
+    sanitizeArticleBodyText(normalizeAiGeneratedText(article.content || ''), {
+      language: 'en',
+      aggressive: true,
+      preserveMonetizationMarker: false,
+    }) || normalizeAiGeneratedText(article.content || '');
   const normalizedEnExcerpt = sanitizeExcerptText(article.excerpt || article.title || '', 200);
   posts.en = {
     slug: article.slug,
@@ -880,7 +891,12 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   // Переводы (только PL поддерживается)
   for (const [lang, translation] of Object.entries(article.translations || {})) {
     if (lang === 'pl') { // Только польский
-      const normalizedPlContent = normalizeAiGeneratedText((translation as any).content || '');
+      const normalizedPlContent =
+        sanitizeArticleBodyText(normalizeAiGeneratedText((translation as any).content || ''), {
+          language: 'pl',
+          aggressive: true,
+          preserveMonetizationMarker: false,
+        }) || normalizeAiGeneratedText((translation as any).content || '');
       const normalizedPlExcerpt = sanitizeExcerptText(
         (translation as any).excerpt || (translation as any).title || article.excerpt || '',
         200
@@ -954,9 +970,94 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
+    // ✅ Финальная quality-проверка перед публикацией:
+    // 1) детерминированная очистка парсер-артефактов
+    // 2) AI review (если доступен API ключ)
+    let contentEn = sanitizeArticleBodyText(normalizeAiGeneratedText(article.content || ''), {
+      language: 'en',
+      aggressive: true,
+      preserveMonetizationMarker: false,
+    });
+    let contentPl = sanitizeArticleBodyText(
+      normalizeAiGeneratedText(article.translations?.pl?.content || article.content || ''),
+      {
+        language: 'pl',
+        aggressive: true,
+        preserveMonetizationMarker: false,
+      }
+    );
+    if (!contentEn) {
+      contentEn = normalizeAiGeneratedText(article.content || '');
+    }
+    if (!contentPl) {
+      contentPl = normalizeAiGeneratedText(article.translations?.pl?.content || article.content || '');
+    }
+    let finalTitleEn = sanitizeExcerptText(article.title || '', 220).replace(/[.]{3,}\s*$/, '') || article.title;
+    let finalTitlePl = sanitizeExcerptText(article.translations?.pl?.title || finalTitleEn, 220).replace(/[.]{3,}\s*$/, '');
+    let finalExcerptEn = sanitizeExcerptText(article.excerpt || finalTitleEn || contentEn, 200);
+    let finalExcerptPl = sanitizeExcerptText(
+      article.translations?.pl?.excerpt || article.translations?.pl?.title || finalExcerptEn || contentPl,
+      200
+    );
+
+    try {
+      const reviewedEn = await editorialQualityService.reviewArticle({
+        title: finalTitleEn,
+        excerpt: finalExcerptEn,
+        content: contentEn,
+        language: 'en',
+      });
+      finalTitleEn = reviewedEn.title || finalTitleEn;
+      finalExcerptEn = sanitizeExcerptText(reviewedEn.excerpt || finalExcerptEn || finalTitleEn, 200);
+      contentEn =
+        sanitizeArticleBodyText(reviewedEn.content || contentEn, {
+          language: 'en',
+          aggressive: true,
+          preserveMonetizationMarker: false,
+        }) ||
+        contentEn;
+      console.log(
+        `[QualityGate] EN score=${reviewedEn.qualityScore}, ai=${reviewedEn.usedAI}, issues=${reviewedEn.issues.length}`
+      );
+    } catch (qualityError) {
+      console.warn('[QualityGate] EN review failed, keeping deterministic cleanup only', qualityError);
+    }
+
+    if (article.translations?.pl) {
+      try {
+        const reviewedPl = await editorialQualityService.reviewArticle({
+          title: finalTitlePl || article.translations.pl.title || finalTitleEn,
+          excerpt: finalExcerptPl,
+          content: contentPl,
+          language: 'pl',
+        });
+        finalTitlePl = reviewedPl.title || finalTitlePl || article.translations.pl.title;
+        finalExcerptPl = sanitizeExcerptText(reviewedPl.excerpt || finalExcerptPl || finalTitlePl, 200);
+        contentPl =
+          sanitizeArticleBodyText(reviewedPl.content || contentPl, {
+            language: 'pl',
+            aggressive: true,
+            preserveMonetizationMarker: false,
+          }) ||
+          contentPl;
+        console.log(
+          `[QualityGate] PL score=${reviewedPl.qualityScore}, ai=${reviewedPl.usedAI}, issues=${reviewedPl.issues.length}`
+        );
+      } catch (qualityError) {
+        console.warn('[QualityGate] PL review failed, keeping deterministic cleanup only', qualityError);
+      }
+    }
+
+    // Persist reviewed title/excerpts for publication payloads
+    article.title = finalTitleEn;
+    article.excerpt = finalExcerptEn;
+    if (article.translations?.pl) {
+      article.translations.pl.title = finalTitlePl || article.translations.pl.title;
+      article.translations.pl.excerpt = finalExcerptPl;
+      article.translations.pl.content = contentPl;
+    }
+
     // ✅ v8.4.0: Расстановка изображений в контенте
-    let contentEn = normalizeAiGeneratedText(article.content || '');
-    let contentPl = normalizeAiGeneratedText(article.translations?.pl?.content || article.content || '');
 
     // Normalize image order: prefer first non-placeholder image as hero
     const rawImages: string[] = [];
@@ -1013,9 +1114,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!
     const enSlug = `${baseSlug}-en`;
     const plSlug = `${baseSlug}-pl`;
-    const cleanExcerptEn = sanitizeExcerptText(article.excerpt || article.title, 200);
+    const cleanExcerptEn = sanitizeExcerptText(article.excerpt || article.title || contentEn, 200);
     const cleanExcerptPl = sanitizeExcerptText(
-      article.translations?.pl?.excerpt || article.translations?.pl?.title || cleanExcerptEn,
+      article.translations?.pl?.excerpt || article.translations?.pl?.title || cleanExcerptEn || contentPl,
       200
     );
     const persistentHeroImage = heroImage && !isPlaceholderImage(heroImage) ? heroImage : null;

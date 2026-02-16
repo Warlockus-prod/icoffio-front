@@ -9,7 +9,7 @@ import { imageService } from './image-service';
 import { wordpressService } from './wordpress-service';
 import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
-import { formatContentToHtml, normalizeAiGeneratedText, sanitizeExcerptText } from './utils/content-formatter';
+import { formatContentToHtml, normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from './utils/content-formatter';
 import { getPromptTemplateByStyle, type ContentProcessingStyle } from './config/content-prompts';
 import type { Post } from './types';
 
@@ -287,7 +287,12 @@ class UnifiedArticleService {
             } else {
               translations.pl = {
                 title: articleData.title,
-                content: normalizeAiGeneratedText(articleData.content),
+                content:
+                  sanitizeArticleBodyText(normalizeAiGeneratedText(articleData.content), {
+                    language: 'pl',
+                    aggressive: true,
+                    preserveMonetizationMarker: false,
+                  }) || normalizeAiGeneratedText(articleData.content),
                 excerpt: sanitizeExcerptText(articleData.excerpt || articleData.title, 200),
                 slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: Добавляем суффикс -pl
               };
@@ -303,7 +308,12 @@ class UnifiedArticleService {
           translations = {
             pl: {
               title: articleData.title,
-              content: normalizeAiGeneratedText(articleData.content),
+              content:
+                sanitizeArticleBodyText(normalizeAiGeneratedText(articleData.content), {
+                  language: 'pl',
+                  aggressive: true,
+                  preserveMonetizationMarker: false,
+                }) || normalizeAiGeneratedText(articleData.content),
               excerpt: sanitizeExcerptText(articleData.excerpt || articleData.title, 200),
               slug: `${baseSlug}-pl` // ✅ ИСПРАВЛЕНО: С суффиксом -pl
             }
@@ -313,7 +323,12 @@ class UnifiedArticleService {
       
       // Используем финальную (возможно переведенную на EN) версию как основную статью
       articleData = finalArticleData;
-      articleData.content = normalizeAiGeneratedText(articleData.content || '');
+      articleData.content =
+        sanitizeArticleBodyText(normalizeAiGeneratedText(articleData.content || ''), {
+          language: 'en',
+          aggressive: true,
+          preserveMonetizationMarker: false,
+        }) || normalizeAiGeneratedText(articleData.content || '');
       articleData.excerpt = sanitizeExcerptText(articleData.excerpt || articleData.title || '', 200);
       
       // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно устанавливаем язык в 'en'
@@ -449,8 +464,13 @@ class UnifiedArticleService {
       
       return {
         title: extractedContent.title,
-        content: extractedContent.content,
-        excerpt: extractedContent.excerpt,
+        content:
+          sanitizeArticleBodyText(normalizeAiGeneratedText(extractedContent.content || ''), {
+            language: extractedContent.language || 'en',
+            aggressive: true,
+            preserveMonetizationMarker: false,
+          }) || normalizeAiGeneratedText(extractedContent.content || ''),
+        excerpt: sanitizeExcerptText(extractedContent.excerpt || extractedContent.title || '', 220),
         category: extractedContent.category,
         author: extractedContent.author || 'Web Content',
         publishedAt: extractedContent.publishedAt,

@@ -4,6 +4,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { sanitizeArticleBodyText } from './utils/content-formatter';
 
 export interface ExtractedContent {
   title: string;
@@ -244,6 +245,13 @@ class UrlParserService {
 
     // ✅ Финальная очистка контента от мусорных паттернов
     content = this.cleanJunkPatterns(content);
+    const sanitizedByFormatter = sanitizeArticleBodyText(content, {
+      aggressive: true,
+      preserveMonetizationMarker: false,
+    });
+    if (sanitizedByFormatter && sanitizedByFormatter.length > 120) {
+      content = sanitizedByFormatter;
+    }
 
     // Обрезаем контент если он слишком длинный
     if (content.length > options.maxContentLength!) {

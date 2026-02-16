@@ -134,6 +134,173 @@ export function sanitizeExcerptText(content: string, maxLength: number = 160): s
   return cleaned;
 }
 
+interface ArticleBodySanitizeOptions {
+  language?: string;
+  minParagraphs?: number;
+  aggressive?: boolean;
+  preserveMonetizationMarker?: boolean;
+}
+
+const PARSER_HARD_STOP_PATTERNS: RegExp[] = [
+  /\b(spider'?s web|google discover)\b/i,
+  /\b(czytaj też|read also|read more|polecamy)\b/i,
+  /\bnajnowsze\d{1,2}[:.]\d{2}/i,
+  /\b(aktualizacja|updated?)\s*:\s*\d{4}-\d{2}-\d{2}t/i,
+  /\btagi\s*:/i,
+];
+
+const PARSER_INLINE_NOISE_PATTERNS: RegExp[] = [
+  /\b(REKLAMA|ADVERTISEMENT|ADVERTISMENT|SPONSORED)\b[:\s-]*/gi,
+  /\b(czytaj też|read also|read more|polecamy)\s*:?\s*/gi,
+  /\b(aktualizacja|updated?)\s*:\s*\d{4}-\d{2}-\d{2}t[^\s]*/gi,
+  /\bhttps?:\/\/[^\s)]+/gi,
+  /\bwww\.[^\s)]+/gi,
+  /\b\d{1,2}\s*[.:]\s*\d{2}\b/g,
+];
+
+const PARSER_ARTIFACT_PATTERNS: Array<{ pattern: RegExp; weight: number }> = [
+  { pattern: /\bREKLAMA\b/gi, weight: 4 },
+  { pattern: /\bCzytaj też\b/gi, weight: 4 },
+  { pattern: /\bRead also\b/gi, weight: 4 },
+  { pattern: /\bAktualizacja\s*:/gi, weight: 5 },
+  { pattern: /\bGoogle Discover\b/gi, weight: 3 },
+  { pattern: /\bTagi\s*:/gi, weight: 3 },
+  { pattern: /\b(?:\d{1,2}[:.]\d{2}\s*){3,}/g, weight: 4 },
+  { pattern: /\bhttps?:\/\/[^\s)]+/gi, weight: 2 },
+];
+
+function countMatches(input: string, pattern: RegExp): number {
+  const matches = input.match(pattern);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Estimate parser artifact severity score in article body.
+ * Higher score means more likely that nav/news-ticker/ads leaked into article text.
+ */
+export function getParserArtifactScore(content: string): number {
+  if (!content) return 0;
+
+  return PARSER_ARTIFACT_PATTERNS.reduce((total, entry) => {
+    return total + countMatches(content, entry.pattern) * entry.weight;
+  }, 0);
+}
+
+/**
+ * Quick boolean check for severe parser artifacts.
+ */
+export function hasSevereParserArtifacts(content: string, threshold: number = 14): boolean {
+  return getParserArtifactScore(content) >= threshold;
+}
+
+/**
+ * Remove parser artifacts from body content (ads markers, "read also" blocks, raw URLs,
+ * update tickers, tag clouds). Keeps markdown-like structure for article rendering.
+ */
+export function sanitizeArticleBodyText(
+  content: string,
+  options: ArticleBodySanitizeOptions = {}
+): string {
+  if (!content || typeof content !== 'string') {
+    return '';
+  }
+
+  const minParagraphs = options.minParagraphs ?? 2;
+  let normalized = normalizeAiGeneratedText(content)
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  const markerMatch = normalized.match(/<!--\s*ICOFFIO_MONETIZATION[\s\S]*?-->/i);
+  const monetizationMarker =
+    options.preserveMonetizationMarker === false ? '' : markerMatch?.[0]?.trim() || '';
+  normalized = normalized.replace(/<!--\s*ICOFFIO_MONETIZATION[\s\S]*?-->/gi, '').trim();
+
+  const rawParagraphs = normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const cleanedParagraphs: string[] = [];
+  const seenParagraphs = new Set<string>();
+
+  for (const rawParagraph of rawParagraphs) {
+    const isHeading = /^#{1,6}\s+/.test(rawParagraph);
+    let paragraph = rawParagraph;
+
+    // If obvious side-column/news-ticker section starts, drop the tail of the article.
+    const shouldStop = PARSER_HARD_STOP_PATTERNS.some((pattern) => pattern.test(paragraph));
+    if (shouldStop && cleanedParagraphs.length >= minParagraphs) {
+      break;
+    }
+
+    for (const pattern of PARSER_INLINE_NOISE_PATTERNS) {
+      paragraph = paragraph.replace(pattern, ' ');
+    }
+
+    paragraph = paragraph
+      .replace(/\s+([,.!?;:])/g, '$1')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    if (!paragraph) continue;
+
+    const plain = paragraph.replace(/^#{1,6}\s+/, '').trim();
+    if (!plain) continue;
+
+    const words = plain
+      .split(/\s+/)
+      .map((word) => word.replace(/[^\p{L}\p{N}-]/gu, ''))
+      .filter(Boolean);
+
+    const alphaChars = (plain.match(/[\p{L}]/gu) || []).length;
+    const digitChars = (plain.match(/\d/g) || []).length;
+    const digitRatio = digitChars / Math.max(alphaChars + digitChars, 1);
+    const updateHits = countMatches(plain, /\b(aktualizacja|updated|najnowsze|tagi)\b/gi);
+    const tickerLike = /(?:\d{1,2}[:.]\d{2}\s*){2,}/.test(plain);
+
+    if (!isHeading && words.length < 6) continue;
+    if (!isHeading && digitRatio > 0.35) continue;
+    if (!isHeading && (updateHits >= 2 || tickerLike)) continue;
+
+    const dedupeKey = plain
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 160);
+
+    if (!dedupeKey) continue;
+    if (options.aggressive && seenParagraphs.has(dedupeKey)) continue;
+    seenParagraphs.add(dedupeKey);
+
+    cleanedParagraphs.push(paragraph);
+  }
+
+  const joined = cleanedParagraphs.join('\n\n').trim();
+  if (!joined) {
+    return '';
+  }
+
+  const cleanedBody = joined
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
+
+  if (monetizationMarker) {
+    return `${monetizationMarker}\n\n${cleanedBody}`.trim();
+  }
+
+  return cleanedBody;
+}
+
 /**
  * Format plain text content to HTML with Markdown-like syntax support
  * 

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.38] - 2026-02-16 - 🔧 InImage Ads Restore (fetchSelector rollback)
+
+### 🎯 Что исправлено
+- Исправлена регрессия, из-за которой InImage-реклама перестала показываться на hero/контентных изображениях статьи.
+- Возвращен рабочий режим VOX `fetchSelector: true` для InImage.
+- Все защитные исключения (`excludeSelectors`) сохранены:
+  - миниатюры карточек, related-блоки, изображения в header/footer и превью-ссылках остаются исключены.
+
+### 🔧 Измененные файлы
+- `lib/vox-advertising.ts`
+- `components/AdManager.tsx`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+
 ## [8.6.37] - 2026-02-16 - 📋 All Articles UX Overhaul + Image Quality Controls
 
 ### 🎯 Что сделано

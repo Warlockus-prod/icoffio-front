@@ -187,6 +187,7 @@ export async function GET(request: NextRequest) {
         articles_tracked: data?.length || 0,
       },
       limit,
+      source: 'materialized-view',
     });
 
   } catch (error) {

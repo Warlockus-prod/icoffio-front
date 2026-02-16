@@ -1,7 +1,7 @@
 {
   "name": "icoffio-front",
   "private": true,
-  "version": "8.6.26",
+  "version": "8.6.27",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

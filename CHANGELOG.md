@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.27] - 2026-02-16 - 🤖 Telegram Intake Recovery: Supabase URL Resolution Hardening
+
+### 🎯 Что исправлено
+- Восстановлен Telegram intake, когда бот переставал принимать ссылки из-за неверного `SUPABASE_URL` в окружении.
+- Устранен риск приоритета неправильного `SUPABASE_URL` над рабочим `NEXT_PUBLIC_SUPABASE_URL`.
+- Обновлены переменные `SUPABASE_URL` в Vercel (`production`, `preview`, `development`) на корректный домен.
+
+### 🔧 Измененные файлы
+- `lib/supabase-analytics.ts`
+- `lib/supabase-client.ts`
+- `app/api/analytics/popular-articles/route.ts`
+- `package.json`
+- `package-lock.json`
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (54/54)
+- `npm run build` — OK
+- `npm run lint` — skipped (в проекте не инициализирован ESLint, `next lint` открывает интерактивный setup)
+
 ## [8.6.26] - 2026-02-16 - 📱 Mobile Bottom Banner: Safe Format Mapping
 
 ### 🎯 Что исправлено

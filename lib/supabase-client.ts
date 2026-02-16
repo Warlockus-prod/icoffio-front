@@ -14,7 +14,8 @@ let supabaseInstance: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseInstance) {
     // Accept both naming conventions for env vars
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Prefer NEXT_PUBLIC_SUPABASE_URL to avoid stale SUPABASE_URL overrides.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
@@ -64,11 +65,10 @@ function createMockClient(): SupabaseClient {
  * Check if Supabase is configured and available
  */
 export function isSupabaseConfigured(): boolean {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   return !!(url && key);
 }
-
 
 
 

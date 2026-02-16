@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { Post } from '@/lib/types';
 import { getTranslation } from '@/lib/i18n';
 
@@ -70,7 +69,7 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {relatedPosts.map((post) => (
           <article key={post.slug} className="group" data-no-inimage="1">
-            <Link 
+            <a
               href={`/${locale}/article/${post.slug}`}
               className="block rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-sm transition-shadow"
             >
@@ -132,7 +131,7 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
                   </p>
                 )}
               </div>
-            </Link>
+            </a>
           </article>
         ))}
       </div>

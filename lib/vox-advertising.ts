@@ -79,7 +79,8 @@ var _voxUrlIntervalId = null;
 var _voxInitializing = false;
 var _voxMutationDebounce = null;
 var _voxTotalInits = 0;
-var _voxMaxInits = 30;
+var _voxMaxInits = 15;
+var _voxInImageDone = false;
 
 var VOX_ALLOWED_DISPLAY_IDS = {
   "${VOX_PLACES.LEADERBOARD}": true,
@@ -123,7 +124,9 @@ function initVOX(reason) {
   try {
     var isArticle = window.location.pathname.indexOf('/article/') !== -1;
 
-    if (isArticle) {
+    // Only call integrateInImage once per page to avoid re-injecting ads
+    if (isArticle && !_voxInImageDone) {
+      _voxInImageDone = true;
       window._tx.integrateInImage({
         placeId: "${VOX_IN_IMAGE_PLACE_ID}",
         fetchSelector: true,
@@ -164,7 +167,9 @@ function initVOX(reason) {
       displayCount++;
     });
 
-    if (displayCount > 0 || isArticle) {
+    // Only call _tx.init() if we actually added new placements
+    var needsInit = displayCount > 0 || (isArticle && _voxTotalInits <= 1);
+    if (needsInit) {
       window._tx.init();
       console.log('[VOX] init (' + (reason || 'default') + ') inImage=' + isArticle + ' display=' + displayCount);
     }
@@ -177,7 +182,8 @@ function initVOX(reason) {
 
 function scheduleRetries(reason) {
   clearRetryTimers();
-  [200, 800, 1800, 3200].forEach(function(delay) {
+  // Only 2 retries with longer delays to reduce flickering
+  [500, 2500].forEach(function(delay) {
     var timer = setTimeout(function() {
       initVOX(reason + ':' + delay + 'ms');
     }, delay);
@@ -189,6 +195,7 @@ function checkUrlAndReinit() {
   if (window.location.href !== _voxUrl) {
     _voxUrl = window.location.href;
     _voxTotalInits = 0; // Reset init counter on route change
+    _voxInImageDone = false; // Reset in-image flag for new page
     scheduleRetries('route-change');
   }
 }

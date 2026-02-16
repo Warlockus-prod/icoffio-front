@@ -30,6 +30,17 @@ interface MobileArticleCardProps {
 }
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
+const PLACEHOLDER_IMAGE_MARKERS = [
+  'photo-1485827404703-89b55fcc595e',
+  'photo-1518770660439-4636190af475',
+  'photo-1518709268805-4e9042af2176'
+];
+
+const isLikelyTemporaryImage = (image?: string): boolean =>
+  Boolean(image && /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(image));
+
+const isFallbackOrTemporaryImage = (image?: string): boolean =>
+  !image || PLACEHOLDER_IMAGE_MARKERS.some((marker) => image.includes(marker)) || isLikelyTemporaryImage(image);
 
 export default function MobileArticleCard({
   article,
@@ -72,10 +83,14 @@ export default function MobileArticleCard({
     if (source.includes('static')) {
       return { label: '🔒 Static', className: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' };
     }
+    if (source.includes('supabase') || source.includes('url-parse') || source.includes('text-generate') || source.includes('api')) {
+      return { label: '🗄️ Supabase', className: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-400' };
+    }
     return { label: `📌 ${source}`, className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' };
   };
 
   const sourceBadge = getSourceBadge(article.source);
+  const hasCustomImage = !isFallbackOrTemporaryImage(article.image);
 
   return (
     <div
@@ -98,16 +113,25 @@ export default function MobileArticleCard({
           />
 
           {/* Image */}
-          <img
-            src={article.image || FALLBACK_IMAGE_URL}
-            alt={article.title}
-            className="w-16 h-16 object-cover rounded-lg"
-            onError={(event) => {
-              if (event.currentTarget.src !== FALLBACK_IMAGE_URL) {
-                event.currentTarget.src = FALLBACK_IMAGE_URL;
-              }
-            }}
-          />
+          {hasCustomImage ? (
+            <img
+              src={article.image || FALLBACK_IMAGE_URL}
+              alt={article.title}
+              className="w-16 h-16 object-cover rounded-lg"
+              onError={(event) => {
+                if (event.currentTarget.src !== FALLBACK_IMAGE_URL) {
+                  event.currentTarget.src = FALLBACK_IMAGE_URL;
+                }
+              }}
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 flex items-center justify-center"
+              title="Placeholder image or temporary image"
+            >
+              ⚠️
+            </div>
+          )}
 
           {/* Title & Category */}
           <div className="flex-1 min-w-0">
@@ -135,6 +159,11 @@ export default function MobileArticleCard({
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${sourceBadge.className}`}>
             {sourceBadge.label}
           </span>
+          {!hasCustomImage && (
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+              ⚠️ Placeholder image
+            </span>
+          )}
           {article.publishStatus && (
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -243,8 +272,6 @@ export default function MobileArticleCard({
     </div>
   );
 }
-
-
 
 
 

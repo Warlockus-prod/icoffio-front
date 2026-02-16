@@ -7,6 +7,9 @@ export interface SearchFilters {
   category: string;
   status: string;
   language: string;
+  source: string;
+  publishStatus: string;
+  imageQuality: string;
   dateFrom: string;
   dateTo: string;
   author: string;
@@ -122,6 +125,7 @@ export default function AdvancedSearchPanel({
               >
                 <option value="all">All Types</option>
                 <option value="admin">✏️ Admin Created</option>
+                <option value="dynamic">🔄 Dynamic</option>
                 <option value="static">🔒 Static Articles</option>
               </select>
             </div>
@@ -142,7 +146,57 @@ export default function AdvancedSearchPanel({
             </div>
           </div>
 
-          {/* Row 2: Date Range */}
+          {/* Row 2: Source, Publish status, Image quality */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Source
+              </label>
+              <select
+                value={filters.source}
+                onChange={(e) => handleChange('source', e.target.value)}
+                className="w-full px-3 py-2 min-h-[48px] md:min-h-[40px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Sources</option>
+                <option value="telegram">📱 Telegram</option>
+                <option value="admin">👤 Admin</option>
+                <option value="static">🔒 Static</option>
+                <option value="supabase">🗄️ Supabase</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Publish Status
+              </label>
+              <select
+                value={filters.publishStatus}
+                onChange={(e) => handleChange('publishStatus', e.target.value)}
+                className="w-full px-3 py-2 min-h-[48px] md:min-h-[40px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Publish States</option>
+                <option value="published">✅ Published</option>
+                <option value="draft">📝 Draft</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Image Quality
+              </label>
+              <select
+                value={filters.imageQuality}
+                onChange={(e) => handleChange('imageQuality', e.target.value)}
+                className="w-full px-3 py-2 min-h-[48px] md:min-h-[40px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Images</option>
+                <option value="custom">🖼️ Real Images Only</option>
+                <option value="fallback">⚠️ Placeholder/Temporary</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Date Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -169,7 +223,7 @@ export default function AdvancedSearchPanel({
             </div>
           </div>
 
-          {/* Row 3: Author */}
+          {/* Row 4: Author */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Author
@@ -183,7 +237,7 @@ export default function AdvancedSearchPanel({
             />
           </div>
 
-          {/* Row 4: Views Range */}
+          {/* Row 5: Views Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -262,6 +316,39 @@ export default function AdvancedSearchPanel({
                   </button>
                 </span>
               )}
+              {filters.source !== 'all' && filters.source && (
+                <span className="px-2 py-1 bg-violet-100 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-xs rounded-full flex items-center gap-1">
+                  Source: {filters.source}
+                  <button
+                    onClick={() => handleChange('source', 'all')}
+                    className="hover:text-violet-900 dark:hover:text-violet-100"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filters.publishStatus !== 'all' && filters.publishStatus && (
+                <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs rounded-full flex items-center gap-1">
+                  Publish: {filters.publishStatus}
+                  <button
+                    onClick={() => handleChange('publishStatus', 'all')}
+                    className="hover:text-emerald-900 dark:hover:text-emerald-100"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filters.imageQuality !== 'all' && filters.imageQuality && (
+                <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs rounded-full flex items-center gap-1">
+                  Images: {filters.imageQuality}
+                  <button
+                    onClick={() => handleChange('imageQuality', 'all')}
+                    className="hover:text-amber-900 dark:hover:text-amber-100"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
               {filters.dateFrom && (
                 <span className="px-2 py-1 bg-pink-100 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300 text-xs rounded-full flex items-center gap-1">
                   From: {new Date(filters.dateFrom).toLocaleDateString()}
@@ -324,7 +411,6 @@ export default function AdvancedSearchPanel({
     </div>
   );
 }
-
 
 
 

@@ -24,19 +24,56 @@ interface ArticleItem {
   views?: number;
   lastEdit?: string;
   publishStatus?: 'draft' | 'published';
+  isFallbackImage?: boolean;
 }
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
 const DEFAULT_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
+const TABLE_SETTINGS_STORAGE_KEY = 'icoffio_admin_articles_table_settings_v1';
+const PLACEHOLDER_IMAGE_MARKERS = [
+  DEFAULT_IMAGE_MARKER,
+  'photo-1518770660439-4636190af475',
+  'photo-1518709268805-4e9042af2176'
+];
 
 const isLikelyTemporaryImage = (image?: string): boolean =>
   Boolean(image && /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(image));
 
+const isKnownPlaceholderImage = (image?: string): boolean =>
+  Boolean(image && PLACEHOLDER_IMAGE_MARKERS.some((marker) => image.includes(marker)));
+
 const hasCustomPersistentImage = (image?: string): boolean =>
-  Boolean(image && !image.includes(DEFAULT_IMAGE_MARKER) && !isLikelyTemporaryImage(image));
+  Boolean(image && !isKnownPlaceholderImage(image) && !isLikelyTemporaryImage(image));
 
 const normalizeArticleImage = (image?: string): string =>
-  image && image.trim() ? image : FALLBACK_IMAGE_URL;
+  image && image.trim() ? image : '';
+
+const getCanonicalSlugKey = (slug: string, language: string): string => {
+  const normalized = slug.trim().toLowerCase();
+  const match = normalized.match(/^(.*?)-(en|pl)(?:-\d+)?$/);
+  if (match) {
+    return `${match[1]}::${match[2]}`;
+  }
+
+  const lang = language === 'pl' ? 'pl' : 'en';
+  return `${normalized.replace(/-\d+$/, '')}::${lang}`;
+};
+
+const getSourceGroup = (source?: string): 'telegram' | 'admin' | 'static' | 'supabase' | 'other' => {
+  if (!source) return 'other';
+  if (source.startsWith('telegram')) return 'telegram';
+  if (source.includes('admin')) return 'admin';
+  if (source.includes('static')) return 'static';
+  if (
+    source.includes('supabase') ||
+    source.includes('url-parse') ||
+    source.includes('text-generate') ||
+    source.includes('api')
+  ) {
+    return 'supabase';
+  }
+  return 'other';
+};
 
 const normalizeViews = (...values: unknown[]): number => {
   for (const value of values) {
@@ -64,6 +101,9 @@ export default function ArticlesManager() {
     category: 'all',
     status: 'all',
     language: 'all',
+    source: 'all',
+    publishStatus: 'all',
+    imageQuality: 'all',
     dateFrom: '',
     dateTo: '',
     author: '',
@@ -75,8 +115,10 @@ export default function ArticlesManager() {
     byLanguage: { en: 0, pl: 0 },
     byCategory: { ai: 0, apple: 0, tech: 0, games: 0, digital: 0 },
     byStatus: { static: 0, dynamic: 0, admin: 0 },
-    bySource: { telegram: 0, admin: 0, other: 0 },
+    bySource: { telegram: 0, admin: 0, supabase: 0, other: 0 },
+    byImage: { custom: 0, fallback: 0 }
   });
+  const [density, setDensity] = useState<'compact' | 'comfortable'>('compact');
   const [visibleColumns, setVisibleColumns] = useState({
     title: true,
     category: true,
@@ -104,6 +146,7 @@ export default function ArticlesManager() {
         if (result.success && result.articles) {
           result.articles.forEach((article: any) => {
             const imageUrl = normalizeArticleImage(article.image_url || article.image);
+            const fallbackImage = !hasCustomPersistentImage(imageUrl);
             const viewCount = normalizeViews(article.views, article.total_views, article.unique_views);
 
             // English version
@@ -120,6 +163,7 @@ export default function ArticlesManager() {
                 url: `https://app.icoffio.com/en/article/${article.slug_en}`,
                 excerpt: article.excerpt_en || article.excerpt || '',
                 image: imageUrl,
+                isFallbackImage: fallbackImage,
                 author: article.author || 'icoffio Editorial Team',
                 views: viewCount,
                 lastEdit: article.updated_at || article.created_at,
@@ -141,6 +185,7 @@ export default function ArticlesManager() {
                 url: `https://app.icoffio.com/pl/article/${article.slug_pl}`,
                 excerpt: article.excerpt_pl || article.excerpt || '',
                 image: imageUrl,
+                isFallbackImage: fallbackImage,
                 author: article.author || 'icoffio Editorial Team',
                 views: viewCount,
                 lastEdit: article.updated_at || article.created_at,
@@ -166,6 +211,7 @@ export default function ArticlesManager() {
                 url: `https://app.icoffio.com/${inferredLanguage}/article/${article.slug}`,
                 excerpt: article.excerpt || '',
                 image: imageUrl,
+                isFallbackImage: fallbackImage,
                 author: article.author || 'icoffio Editorial Team',
                 views: viewCount,
                 lastEdit: article.updated_at || article.date || article.created_at,
@@ -183,6 +229,7 @@ export default function ArticlesManager() {
       adminArticles.forEach(article => {
         const language = article.slug.endsWith('-en') ? 'en' : 
                         article.slug.endsWith('-pl') ? 'pl' : 'en';
+        const imageUrl = normalizeArticleImage(article.image);
         
         allArticles.push({
           id: article.id,
@@ -195,7 +242,8 @@ export default function ArticlesManager() {
           status: 'admin',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: normalizeArticleImage(article.image),
+          image: imageUrl,
+          isFallbackImage: !hasCustomPersistentImage(imageUrl),
           author: article.author || 'icoffio Editorial Team',
           views: normalizeViews((article as any).views, (article as any).total_views),
           lastEdit: article.updatedAt || article.createdAt,
@@ -208,6 +256,7 @@ export default function ArticlesManager() {
       staticArticles.forEach((article: Post) => {
         const language = article.slug.endsWith('-en') ? 'en' : 
                         article.slug.endsWith('-pl') ? 'pl' : 'en';
+        const imageUrl = normalizeArticleImage(article.image);
         
         allArticles.push({
           id: `static_${article.slug}`,
@@ -224,32 +273,45 @@ export default function ArticlesManager() {
           status: 'static',
           url: `https://app.icoffio.com/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
-          image: normalizeArticleImage(article.image)
+          image: imageUrl,
+          isFallbackImage: !hasCustomPersistentImage(imageUrl)
         });
       });
       
-      // Убираем дубликаты по slug, выбирая лучший вариант (персистентная картинка + более свежая запись)
+      // Убираем дубликаты по каноническому slug + language.
+      // Это склеивает варианты вроде slug-en / slug-en-1 / slug-en-2.
       const getTimestamp = (article: ArticleItem) =>
         new Date(article.lastEdit || article.createdAt).getTime() || 0;
 
+      const getArticleScore = (article: ArticleItem): number => {
+        let score = 0;
+        if (!article.isFallbackImage) score += 100;
+        if (article.publishStatus === 'published') score += 20;
+        if (article.status === 'dynamic') score += 10;
+        if (article.status === 'admin') score += 6;
+        score += Math.min(article.views || 0, 5000) / 500;
+        return score;
+      };
+
       const bestBySlug = new Map<string, ArticleItem>();
       allArticles.forEach(article => {
-        const current = bestBySlug.get(article.slug);
+        const slugKey = getCanonicalSlugKey(article.slug, article.language);
+        const current = bestBySlug.get(slugKey);
         if (!current) {
-          bestBySlug.set(article.slug, article);
+          bestBySlug.set(slugKey, article);
           return;
         }
 
-        const currentHasCustomImage = hasCustomPersistentImage(current.image);
-        const candidateHasCustomImage = hasCustomPersistentImage(article.image);
+        const currentScore = getArticleScore(current);
+        const candidateScore = getArticleScore(article);
 
-        if (candidateHasCustomImage && !currentHasCustomImage) {
-          bestBySlug.set(article.slug, article);
+        if (candidateScore > currentScore) {
+          bestBySlug.set(slugKey, article);
           return;
         }
 
-        if (candidateHasCustomImage === currentHasCustomImage && getTimestamp(article) > getTimestamp(current)) {
-          bestBySlug.set(article.slug, article);
+        if (candidateScore === currentScore && getTimestamp(article) > getTimestamp(current)) {
+          bestBySlug.set(slugKey, article);
         }
       });
 
@@ -276,7 +338,8 @@ export default function ArticlesManager() {
       byLanguage: { en: 0, pl: 0 },
       byCategory: { ai: 0, apple: 0, tech: 0, games: 0, digital: 0 },
       byStatus: { static: 0, dynamic: 0, admin: 0 },
-      bySource: { telegram: 0, admin: 0, other: 0 },
+      bySource: { telegram: 0, admin: 0, supabase: 0, other: 0 },
+      byImage: { custom: 0, fallback: 0 }
     };
     
     articlesList.forEach(article => {
@@ -292,13 +355,14 @@ export default function ArticlesManager() {
         stats.byStatus[article.status as keyof typeof stats.byStatus]++;
       }
 
-      if ((article.source || '').startsWith('telegram')) {
-        stats.bySource.telegram++;
-      } else if ((article.source || '').includes('admin')) {
-        stats.bySource.admin++;
-      } else {
-        stats.bySource.other++;
-      }
+      const sourceGroup = getSourceGroup(article.source);
+      if (sourceGroup === 'telegram') stats.bySource.telegram++;
+      else if (sourceGroup === 'admin') stats.bySource.admin++;
+      else if (sourceGroup === 'supabase') stats.bySource.supabase++;
+      else stats.bySource.other++;
+
+      if (article.isFallbackImage) stats.byImage.fallback++;
+      else stats.byImage.custom++;
     });
     
     setStats(stats);
@@ -314,6 +378,21 @@ export default function ArticlesManager() {
     
     // Status filter
     if (filters.status !== 'all' && article.status !== filters.status) return false;
+
+    // Source filter
+    if (filters.source !== 'all') {
+      const sourceGroup = getSourceGroup(article.source);
+      if (sourceGroup !== filters.source) return false;
+    }
+
+    // Publish status filter
+    if (filters.publishStatus !== 'all') {
+      if ((article.publishStatus || 'draft') !== filters.publishStatus) return false;
+    }
+
+    // Image quality filter
+    if (filters.imageQuality === 'custom' && article.isFallbackImage) return false;
+    if (filters.imageQuality === 'fallback' && !article.isFallbackImage) return false;
     
     // Search filter (title, content, author)
     if (filters.search) {
@@ -344,11 +423,12 @@ export default function ArticlesManager() {
     }
     
     // Views range filter
-    if (filters.viewsMin && article.views !== undefined) {
-      if (article.views < parseInt(filters.viewsMin)) return false;
+    const articleViews = article.views || 0;
+    if (filters.viewsMin) {
+      if (articleViews < parseInt(filters.viewsMin)) return false;
     }
-    if (filters.viewsMax && article.views !== undefined) {
-      if (article.views > parseInt(filters.viewsMax)) return false;
+    if (filters.viewsMax) {
+      if (articleViews > parseInt(filters.viewsMax)) return false;
     }
     
     return true;
@@ -417,6 +497,36 @@ export default function ArticlesManager() {
 
   // Загрузка при монтировании и автообновление
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(TABLE_SETTINGS_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as {
+        density?: 'compact' | 'comfortable';
+        visibleColumns?: typeof visibleColumns;
+      };
+
+      if (parsed.density === 'compact' || parsed.density === 'comfortable') {
+        setDensity(parsed.density);
+      }
+      if (parsed.visibleColumns) {
+        setVisibleColumns((prev) => ({ ...prev, ...parsed.visibleColumns, title: true }));
+      }
+    } catch (error) {
+      console.warn('Failed to load table settings:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(
+      TABLE_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ density, visibleColumns })
+    );
+  }, [density, visibleColumns]);
+
+  // Загрузка при монтировании и автообновление
+  useEffect(() => {
     loadArticles();
     const interval = setInterval(loadArticles, 30000); // Обновляем каждые 30 секунд
     return () => clearInterval(interval);
@@ -465,19 +575,87 @@ export default function ArticlesManager() {
   };
 
   const getSourceLabel = (source?: string) => {
-    if (!source) return 'unknown';
-    if (source.startsWith('telegram')) return '📱 Telegram';
-    if (source.includes('admin')) return '👤 Admin';
-    if (source.includes('static')) return '🔒 Static';
-    return source;
+    const sourceGroup = getSourceGroup(source);
+    if (sourceGroup === 'telegram') return '📱 Telegram';
+    if (sourceGroup === 'admin') return '👤 Admin';
+    if (sourceGroup === 'static') return '🔒 Static';
+    if (sourceGroup === 'supabase') return '🗄️ Supabase';
+    return source || 'unknown';
   };
 
   const getSourceColor = (source?: string) => {
-    if (!source) return 'bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400';
-    if (source.startsWith('telegram')) return 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400';
-    if (source.includes('admin')) return 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400';
-    if (source.includes('static')) return 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400';
+    const sourceGroup = getSourceGroup(source);
+    if (sourceGroup === 'telegram') return 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400';
+    if (sourceGroup === 'admin') return 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400';
+    if (sourceGroup === 'static') return 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400';
+    if (sourceGroup === 'supabase') return 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400';
     return 'bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400';
+  };
+
+  const escapeCsvValue = (value: string | number | null | undefined): string => {
+    const stringValue = value === null || value === undefined ? '' : String(value);
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  const handleExportCsv = () => {
+    if (filteredArticles.length === 0) {
+      alert('No rows to export.');
+      return;
+    }
+
+    const headers = [
+      'title',
+      'slug',
+      'category',
+      'language',
+      'author',
+      'source',
+      'type',
+      'publish_status',
+      'views',
+      'created_at',
+      'last_edit',
+      'image_quality',
+      'url'
+    ];
+
+    const rows = filteredArticles.map((article) => [
+      article.title,
+      article.slug,
+      article.category,
+      article.language,
+      article.author || '',
+      getSourceGroup(article.source),
+      article.status,
+      article.publishStatus || 'draft',
+      article.views || 0,
+      article.createdAt,
+      article.lastEdit || '',
+      article.isFallbackImage ? 'fallback_or_temporary' : 'custom',
+      article.url
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((value) => escapeCsvValue(value)).join(','))
+    ].join('\n');
+
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `articles-export-${date}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -491,6 +669,9 @@ export default function ArticlesManager() {
           category: 'all',
           status: 'all',
           language: 'all',
+          source: 'all',
+          publishStatus: 'all',
+          imageQuality: 'all',
           dateFrom: '',
           dateTo: '',
           author: '',
@@ -512,17 +693,37 @@ export default function ArticlesManager() {
               Manage all articles, delete unwanted content, and monitor your content library
             </p>
           </div>
-          <button
-            onClick={loadArticles}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            {isLoading ? '🔄' : '↻'} Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={density}
+              onChange={(e) => setDensity(e.target.value as 'compact' | 'comfortable')}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              title="Table density"
+            >
+              <option value="compact">Compact Rows</option>
+              <option value="comfortable">Comfortable Rows</option>
+            </select>
+
+            <button
+              onClick={handleExportCsv}
+              disabled={filteredArticles.length === 0}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              ⬇️ Export CSV
+            </button>
+
+            <button
+              onClick={loadArticles}
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              {isLoading ? '🔄' : '↻'} Refresh
+            </button>
+          </div>
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-11 gap-4 mb-6">
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
             <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
             <div className="text-xs text-gray-600 dark:text-gray-400">Total Articles</div>
@@ -554,6 +755,18 @@ export default function ArticlesManager() {
           <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
             <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.bySource.telegram}</div>
             <div className="text-xs text-gray-600 dark:text-gray-400">Telegram</div>
+          </div>
+          <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{stats.bySource.supabase}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Supabase/API</div>
+          </div>
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.byImage.custom}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Real Images</div>
+          </div>
+          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.byImage.fallback}</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Placeholder</div>
           </div>
         </div>
 
@@ -640,9 +853,9 @@ export default function ArticlesManager() {
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block max-h-[72vh] overflow-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="w-12 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Select</th>
                 {visibleColumns.title && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>}
@@ -660,7 +873,12 @@ export default function ArticlesManager() {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredArticles.map((article) => (
-                <tr key={article.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr
+                  key={article.id}
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    density === 'compact' ? 'align-top' : ''
+                  }`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
@@ -673,26 +891,46 @@ export default function ArticlesManager() {
                   {visibleColumns.title && (
                     <td className="px-6 py-4">
                       <div className="flex items-start gap-3">
-                        <img
-                          src={article.image || FALLBACK_IMAGE_URL}
-                          alt=""
-                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                          onError={(event) => {
-                            if (event.currentTarget.src !== FALLBACK_IMAGE_URL) {
-                              event.currentTarget.src = FALLBACK_IMAGE_URL;
-                            }
-                          }}
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white" title={article.title}>
+                        {!article.isFallbackImage && article.image ? (
+                          <img
+                            src={article.image || FALLBACK_IMAGE_URL}
+                            alt=""
+                            className={`${density === 'compact' ? 'w-12 h-12' : 'w-16 h-16'} rounded-lg object-cover flex-shrink-0`}
+                            onError={(event) => {
+                              if (event.currentTarget.src !== FALLBACK_IMAGE_URL) {
+                                event.currentTarget.src = FALLBACK_IMAGE_URL;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div
+                            className={`${density === 'compact' ? 'w-12 h-12 text-base' : 'w-16 h-16 text-lg'} rounded-lg flex-shrink-0 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-200 dark:border-orange-800`}
+                            title="Placeholder image or temporary image"
+                          >
+                            ⚠️
+                          </div>
+                        )}
+                        <div className="min-w-0 max-w-[440px]">
+                          <div
+                            className={`text-sm font-medium text-gray-900 dark:text-white ${density === 'compact' ? 'line-clamp-2' : 'line-clamp-3'}`}
+                            title={article.title}
+                          >
                             {article.title}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {article.excerpt.substring(0, 100)}...
+                          <div
+                            className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${density === 'compact' ? 'line-clamp-1' : 'line-clamp-2'}`}
+                            title={article.excerpt}
+                          >
+                            {article.excerpt || '—'}
                           </div>
-                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 truncate" title={article.slug}>
                             Slug: {article.slug}
                           </div>
+                          {article.isFallbackImage && (
+                            <div className="text-[11px] text-orange-600 dark:text-orange-400 mt-1">
+                              Placeholder image detected
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -830,7 +1068,18 @@ export default function ArticlesManager() {
             <div className="text-4xl mb-4">📭</div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No articles found</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              {filters.search || filters.language !== 'all' || filters.category !== 'all' 
+              {filters.search ||
+              filters.language !== 'all' ||
+              filters.category !== 'all' ||
+              filters.status !== 'all' ||
+              filters.source !== 'all' ||
+              filters.publishStatus !== 'all' ||
+              filters.imageQuality !== 'all' ||
+              filters.author ||
+              filters.dateFrom ||
+              filters.dateTo ||
+              filters.viewsMin ||
+              filters.viewsMax
                 ? 'Try adjusting your filters to see more articles.'
                 : 'Create your first article using the URL Parser or Text Input.'
               }
@@ -860,6 +1109,8 @@ export default function ArticlesManager() {
               <li>• Only admin-created articles can be deleted</li>
               <li>• Static articles are protected from deletion</li>
               <li>• Use search and filters to find specific articles</li>
+              <li>• Export current filtered view to CSV</li>
+              <li>• Filter "Image Quality" to isolate placeholder images</li>
             </ul>
           </div>
         </div>

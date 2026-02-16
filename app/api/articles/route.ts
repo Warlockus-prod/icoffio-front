@@ -14,8 +14,19 @@ import { placeImagesInContent } from '@/lib/utils/image-placer';
 import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settings';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
+const PLACEHOLDER_IMAGE_MARKERS = [
+  DEFAULT_PLACEHOLDER_IMAGE_MARKER,
+  'photo-1518770660439-4636190af475',
+  'photo-1518709268805-4e9042af2176'
+];
+const isLikelyTemporaryImage = (url?: string): boolean =>
+  Boolean(url && /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(url));
 const isPlaceholderImage = (url?: string): boolean =>
-  Boolean(url && url.includes(DEFAULT_PLACEHOLDER_IMAGE_MARKER));
+  Boolean(
+    url &&
+      (PLACEHOLDER_IMAGE_MARKERS.some((marker) => url.includes(marker)) ||
+        isLikelyTemporaryImage(url))
+  );
 const MAX_MULTI_SOURCE_URLS = 5;
 const MAX_SOURCE_CHARS_PER_URL = 5000;
 const MAX_TOTAL_SOURCE_CHARS = 18000;
@@ -955,13 +966,13 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     }
 
     const uniqueImages = Array.from(new Set(rawImages.filter((img: string) => Boolean(img && img.trim()))));
-    const preferredHeroImage =
-      uniqueImages.find((img) => !isPlaceholderImage(img)) || uniqueImages[0] || '';
+    const persistentImages = uniqueImages.filter((img) => !isPlaceholderImage(img));
+    const preferredHeroImage = persistentImages[0] || '';
     const allImages =
       preferredHeroImage
-        ? [preferredHeroImage, ...uniqueImages.filter((img) => img !== preferredHeroImage)]
+        ? [preferredHeroImage, ...persistentImages.filter((img) => img !== preferredHeroImage)]
         : [];
-    let heroImage = preferredHeroImage || article.image;
+    let heroImage = preferredHeroImage;
     
     if (allImages.length > 0) {
       console.log(`🖼️ Placing ${allImages.length} images in content`);
@@ -1007,6 +1018,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       article.translations?.pl?.excerpt || article.translations?.pl?.title || cleanExcerptEn,
       200
     );
+    const persistentHeroImage = heroImage && !isPlaceholderImage(heroImage) ? heroImage : null;
     
     // Подготовка данных для Supabase
     const supabaseData = {
@@ -1018,7 +1030,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       content_pl: contentPl,
       excerpt_en: cleanExcerptEn,
       excerpt_pl: cleanExcerptPl,
-      image_url: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+      image_url: persistentHeroImage,
       category: article.category || 'tech',
       author: article.author || 'AI Editorial Team',
       tags: Array.isArray(article.tags) ? article.tags : ['ai-processed', 'imported'],
@@ -1053,7 +1065,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       title: article.title,
       excerpt: cleanExcerptEn,
       publishedAt,
-      image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+      image: persistentHeroImage || undefined,
       category: { name: article.category || 'Technology', slug: article.category || 'tech' },
       content: contentEn, // ✅ v8.4.0: Контент с изображениями
       author: article.author || 'AI Editorial Team',
@@ -1070,7 +1082,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         title: article.translations.pl.title,
         excerpt: cleanExcerptPl,
         publishedAt,
-        image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+        image: persistentHeroImage || undefined,
         category: { name: article.category || 'Technology', slug: article.category || 'tech' },
         content: contentPl, // ✅ v8.4.0: Контент с изображениями
         author: article.author || 'AI Editorial Team',
@@ -1095,7 +1107,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
           tags: ['imported', 'ai-processed'],
           author: article.author || 'Admin',
           language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
-          image: heroImage || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800',
+          image: persistentHeroImage || '',
           publishedAt
         },
         article.translations

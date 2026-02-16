@@ -266,6 +266,7 @@ function buildQuickActionsKeyboard(
   settings: Pick<TelegramSettings, 'combineUrlsAsSingle' | 'interfaceLanguage'>
 ) {
   const lang = settings.interfaceLanguage || 'ru';
+  const languageLabel = localize(lang, '🌍 Язык', '🌍 Language', '🌍 Język');
   const modeLabel = settings.combineUrlsAsSingle
     ? localize(lang, '🧩 Режим: Single', '🧩 Mode: Single', '🧩 Tryb: Single')
     : localize(lang, '📦 Режим: Batch', '📦 Mode: Batch', '📦 Tryb: Batch');
@@ -274,15 +275,35 @@ function buildQuickActionsKeyboard(
 
   return {
     inline_keyboard: [
-      [
-        { text: '🇷🇺 RU', callback_data: 'lang:ru' },
-        { text: '🇬🇧 EN', callback_data: 'lang:en' },
-        { text: '🇵🇱 PL', callback_data: 'lang:pl' },
-      ],
+      [{ text: languageLabel, callback_data: 'lang:menu' }],
       [{ text: modeLabel, callback_data: modeAction }],
       [{ text: reloadLabel, callback_data: 'reload:stale' }],
     ],
   };
+}
+
+function buildLanguageSelectionKeyboard(
+  currentLanguage: InterfaceLanguage,
+  options: { includeBack?: boolean } = {}
+) {
+  const { includeBack = false } = options;
+  const buttons: Array<{ text: string; callback_data: string }> = [
+    { text: `${currentLanguage === 'ru' ? '✅ ' : ''}🇷🇺 RU`, callback_data: 'lang:ru' },
+    { text: `${currentLanguage === 'en' ? '✅ ' : ''}🇬🇧 EN`, callback_data: 'lang:en' },
+    { text: `${currentLanguage === 'pl' ? '✅ ' : ''}🇵🇱 PL`, callback_data: 'lang:pl' },
+  ];
+
+  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [buttons];
+  if (includeBack) {
+    keyboard.push([
+      {
+        text: localize(currentLanguage, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
+        callback_data: 'actions:menu',
+      },
+    ]);
+  }
+
+  return { inline_keyboard: keyboard };
 }
 
 function isDuplicateTelegramUpdate(updateId: number): boolean {
@@ -1321,6 +1342,41 @@ export async function POST(request: NextRequest) {
       const uiLang = settings.interfaceLanguage || getLanguageFromTelegramCode(languageCode);
       const callbackData = String(callbackQuery.data || '');
 
+      if (callbackData === 'lang:menu') {
+        await sendTelegramMessage(
+          chatId,
+          localize(
+            uiLang,
+            '🌍 <b>Выберите язык интерфейса:</b>',
+            '🌍 <b>Choose interface language:</b>',
+            '🌍 <b>Wybierz język interfejsu:</b>'
+          ),
+          {
+            reply_markup: buildLanguageSelectionKeyboard(uiLang, { includeBack: true }),
+          }
+        );
+        await answerCallbackQuery(
+          callbackQuery.id,
+          localize(uiLang, 'Выбор языка', 'Language selector', 'Wybór języka')
+        );
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      if (callbackData === 'actions:menu') {
+        await sendTelegramMessage(
+          chatId,
+          localize(uiLang, '⚡ Быстрые кнопки:', '⚡ Quick actions:', '⚡ Szybkie akcje:'),
+          {
+            reply_markup: buildQuickActionsKeyboard(settings),
+          }
+        );
+        await answerCallbackQuery(
+          callbackQuery.id,
+          localize(uiLang, 'Готово', 'Done', 'Gotowe')
+        );
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
       if (callbackData.startsWith('lang:')) {
         const selectedLanguage = normalizeInterfaceLanguage(callbackData.replace('lang:', ''));
         if (selectedLanguage) {
@@ -1329,9 +1385,18 @@ export async function POST(request: NextRequest) {
             { interfaceLanguage: selectedLanguage },
             languageCode
           );
-          await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
-            reply_markup: buildQuickActionsKeyboard(updated),
-          });
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              updated.interfaceLanguage,
+              `✅ Язык обновлен: <b>${updated.interfaceLanguage.toUpperCase()}</b>`,
+              `✅ Language updated: <b>${updated.interfaceLanguage.toUpperCase()}</b>`,
+              `✅ Zaktualizowano język: <b>${updated.interfaceLanguage.toUpperCase()}</b>`
+            ),
+            {
+              reply_markup: buildQuickActionsKeyboard(updated),
+            }
+          );
           await answerCallbackQuery(
             callbackQuery.id,
             localize(
@@ -1584,13 +1649,17 @@ export async function POST(request: NextRequest) {
 
       if (command === '/language' || command === '/lang') {
         if (!firstArg) {
-          await sendLocalized(
-            `🌍 <b>Выбор языка интерфейса</b>\n\n` +
-              `Используйте: <code>/language ru</code>, <code>/language en</code> или <code>/language pl</code>`,
-            `🌍 <b>Interface language</b>\n\n` +
-              `Use: <code>/language ru</code>, <code>/language en</code>, or <code>/language pl</code>`,
-            `🌍 <b>Język interfejsu</b>\n\n` +
-              `Użyj: <code>/language ru</code>, <code>/language en</code> lub <code>/language pl</code>`
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              uiLang,
+              '🌍 <b>Выберите язык интерфейса:</b>',
+              '🌍 <b>Choose interface language:</b>',
+              '🌍 <b>Wybierz język interfejsu:</b>'
+            ),
+            {
+              reply_markup: buildLanguageSelectionKeyboard(uiLang, { includeBack: true }),
+            }
           );
           return NextResponse.json({ ok: true });
         }

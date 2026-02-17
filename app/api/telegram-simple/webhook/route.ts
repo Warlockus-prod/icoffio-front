@@ -1307,9 +1307,15 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
           input.chatId,
           localize(
             uiLang,
-            `✅ <b>Уже обработано</b>\n\n🔗 EN: ${duplicateEnUrl}`,
-            `✅ <b>Already processed</b>\n\n🔗 EN: ${duplicateEnUrl}`,
-            `✅ <b>Już przetworzone</b>\n\n🔗 EN: ${duplicateEnUrl}`
+            `✅ <b>Уже обработано</b>\n\n` +
+              `🔗 EN: ${duplicateEnUrl}\n` +
+              `${duplicatePlUrl ? `🇵🇱 PL: ${duplicatePlUrl}\n` : ''}`,
+            `✅ <b>Already processed</b>\n\n` +
+              `🔗 EN: ${duplicateEnUrl}\n` +
+              `${duplicatePlUrl ? `🇵🇱 PL: ${duplicatePlUrl}\n` : ''}`,
+            `✅ <b>Już przetworzone</b>\n\n` +
+              `🔗 EN: ${duplicateEnUrl}\n` +
+              `${duplicatePlUrl ? `🇵🇱 PL: ${duplicatePlUrl}\n` : ''}`
           )
         );
       }

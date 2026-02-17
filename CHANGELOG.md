@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.17] - 2026-02-17 - 🇵🇱 Telegram Duplicate Reply Includes PL Link
+
+### ✅ Fixed
+- In duplicate-detection reply path (`enqueueSubmission`), Telegram message now includes both links:
+  - `EN` always,
+  - `PL` when available.
+- This aligns duplicate replies with normal publish replies and avoids confusion where only EN was shown.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/telegram-webhook.test.ts` — OK
+
 ## [8.7.16] - 2026-02-17 - 🛡️ Telegram Canonical Domain Enforcement
 
 ### ✅ Fixed

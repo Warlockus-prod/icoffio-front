@@ -568,11 +568,25 @@ class QueueService {
       body: JSON.stringify({ url }),
     });
 
-    if (!parseResponse.ok) {
-      throw new Error(`URL parsing failed`);
+    const parseContentType = parseResponse.headers.get('content-type') || '';
+    const parsedContent = parseContentType.includes('application/json')
+      ? await parseResponse.json()
+      : { success: false, error: await parseResponse.text() };
+
+    if (!parseResponse.ok || !parsedContent?.success) {
+      const parseError =
+        parsedContent?.error ||
+        parsedContent?.details ||
+        parsedContent?.errors?.[0] ||
+        `HTTP ${parseResponse.status}`;
+
+      throw new Error(`URL parsing failed (${parseResponse.status}): ${String(parseError).slice(0, 300)}`);
     }
 
-    const parsedContent = await parseResponse.json();
+    if (!parsedContent?.content || typeof parsedContent.content !== 'string') {
+      throw new Error('URL parsing failed: Empty parsed content');
+    }
+
     const formattedContent = parsedContent.content
       .replace(/\.\s+/g, '.\n\n')
       .replace(/\n{3,}/g, '\n\n')

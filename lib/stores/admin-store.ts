@@ -710,10 +710,12 @@ export const useAdminStore = create<AdminStore>()(
           });
           
           clearTimeout(timeoutId);
-
-          const result = await response.json();
+          const responseContentType = response.headers.get('content-type') || '';
+          const result = responseContentType.includes('application/json')
+            ? await response.json()
+            : { success: false, error: await response.text() };
           
-          if (result.success) {
+          if (response.ok && result.success) {
             adminLogger.info('parsing', 'parse_success', `URL parsing completed successfully: ${mainUrl}`, { 
               jobId, 
               url: mainUrl, 
@@ -769,16 +771,33 @@ export const useAdminStore = create<AdminStore>()(
             });
             timer(); // End timer
           } else {
+            const backendError =
+              result?.error ||
+              result?.errors?.[0] ||
+              (typeof result === 'string' ? result.substring(0, 300) : '') ||
+              `HTTP ${response.status}`;
+            const errorMessage = `Ошибка парсинга URL: ${backendError}`;
+
             adminLogger.error('parsing', 'parse_failed', `URL parsing failed: ${mainUrl}`, { 
               jobId, 
               url: mainUrl, 
-              errors: result.errors 
+              status: response.status,
+              errors: result?.errors,
+              error: backendError
             });
             
             get().updateJobStatus(jobId, 'failed', 0);
+            set((state) => ({
+              parsingQueue: state.parsingQueue.map(job =>
+                job.id === jobId
+                  ? { ...job, error: errorMessage }
+                  : job
+              )
+            }));
+
             get().addActivity({
               type: 'parsing_failed', 
-              message: `Ошибка парсинга URL: ${mainUrl}`,
+              message: errorMessage,
               url: mainUrl
             });
             timer(); // End timer

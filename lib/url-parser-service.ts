@@ -609,11 +609,23 @@ class UrlParserService {
       throw new Error('Извлеченный контент слишком короткий');
     }
     
-    // Проверяем, что это не страница ошибки
-    const errorKeywords = ['404', 'not found', 'page not found', 'error', 'access denied'];
-    const titleLower = content.title.toLowerCase();
-    
-    if (errorKeywords.some(keyword => titleLower.includes(keyword))) {
+    // Проверяем, что это не страница ошибки (в т.ч. локализованные 404-страницы)
+    const errorTitlePatterns = [
+      /\b404\b/i,
+      /not found/i,
+      /page not found/i,
+      /access denied/i,
+      /forbidden/i,
+      /страница не найдена/i,
+      /доступ запрещ/i,
+      /ошибка\s*404/i,
+      /strona nie znaleziona/i,
+      /strona nie została znaleziona/i,
+      /seite nicht gefunden/i,
+      /pagina no encontrada/i
+    ];
+
+    if (errorTitlePatterns.some((pattern) => pattern.test(content.title))) {
       throw new Error('Страница содержит ошибку или недоступна');
     }
     

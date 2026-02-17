@@ -6,6 +6,18 @@ import { sanitizeExcerptText, sanitizeArticleBodyText, normalizeAiGeneratedText 
 // Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
 const getLocalArticleBySlug = getLocalArticleBySlugFromFile;
+const ENABLE_LOCAL_RUNTIME_ARTICLES =
+  process.env.ENABLE_LOCAL_RUNTIME_ARTICLES === 'true' || process.env.NODE_ENV !== 'production';
+
+async function loadRuntimeArticles(): Promise<Post[]> {
+  if (!ENABLE_LOCAL_RUNTIME_ARTICLES) return [];
+  return getLocalArticles();
+}
+
+async function loadRuntimeArticleBySlug(slug: string): Promise<Post | null> {
+  if (!ENABLE_LOCAL_RUNTIME_ARTICLES) return null;
+  return getLocalArticleBySlug(slug);
+}
 
 /**
  * Normalize category from API response.
@@ -166,8 +178,8 @@ function filterArticlesByLanguage(articles: Post[], locale: string): Post[] {
 
 export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
   // PRIORITY: Check runtime articles first (freshly created)
-  const localArticles = await getLocalArticles();
-  const runtimeFiltered = filterArticlesByLanguage(localArticles, locale);
+  const runtimeArticles = await loadRuntimeArticles();
+  const runtimeFiltered = filterArticlesByLanguage(runtimeArticles, locale);
 
   if (runtimeFiltered.length > 0) {
     console.log(`[data] Found ${runtimeFiltered.length} local/runtime articles for ${locale}`);
@@ -202,8 +214,10 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
       transformSupabaseArticleToPost(article, isEn)
     );
 
-    // Runtime articles FIRST, then Supabase articles
-    const combined = [...runtimeFiltered, ...dbPosts];
+    // Runtime articles (dev only) FIRST, then Supabase articles
+    const combined = runtimeFiltered.length > 0
+      ? [...runtimeFiltered, ...dbPosts]
+      : dbPosts;
 
     // Dedupe by slug (runtime takes priority)
     const unique = combined.filter((article, index, self) =>
@@ -241,7 +255,10 @@ export async function getAllSlugs(): Promise<string[]> {
     }
 
     if (allSlugs.length > 0) {
-      const localArticles = await getLocalArticles();
+      if (!ENABLE_LOCAL_RUNTIME_ARTICLES) {
+        return [...new Set(allSlugs)];
+      }
+      const localArticles = await loadRuntimeArticles();
       const localSlugs = localArticles.map(article => article.slug);
       return [...new Set([...allSlugs, ...localSlugs])];
     }
@@ -249,18 +266,12 @@ export async function getAllSlugs(): Promise<string[]> {
     console.warn('[data] Supabase unavailable for getAllSlugs:', error);
   }
 
-  const localArticles = await getLocalArticles();
+  const localArticles = await loadRuntimeArticles();
   return localArticles.map(article => article.slug);
 }
 
 export async function getPostBySlug(slug: string, locale: string = 'en'): Promise<Post|null> {
-  // Check local articles first
-  const localArticle = await getLocalArticleBySlug(slug);
-  if (localArticle) {
-    return localArticle;
-  }
-
-  // Direct Supabase query (no self-fetch)
+  // Direct Supabase query (source of truth in production)
   try {
     if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
 
@@ -274,10 +285,16 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       .order('created_at', { ascending: false })
       .limit(20);
 
+    if (error) {
+      throw new Error(`Supabase query failed: ${error.message}`);
+    }
+
     const articleLanguage = slug?.endsWith('-pl') || locale === 'pl' ? 'pl' : 'en';
     const article = selectBestArticleVersion(articles || [], articleLanguage);
 
-    if (error || !article) return null;
+    if (!article) {
+      return await loadRuntimeArticleBySlug(slug);
+    }
 
     const isEn = locale === 'en' || article.slug_en === slug;
 
@@ -319,6 +336,7 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
     };
   } catch (error) {
     console.warn('[data] Supabase unavailable for getPostBySlug:', error);
+    return await loadRuntimeArticleBySlug(slug);
   }
 
   return null;
@@ -379,7 +397,10 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
   }
 
   // Fallback to local articles
-  const localArticles = await getLocalArticles();
+  const localArticles = await loadRuntimeArticles();
+  if (localArticles.length === 0) {
+    return [];
+  }
   const sameCategory = localArticles
     .filter(article => article.category.slug === cat.slug && article.slug !== excludeSlug)
     .slice(0, limit);
@@ -472,7 +493,7 @@ export async function getCategoryBySlug(slug: string, locale: string = 'en'): Pr
 }
 
 export async function getPostsByCategory(slug: string, limit = 24, locale: string = 'en'): Promise<Post[]> {
-  const localArticles = await getLocalArticles();
+  const localArticles = await loadRuntimeArticles();
 
   const localFiltered = localArticles.filter(article => {
     return article.category.slug === slug;
@@ -520,7 +541,9 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
 
     console.log(`[data] Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);
 
-    const combinedByCategory = [...localFiltered, ...supabasePosts];
+    const combinedByCategory = localFiltered.length > 0
+      ? [...localFiltered, ...supabasePosts]
+      : [...supabasePosts];
     combinedByCategory.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
 
     if (combinedByCategory.length > 0) {
@@ -533,7 +556,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
       transformSupabaseArticleToPost(article, isEn)
     );
     const fallbackLocalPosts = filterArticlesByLanguage(localArticles, locale);
-    const fallbackCombined = [...fallbackLocalPosts, ...fallbackSupabasePosts];
+    const fallbackCombined = [...fallbackSupabasePosts, ...fallbackLocalPosts];
     fallbackCombined.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
     return fallbackCombined.slice(0, limit);
   } catch (error) {

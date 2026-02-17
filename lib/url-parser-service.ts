@@ -5,6 +5,7 @@
 
 import * as cheerio from 'cheerio';
 import { sanitizeArticleBodyText } from './utils/content-formatter';
+import { appendServerLog } from './server-log-store';
 
 export interface ExtractedContent {
   title: string;
@@ -74,6 +75,10 @@ class UrlParserService {
       
     } catch (error) {
       console.error(`❌ Ошибка парсинга URL ${url}:`, error);
+      await appendServerLog('error', 'parser', 'extract_content_failed', 'Failed to extract URL content', {
+        url,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new Error(`Не удалось извлечь контент с ${url}: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
     }
   }

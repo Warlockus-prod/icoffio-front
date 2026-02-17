@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { urlParserService } from '@/lib/url-parser-service';
+import { appendServerLog } from '@/lib/server-log-store';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds для парсинга
@@ -22,11 +23,19 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Parse URL API] Parsing: ${url}`);
+    await appendServerLog('info', 'parser', 'parse_url_start', 'Started parsing URL', { url });
 
     // Используем URL Parser Service (singleton instance)
     const result = await urlParserService.extractContent(url);
 
     console.log(`[Parse URL API] Successfully parsed: ${result.title}`);
+    await appendServerLog('info', 'parser', 'parse_url_success', 'URL parsed successfully', {
+      url,
+      title: result.title,
+      source: result.source,
+      language: result.language,
+      contentLength: result.content?.length || 0,
+    });
 
     return NextResponse.json({
       success: true,
@@ -44,6 +53,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Parse URL API] Error:', error);
+    await appendServerLog('error', 'parser', 'parse_url_error', 'URL parsing failed', {
+      error: error?.message || 'Unknown error',
+      details: error?.toString?.() || String(error),
+    });
     
     return NextResponse.json(
       { 
@@ -55,4 +68,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

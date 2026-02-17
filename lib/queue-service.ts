@@ -20,6 +20,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { publishDualLanguageArticle } from './dual-language-publisher';
 import { getSiteBaseUrl } from './site-url';
+import { appendServerLog } from './server-log-store';
 
 /**
  * Send Telegram notification
@@ -411,6 +412,14 @@ class QueueService {
       }
     } catch (error: any) {
       console.error(`[Queue] ❌ Job failed: ${job.id}`, error.message);
+      await appendServerLog('error', 'queue', 'queue_job_failed', 'Supabase queue job failed', {
+        jobId: job.id,
+        jobType: job.type,
+        retries: job.retries,
+        maxRetries: job.max_retries,
+        error: error?.message || 'Unknown error',
+        url: job.data?.url,
+      });
       
       const newRetries = job.retries + 1;
       
@@ -509,6 +518,14 @@ class QueueService {
       }
     } catch (error: any) {
       console.error(`[Queue] ❌ Memory job failed: ${job.id}`, error.message);
+      await appendServerLog('error', 'queue', 'memory_job_failed', 'In-memory queue job failed', {
+        jobId: job.id,
+        jobType: job.type,
+        retries: job.retries,
+        maxRetries: job.max_retries,
+        error: error?.message || 'Unknown error',
+        url: job.data?.url,
+      });
       job.retries++;
       
       if (job.retries < job.max_retries) {

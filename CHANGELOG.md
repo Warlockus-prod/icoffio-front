@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.2] - 2026-02-17 - 📋 Unified System Logs (Client + Server)
+
+### 🎯 Что добавлено
+- Добавлен серверный лог-стор (`NDJSON`) для VPS runtime:
+  - `lib/server-log-store.ts`
+  - хранение в `runtime-logs/system-events.ndjson`
+- Добавлен API для серверных логов:
+  - `GET /api/admin/system-logs` (фильтры + лимит)
+  - `DELETE /api/admin/system-logs` (очистка)
+  - с проверкой admin-сессии через cookie `admin_token`.
+- Переработан `System Logs` UI:
+  - объединяет `client logs` (localStorage) + `server logs` (API),
+  - фильтры по источнику (`all/client/server`), уровню, категории, поиску,
+  - экспорт объединенного списка,
+  - очистка логов по выбранному источнику,
+  - детальный просмотр записи с source/metadata.
+
+### 🔧 Инструментация логирования
+- Добавлены server-log записи в критичные места парсинга:
+  - `app/api/admin/parse-url/route.ts`
+  - `lib/url-parser-service.ts`
+  - `lib/queue-service.ts`
+  - `app/api/articles/route.ts` (URL creation fail paths)
+
+### 🐳 VPS
+- `docker-compose.vps.yml`:
+  - добавлен volume `./runtime-logs:/app/runtime-logs` для сохранения логов между рестартами.
+- `docs/DOCKER_VPS_RUNBOOK.md`:
+  - добавлены команды просмотра persistent runtime-логов.
+- `.gitignore`:
+  - добавлен `runtime-logs/`.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.7.1] - 2026-02-17 - 🛠 Parser Error Diagnostics + 404 Detection
 
 ### 🎯 Что исправлено

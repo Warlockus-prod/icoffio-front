@@ -62,3 +62,6 @@ icoffioApp/
 
 # VPS documentation
 VPS_*.md
+
+# Runtime server log storage (mounted on VPS host)
+runtime-logs/

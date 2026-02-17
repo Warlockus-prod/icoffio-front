@@ -47,6 +47,13 @@ Single stream:
 docker compose -f docker-compose.vps.yml logs -f icoffio-front
 ```
 
+Persistent app-level server logs (for Admin -> System Logs tab) are stored on host:
+
+```bash
+ls -la runtime-logs/
+tail -n 100 runtime-logs/system-events.ndjson
+```
+
 Container health:
 
 ```bash
@@ -62,4 +69,3 @@ docker compose -f docker-compose.vps.yml down
 pm2 start ecosystem.config.js
 pm2 save
 ```
-

@@ -13,6 +13,7 @@ import { placeImagesInContent } from '@/lib/utils/image-placer';
 import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settings';
 import { editorialQualityService } from '@/lib/editorial-quality-service';
 import { buildSiteUrl } from '@/lib/site-url';
+import { appendServerLog } from '@/lib/server-log-store';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const PLACEHOLDER_IMAGE_MARKERS = [
@@ -590,6 +591,11 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
         warnings: combinedWarnings.length > 0 ? combinedWarnings : undefined
       });
     } else {
+      await appendServerLog('error', 'parser', 'create_from_url_failed', 'Unified article creation from URL failed', {
+        input: responseInput,
+        error: result.errors?.[0] || 'Unknown error',
+        errors: result.errors,
+      });
       return NextResponse.json({
         success: false,
         error: result.errors?.[0] || 'Неизвестная ошибка',
@@ -600,6 +606,9 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
 
   } catch (error) {
     console.error('❌ URL creation error:', error);
+    await appendServerLog('error', 'parser', 'create_from_url_exception', 'Unhandled exception during URL creation', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   }
 }

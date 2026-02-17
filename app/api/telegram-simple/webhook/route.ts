@@ -133,6 +133,29 @@ function buildAbsoluteSiteUrl(path: string, preferredBaseUrl?: string): string {
   }
 }
 
+function resolveSubmissionArticleUrl(
+  fallbackUrl: string | null | undefined,
+  slug: string | null | undefined,
+  locale: 'en' | 'pl',
+  preferredBaseUrl?: string
+): string | null {
+  const normalizedSlug = (slug || '').trim();
+  if (normalizedSlug) {
+    return buildAbsoluteSiteUrl(`/${locale}/article/${normalizedSlug}`, preferredBaseUrl);
+  }
+
+  const rawUrl = (fallbackUrl || '').trim();
+  if (!rawUrl) return null;
+
+  try {
+    const parsed = new URL(rawUrl);
+    const path = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return buildAbsoluteSiteUrl(path, preferredBaseUrl);
+  } catch {
+    return rawUrl;
+  }
+}
+
 function getStyleLabel(style: ContentStyle | string): string {
   const labels: Record<string, string> = {
     journalistic: 'Journalistic',
@@ -609,7 +632,8 @@ function buildSettingsMessage(settings: TelegramSettings, siteBaseUrl?: string):
 async function handleQueueCommand(
   chatId: number,
   userId: number,
-  lang: InterfaceLanguage
+  lang: InterfaceLanguage,
+  siteBaseUrl?: string
 ): Promise<void> {
   try {
     const submissions = await getTelegramSubmissions(100);
@@ -645,9 +669,23 @@ async function handleQueueCommand(
                 ? '📥'
                 : '⏳';
         const typeLabel = item.submission_type === 'url' ? 'URL' : 'TEXT';
-        if (item.status === 'published' && item.article_url_en) {
-          return `${index + 1}. ${icon} ${typeLabel} • <a href="${item.article_url_en}">EN</a>${
-            item.article_url_pl ? ` | <a href="${item.article_url_pl}">PL</a>` : ''
+        const itemWithSlugs = item as Record<string, any>;
+        const enUrl = resolveSubmissionArticleUrl(
+          item.article_url_en,
+          String(itemWithSlugs.article_slug_en || ''),
+          'en',
+          siteBaseUrl
+        );
+        const plUrl = resolveSubmissionArticleUrl(
+          item.article_url_pl,
+          String(itemWithSlugs.article_slug_pl || ''),
+          'pl',
+          siteBaseUrl
+        );
+
+        if (item.status === 'published' && enUrl) {
+          return `${index + 1}. ${icon} ${typeLabel} • <a href="${enUrl}">EN</a>${
+            plUrl ? ` | <a href="${plUrl}">PL</a>` : ''
           }`;
         }
         return `${index + 1}. ${icon} ${typeLabel} • ${item.status}`;
@@ -840,6 +878,19 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
       const duplicate = await findRecentDuplicateSubmission(input.userId, submissionContent);
       if (duplicate) {
         const durationMs = Date.now() - startTime;
+        const duplicateWithSlugs = duplicate as Record<string, any>;
+        const duplicateEnUrl = resolveSubmissionArticleUrl(
+          duplicate.article_url_en,
+          String(duplicateWithSlugs.article_slug_en || ''),
+          'en',
+          input.siteBaseUrl
+        );
+        const duplicatePlUrl = resolveSubmissionArticleUrl(
+          duplicate.article_url_pl,
+          String(duplicateWithSlugs.article_slug_pl || ''),
+          'pl',
+          input.siteBaseUrl
+        );
         if (['queued', 'processing'].includes(duplicate.status)) {
           if (input.sendResultMessage !== false) {
             await sendTelegramMessage(
@@ -862,21 +913,21 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
           };
         }
 
-        if (duplicate.status === 'published' && duplicate.article_url_en) {
+        if (duplicate.status === 'published' && duplicateEnUrl) {
           if (input.sendResultMessage !== false) {
             await sendTelegramMessage(
               input.chatId,
               localize(
                 uiLang,
                 `✅ <b>Уже обработано</b>\n\n` +
-                  `🔗 EN: ${duplicate.article_url_en}\n` +
-                  `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`,
+                  `🔗 EN: ${duplicateEnUrl}\n` +
+                  `${duplicatePlUrl ? `🇵🇱 PL: ${duplicatePlUrl}\n` : ''}`,
                 `✅ <b>Already processed</b>\n\n` +
-                  `🔗 EN: ${duplicate.article_url_en}\n` +
-                  `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`,
+                  `🔗 EN: ${duplicateEnUrl}\n` +
+                  `${duplicatePlUrl ? `🇵🇱 PL: ${duplicatePlUrl}\n` : ''}`,
                 `✅ <b>Już przetworzone</b>\n\n` +
-                  `🔗 EN: ${duplicate.article_url_en}\n` +
-                  `${duplicate.article_url_pl ? `🇵🇱 PL: ${duplicate.article_url_pl}\n` : ''}`
+                  `🔗 EN: ${duplicateEnUrl}\n` +
+                  `${duplicatePlUrl ? `🇵🇱 PL: ${duplicatePlUrl}\n` : ''}`
               )
             );
           }
@@ -885,8 +936,8 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
             success: true,
             submissionId: duplicate.id || null,
             submissionType,
-            enUrl: duplicate.article_url_en,
-            plUrl: duplicate.article_url_pl,
+            enUrl: duplicateEnUrl,
+            plUrl: duplicatePlUrl || undefined,
             durationMs,
           };
         }
@@ -1182,6 +1233,19 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
   const duplicate = await findRecentDuplicateSubmission(input.userId, submissionContent);
   if (duplicate) {
     const durationMs = Date.now() - startTime;
+    const duplicateWithSlugs = duplicate as Record<string, any>;
+    const duplicateEnUrl = resolveSubmissionArticleUrl(
+      duplicate.article_url_en,
+      String(duplicateWithSlugs.article_slug_en || ''),
+      'en',
+      input.siteBaseUrl
+    );
+    const duplicatePlUrl = resolveSubmissionArticleUrl(
+      duplicate.article_url_pl,
+      String(duplicateWithSlugs.article_slug_pl || ''),
+      'pl',
+      input.siteBaseUrl
+    );
     if (['queued', 'processing'].includes(duplicate.status)) {
       if (input.sendResultMessage !== false) {
         await sendTelegramMessage(
@@ -1202,15 +1266,15 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
         durationMs,
       };
     }
-    if (duplicate.status === 'published' && duplicate.article_url_en) {
+    if (duplicate.status === 'published' && duplicateEnUrl) {
       if (input.sendResultMessage !== false) {
         await sendTelegramMessage(
           input.chatId,
           localize(
             uiLang,
-            `✅ <b>Уже обработано</b>\n\n🔗 EN: ${duplicate.article_url_en}`,
-            `✅ <b>Already processed</b>\n\n🔗 EN: ${duplicate.article_url_en}`,
-            `✅ <b>Już przetworzone</b>\n\n🔗 EN: ${duplicate.article_url_en}`
+            `✅ <b>Уже обработано</b>\n\n🔗 EN: ${duplicateEnUrl}`,
+            `✅ <b>Already processed</b>\n\n🔗 EN: ${duplicateEnUrl}`,
+            `✅ <b>Już przetworzone</b>\n\n🔗 EN: ${duplicateEnUrl}`
           )
         );
       }
@@ -1218,8 +1282,8 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
         success: true,
         submissionId: duplicate.id || null,
         submissionType,
-        enUrl: duplicate.article_url_en,
-        plUrl: duplicate.article_url_pl,
+        enUrl: duplicateEnUrl,
+        plUrl: duplicatePlUrl || undefined,
         durationMs,
       };
     }
@@ -1713,7 +1777,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (command === '/queue' || command === '/status') {
-        await handleQueueCommand(chatId, userId, uiLang);
+        await handleQueueCommand(chatId, userId, uiLang, requestSiteBaseUrl);
         return NextResponse.json({ ok: true });
       }
 

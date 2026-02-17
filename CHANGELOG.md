@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
   - webhook request origin is captured,
   - worker reuses that same base when publishing queued items,
   - generated EN/PL article URLs now stay on the same environment that received the Telegram request.
+- Duplicate/queue status links are now re-resolved to current site base URL, so Telegram no longer echoes stale links from old domain in recent-history responses.
 - Updated Telegram reset scripts defaults to VPS domain behavior:
   - `scripts/telegram-reset-simple.py`
   - `scripts/telegram-reset-interactive.py`

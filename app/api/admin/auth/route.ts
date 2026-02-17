@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { buildSiteUrl } from '@/lib/site-url';
 import {
   clearAdminSessionCookies,
+  ensureRoleForSelfSignup,
   getAdminMembers,
   getSupabaseAdminClient,
   isRoleAllowed,
@@ -49,6 +50,18 @@ function buildCallbackRedirect(nextPath: string): string {
   return buildSiteUrl(`/api/admin/auth/callback?next=${encodedNext}`);
 }
 
+function isSelfSignupEnabled(): boolean {
+  return process.env.ADMIN_SELF_SIGNUP_ENABLED === 'true';
+}
+
+function resolveSelfSignupRole(): AssignableAdminRole {
+  const configured = (process.env.ADMIN_SELF_SIGNUP_DEFAULT_ROLE || '').trim().toLowerCase();
+  if (configured === 'editor') return 'editor';
+  if (configured === 'viewer') return 'viewer';
+  if (configured === 'admin') return 'editor';
+  return 'viewer';
+}
+
 async function sendMagicLinkEmail(input: {
   email: string;
   redirectTo: string;
@@ -79,15 +92,19 @@ async function handleRequestMagicLink(body: AuthActionRequest) {
     );
   }
 
-  const role = await ensureRoleForAuthenticatedUser(email);
+  let role = await ensureRoleForAuthenticatedUser(email);
   if (!role || !role.is_active) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Email is not invited to admin panel',
-      },
-      { status: 403 }
-    );
+    if (!isSelfSignupEnabled()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Email is not invited to admin panel',
+        },
+        { status: 403 }
+      );
+    }
+
+    role = await ensureRoleForSelfSignup(email, resolveSelfSignupRole());
   }
 
   const nextPath = resolveNextPath(body.locale, body.next);
@@ -103,7 +120,7 @@ async function handleRequestMagicLink(body: AuthActionRequest) {
 
   return NextResponse.json({
     success: true,
-    message: 'Magic link sent',
+    message: role?.invited_by === 'self-signup' ? 'Account created. Magic link sent.' : 'Magic link sent',
     email,
     role: role.role,
   });
@@ -267,19 +284,19 @@ export async function POST(request: NextRequest) {
     const action = body.action || 'session';
 
     if (action === 'request_magic_link') {
-      return handleRequestMagicLink(body);
+      return await handleRequestMagicLink(body);
     }
 
     if (action === 'invite') {
-      return handleInvite(request, body);
+      return await handleInvite(request, body);
     }
 
     if (action === 'set_role') {
-      return handleSetRole(request, body);
+      return await handleSetRole(request, body);
     }
 
     if (action === 'logout') {
-      return handleLogout();
+      return await handleLogout();
     }
 
     return NextResponse.json(

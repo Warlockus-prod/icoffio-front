@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.7] - 2026-02-17 - 🔐 Admin Auth Stability + Optional Self-Signup
+
+### ✅ Admin auth stability fixes
+- Fixed unhandled rejection in `POST /api/admin/auth` action router:
+  - branch handlers now use `await`, so async errors are returned as JSON instead of raw 500 with empty body.
+- Improved owner fallback when `admin_user_roles` table is missing:
+  - owner emails can still resolve role at auth layer without hard crash.
+
+### 🧾 Better error behavior
+- `request_magic_link` now returns readable JSON error in failure cases (instead of frontend showing generic `Authentication request failed` due empty response body parse failure).
+
+### 🆕 Optional self-signup
+- Added optional self-signup mode for admin auth:
+  - env: `ADMIN_SELF_SIGNUP_ENABLED=true`
+  - env: `ADMIN_SELF_SIGNUP_DEFAULT_ROLE=viewer|editor` (`admin` is forced down to `editor` for safety).
+- If enabled, unknown emails can be auto-provisioned and receive magic link without manual invite.
+- Added helper `ensureRoleForSelfSignup` in admin role service.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+
 ## [8.7.6] - 2026-02-17 - 🔐 API Surface Hardening (Auth + Anti-Abuse)
 
 ### 🚨 Закрытые риски (production fail-closed)

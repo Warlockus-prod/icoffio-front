@@ -182,7 +182,10 @@ function createOwnerMember(email: string, existing?: {
   };
 }
 
-async function fetchRoleByEmail(email: string): Promise<AdminRoleMember | null> {
+async function fetchRoleByEmail(
+  email: string,
+  options: { allowMissingTable?: boolean } = {}
+): Promise<AdminRoleMember | null> {
   const supabase = getSupabaseAdminClient();
   const normalized = normalizeEmail(email);
 
@@ -194,6 +197,9 @@ async function fetchRoleByEmail(email: string): Promise<AdminRoleMember | null> 
     .maybeSingle();
 
   if (error) {
+    if (error.code === '42P01' && options.allowMissingTable) {
+      return null;
+    }
     throw new Error(toReadableRoleError('Load role', error.message, error.code));
   }
 
@@ -288,7 +294,7 @@ async function resolveRoleByEmail(
   const normalizedEmail = normalizeEmail(email);
 
   if (isOwnerEmail(normalizedEmail)) {
-    const existingOwner = await fetchRoleByEmail(normalizedEmail);
+    const existingOwner = await fetchRoleByEmail(normalizedEmail, { allowMissingTable: true });
     if (existingOwner) return createOwnerMember(normalizedEmail, existingOwner);
 
     // Keep owner present in DB as active admin where possible.
@@ -306,7 +312,7 @@ async function resolveRoleByEmail(
     return createOwnerMember(normalizedEmail);
   }
 
-  const existingRole = await fetchRoleByEmail(normalizedEmail);
+  const existingRole = await fetchRoleByEmail(normalizedEmail, { allowMissingTable: true });
   if (existingRole) {
     if (!existingRole.is_active) return null;
     return existingRole;
@@ -564,6 +570,35 @@ export async function getAdminMembers(): Promise<AdminRoleMember[]> {
 
 export async function ensureRoleForAuthenticatedUser(email: string): Promise<AdminRoleMember | null> {
   return resolveRoleByEmail(email, { allowBootstrap: true });
+}
+
+export async function ensureRoleForSelfSignup(
+  email: string,
+  defaultRole: AssignableAdminRole = 'viewer'
+): Promise<AdminRoleMember> {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (isOwnerEmail(normalizedEmail)) {
+    return createOwnerMember(normalizedEmail);
+  }
+
+  const existing = await fetchRoleByEmail(normalizedEmail, { allowMissingTable: true });
+  if (existing) {
+    if (!existing.is_active) {
+      throw new Error('Access for this email is disabled. Contact admin.');
+    }
+    return existing;
+  }
+
+  // Never grant admin by open self-signup.
+  const roleToAssign: AssignableAdminRole = defaultRole === 'admin' ? 'editor' : defaultRole;
+
+  return upsertAdminRole({
+    email: normalizedEmail,
+    role: roleToAssign,
+    invitedBy: 'self-signup',
+    isActive: true,
+  });
 }
 
 export function sanitizeNextPath(input: string | null | undefined, fallback = '/en/admin'): string {

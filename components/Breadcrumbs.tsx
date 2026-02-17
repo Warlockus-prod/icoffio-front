@@ -4,6 +4,7 @@ import { getTranslation } from '@/lib/i18n';
 interface BreadcrumbItem {
   label: string;
   href?: string;
+  title?: string;
 }
 
 interface BreadcrumbsProps {
@@ -40,7 +41,7 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
               <Link 
                 href={item.href}
                 className="block max-w-[120px] sm:max-w-[180px] md:max-w-[240px] truncate hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors hover:underline"
-                title={item.label}
+                title={item.title || item.label}
               >
                 {item.label}
               </Link>
@@ -51,7 +52,7 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
                     ? "text-neutral-900 dark:text-neutral-100 font-medium" 
                     : ""
                 }`}
-                title={item.label}
+                title={item.title || item.label}
                 aria-current={index === allItems.length - 1 ? "page" : undefined}
               >
                 {item.label}
@@ -63,7 +64,6 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
     </nav>
   );
 }
-
 
 
 

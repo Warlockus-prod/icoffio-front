@@ -210,7 +210,7 @@ export default async function Article({ params }: { params: { locale: string; sl
 
   const breadcrumbItems = [
     { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },
-    { label: titleForBreadcrumb }
+    { label: titleForBreadcrumb, title: post.title }
   ];
   const breadcrumbSchemaItems = [
     { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },

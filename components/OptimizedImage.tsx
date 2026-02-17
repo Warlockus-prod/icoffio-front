@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 
 interface OptimizedImageProps {
   src: string;
+  fallbackSrc?: string;
   alt: string;
   width?: number;
   height?: number;
@@ -41,6 +42,7 @@ const isExternalUrl = (url: string): boolean => {
 
 export function OptimizedImage({
   src,
+  fallbackSrc,
   alt,
   width,
   height,
@@ -62,7 +64,7 @@ export function OptimizedImage({
     setIsLoaded(false);
     setHasError(false);
     setCurrentSrc(src);
-  }, [src]);
+  }, [src, fallbackSrc]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -70,10 +72,17 @@ export function OptimizedImage({
   };
 
   const handleError = () => {
-    setHasError(true);
     onError?.();
-    
-    // Fallback: inline SVG placeholder (no external file dependency)
+
+    if (fallbackSrc && currentSrc !== fallbackSrc) {
+      setIsLoaded(false);
+      setHasError(false);
+      setCurrentSrc(fallbackSrc);
+      return;
+    }
+
+    setHasError(true);
+    // Final fallback: inline SVG placeholder (no external file dependency)
     setCurrentSrc('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjOWNhM2FmIj5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==');
   };
 

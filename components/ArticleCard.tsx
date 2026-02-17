@@ -40,8 +40,8 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
   
   const fallbackIndex = hashCode % fallbacks.length;
   const fallback = fallbacks[fallbackIndex];
-  
-  const img = post.image || fallback;
+  const hasTemporaryImageUrl = /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(post.image || '');
+  const img = post.image && !hasTemporaryImageUrl ? post.image : fallback;
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -63,6 +63,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
         <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
           <OptimizedImage
             src={img}
+            fallbackSrc={fallback}
             alt={post.imageAlt || post.title}
             width={400}
             height={225}

@@ -17,14 +17,26 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
 
   const [main, ...rest] = posts.slice(0, 3); // Берем первые 3 статьи
 
-  const getImage = (post: Post) => {
-    const fallbacks = [
-      "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1200&auto=format&fit=crop"
-    ];
-    return post.image || fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  const heroFallbacks = [
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1200&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1200&auto=format&fit=crop"
+  ];
+  const getFallbackForPost = (post: Post) => {
+    const seed = `${post.slug}-${post.title.slice(0, 6)}`;
+    const hash = seed.split('').reduce((acc, char, index) => {
+      const next = ((acc << 5) - acc) + char.charCodeAt(0);
+      return Math.abs(next) + index * 11;
+    }, 5381);
+    return heroFallbacks[hash % heroFallbacks.length];
   };
+
+  const getImage = (post: Post) => {
+    const fallback = getFallbackForPost(post);
+    const hasTemporaryImageUrl = /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(post.image || '');
+    return post.image && !hasTemporaryImageUrl ? post.image : fallback;
+  };
+  const mainFallback = getFallbackForPost(main);
 
   return (
     <Container>
@@ -36,6 +48,11 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
               src={getImage(main)} 
               alt={main.imageAlt || main.title} 
               className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
+              onError={(event) => {
+                if (event.currentTarget.src !== mainFallback) {
+                  event.currentTarget.src = mainFallback;
+                }
+              }}
             />
           </div>
           <div className="mt-3">
@@ -53,25 +70,33 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
 
         {/* Secondary Articles - 1 column */}
         <div className="flex flex-col gap-6">
-          {rest.map((post, index) => (
-            <Link key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
-              <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
+          {rest.map((post) => {
+            const fallback = getFallbackForPost(post);
+            return (
+              <Link key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
+                <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
                 <img 
                   src={getImage(post)} 
                   alt={post.imageAlt || post.title} 
                   className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" 
+                  onError={(event) => {
+                    if (event.currentTarget.src !== fallback) {
+                      event.currentTarget.src = fallback;
+                    }
+                  }}
                 />
-              </div>
-              <div className="mt-2">
-                <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
-                  {post.category.name}
-                </span>
-                <h3 className="mt-1 text-lg font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-neutral-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {post.title}
-                </h3>
-              </div>
-            </Link>
-          ))}
+                </div>
+                <div className="mt-2">
+                  <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                    {post.category.name}
+                  </span>
+                  <h3 className="mt-1 text-lg font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-neutral-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {post.title}
+                  </h3>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </Container>

@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import { getSiteBaseUrl } from "@/lib/site-url";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 3600;
+
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = getSiteBaseUrl();
 

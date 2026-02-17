@@ -427,15 +427,54 @@ export function sanitizeHtml(html: string): string {
     'blockquote', 'pre', 'code', 'a', 'img', 'div', 'span'];
   
   const allowedAttributes = ['href', 'src', 'alt', 'title', 'class', 'target', 'rel'];
-  
-  // Simple tag filter (for production, use a proper HTML sanitizer like DOMPurify)
-  return html.replace(/<\/?([a-z][a-z0-9]*)\b[^>]*>/gi, (match, tag) => {
-    if (allowedTags.includes(tag.toLowerCase())) {
-      // Filter attributes
-      return match.replace(/\s+([a-z-]+)(?:="[^"]*")?/gi, (attrMatch, attr) => {
-        return allowedAttributes.includes(attr.toLowerCase()) ? attrMatch : '';
-      });
+
+  const withoutDangerousBlocks = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object\b[^>]*>[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '');
+
+  return withoutDangerousBlocks.replace(/<\/?([a-z][a-z0-9]*)\b([^>]*)>/gi, (match, tag, attrs = '') => {
+    const tagName = tag.toLowerCase();
+    const isClosing = match.startsWith('</');
+
+    if (!allowedTags.includes(tagName)) {
+      return '';
     }
-    return ''; // Remove disallowed tags
+
+    if (isClosing) {
+      return `</${tagName}>`;
+    }
+
+    const safeAttrs: string[] = [];
+    const attrRegex = /\s+([a-zA-Z0-9:-]+)(?:\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>`]+)))?/g;
+    let attrMatch: RegExpExecArray | null = null;
+
+    while ((attrMatch = attrRegex.exec(attrs)) !== null) {
+      const name = String(attrMatch[1] || '').toLowerCase();
+      const value = (attrMatch[3] || attrMatch[4] || attrMatch[5] || '').trim();
+      const normalizedValue = value.replace(/\s+/g, '').toLowerCase();
+
+      if (!allowedAttributes.includes(name)) continue;
+      if (name.startsWith('on')) continue;
+      if ((name === 'href' || name === 'src') && normalizedValue.startsWith('javascript:')) continue;
+      if (name === 'src' && normalizedValue.startsWith('data:') && !normalizedValue.startsWith('data:image/')) continue;
+      if (name === 'href' && normalizedValue.startsWith('data:')) continue;
+
+      if (value) {
+        const escapedValue = value
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        safeAttrs.push(`${name}="${escapedValue}"`);
+      } else {
+        safeAttrs.push(name);
+      }
+    }
+
+    const suffix = match.endsWith('/>') ? ' /' : '';
+    return `<${tagName}${safeAttrs.length > 0 ? ` ${safeAttrs.join(' ')}` : ''}${suffix}>`;
   });
 }

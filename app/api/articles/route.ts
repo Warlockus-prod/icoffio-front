@@ -577,14 +577,17 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
       try {
-        await fetch(`${request.nextUrl.origin}/api/revalidate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            secret: 'icoffio_revalidate_2025',
-            paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
-          })
-        });
+        const revalidateToken = process.env.REVALIDATE_TOKEN || process.env.REVALIDATE_SECRET;
+        if (revalidateToken) {
+          await fetch(`${request.nextUrl.origin}/api/revalidate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              secret: revalidateToken,
+              paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
+            })
+          });
+        }
       } catch (revalError) {
         console.warn('Revalidation failed:', revalError);
       }
@@ -701,14 +704,17 @@ async function handleTextCreation(body: ApiRequest, request: NextRequest) {
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
       try {
-        await fetch(`${request.nextUrl.origin}/api/revalidate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            secret: 'icoffio_revalidate_2025',
-            paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
-          })
-        });
+        const revalidateToken = process.env.REVALIDATE_TOKEN || process.env.REVALIDATE_SECRET;
+        if (revalidateToken) {
+          await fetch(`${request.nextUrl.origin}/api/revalidate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              secret: revalidateToken,
+              paths: ['/en/articles', '/pl/articles', '/en/category/' + result.article!.category, '/pl/category/' + result.article!.category]
+            })
+          });
+        }
       } catch (revalError) {
         console.warn('Revalidation failed:', revalError);
       }

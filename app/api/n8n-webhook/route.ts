@@ -32,6 +32,12 @@ interface ProcessedArticle extends TelegramArticle {
 // Поддерживаемые языки
 const SUPPORTED_LANGUAGES = ['en', 'pl', 'de', 'ro', 'cs'];
 
+function isN8nAuthorized(request: NextRequest, secret: string): boolean {
+  if (!secret) return true;
+  const authHeader = request.headers.get('Authorization') || request.headers.get('authorization') || '';
+  return authHeader === `Bearer ${secret}`;
+}
+
 // Утилита для генерации slug из заголовка
 function generateSlugFromTitle(title: string): string {
   return title
@@ -53,11 +59,17 @@ export async function POST(request: NextRequest) {
 
     console.log('N8N Webhook called:', { action, dataKeys: Object.keys(data || {}) });
 
-    // Проверка авторизации (опционально)
-    const authHeader = request.headers.get('Authorization');
+    // Проверка авторизации
     const webhookSecret = process.env.N8N_WEBHOOK_SECRET;
-    
-    if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
+
+    if (!webhookSecret && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Webhook secret is not configured' },
+        { status: 503 }
+      );
+    }
+
+    if (!isN8nAuthorized(request, webhookSecret || '')) {
       return NextResponse.json(
         { error: 'Неавторизованный доступ' },
         { status: 401 }
@@ -347,10 +359,32 @@ async function getAvailableCategories() {
 }
 
 // GET /api/n8n-webhook - информация о сервисе
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const secureMode = Boolean(process.env.N8N_WEBHOOK_SECRET);
+  const webhookSecret = process.env.N8N_WEBHOOK_SECRET || '';
+
+  if (process.env.NODE_ENV === 'production' && !secureMode) {
+    return NextResponse.json(
+      {
+        service: 'N8N Integration Webhook',
+        secure_mode: false,
+        message: 'Webhook disabled until N8N_WEBHOOK_SECRET is configured'
+      },
+      { status: 503 }
+    );
+  }
+
+  if (secureMode && !isN8nAuthorized(request, webhookSecret)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   return NextResponse.json({
     service: 'N8N Integration Webhook',
     version: '1.0.0',
+    secure_mode: secureMode,
     endpoints: {
       'POST /api/n8n-webhook': {
         'Process article': {

@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.5] - 2026-02-17 - 🔒 Security Hardening (VPS + API + Content Safety)
+
+### 🚨 Critical fixes
+- Убран hardcoded revalidate token из кода.
+- `POST /api/revalidate` теперь принимает только env-токены:
+  - `REVALIDATE_TOKEN` (primary),
+  - `REVALIDATE_SECRET` (compat).
+- Если токен не настроен в production, endpoint возвращает `503` (fail-closed).
+- Добавлена валидация списка путей для revalidate (ограничение и фильтрация).
+
+### 🔐 Webhook hardening
+- `app/api/n8n-webhook`:
+  - в production требует `N8N_WEBHOOK_SECRET`,
+  - при отсутствии секрета endpoint отключается (`503`),
+  - `GET` тоже защищен при включенном secure mode.
+- `app/api/vercel-webhook`:
+  - добавлена обязательная проверка `VERCEL_WEBHOOK_SECRET` (Bearer / `x-webhook-secret` / query secret),
+  - в production без секрета endpoint не работает (`503`).
+
+### 🧪 Debug endpoint lockdown
+- `GET /api/debug/homepage-data`:
+  - в production скрыт по умолчанию (`404`) если `DEBUG_API_TOKEN` не задан,
+  - при заданном токене требует `?token=...`.
+
+### 🛡️ XSS / HTML sanitization
+- Усилен pipeline рендера контента:
+  - `lib/markdown.ts` теперь прогоняет HTML через sanitizer перед `dangerouslySetInnerHTML`,
+  - plain text path теперь экранирует HTML-символы.
+- Усилен `sanitizeHtml()`:
+  - вырезаются `script/style/iframe/object/embed`,
+  - удаляются event-handler атрибуты (`on*`),
+  - блокируются `javascript:` URL в `href/src`,
+  - ограничены разрешенные теги/атрибуты.
+
+### 🌐 Security headers
+- В `next.config.mjs` добавлены базовые security headers:
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: SAMEORIGIN`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+  - `Permissions-Policy`
+  - `Cross-Origin-Opener-Policy`
+  - `Cross-Origin-Resource-Policy`
+  - `Strict-Transport-Security`
+
+### ✅ Проверки
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.7.4] - 2026-02-17 - 🔎 SEO Technical Baseline (Schema + Metadata + Robots)
 
 ### 🎯 Что улучшено

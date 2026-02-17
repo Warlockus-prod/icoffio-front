@@ -10,6 +10,18 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const debugToken = process.env.DEBUG_API_TOKEN || '';
+  const providedToken = searchParams.get('token') || '';
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!debugToken) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (providedToken !== debugToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   const locale = searchParams.get('locale') || 'en';
   
   const results: any = {
@@ -94,7 +106,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json(results, { status: 200 });
 }
-
 
 
 

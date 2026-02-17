@@ -1,25 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 
+function getValidRevalidateTokens(): string[] {
+  const rawTokens = [
+    process.env.REVALIDATE_TOKEN,
+    process.env.REVALIDATE_SECRET,
+  ]
+    .filter(Boolean)
+    .join(",");
+
+  return rawTokens
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function extractRequestedPaths(req: NextRequest, body: any): string[] {
+  const pathParam = req.nextUrl.searchParams.get("path");
+  const bodyPaths: unknown[] = Array.isArray(body?.paths) ? body.paths : [];
+  const source: unknown[] = bodyPaths.length > 0 ? bodyPaths : [pathParam || "/"];
+
+  return source
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.startsWith("/") && !item.startsWith("//"))
+    .slice(0, 20);
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Поддерживаем секрет из URL параметров или JSON body
-    const secret = req.nextUrl.searchParams.get("secret");
     const body = await req.json().catch(() => ({}));
-    const secretFromBody = body.secret;
-    
-    const validTokens = [process.env.REVALIDATE_TOKEN, 'icoffio_revalidate_2025'].filter(Boolean);
-    
-    if (!validTokens.includes(secret || '') && !validTokens.includes(secretFromBody || '')) {
+    const validTokens = getValidRevalidateTokens();
+    const providedSecret =
+      req.nextUrl.searchParams.get("secret") ||
+      body.secret ||
+      req.headers.get("x-revalidate-token") ||
+      "";
+
+    if (validTokens.length === 0 && process.env.NODE_ENV === "production") {
+      return NextResponse.json({ message: "Revalidation token is not configured" }, { status: 503 });
+    }
+
+    if (validTokens.length > 0 && !validTokens.includes(String(providedSecret))) {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
-    
-    // Поддерживаем один путь или массив путей
-    const pathParam = req.nextUrl.searchParams.get("path");
-    const pathsFromBody = body.paths || [];
-    
-    const pathsToRevalidate = pathsFromBody.length > 0 ? pathsFromBody : [pathParam || "/"];
-    
+
+    const pathsToRevalidate = extractRequestedPaths(req, body);
+    if (pathsToRevalidate.length === 0) {
+      return NextResponse.json({ message: "No valid paths provided" }, { status: 400 });
+    }
+
     // Ревалидируем все указанные пути
     const results = [];
     for (const path of pathsToRevalidate) {

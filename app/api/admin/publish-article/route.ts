@@ -160,13 +160,18 @@ export async function POST(request: NextRequest) {
 
     // Revalidate Next.js pages
     try {
-      await fetch(`${frontendUrl}/api/revalidate?secret=${process.env.REVALIDATE_SECRET || 'secret'}&path=/${language}/article/${slug}`, {
-        method: 'POST'
-      });
-      await fetch(`${frontendUrl}/api/revalidate?secret=${process.env.REVALIDATE_SECRET || 'secret'}&path=/${language}`, {
-        method: 'POST'
-      });
-      console.log(`[Publish] ✅ Revalidated pages for ${slug}`);
+      const revalidateToken = process.env.REVALIDATE_TOKEN || process.env.REVALIDATE_SECRET;
+      if (revalidateToken) {
+        await fetch(`${frontendUrl}/api/revalidate?secret=${encodeURIComponent(revalidateToken)}&path=/${language}/article/${slug}`, {
+          method: 'POST'
+        });
+        await fetch(`${frontendUrl}/api/revalidate?secret=${encodeURIComponent(revalidateToken)}&path=/${language}`, {
+          method: 'POST'
+        });
+        console.log(`[Publish] ✅ Revalidated pages for ${slug}`);
+      } else {
+        console.warn('[Publish] ⚠️ Revalidate token is not configured, skipping revalidation');
+      }
     } catch (revalidateError) {
       console.warn('[Publish] ⚠️ Revalidation failed (non-critical):', revalidateError);
     }

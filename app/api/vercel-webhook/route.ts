@@ -36,6 +36,32 @@ interface VercelWebhookPayload {
   };
 }
 
+function getConfiguredWebhookSecret(): string {
+  return (process.env.VERCEL_WEBHOOK_SECRET || '').trim();
+}
+
+function isWebhookAuthorized(request: NextRequest): { ok: boolean; reason?: string } {
+  const secret = getConfiguredWebhookSecret();
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      return { ok: false, reason: 'Webhook secret is not configured' };
+    }
+    return { ok: true };
+  }
+
+  const authHeader = request.headers.get('authorization') || '';
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const headerSecret = request.headers.get('x-webhook-secret') || '';
+  const querySecret = request.nextUrl.searchParams.get('secret') || '';
+
+  if (bearer === secret || headerSecret === secret || querySecret === secret) {
+    return { ok: true };
+  }
+
+  return { ok: false, reason: 'Invalid webhook token' };
+}
+
 async function sendTelegramNotification(message: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -62,6 +88,12 @@ async function sendTelegramNotification(message: string): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = isWebhookAuthorized(request);
+  if (!auth.ok) {
+    const status = auth.reason === 'Webhook secret is not configured' ? 503 : 401;
+    return NextResponse.json({ error: auth.reason }, { status });
+  }
+
   try {
     const body: VercelWebhookPayload = await request.json();
     
@@ -135,16 +167,22 @@ export async function POST(request: NextRequest) {
 }
 
 // Also support GET for testing
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = isWebhookAuthorized(request);
+  if (!auth.ok && process.env.NODE_ENV === 'production') {
+    const status = auth.reason === 'Webhook secret is not configured' ? 503 : 401;
+    return NextResponse.json({ error: auth.reason }, { status });
+  }
+
+  const configured = Boolean(getConfiguredWebhookSecret());
   return NextResponse.json({
     status: 'active',
     endpoint: '/api/vercel-webhook',
     description: 'Vercel deployment webhook receiver',
+    secure_mode: configured,
     telegram_configured: !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
   });
 }
-
-
 
 
 

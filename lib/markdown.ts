@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import { sanitizeHtml } from './utils/content-formatter';
 
 // Настройка marked для безопасного рендеринга
 // Используем GitHub Flavored Markdown (GFM) с поддержкой переносов строк
@@ -43,6 +44,15 @@ function sanitizeHtmlImages(html: string): string {
   return withoutInvalidImages.replace(/<p>\s*(?:<br\s*\/?>\s*)*<\/p>/gi, '');
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 /**
  * Конвертирует Markdown в HTML
  * Безопасно обрабатывает markdown контент и возвращает HTML
@@ -53,11 +63,11 @@ export function parseMarkdown(markdown: string): string {
   try {
     // Парсим markdown в HTML
     const html = marked.parse(markdown, { async: false }) as string;
-    return html;
+    return sanitizeHtmlImages(sanitizeHtml(html));
   } catch (error) {
     console.error('Markdown parsing error:', error);
     // Fallback: возвращаем исходный текст в <pre>
-    return `<pre>${markdown}</pre>`;
+    return `<pre>${escapeHtml(markdown)}</pre>`;
   }
 }
 
@@ -89,7 +99,7 @@ export function renderContent(content: string): string {
   
   // Если контент уже HTML (содержит теги), возвращаем как есть
   if (cleanedInput.includes('<p>') || cleanedInput.includes('<div>') || cleanedInput.includes('<h1>')) {
-    return sanitizeHtmlImages(cleanedInput);
+    return sanitizeHtmlImages(sanitizeHtml(cleanedInput));
   }
   
   // Если markdown - парсим
@@ -98,5 +108,8 @@ export function renderContent(content: string): string {
   }
   
   // Обычный текст - оборачиваем в параграфы
-  return cleanedInput.split('\n\n').map(p => `<p>${p}</p>`).join('');
+  return cleanedInput
+    .split('\n\n')
+    .map(p => `<p>${escapeHtml(p)}</p>`)
+    .join('');
 }

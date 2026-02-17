@@ -20,6 +20,26 @@ describe('title policy', () => {
     expect(normalized.endsWith('...')).toBe(false);
   });
 
+  it('shortens long polish title by removing trailing subordinate clause', () => {
+    const raw =
+      'Przygotuj się na nowego MacBooka od Apple, napędzanego chipem iPhone 16 Pro, który zadebiutuje w marcu. To budżetowa opcja z najwyższej klasy funkcjami';
+    const normalized = normalizeTitleForPublishing(raw, { minLength: 55, maxLength: 95 });
+    expect(normalized).toContain('MacBooka od Apple');
+    expect(normalized.length).toBeGreaterThanOrEqual(55);
+    expect(normalized.length).toBeLessThanOrEqual(95);
+    expect(normalized.includes('który zadebiutuje')).toBe(false);
+  });
+
+  it('shortens long english title by dropping trailing which-clause', () => {
+    const raw =
+      'Apple prepares a new MacBook powered by iPhone 16 Pro silicon, which should launch in March as a budget-friendly premium model';
+    const normalized = normalizeTitleForPublishing(raw, { minLength: 55, maxLength: 95 });
+    expect(normalized).toContain('Apple prepares a new MacBook');
+    expect(normalized.length).toBeGreaterThanOrEqual(55);
+    expect(normalized.length).toBeLessThanOrEqual(95);
+    expect(normalized.includes('which should launch')).toBe(false);
+  });
+
   it('reports too-short titles as quality issue', () => {
     const result = evaluateTitlePolicy('Short title');
     expect(result.length).toBeLessThan(TITLE_MIN_LENGTH);

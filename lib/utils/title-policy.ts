@@ -7,6 +7,7 @@ interface TitlePolicyOptions {
   minLength?: number;
   maxLength?: number;
   fallback?: string;
+  language?: string;
 }
 
 export interface TitlePolicyResult {
@@ -41,10 +42,68 @@ function truncateTitleAtWordBoundary(value: string, maxLength: number): string {
   return value.slice(0, maxLength).trim();
 }
 
+function clampByComma(value: string, minLength: number, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const commaParts = value.split(',');
+  if (commaParts.length < 2) {
+    return '';
+  }
+
+  let candidate = commaParts[0].trim();
+  for (let i = 1; i < commaParts.length; i += 1) {
+    const next = `${candidate}, ${commaParts[i].trim()}`.trim();
+    if (next.length > maxLength) break;
+    candidate = next;
+  }
+
+  if (candidate.length >= minLength && candidate.length <= maxLength) {
+    return candidate.replace(/[,:;.!?_\-–—]+$/g, '').trim();
+  }
+
+  return '';
+}
+
+function removeTrailingClause(value: string, minLength: number, maxLength: number): string {
+  const patterns = [
+    /,\s*(which|that|who|while|where|when)\b.*$/i,
+    /,\s*(kt[oó]ry|kt[oó]ra|kt[oó]re|kt[oó]rego|kt[oó]r[ąa]|co|aby|żeby)\b.*$/i,
+    /\.\s+.*$/,
+    /:\s+.*$/,
+    /\s+[–—-]\s+.*$/,
+  ];
+
+  for (const pattern of patterns) {
+    const candidate = value.replace(pattern, '').replace(/[,:;.!?_\-–—]+$/g, '').trim();
+    if (candidate.length >= minLength && candidate.length <= maxLength) {
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
+function semanticShorten(value: string, minLength: number, maxLength: number): string {
+  const stripped = value.replace(/\s+/g, ' ').trim();
+  if (!stripped) return '';
+  if (stripped.length <= maxLength) return stripped;
+
+  const byClause = removeTrailingClause(stripped, minLength, maxLength);
+  if (byClause) return byClause;
+
+  const byComma = clampByComma(stripped, minLength, maxLength);
+  if (byComma) return byComma;
+
+  return '';
+}
+
 export function normalizeTitleForPublishing(
   rawTitle: string,
   options: TitlePolicyOptions = {}
 ): string {
+  const minLength = Math.max(10, options.minLength ?? TITLE_MIN_LENGTH);
   const maxLength = Math.max(20, options.maxLength ?? TITLE_MAX_LENGTH);
   const fallback = String(options.fallback || DEFAULT_FALLBACK_TITLE).trim() || DEFAULT_FALLBACK_TITLE;
 
@@ -55,6 +114,11 @@ export function normalizeTitleForPublishing(
     .trim();
 
   const baseTitle = cleaned || fallback;
+  const semanticTitle = semanticShorten(baseTitle, minLength, maxLength);
+  if (semanticTitle) {
+    return semanticTitle;
+  }
+
   return truncateTitleAtWordBoundary(baseTitle, maxLength);
 }
 

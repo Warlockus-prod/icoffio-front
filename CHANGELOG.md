@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.13] - 2026-02-17 - 🧠 Human-like Title Shortening (No Broken Cut)
+
+### ✅ Fixed
+- Long titles are now shortened semantically before hard trim:
+  - first tries to remove trailing subordinate clauses (`which/that/...`, `który/która/...`),
+  - then tries comma-based compacting,
+  - only then falls back to word-boundary trim.
+- Applied for frontend title resolution of already published articles (legacy long titles now render cleaner without nonsense cut).
+- Article breadcrumb now uses semantic compact title (no synthetic trailing ellipsis from custom logic).
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/title-policy.test.ts` — OK
+- `npm test -- __tests__/data.test.ts` — OK
+
 ## [8.7.12] - 2026-02-17 - 🧱 Title Policy in Quality Gate (55-95 chars)
 
 ### ✅ Added

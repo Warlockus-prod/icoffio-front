@@ -21,6 +21,7 @@ import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-play
 import { renderContent } from "@/lib/markdown";
 import { extractMonetizationSettingsFromContent } from "@/lib/monetization-settings";
 import { buildSiteUrl } from "@/lib/site-url";
+import { normalizeTitleForPublishing } from "@/lib/utils/title-policy";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -61,15 +62,15 @@ function normalizePlainText(value: string): string {
     .trim();
 }
 
-function truncateForUi(value: string, maxChars: number): string {
+function compactTitleForUi(value: string, maxChars: number, minChars: number): string {
   const normalized = normalizePlainText(value);
-  if (normalized.length <= maxChars) return normalized;
+  if (!normalized) return '';
 
-  const softSlice = normalized.slice(0, maxChars);
-  const punctuationCut = Math.max(softSlice.lastIndexOf('.'), softSlice.lastIndexOf(','), softSlice.lastIndexOf(';'));
-  const cutoff = punctuationCut > maxChars * 0.6 ? punctuationCut : softSlice.lastIndexOf(' ');
-
-  return `${softSlice.slice(0, cutoff > 0 ? cutoff : maxChars).trim()}…`;
+  return normalizeTitleForPublishing(normalized, {
+    minLength: minChars,
+    maxLength: maxChars,
+    fallback: normalized,
+  });
 }
 
 function isExcerptDuplicateOfTitle(title: string, excerpt: string): boolean {
@@ -204,7 +205,7 @@ export default async function Article({ params }: { params: { locale: string; sl
     ? (post.image as string)
     : (contentDerivedHero || fallback);
 
-  const titleForBreadcrumb = truncateForUi(post.title, 92);
+  const titleForBreadcrumb = compactTitleForUi(post.title, 72, 34);
   const normalizedExcerpt = normalizePlainText(post.excerpt || '');
   const showExcerpt = normalizedExcerpt && !isExcerptDuplicateOfTitle(post.title, normalizedExcerpt);
 

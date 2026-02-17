@@ -2,6 +2,7 @@ import type { Post, Category } from "./types";
 import { getLocalArticles as getLocalArticlesFromFile, getLocalArticleBySlug as getLocalArticleBySlugFromFile } from "./local-articles";
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client';
 import { sanitizeExcerptText, sanitizeArticleBodyText, normalizeAiGeneratedText } from './utils/content-formatter';
+import { normalizeTitleForPublishing, TITLE_MAX_LENGTH } from './utils/title-policy';
 
 // Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
@@ -134,29 +135,42 @@ function extractLeadSentence(text: string, maxLength = 140): string {
   return `${sentence.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
+function normalizeFrontendTitle(value: string): string {
+  const cleaned = sanitizeExcerptText(value || '', 260).replace(/[.]{3,}\s*$/, '').trim();
+  if (!cleaned) {
+    return '';
+  }
+
+  return normalizeTitleForPublishing(cleaned, {
+    minLength: 40,
+    maxLength: TITLE_MAX_LENGTH,
+    fallback: cleaned,
+  });
+}
+
 function resolveLocalizedTitle(article: any, language: 'en' | 'pl'): string {
-  const baseTitle = sanitizeExcerptText(article?.title || '', 220).replace(/[.]{3,}\s*$/, '').trim();
+  const baseTitle = normalizeFrontendTitle(article?.title || '');
 
   if (language === 'pl') {
-    const heading = extractMarkdownHeading(article?.content_pl || '');
+    const heading = normalizeFrontendTitle(extractMarkdownHeading(article?.content_pl || ''));
     if (heading) return heading;
 
-    const excerptPl = sanitizeExcerptText(article?.excerpt_pl || '', 180).replace(/[.]{3,}\s*$/, '').trim();
+    const excerptPl = normalizeFrontendTitle(article?.excerpt_pl || '');
     if (excerptPl) return excerptPl;
 
-    const leadPl = extractLeadSentence(article?.content_pl || '', 140);
+    const leadPl = normalizeFrontendTitle(extractLeadSentence(article?.content_pl || '', 140));
     if (leadPl) return leadPl;
   }
 
   if (baseTitle) return baseTitle;
 
-  const headingEn = extractMarkdownHeading(article?.content_en || '');
+  const headingEn = normalizeFrontendTitle(extractMarkdownHeading(article?.content_en || ''));
   if (headingEn) return headingEn;
 
-  const excerptEn = sanitizeExcerptText(article?.excerpt_en || '', 180).replace(/[.]{3,}\s*$/, '').trim();
+  const excerptEn = normalizeFrontendTitle(article?.excerpt_en || '');
   if (excerptEn) return excerptEn;
 
-  const leadEn = extractLeadSentence(article?.content_en || '', 140);
+  const leadEn = normalizeFrontendTitle(extractLeadSentence(article?.content_en || '', 140));
   if (leadEn) return leadEn;
 
   return 'Untitled';

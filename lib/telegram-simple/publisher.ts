@@ -11,6 +11,20 @@ import { translateToPolish } from './translator';
 import { insertImages, type ImageGenerationOptions } from './image-generator';
 import { buildSiteUrl } from '../site-url';
 
+function normalizeSiteBaseUrl(raw?: string): string | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  if (!value) return null;
+
+  try {
+    const parsed = new URL(value);
+    if (!/^https?:$/i.test(parsed.protocol)) return null;
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
 function isRenderableImageUrl(url: string): boolean {
   const normalized = (url || '').trim();
   if (!normalized) return false;
@@ -41,8 +55,18 @@ function extractImageUrlsFromContent(content: string): string[] {
   return Array.from(found);
 }
 
-const buildArticleUrl = (locale: 'en' | 'pl', slug: string) =>
-  buildSiteUrl(`/${locale}/article/${slug}`);
+const buildArticleUrl = (locale: 'en' | 'pl', slug: string, siteBaseUrl?: string) => {
+  const path = `/${locale}/article/${slug}`;
+  const base = normalizeSiteBaseUrl(siteBaseUrl);
+  if (base) {
+    try {
+      return new URL(path, `${base}/`).toString();
+    } catch {
+      // Fall through to default helper
+    }
+  }
+  return buildSiteUrl(path);
+};
 
 /**
  * Get Supabase client
@@ -65,7 +89,8 @@ export async function publishArticle(
   article: ProcessedArticle,
   chatId: number,
   autoPublish: boolean = true,
-  imageSettings?: { imagesCount: number; imagesSource: 'unsplash' | 'ai' | 'none' }
+  imageSettings?: { imagesCount: number; imagesSource: 'unsplash' | 'ai' | 'none' },
+  siteBaseUrl?: string
 ): Promise<PublishResult> {
   console.log(`[TelegramSimple] 📤 Publishing dual-language: "${article.title}" (autoPublish: ${autoPublish})`);
 
@@ -128,13 +153,13 @@ export async function publishArticle(
       slug_en: `${slug}-en`,
       content_en: finalContentEn,
       excerpt_en: article.excerpt,
-      url_en: buildArticleUrl('en', `${slug}-en`),
+      url_en: buildArticleUrl('en', `${slug}-en`, siteBaseUrl),
       
       // Polish content (with title prepended as # heading and images if requested)
       slug_pl: `${slug}-pl`,
       content_pl: contentPlWithTitle,
       excerpt_pl: polish.excerpt,
-      url_pl: buildArticleUrl('pl', `${slug}-pl`),
+      url_pl: buildArticleUrl('pl', `${slug}-pl`, siteBaseUrl),
       image_url: heroImageUrl || null,
       
       // Store Polish title in tags for easier retrieval
@@ -180,12 +205,12 @@ export async function publishArticle(
       en: {
         id: data.id,
         slug: data.slug_en,
-        url: data.url_en || buildArticleUrl('en', data.slug_en),
+        url: data.url_en || buildArticleUrl('en', data.slug_en, siteBaseUrl),
       },
       pl: {
         id: data.id, // Same ID, different slug
         slug: data.slug_pl,
-        url: data.url_pl || buildArticleUrl('pl', data.slug_pl),
+        url: data.url_pl || buildArticleUrl('pl', data.slug_pl, siteBaseUrl),
       },
     };
 

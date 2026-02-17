@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.15] - 2026-02-17 - 🤖 Telegram Domain Routing Fix (VPS-first links)
+
+### ✅ Fixed
+- Telegram simple webhook no longer contains hardcoded `www.icoffio.com` links in:
+  - `/settings` message,
+  - publish result message,
+  - `/admin` command response.
+- Added dynamic URL builder for Telegram messages so admin/article links resolve from active site base URL.
+- Added `siteBaseUrl` propagation through Telegram queue payload:
+  - webhook request origin is captured,
+  - worker reuses that same base when publishing queued items,
+  - generated EN/PL article URLs now stay on the same environment that received the Telegram request.
+- Updated Telegram reset scripts defaults to VPS domain behavior:
+  - `scripts/telegram-reset-simple.py`
+  - `scripts/telegram-reset-interactive.py`
+  - `scripts/telegram-reset-auto.sh`
+  - default now uses `TELEGRAM_WEBHOOK_BASE_URL` or `NEXT_PUBLIC_SITE_URL`, fallback `https://web.icoffio.com`.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/telegram-webhook.test.ts` — OK
+
 ## [8.7.14] - 2026-02-17 - 🔗 Smart Source Attribution Priority (Explicit Source First)
 
 ### ✅ Fixed

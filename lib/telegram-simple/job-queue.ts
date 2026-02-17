@@ -19,6 +19,7 @@ export interface TelegramSimpleQueuePayload {
   existingSubmissionId?: number | null;
   sendProgressMessage?: boolean;
   sendResultMessage?: boolean;
+  siteBaseUrl?: string;
 }
 
 export interface TelegramSimpleJob {

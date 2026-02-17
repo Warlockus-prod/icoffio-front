@@ -121,7 +121,9 @@ echo ""
 echo "📋 Step 3/4: Managing Telegram webhook..."
 
 TELEGRAM_API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}"
-WEBHOOK_URL="https://www.icoffio.com/api/telegram-simple/webhook"
+WEBHOOK_BASE_URL="${TELEGRAM_WEBHOOK_BASE_URL:-${NEXT_PUBLIC_SITE_URL:-https://web.icoffio.com}}"
+WEBHOOK_BASE_URL="${WEBHOOK_BASE_URL%/}"
+WEBHOOK_URL="${WEBHOOK_BASE_URL}/api/telegram-simple/webhook"
 
 # Get current webhook info
 echo "Fetching current webhook info..."
@@ -225,4 +227,3 @@ echo "  3. Vercel logs for errors"
 echo ""
 
 echo -e "${GREEN}Done! 🚀${NC}"
-

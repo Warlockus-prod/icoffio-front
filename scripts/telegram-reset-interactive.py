@@ -105,7 +105,12 @@ def manage_webhook(bot_token, secret_token):
     print_step(3, 4, "Managing Telegram webhook...")
     
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_url = "https://www.icoffio.com/api/telegram-simple/webhook"
+    webhook_base_url = (
+        os.getenv('TELEGRAM_WEBHOOK_BASE_URL')
+        or os.getenv('NEXT_PUBLIC_SITE_URL')
+        or "https://web.icoffio.com"
+    ).rstrip('/')
+    webhook_url = f"{webhook_base_url}/api/telegram-simple/webhook"
     
     # Get current webhook info
     print_info("Fetching current webhook info...")
@@ -267,4 +272,3 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
-

@@ -26,7 +26,7 @@ import {
   getTelegramSubmissions,
   updateTelegramSubmission,
 } from '@/lib/supabase-analytics';
-import { getSiteBaseUrl } from '@/lib/site-url';
+import { buildSiteUrl, getSiteBaseUrl } from '@/lib/site-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -69,6 +69,7 @@ export interface ProcessSubmissionInput {
   sendProgressMessage?: boolean;
   sendResultMessage?: boolean;
   progressLabel?: string;
+  siteBaseUrl?: string;
 }
 
 interface SubmissionMeta {
@@ -100,6 +101,36 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function normalizeSiteBaseUrl(raw?: string): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!/^https?:$/i.test(parsed.protocol)) return null;
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
+function buildAbsoluteSiteUrl(path: string, preferredBaseUrl?: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const base =
+    normalizeSiteBaseUrl(preferredBaseUrl) ||
+    normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+    normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+    normalizeSiteBaseUrl(process.env.SITE_URL) ||
+    getSiteBaseUrl();
+
+  try {
+    return new URL(normalizedPath, `${base}/`).toString();
+  } catch {
+    return buildSiteUrl(normalizedPath);
+  }
 }
 
 function getStyleLabel(style: ContentStyle | string): string {
@@ -538,8 +569,9 @@ async function saveTelegramSettings(
   return merged;
 }
 
-function buildSettingsMessage(settings: TelegramSettings): string {
+function buildSettingsMessage(settings: TelegramSettings, siteBaseUrl?: string): string {
   const lang = settings.interfaceLanguage || 'ru';
+  const adminUrl = buildAbsoluteSiteUrl('/en/admin', siteBaseUrl);
   const languageLabel = localize(
     lang,
     lang === 'ru' ? 'Русский' : lang === 'en' ? 'English' : 'Polski',
@@ -570,7 +602,7 @@ function buildSettingsMessage(settings: TelegramSettings): string {
     `• /single &lt;url1&gt; &lt;url2&gt; ...\n` +
     `• /reload\n` +
     `• /autopublish on|off\n\n` +
-    `${localize(lang, '🎨 Полные настройки:', '🎨 Full settings:', '🎨 Pełne ustawienia:')} https://www.icoffio.com/en/admin`
+    `${localize(lang, '🎨 Полные настройки:', '🎨 Full settings:', '🎨 Pełne ustawienia:')} ${adminUrl}`
   );
 }
 
@@ -944,10 +976,16 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
       article = await processText(normalizedText, undefined, settings.contentStyle);
     }
 
-    const publishResult = await publishArticle(article, input.chatId, settings.autoPublish, {
-      imagesCount: settings.imagesCount,
-      imagesSource: settings.imagesSource,
-    });
+    const publishResult = await publishArticle(
+      article,
+      input.chatId,
+      settings.autoPublish,
+      {
+        imagesCount: settings.imagesCount,
+        imagesSource: settings.imagesSource,
+      },
+      input.siteBaseUrl
+    );
 
     if (!publishResult.success) {
       throw new Error(publishResult.error || 'Publication failed');
@@ -1014,7 +1052,7 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
           `🇬🇧 EN: ${publishResult.en.url}\n` +
           `🇵🇱 PL: ${publishResult.pl.url}\n\n` +
           `${statusNote}\n` +
-          `🎨 Редактирование: https://www.icoffio.com/en/admin`,
+          `🎨 Редактирование: ${buildAbsoluteSiteUrl('/en/admin', input.siteBaseUrl)}`,
         { disable_web_page_preview: false }
       );
     }
@@ -1238,6 +1276,7 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
     existingSubmissionId: submissionId,
     sendProgressMessage: input.sendProgressMessage ?? true,
     sendResultMessage: input.sendResultMessage ?? true,
+    siteBaseUrl: input.siteBaseUrl,
   };
 
   const jobId = await enqueueTelegramSimpleJob(payload, 2);
@@ -1320,6 +1359,13 @@ function triggerTelegramSimpleWorker(request: NextRequest): void {
 
 export async function POST(request: NextRequest) {
   try {
+    const requestSiteBaseUrl =
+      normalizeSiteBaseUrl(request.nextUrl?.origin) ||
+      normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+      normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+      normalizeSiteBaseUrl(process.env.SITE_URL) ||
+      getSiteBaseUrl();
+
     const auth = verifyTelegramRequest(request);
     if (!auth.ok) {
       return NextResponse.json(
@@ -1469,7 +1515,7 @@ export async function POST(request: NextRequest) {
             trigger: 'callback_query',
           },
         });
-        await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(updated),
         });
         await answerCallbackQuery(
@@ -1660,7 +1706,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (command === '/settings') {
-        await sendTelegramMessage(chatId, buildSettingsMessage(settings), {
+        await sendTelegramMessage(chatId, buildSettingsMessage(settings, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(settings),
         });
         return NextResponse.json({ ok: true });
@@ -1714,7 +1760,7 @@ export async function POST(request: NextRequest) {
           metadata: { source: 'telegram-simple', interfaceLanguage: updated.interfaceLanguage },
         });
 
-        await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(updated),
         });
         return NextResponse.json({ ok: true });
@@ -1768,7 +1814,7 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        await sendTelegramMessage(chatId, buildSettingsMessage(updated), {
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(updated),
         });
         return NextResponse.json({ ok: true });
@@ -2058,10 +2104,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (command === '/admin') {
+        const adminPanelUrl = buildAbsoluteSiteUrl('/en/admin', requestSiteBaseUrl);
         await sendLocalized(
-          '🎨 Админ-панель: https://www.icoffio.com/en/admin',
-          '🎨 Admin panel: https://www.icoffio.com/en/admin',
-          '🎨 Panel admina: https://www.icoffio.com/en/admin'
+          `🎨 Админ-панель: ${adminPanelUrl}`,
+          `🎨 Admin panel: ${adminPanelUrl}`,
+          `🎨 Panel admina: ${adminPanelUrl}`
         );
         return NextResponse.json({ ok: true });
       }
@@ -2098,6 +2145,7 @@ export async function POST(request: NextRequest) {
           lastName,
           languageCode,
           rawText: text,
+          siteBaseUrl: requestSiteBaseUrl,
           urls: batchUrls,
           combineUrlsAsSingle: true,
           additionalContext: extractAdditionalContext(text, batchUrls),
@@ -2141,6 +2189,7 @@ export async function POST(request: NextRequest) {
           lastName,
           languageCode,
           rawText: url,
+          siteBaseUrl: requestSiteBaseUrl,
           url,
           settingsOverride: settings,
           sendProgressMessage: false,
@@ -2197,6 +2246,7 @@ export async function POST(request: NextRequest) {
       lastName,
       languageCode,
       rawText: text,
+      siteBaseUrl: requestSiteBaseUrl,
       settingsOverride: settings,
       sendProgressMessage: true,
       sendResultMessage: true,

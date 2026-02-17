@@ -81,7 +81,13 @@ def main():
     print("\n📋 Step 3/4: Managing Telegram webhook...")
     
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_url = "https://www.icoffio.com/api/telegram-simple/webhook"
+    webhook_base_url = (
+        config.get('telegram', {}).get('webhook_base_url')
+        or os.getenv('TELEGRAM_WEBHOOK_BASE_URL')
+        or os.getenv('NEXT_PUBLIC_SITE_URL')
+        or "https://web.icoffio.com"
+    ).rstrip('/')
+    webhook_url = f"{webhook_base_url}/api/telegram-simple/webhook"
     
     try:
         print("   Getting current webhook...")
@@ -184,4 +190,3 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
-

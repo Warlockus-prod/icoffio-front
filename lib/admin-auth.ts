@@ -1,6 +1,6 @@
 import { createClient, type User } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 export type AssignableAdminRole = 'admin' | 'editor' | 'viewer';
 export type AdminRole = 'owner' | AssignableAdminRole;

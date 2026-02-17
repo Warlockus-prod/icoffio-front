@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { localArticleStorage, type StoredArticle } from '@/lib/local-article-storage';
 import { getLocalArticles } from '@/lib/local-articles';
 import { adminLogger } from '@/lib/admin-logger';
@@ -27,9 +27,75 @@ interface ArticleItem {
   isFallbackImage?: boolean;
 }
 
+type SortDirection = 'asc' | 'desc';
+type SortColumn =
+  | 'title'
+  | 'category'
+  | 'language'
+  | 'author'
+  | 'source'
+  | 'status'
+  | 'publishStatus'
+  | 'views'
+  | 'createdAt'
+  | 'lastEdit';
+
+interface TableColumnFilters {
+  title: string;
+  category: string;
+  language: string;
+  author: string;
+  source: string;
+  type: string;
+}
+
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
 const DEFAULT_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const TABLE_SETTINGS_STORAGE_KEY = 'icoffio_admin_articles_table_settings_v1';
+const SORTABLE_COLUMNS: SortColumn[] = [
+  'title',
+  'category',
+  'language',
+  'author',
+  'source',
+  'status',
+  'publishStatus',
+  'views',
+  'createdAt',
+  'lastEdit',
+];
+const DEFAULT_TABLE_COLUMN_FILTERS: TableColumnFilters = {
+  title: '',
+  category: 'all',
+  language: 'all',
+  author: '',
+  source: 'all',
+  type: 'all',
+};
+const DEFAULT_VISIBLE_COLUMNS = {
+  title: true,
+  category: true,
+  language: true,
+  status: true,
+  created: true,
+  author: true,
+  source: true,
+  views: true,
+  lastEdit: true,
+  publishStatus: true,
+};
+const ESSENTIAL_VISIBLE_COLUMNS = {
+  title: true,
+  category: true,
+  language: true,
+  status: true,
+  created: true,
+  author: false,
+  source: true,
+  views: false,
+  lastEdit: false,
+  publishStatus: true,
+};
 const PLACEHOLDER_IMAGE_MARKERS = [
   DEFAULT_IMAGE_MARKER,
   'photo-1518770660439-4636190af475',
@@ -119,18 +185,10 @@ export default function ArticlesManager() {
     byImage: { custom: 0, fallback: 0 }
   });
   const [density, setDensity] = useState<'compact' | 'comfortable'>('compact');
-  const [visibleColumns, setVisibleColumns] = useState({
-    title: true,
-    category: true,
-    language: true,
-    status: true,
-    created: true,
-    author: true,
-    source: true,
-    views: true,
-    lastEdit: true,
-    publishStatus: true,
-  });
+  const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE_COLUMNS);
+  const [tableColumnFilters, setTableColumnFilters] = useState<TableColumnFilters>(DEFAULT_TABLE_COLUMN_FILTERS);
+  const [sortBy, setSortBy] = useState<SortColumn>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Загрузка всех статей
   const loadArticles = async () => {
@@ -434,12 +492,133 @@ export default function ArticlesManager() {
     return true;
   });
 
+  const hasTableColumnFilters = Object.values(tableColumnFilters).some(
+    (value) => value !== '' && value !== 'all'
+  );
+
+  const displayedArticles = useMemo(() => {
+    const withColumnFilters = filteredArticles.filter((article) => {
+      if (tableColumnFilters.title) {
+        if (!article.title.toLowerCase().includes(tableColumnFilters.title.toLowerCase())) {
+          return false;
+        }
+      }
+
+      if (tableColumnFilters.category !== 'all' && article.category !== tableColumnFilters.category) {
+        return false;
+      }
+
+      if (tableColumnFilters.language !== 'all' && article.language !== tableColumnFilters.language) {
+        return false;
+      }
+
+      if (tableColumnFilters.author) {
+        if (!article.author?.toLowerCase().includes(tableColumnFilters.author.toLowerCase())) {
+          return false;
+        }
+      }
+
+      if (tableColumnFilters.source !== 'all') {
+        const sourceGroup = getSourceGroup(article.source);
+        if (sourceGroup !== tableColumnFilters.source) {
+          return false;
+        }
+      }
+
+      if (tableColumnFilters.type !== 'all' && article.status !== tableColumnFilters.type) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const sorted = [...withColumnFilters].sort((a, b) => {
+      const sourceA = getSourceGroup(a.source);
+      const sourceB = getSourceGroup(b.source);
+      const aValue = (() => {
+        if (sortBy === 'title') return a.title.toLowerCase();
+        if (sortBy === 'category') return a.category.toLowerCase();
+        if (sortBy === 'language') return a.language.toLowerCase();
+        if (sortBy === 'author') return (a.author || '').toLowerCase();
+        if (sortBy === 'source') return sourceA;
+        if (sortBy === 'status') return a.status;
+        if (sortBy === 'publishStatus') return a.publishStatus || 'draft';
+        if (sortBy === 'views') return a.views || 0;
+        if (sortBy === 'lastEdit') return new Date(a.lastEdit || a.createdAt).getTime() || 0;
+        return new Date(a.createdAt).getTime() || 0;
+      })();
+      const bValue = (() => {
+        if (sortBy === 'title') return b.title.toLowerCase();
+        if (sortBy === 'category') return b.category.toLowerCase();
+        if (sortBy === 'language') return b.language.toLowerCase();
+        if (sortBy === 'author') return (b.author || '').toLowerCase();
+        if (sortBy === 'source') return sourceB;
+        if (sortBy === 'status') return b.status;
+        if (sortBy === 'publishStatus') return b.publishStatus || 'draft';
+        if (sortBy === 'views') return b.views || 0;
+        if (sortBy === 'lastEdit') return new Date(b.lastEdit || b.createdAt).getTime() || 0;
+        return new Date(b.createdAt).getTime() || 0;
+      })();
+
+      let result = 0;
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        result = aValue - bValue;
+      } else {
+        result = String(aValue).localeCompare(String(bValue), 'en', { sensitivity: 'base' });
+      }
+
+      return sortDirection === 'asc' ? result : -result;
+    });
+
+    return sorted;
+  }, [filteredArticles, sortBy, sortDirection, tableColumnFilters]);
+
+  const selectedItems = useMemo(
+    () => articles.filter((article) => selectedArticles.has(article.id)),
+    [articles, selectedArticles]
+  );
+  const selectedVisibleCount = useMemo(
+    () => displayedArticles.filter((article) => selectedArticles.has(article.id)).length,
+    [displayedArticles, selectedArticles]
+  );
+  const selectedDeletableCount = useMemo(
+    () => selectedItems.filter((article) => article.status !== 'static').length,
+    [selectedItems]
+  );
+
+  const handleSortToggle = (column: SortColumn) => {
+    if (sortBy === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortBy(column);
+    if (column === 'views' || column === 'createdAt' || column === 'lastEdit') {
+      setSortDirection('desc');
+    } else {
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortMarker = (column: SortColumn): string => {
+    if (sortBy !== column) return '↕';
+    return sortDirection === 'asc' ? '↑' : '↓';
+  };
+
   // Обработка чекбоксов
   const handleSelectAll = () => {
-    if (selectedArticles.size === filteredArticles.length) {
-      setSelectedArticles(new Set());
+    if (displayedArticles.length === 0) {
+      return;
+    }
+
+    if (selectedVisibleCount === displayedArticles.length) {
+      const next = new Set(selectedArticles);
+      displayedArticles.forEach((article) => next.delete(article.id));
+      setSelectedArticles(next);
     } else {
-      setSelectedArticles(new Set(filteredArticles.map(a => a.id)));
+      const next = new Set(selectedArticles);
+      displayedArticles.forEach((article) => next.add(article.id));
+      setSelectedArticles(next);
     }
   };
 
@@ -486,7 +665,7 @@ export default function ArticlesManager() {
   // Массовое удаление
   const handleBulkDelete = async () => {
     const selectedCount = selectedArticles.size;
-    const articlesToDelete = filteredArticles.filter(a => selectedArticles.has(a.id));
+    const articlesToDelete = articles.filter(a => selectedArticles.has(a.id));
     const staticCount = articlesToDelete.filter(a => a.status === 'static').length;
     
     if (staticCount > 0) {
@@ -546,6 +725,8 @@ export default function ArticlesManager() {
       const parsed = JSON.parse(stored) as {
         density?: 'compact' | 'comfortable';
         visibleColumns?: typeof visibleColumns;
+        sortBy?: SortColumn;
+        sortDirection?: SortDirection;
       };
 
       if (parsed.density === 'compact' || parsed.density === 'comfortable') {
@@ -553,6 +734,12 @@ export default function ArticlesManager() {
       }
       if (parsed.visibleColumns) {
         setVisibleColumns((prev) => ({ ...prev, ...parsed.visibleColumns, title: true }));
+      }
+      if (parsed.sortBy && SORTABLE_COLUMNS.includes(parsed.sortBy)) {
+        setSortBy(parsed.sortBy);
+      }
+      if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
+        setSortDirection(parsed.sortDirection);
       }
     } catch (error) {
       console.warn('Failed to load table settings:', error);
@@ -563,9 +750,9 @@ export default function ArticlesManager() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(
       TABLE_SETTINGS_STORAGE_KEY,
-      JSON.stringify({ density, visibleColumns })
+      JSON.stringify({ density, visibleColumns, sortBy, sortDirection })
     );
-  }, [density, visibleColumns]);
+  }, [density, visibleColumns, sortBy, sortDirection]);
 
   // Загрузка при монтировании и автообновление
   useEffect(() => {
@@ -643,7 +830,7 @@ export default function ArticlesManager() {
   };
 
   const handleExportCsv = () => {
-    if (filteredArticles.length === 0) {
+    if (displayedArticles.length === 0) {
       alert('No rows to export.');
       return;
     }
@@ -664,7 +851,7 @@ export default function ArticlesManager() {
       'url'
     ];
 
-    const rows = filteredArticles.map((article) => [
+    const rows = displayedArticles.map((article) => [
       article.title,
       article.slug,
       article.category,
@@ -721,7 +908,7 @@ export default function ArticlesManager() {
           viewsMax: ''
         })}
         totalResults={articles.length}
-        filteredResults={filteredArticles.length}
+        filteredResults={displayedArticles.length}
       />
 
       {/* Header with Stats */}
@@ -748,7 +935,7 @@ export default function ArticlesManager() {
 
             <button
               onClick={handleExportCsv}
-              disabled={filteredArticles.length === 0}
+              disabled={displayedArticles.length === 0}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               ⬇️ Export CSV
@@ -818,7 +1005,26 @@ export default function ArticlesManager() {
           <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
             ⚙️ Configure Table Columns
           </summary>
-          <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setVisibleColumns({ ...DEFAULT_VISIBLE_COLUMNS })}
+                className="px-3 py-1 text-xs rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900"
+              >
+                Show All Columns
+              </button>
+              <button
+                onClick={() => setVisibleColumns({ ...ESSENTIAL_VISIBLE_COLUMNS })}
+                className="px-3 py-1 text-xs rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900"
+              >
+                Essential Set
+              </button>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Visible: {Object.values(visibleColumns).filter(Boolean).length}/{Object.keys(visibleColumns).length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {Object.entries(visibleColumns).map(([key, value]) => (
               <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
@@ -842,6 +1048,7 @@ export default function ArticlesManager() {
                 </span>
               </label>
             ))}
+            </div>
           </div>
         </details>
 
@@ -852,7 +1059,7 @@ export default function ArticlesManager() {
               <div className="text-yellow-800 dark:text-yellow-200">
                 <span className="font-medium">{selectedArticles.size} articles selected</span>
                 <span className="text-sm ml-2">
-                  ({filteredArticles.filter(a => selectedArticles.has(a.id) && a.status === 'admin').length} can be deleted)
+                  ({selectedDeletableCount} deletable, {selectedVisibleCount} visible in current view)
                 </span>
               </div>
               <div className="flex gap-3">
@@ -864,7 +1071,7 @@ export default function ArticlesManager() {
                 </button>
                 <button
                   onClick={handleBulkDelete}
-                  disabled={filteredArticles.filter(a => selectedArticles.has(a.id) && a.status === 'admin').length === 0}
+                  disabled={selectedDeletableCount === 0}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   🗑️ Delete Selected
@@ -879,19 +1086,128 @@ export default function ArticlesManager() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h4 className="font-medium text-gray-900 dark:text-white flex items-center justify-between">
-            <span>📋 Articles ({filteredArticles.length})</span>
-            {filteredArticles.length > 0 && (
+            <span>📋 Articles ({displayedArticles.length})</span>
+            {displayedArticles.length > 0 && (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={selectedArticles.size === filteredArticles.length && filteredArticles.length > 0}
+                  checked={selectedVisibleCount === displayedArticles.length}
                   onChange={handleSelectAll}
                   className="rounded"
                 />
-                Select All
+                Select All (visible)
               </label>
             )}
           </h4>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
+            <input
+              type="text"
+              value={tableColumnFilters.title}
+              onChange={(event) =>
+                setTableColumnFilters((prev) => ({ ...prev, title: event.target.value }))
+              }
+              placeholder="Filter title..."
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <select
+              value={tableColumnFilters.category}
+              onChange={(event) =>
+                setTableColumnFilters((prev) => ({ ...prev, category: event.target.value }))
+              }
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">All categories</option>
+              <option value="ai">AI</option>
+              <option value="apple">Apple</option>
+              <option value="tech">Tech</option>
+              <option value="games">Games</option>
+              <option value="digital">Digital</option>
+            </select>
+            <select
+              value={tableColumnFilters.language}
+              onChange={(event) =>
+                setTableColumnFilters((prev) => ({ ...prev, language: event.target.value }))
+              }
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">All languages</option>
+              <option value="en">English</option>
+              <option value="pl">Polish</option>
+            </select>
+            <input
+              type="text"
+              value={tableColumnFilters.author}
+              onChange={(event) =>
+                setTableColumnFilters((prev) => ({ ...prev, author: event.target.value }))
+              }
+              placeholder="Filter author..."
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <select
+              value={tableColumnFilters.source}
+              onChange={(event) =>
+                setTableColumnFilters((prev) => ({ ...prev, source: event.target.value }))
+              }
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">All sources</option>
+              <option value="telegram">Telegram</option>
+              <option value="admin">Admin</option>
+              <option value="static">Static</option>
+              <option value="supabase">Supabase</option>
+              <option value="other">Other</option>
+            </select>
+            <select
+              value={tableColumnFilters.type}
+              onChange={(event) =>
+                setTableColumnFilters((prev) => ({ ...prev, type: event.target.value }))
+              }
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">All types</option>
+              <option value="admin">Admin</option>
+              <option value="dynamic">Dynamic</option>
+              <option value="static">Static</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SortColumn)}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="createdAt">Sort: Created</option>
+              <option value="title">Sort: Title</option>
+              <option value="category">Sort: Category</option>
+              <option value="language">Sort: Language</option>
+              <option value="author">Sort: Author</option>
+              <option value="source">Sort: Source</option>
+              <option value="status">Sort: Type</option>
+              <option value="publishStatus">Sort: Status</option>
+              <option value="views">Sort: Views</option>
+              <option value="lastEdit">Sort: Last Edit</option>
+            </select>
+            <div className="flex gap-2">
+              <select
+                value={sortDirection}
+                onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+              </select>
+              <button
+                onClick={() => setTableColumnFilters({ ...DEFAULT_TABLE_COLUMN_FILTERS })}
+                className="px-3 py-2 text-xs rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          {hasTableColumnFilters && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Quick table filters are active. They are applied on top of Advanced Search.
+            </p>
+          )}
         </div>
 
         {/* Desktop Table View */}
@@ -900,21 +1216,111 @@ export default function ArticlesManager() {
             <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="w-12 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Select</th>
-                {visibleColumns.title && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>}
-                {visibleColumns.category && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>}
-                {visibleColumns.language && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Language</th>}
-                {visibleColumns.author && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>}
-                {visibleColumns.source && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Source</th>}
-                {visibleColumns.status && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>}
-                {visibleColumns.publishStatus && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
-                {visibleColumns.views && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Views</th>}
-                {visibleColumns.created && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>}
-                {visibleColumns.lastEdit && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Edit</th>}
+                {visibleColumns.title && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('title')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Title <span>{getSortMarker('title')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.category && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('category')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Category <span>{getSortMarker('category')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.language && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('language')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Language <span>{getSortMarker('language')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.author && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('author')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Author <span>{getSortMarker('author')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.source && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('source')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Source <span>{getSortMarker('source')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.status && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('status')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Type <span>{getSortMarker('status')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.publishStatus && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('publishStatus')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Status <span>{getSortMarker('publishStatus')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.views && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('views')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Views <span>{getSortMarker('views')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.created && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('createdAt')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Created <span>{getSortMarker('createdAt')}</span>
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.lastEdit && (
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortToggle('lastEdit')}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Last Edit <span>{getSortMarker('lastEdit')}</span>
+                    </button>
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredArticles.map((article) => (
+              {displayedArticles.map((article) => (
                 <tr
                   key={article.id}
                   className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
@@ -1089,7 +1495,7 @@ export default function ArticlesManager() {
 
         {/* Mobile Card View */}
         <div className="md:hidden p-4 space-y-4">
-          {filteredArticles.map((article) => (
+          {displayedArticles.map((article) => (
             <MobileArticleCard
               key={article.id}
               article={article}
@@ -1128,7 +1534,7 @@ export default function ArticlesManager() {
         </div>
 
         {/* Empty State */}
-        {filteredArticles.length === 0 && (
+        {displayedArticles.length === 0 && (
           <div className="text-center py-12">
             <div className="text-4xl mb-4">📭</div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No articles found</h3>
@@ -1144,7 +1550,8 @@ export default function ArticlesManager() {
               filters.dateFrom ||
               filters.dateTo ||
               filters.viewsMin ||
-              filters.viewsMax
+              filters.viewsMax ||
+              hasTableColumnFilters
                 ? 'Try adjusting your filters to see more articles.'
                 : 'Create your first article using the URL Parser or Text Input.'
               }
@@ -1171,7 +1578,7 @@ export default function ArticlesManager() {
             <div className="font-medium mb-2">Bulk Operations:</div>
             <ul className="space-y-1">
               <li>• Select multiple articles using checkboxes</li>
-              <li>• Only admin-created articles can be deleted</li>
+              <li>• Dynamic and admin articles can be deleted</li>
               <li>• Static articles are protected from deletion</li>
               <li>• Use search and filters to find specific articles</li>
               <li>• Export current filtered view to CSV</li>

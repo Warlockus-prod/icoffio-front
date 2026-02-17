@@ -1,5 +1,6 @@
 import { createClient, type User } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export type AssignableAdminRole = 'admin' | 'editor' | 'viewer';
 export type AdminRole = 'owner' | AssignableAdminRole;
@@ -63,6 +64,8 @@ const ADMIN_UPDATED_AT_META_KEY = 'icoffio_admin_updated_at';
 
 export const ADMIN_ACCESS_COOKIE = 'icoffio_admin_access_token';
 export const ADMIN_REFRESH_COOKIE = 'icoffio_admin_refresh_token';
+export const ADMIN_LEGACY_SESSION_COOKIE = 'icoffio_admin_legacy_session';
+const LEGACY_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 const ADMIN_COOKIE_BASE_OPTIONS = {
   httpOnly: true,
@@ -80,6 +83,90 @@ function getSupabaseCredentials(): { url: string; key: string } {
   }
 
   return { url, key };
+}
+
+function safeStringEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+function getConfiguredAdminPassword(): string | null {
+  const configured = (process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '').trim();
+  return configured || null;
+}
+
+export function isAdminPasswordValid(input: string): boolean {
+  const configured = getConfiguredAdminPassword();
+  if (!configured) return false;
+  return safeStringEqual(configured, (input || '').trim());
+}
+
+function createLegacySessionSignature(payload: string): string {
+  const configured = getConfiguredAdminPassword();
+  if (!configured) return '';
+  return createHmac('sha256', configured).update(payload).digest('hex');
+}
+
+function createLegacySessionToken(email: string): string {
+  const normalizedEmail = normalizeEmail(email);
+  const expiresAt = Math.floor(Date.now() / 1000) + LEGACY_SESSION_TTL_SECONDS;
+  const emailEncoded = Buffer.from(normalizedEmail, 'utf8').toString('base64url');
+  const payload = `${emailEncoded}:${expiresAt}`;
+  const signature = createLegacySessionSignature(payload);
+  return `${payload}.${signature}`;
+}
+
+function parseLegacySessionToken(token: string): { email: string; expiresAt: number } | null {
+  if (!token) return null;
+  const dotIndex = token.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex === token.length - 1) return null;
+  const payload = token.slice(0, dotIndex);
+  const signaturePart = token.slice(dotIndex + 1);
+
+  const payloadParts = payload.split(':');
+  if (payloadParts.length !== 2) return null;
+  const [emailEncoded, expiresPart] = payloadParts;
+  const expiresAt = Number.parseInt(expiresPart, 10);
+  if (!emailEncoded || !Number.isFinite(expiresAt) || expiresAt <= 0 || !signaturePart) {
+    return null;
+  }
+
+  const expectedSignature = createLegacySessionSignature(payload);
+  if (!expectedSignature) return null;
+  if (!safeStringEqual(expectedSignature, signaturePart)) return null;
+  if (expiresAt <= Math.floor(Date.now() / 1000)) return null;
+
+  let emailRaw = '';
+  try {
+    emailRaw = Buffer.from(emailEncoded, 'base64url').toString('utf8');
+  } catch {
+    return null;
+  }
+  if (!emailRaw) return null;
+
+  return {
+    email: normalizeEmail(emailRaw),
+    expiresAt,
+  };
+}
+
+function getLegacySessionContextFromRequest(request: NextRequest): AdminAuthContext | null {
+  const token = request.cookies.get(ADMIN_LEGACY_SESSION_COOKIE)?.value || '';
+  const parsed = parseLegacySessionToken(token);
+  if (!parsed) return null;
+
+  const ownerEmail = getConfiguredOwnerEmails().includes(parsed.email)
+    ? parsed.email
+    : getConfiguredOwnerEmails()[0] || DEFAULT_OWNER_EMAILS[0];
+
+  return {
+    userId: `legacy:${ownerEmail}`,
+    email: ownerEmail,
+    role: 'owner',
+    isOwner: true,
+  };
 }
 
 function isMissingAdminRolesTable(message: string, code?: string): boolean {
@@ -484,12 +571,29 @@ export function setAdminSessionCookies(
   });
 }
 
+export function setLegacyAdminSessionCookie(response: NextResponse, email?: string) {
+  const ownerEmail = normalizeEmail(email || getConfiguredOwnerEmails()[0] || DEFAULT_OWNER_EMAILS[0]);
+  const token = createLegacySessionToken(ownerEmail);
+  if (!token) {
+    throw new Error('Admin password is not configured');
+  }
+
+  response.cookies.set(ADMIN_LEGACY_SESSION_COOKIE, token, {
+    ...ADMIN_COOKIE_BASE_OPTIONS,
+    maxAge: LEGACY_SESSION_TTL_SECONDS,
+  });
+}
+
 export function clearAdminSessionCookies(response: NextResponse) {
   response.cookies.set(ADMIN_ACCESS_COOKIE, '', {
     ...ADMIN_COOKIE_BASE_OPTIONS,
     maxAge: 0,
   });
   response.cookies.set(ADMIN_REFRESH_COOKIE, '', {
+    ...ADMIN_COOKIE_BASE_OPTIONS,
+    maxAge: 0,
+  });
+  response.cookies.set(ADMIN_LEGACY_SESSION_COOKIE, '', {
     ...ADMIN_COOKIE_BASE_OPTIONS,
     maxAge: 0,
   });
@@ -542,6 +646,28 @@ export async function requireAdminRole(
   requiredRole: AdminRole,
   options: RequireRoleOptions = {}
 ): Promise<RequireRoleResult> {
+  const legacyContext = getLegacySessionContextFromRequest(request);
+  if (legacyContext) {
+    if (!isRoleAllowed(legacyContext.role, requiredRole)) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            success: false,
+            error: `Forbidden. Required role: ${requiredRole}`,
+            role: legacyContext.role,
+          },
+          { status: 403 }
+        ),
+      };
+    }
+
+    return {
+      ok: true,
+      context: legacyContext,
+    };
+  }
+
   const accessToken = getAuthTokenFromRequest(request);
 
   let user: User | null = null;

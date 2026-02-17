@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Dashboard from '@/components/admin/Dashboard';
 import URLParser from '@/components/admin/URLParser';
@@ -20,7 +20,6 @@ import TeamAccessManager from '@/components/admin/TeamAccessManager';
 
 export default function AdminPage() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { 
     isAuthenticated, 
     isLoading, 
@@ -32,9 +31,8 @@ export default function AdminPage() {
     setActiveTab,
   } = useAdminStore();
   
-  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const locale: 'en' | 'pl' = pathname?.split('/')[1] === 'pl' ? 'pl' : 'en';
@@ -42,27 +40,6 @@ export default function AdminPage() {
   useEffect(() => {
     void checkSession();
   }, [checkSession]);
-
-  useEffect(() => {
-    const authStatus = searchParams.get('auth');
-    const authError = searchParams.get('auth_error');
-
-    if (authStatus === 'ok') {
-      setInfo('Magic link confirmed. Signing you in...');
-      setError('');
-      void checkSession();
-      return;
-    }
-
-    if (authError) {
-      if (authError === 'not_invited') {
-        setError('This email is not invited to admin panel.');
-      } else {
-        setError(`Authentication failed: ${authError}`);
-      }
-      setInfo('');
-    }
-  }, [checkSession, searchParams]);
 
   useEffect(() => {
     const currentTabRequiresAdmin = ['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(activeTab);
@@ -84,15 +61,14 @@ export default function AdminPage() {
     e.preventDefault();
     setIsAuthenticating(true);
     setError('');
-    setInfo('');
     
     try {
-      const result = await authenticate(email, locale);
+      const result = await authenticate(password, locale);
       if (result.success) {
-        setInfo(result.message || 'Magic link sent. Check your inbox.');
-        setEmail('');
+        setPassword('');
+        return;
       } else {
-        setError(result.error || 'Failed to send magic link');
+        setError(result.error || 'Sign in failed');
       }
     } catch (error) {
       setError('Authentication error. Please try again.');
@@ -134,28 +110,20 @@ export default function AdminPage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
             <form onSubmit={handleAuth} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Work Email
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Admin Password
                 </label>
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
+                  id="password"
+                  name="password"
+                  type="password"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="name@company.com"
+                  placeholder="Enter admin password"
                 />
               </div>
-
-              {info && (
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    {info}
-                  </p>
-                </div>
-              )}
 
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -176,10 +144,10 @@ export default function AdminPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Sending magic link...
+                    Signing in...
                   </span>
                 ) : (
-                  '✉️ Send Magic Link'
+                  '🔐 Sign In'
                 )}
               </button>
             </form>

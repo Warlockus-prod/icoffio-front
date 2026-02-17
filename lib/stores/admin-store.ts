@@ -192,7 +192,7 @@ interface AdminStore {
   statistics: Statistics;
   
   // Actions
-  authenticate: (email: string, locale?: 'en' | 'pl') => Promise<{ success: boolean; message?: string; error?: string }>;
+  authenticate: (password: string, locale?: 'en' | 'pl') => Promise<{ success: boolean; message?: string; error?: string }>;
   checkSession: () => Promise<void>;
   hasRole: (requiredRole: AdminRole) => boolean;
   logout: () => Promise<void>;
@@ -262,33 +262,40 @@ export const useAdminStore = create<AdminStore>()(
         recentActivity: []
       },
 
-      // Authentication — magic link + RBAC through server-side API
-      authenticate: async (email: string, locale: 'en' | 'pl' = 'en') => {
+      // Authentication — password session + RBAC through server-side API
+      authenticate: async (password: string, locale: 'en' | 'pl' = 'en') => {
         try {
           const response = await fetch('/api/admin/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              action: 'request_magic_link',
-              email,
-              locale,
-              next: `/${locale}/admin`,
+              action: 'password_login',
+              password,
             }),
           });
           
           const result = await response.json();
           
           if (result.success) {
-            adminLogger.info('user', 'login_magic_link_sent', `Magic link sent to ${email}`);
+            const user: AdminUser = {
+              email: String(result?.user?.email || 'ag@voxexchange.io'),
+              role: (result?.user?.role || 'owner') as AdminRole,
+              isOwner: Boolean(result?.user?.isOwner ?? true),
+            };
+            set({
+              isAuthenticated: true,
+              currentUser: user,
+            });
+            adminLogger.info('user', 'login_password_success', `Admin password login for ${user.email}`);
             return {
               success: true,
-              message: result.message || 'Magic link sent to your email.',
+              message: result.message || 'Signed in successfully.',
             };
           }
 
           return {
             success: false,
-            error: result.error || 'Failed to send magic link',
+            error: result.error || 'Invalid password',
           };
         } catch (error) {
           console.error('API auth error:', error);

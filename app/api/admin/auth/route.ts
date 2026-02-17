@@ -4,12 +4,15 @@ import {
   clearAdminSessionCookies,
   ensureRoleForSelfSignup,
   getAdminMembers,
+  getOwnerEmails,
   getSupabaseAdminClient,
+  isAdminPasswordValid,
   isRoleAllowed,
   isOwnerEmail,
   normalizeEmail,
   requireAdminRole,
   sanitizeNextPath,
+  setLegacyAdminSessionCookie,
   setAdminSessionCookies,
   upsertAdminRole,
   ensureRoleForAuthenticatedUser,
@@ -22,6 +25,7 @@ export const dynamic = 'force-dynamic';
 interface AuthActionRequest {
   action?: string;
   email?: string;
+  password?: string;
   role?: AssignableAdminRole;
   locale?: 'en' | 'pl';
   next?: string;
@@ -299,6 +303,31 @@ async function handleSetRole(request: NextRequest, body: AuthActionRequest) {
   return response;
 }
 
+async function handlePasswordLogin(body: AuthActionRequest) {
+  const password = typeof body.password === 'string' ? body.password : '';
+  if (!password.trim()) {
+    return NextResponse.json({ success: false, error: 'Password is required' }, { status: 400 });
+  }
+
+  if (!isAdminPasswordValid(password)) {
+    return NextResponse.json({ success: false, error: 'Invalid password' }, { status: 401 });
+  }
+
+  const ownerEmail = getOwnerEmails()[0] || 'ag@voxexchange.io';
+  const response = NextResponse.json({
+    success: true,
+    message: 'Signed in successfully',
+    user: {
+      email: ownerEmail,
+      role: 'owner',
+      isOwner: true,
+    },
+  });
+
+  setLegacyAdminSessionCookie(response, ownerEmail);
+  return response;
+}
+
 async function handleLogout() {
   const response = NextResponse.json({ success: true });
   clearAdminSessionCookies(response);
@@ -312,6 +341,10 @@ export async function POST(request: NextRequest) {
 
     if (action === 'request_magic_link') {
       return await handleRequestMagicLink(body);
+    }
+
+    if (action === 'password_login') {
+      return await handlePasswordLogin(body);
     }
 
     if (action === 'invite') {

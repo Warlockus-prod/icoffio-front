@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.9] - 2026-02-17 - 🔁 Admin Login Rollback to Password Session
+
+### ✅ Rollback completed
+- Admin panel login switched back to shared password flow (`ADMIN_PASSWORD` / `NEXT_PUBLIC_ADMIN_PASSWORD`) instead of requiring magic-link as primary path.
+- Added secure legacy admin session cookie (`httpOnly`) signed with HMAC based on configured admin password.
+- `requireAdminRole()` now accepts valid legacy password session, so all protected admin API routes continue working with RBAC checks.
+- Logout now clears both Supabase auth cookies and legacy password session cookie.
+
+### 🖥️ UI update
+- Admin login screen changed from `Work Email + Send Magic Link` to `Admin Password + Sign In`.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+
 ## [8.7.8] - 2026-02-17 - 🔐 Self-Signup Works Without Roles Table (Metadata Fallback)
 
 ### ✅ What was fixed

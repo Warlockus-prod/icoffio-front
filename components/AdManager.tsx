@@ -49,6 +49,17 @@ export function AdManager() {
     );
   };
 
+  // VOX SDK expects window._tx.cmds queue to exist before script execution.
+  const ensureTxQueue = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!window._tx || typeof window._tx !== 'object') {
+      window._tx = {};
+    }
+    if (!Array.isArray(window._tx.cmds)) {
+      window._tx.cmds = [];
+    }
+  }, []);
+
   // 1. Initialize VOX logic with safe retries and per-container attempt tracking.
   const initVOX = useCallback((reason: string) => {
     if (!hasConsent) return;
@@ -149,6 +160,8 @@ export function AdManager() {
       return;
     }
 
+    ensureTxQueue();
+
     if (typeof window._tx !== 'undefined' && window._tx.integrateInImage) {
       scriptLoaded.current = true;
       scheduleInitRetries('script-ready');
@@ -158,13 +171,22 @@ export function AdManager() {
     const existingScript = document.querySelector<HTMLScriptElement>('script[data-vox-ssp="1"]');
 
     const onScriptLoad = () => {
+      ensureTxQueue();
       scriptLoaded.current = true;
       scheduleInitRetries('script-load');
     };
 
     if (existingScript) {
       existingScript.addEventListener('load', onScriptLoad, { once: true });
-      return () => existingScript.removeEventListener('load', onScriptLoad);
+      const readyPoll = window.setTimeout(() => {
+        if (window._tx && window._tx.integrateInImage) {
+          onScriptLoad();
+        }
+      }, 250);
+      return () => {
+        window.clearTimeout(readyPoll);
+        existingScript.removeEventListener('load', onScriptLoad);
+      };
     }
 
     const script = document.createElement("script");
@@ -182,7 +204,7 @@ export function AdManager() {
       script.onload = null;
       script.onerror = null;
     };
-  }, [clearMutationDebounce, clearRetryTimers, hasConsent, scheduleInitRetries]);
+  }, [clearMutationDebounce, clearRetryTimers, ensureTxQueue, hasConsent, scheduleInitRetries]);
 
   // 3. Re-init on route changes and when ad containers appear later.
   useEffect(() => {

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.47] - 2026-02-17 - 📺 VOX SDK Bootstrap Fix (VPS Ads Restore)
+
+### 🎯 Что исправлено
+- Исправлен запуск VOX SDK в `components/AdManager.tsx`:
+  - перед подключением `https://st.hbrd.io/ssp.js` теперь гарантированно создается `window._tx.cmds`,
+  - устранена ошибка рантайма `Cannot read properties of undefined (reading 'cmds')`,
+  - добавлен безопасный `ready`-poll для сценария, когда script-тег уже есть в DOM.
+- Результат: восстановлена корректная инициализация display/in-image рекламы на VPS без возврата к циклу зависаний.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.6.46] - 2026-02-17 - 🧩 VPS Stabilization (No Video) + Content Cleanup
 
 ### 🎯 Что исправлено

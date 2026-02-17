@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
   - branch handlers now use `await`, so async errors are returned as JSON instead of raw 500 with empty body.
 - Improved owner fallback when `admin_user_roles` table is missing:
   - owner emails can still resolve role at auth layer without hard crash.
+  - fallback now also recognizes Supabase PostgREST `schema cache` missing-table errors (not only SQL `42P01`).
 
 ### 🧾 Better error behavior
 - `request_magic_link` now returns readable JSON error in failure cases (instead of frontend showing generic `Authentication request failed` due empty response body parse failure).

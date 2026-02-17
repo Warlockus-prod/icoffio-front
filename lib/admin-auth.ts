@@ -77,8 +77,21 @@ function getSupabaseCredentials(): { url: string; key: string } {
   return { url, key };
 }
 
+function isMissingAdminRolesTable(message: string, code?: string): boolean {
+  const normalizedMessage = (message || '').toLowerCase();
+  const normalizedCode = (code || '').toUpperCase();
+  if (normalizedCode === '42P01') return true;
+
+  return (
+    normalizedMessage.includes('admin_user_roles') &&
+    (normalizedMessage.includes('schema cache') ||
+      normalizedMessage.includes('does not exist') ||
+      normalizedMessage.includes('relation'))
+  );
+}
+
 function toReadableRoleError(operation: string, message: string, code?: string): string {
-  if (code === '42P01') {
+  if (isMissingAdminRolesTable(message, code)) {
     return `${operation} failed: table admin_user_roles is missing. Run Supabase migration 20260217_admin_roles_and_access.sql`;
   }
   return `${operation} failed: ${message}`;
@@ -197,7 +210,7 @@ async function fetchRoleByEmail(
     .maybeSingle();
 
   if (error) {
-    if (error.code === '42P01' && options.allowMissingTable) {
+    if (options.allowMissingTable && isMissingAdminRolesTable(error.message, error.code)) {
       return null;
     }
     throw new Error(toReadableRoleError('Load role', error.message, error.code));

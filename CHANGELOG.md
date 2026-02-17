@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.46] - 2026-02-17 - 🧩 VPS Stabilization (No Video) + Content Cleanup
+
+### 🎯 Что исправлено
+- Убраны fake fallback-данные из advanced search:
+  - `components/AdvancedSearch.tsx` больше не подставляет mock статьи/категории,
+  - показываются только реальные данные, полученные из API.
+- Исправлен источник данных поиска:
+  - `components/SearchModalWrapper.tsx` теперь запрашивает `GET /api/supabase-articles?lang=...`,
+  - убран некорректный запрос в `GET /api/articles` (документационный endpoint).
+- Усилен `AdManager` против повторной инициализации:
+  - один `in-image` init на конкретный article path,
+  - debounce + throttle для `dom-mutation` retry,
+  - дополнительные cleanup hooks для таймеров observer/retry.
+- WordPress публикация переведена в явный feature-flag:
+  - `app/api/articles/route.ts` использует `ENABLE_WORDPRESS_PUBLISH`,
+  - по умолчанию WordPress publish выключен, основной publish-путь остается Supabase/VPS.
+
+### 🧹 Очистка данных
+- WordPress cleanup scan: проблемных статей не обнаружено (`33` записей, `0` проблемных).
+- One-time Supabase sanitizer выполнен с прод-ENV:
+  - обновлена `1` «грязная» запись (`id=51`),
+  - повторный dry-run: `0` кандидатов на обновление.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.6.45] - 2026-02-16 - 🔧 Pre-VPS Stabilization + WordPress Cleanup
 
 ### 🎯 Что исправлено

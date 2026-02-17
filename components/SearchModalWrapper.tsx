@@ -13,23 +13,20 @@ interface SearchModalWrapperProps {
 export function SearchModalWrapper({ posts: initialPosts, locale }: SearchModalWrapperProps) {
   const { isSearchOpen, closeSearch } = useSearch();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
-  const [isLoading, setIsLoading] = useState(false);
   const hasFetchedRef = useRef(false);
 
   // Загружаем посты client-side если их нет (один раз)
   useEffect(() => {
     if (initialPosts.length === 0 && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      setIsLoading(true);
-      fetch(`/api/articles?locale=${locale}&limit=50`)
+      fetch(`/api/supabase-articles?lang=${locale}&limit=100`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.articles) {
             setPosts(data.articles);
           }
         })
-        .catch(err => console.error('Failed to load articles for search:', err))
-        .finally(() => setIsLoading(false));
+        .catch(err => console.error('Failed to load articles for search:', err));
     }
   }, [initialPosts.length, locale]);
 
@@ -42,4 +39,3 @@ export function SearchModalWrapper({ posts: initialPosts, locale }: SearchModalW
     />
   );
 }
-

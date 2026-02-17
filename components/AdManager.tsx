@@ -25,10 +25,20 @@ export function AdManager() {
   const scriptLoaded = useRef(false);
   const retryTimersRef = useRef<number[]>([]);
   const observerRef = useRef<MutationObserver | null>(null);
+  const mutationDebounceRef = useRef<number | null>(null);
+  const lastMutationScheduleRef = useRef(0);
+  const lastInImagePathRef = useRef<string | null>(null);
 
   const clearRetryTimers = useCallback(() => {
     retryTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
     retryTimersRef.current = [];
+  }, []);
+
+  const clearMutationDebounce = useCallback(() => {
+    if (mutationDebounceRef.current !== null) {
+      window.clearTimeout(mutationDebounceRef.current);
+      mutationDebounceRef.current = null;
+    }
   }, []);
 
   const hasContainerContent = (container: HTMLElement): boolean => {
@@ -45,7 +55,9 @@ export function AdManager() {
     if (typeof window._tx === 'undefined' || !window._tx.integrateInImage || !window._tx.init) return;
 
     try {
-      const isArticlePage = pathname?.includes('/article/');
+      const currentPath = pathname || '';
+      const isArticlePage = currentPath.includes('/article/');
+      const shouldInitInImage = isArticlePage && lastInImagePathRef.current !== currentPath;
       const displayPlaceIdsToInit = new Set<string>();
       const adContainers = Array.from(
         document.querySelectorAll<HTMLElement>('[data-hyb-ssp-ad-place]')
@@ -70,7 +82,7 @@ export function AdManager() {
       });
 
       // A. In-image ads only on article pages.
-      if (isArticlePage) {
+      if (shouldInitInImage) {
         window._tx.integrateInImage({
           placeId: IN_IMAGE_PLACE_ID,
           fetchSelector: true,
@@ -86,6 +98,10 @@ export function AdManager() {
             'footer img'
           ].join(', ')
         });
+        lastInImagePathRef.current = currentPath;
+      } else if (!isArticlePage) {
+        // Reset when leaving article pages to allow next article-path init.
+        lastInImagePathRef.current = null;
       }
 
       // B. Display placements only for containers currently in DOM.
@@ -94,10 +110,10 @@ export function AdManager() {
       });
 
       // C. Trigger init if we have work to do.
-      if (isArticlePage || displayPlaceIdsToInit.size > 0) {
+      if (shouldInitInImage || displayPlaceIdsToInit.size > 0) {
         window._tx.init();
         console.log(
-          `[VOX] init (${reason}) path=${pathname} inImage=${isArticlePage} display=${displayPlaceIdsToInit.size}`
+          `[VOX] init (${reason}) path=${pathname} inImage=${shouldInitInImage} display=${displayPlaceIdsToInit.size}`
         );
       }
     } catch (err) {
@@ -106,6 +122,14 @@ export function AdManager() {
   }, [hasConsent, pathname]);
 
   const scheduleInitRetries = useCallback((reason: string) => {
+    if (reason.startsWith('dom-mutation')) {
+      const now = Date.now();
+      if (now - lastMutationScheduleRef.current < 1200) {
+        return;
+      }
+      lastMutationScheduleRef.current = now;
+    }
+
     clearRetryTimers();
 
     RETRY_DELAYS_MS.forEach((delay) => {
@@ -121,6 +145,7 @@ export function AdManager() {
     if (!hasConsent) {
       scriptLoaded.current = false;
       clearRetryTimers();
+      clearMutationDebounce();
       return;
     }
 
@@ -157,7 +182,7 @@ export function AdManager() {
       script.onload = null;
       script.onerror = null;
     };
-  }, [clearRetryTimers, hasConsent, scheduleInitRetries]);
+  }, [clearMutationDebounce, clearRetryTimers, hasConsent, scheduleInitRetries]);
 
   // 3. Re-init on route changes and when ad containers appear later.
   useEffect(() => {
@@ -165,6 +190,7 @@ export function AdManager() {
       observerRef.current?.disconnect();
       observerRef.current = null;
       clearRetryTimers();
+      clearMutationDebounce();
       return;
     }
 
@@ -184,7 +210,10 @@ export function AdManager() {
       });
 
       if (shouldRetry) {
-        scheduleInitRetries('dom-mutation');
+        clearMutationDebounce();
+        mutationDebounceRef.current = window.setTimeout(() => {
+          scheduleInitRetries('dom-mutation');
+        }, 450);
       }
     });
 
@@ -195,15 +224,17 @@ export function AdManager() {
       observer.disconnect();
       observerRef.current = null;
       clearRetryTimers();
+      clearMutationDebounce();
     };
-  }, [clearRetryTimers, hasConsent, pathname, scheduleInitRetries]);
+  }, [clearMutationDebounce, clearRetryTimers, hasConsent, pathname, scheduleInitRetries]);
 
   useEffect(() => {
     return () => {
       observerRef.current?.disconnect();
       clearRetryTimers();
+      clearMutationDebounce();
     };
-  }, [clearRetryTimers]);
+  }, [clearMutationDebounce, clearRetryTimers]);
 
   return null; // This component does not render anything visible
 }

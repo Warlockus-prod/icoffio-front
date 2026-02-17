@@ -35,6 +35,7 @@ const MAX_TOTAL_SOURCE_CHARS = 18000;
 const MAX_SOURCE_TEXT_CHARS = 6000;
 const MAX_MANUAL_TEXT_CHARS = 12000;
 const SUPPORTED_CATEGORIES = new Set(['ai', 'apple', 'games', 'tech']);
+const ENABLE_WORDPRESS_PUBLISH = process.env.ENABLE_WORDPRESS_PUBLISH === 'true';
 
 type SupportedCategory = 'ai' | 'apple' | 'games' | 'tech';
 
@@ -394,7 +395,7 @@ async function handleTelegramCreation(data: any, request: NextRequest) {
       enhanceContent: true,
       generateImage: true,
       translateToAll: true,
-      publishToWordPress: true
+      publishToWordPress: ENABLE_WORDPRESS_PUBLISH
     };
 
     const result = await unifiedArticleService.processArticle(articleInput);
@@ -1195,35 +1196,39 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       console.log(`✅ Added PL to runtime: /pl/article/${plPost.slug}`);
     }
 
-    // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (если доступен)
+    // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (только если включено флагом)
     let wordpressPublished = false;
-    try {
-      const publicationResult = await wordpressService.publishMultilingualArticle(
-        {
-          id: article.id || `article-${Date.now()}`,
-          title: article.title,
-          content: contentEn,
-          excerpt: cleanExcerptEn,
-          slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
-          category: article.category || 'technology',
-          tags: ['imported', 'ai-processed'],
-          author: article.author || 'Admin',
-          language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
-          image: persistentHeroImage || '',
-          publishedAt
-        },
-        article.translations
-      );
-      
-      wordpressPublished = publicationResult.success;
-      
-      if (publicationResult.success) {
-        console.log('✅ Also published to WordPress');
-      } else {
-        console.warn('⚠️ WordPress publication failed, but article is available locally');
+    if (ENABLE_WORDPRESS_PUBLISH) {
+      try {
+        const publicationResult = await wordpressService.publishMultilingualArticle(
+          {
+            id: article.id || `article-${Date.now()}`,
+            title: article.title,
+            content: contentEn,
+            excerpt: cleanExcerptEn,
+            slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
+            category: article.category || 'technology',
+            tags: ['imported', 'ai-processed'],
+            author: article.author || 'Admin',
+            language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
+            image: persistentHeroImage || '',
+            publishedAt
+          },
+          article.translations
+        );
+        
+        wordpressPublished = publicationResult.success;
+        
+        if (publicationResult.success) {
+          console.log('✅ Also published to WordPress');
+        } else {
+          console.warn('⚠️ WordPress publication failed, but article is available locally');
+        }
+      } catch (wpError) {
+        console.warn('⚠️ WordPress unavailable, article published locally only');
       }
-    } catch (wpError) {
-      console.warn('⚠️ WordPress unavailable, article published locally only');
+    } else {
+      console.log('⏭️ WordPress publishing skipped (ENABLE_WORDPRESS_PUBLISH=false)');
     }
 
     // 3. Возвращаем успешный результат (статья доступна локально)

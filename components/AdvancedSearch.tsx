@@ -39,73 +39,17 @@ export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearc
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Моковые данные как fallback если posts не переданы
-  const mockPosts: Post[] = useMemo(() => [
-    {
-      slug: 'ai-breakthrough-gpt5',
-      title: 'AI Breakthrough: GPT-5 and the Future of Multimodal Intelligence',
-      excerpt: 'The next generation of AI models promises unprecedented understanding across text, images, audio, and video.',
-      date: '2025-01-13T00:00:00Z',
-      publishedAt: '2025-01-13T00:00:00Z',
-      image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=400&auto=format&fit=crop',
-      category: { name: 'AI', slug: 'ai' },
-      contentHtml: ''
-    },
-    {
-      slug: 'apple-vision-pro-2024',
-      title: 'Apple Vision Pro 2024: Revolutionizing Spatial Computing',
-      excerpt: 'Apple\'s groundbreaking mixed reality headset is transforming how we interact with digital content.',
-      date: '2025-01-13T00:00:00Z',
-      publishedAt: '2025-01-13T00:00:00Z',
-      image: 'https://images.unsplash.com/photo-1563770660941-20978e870e26?q=80&w=400&auto=format&fit=crop',
-      category: { name: 'Apple', slug: 'apple' },
-      contentHtml: ''
-    },
-    {
-      slug: 'quantum-computing-breakthrough',
-      title: 'Quantum Computing Breakthrough: IBM\'s 1000+ Qubit Processor',
-      excerpt: 'IBM achieves a major milestone in quantum computing with their latest 1000+ qubit processor.',
-      date: '2025-01-12T00:00:00Z',
-      publishedAt: '2025-01-12T00:00:00Z',
-      image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=400&auto=format&fit=crop',
-      category: { name: 'Tech', slug: 'tech' },
-      contentHtml: ''
-    },
-    {
-      slug: 'metaverse-evolution',
-      title: 'The Metaverse Evolution: Beyond Virtual Reality',
-      excerpt: 'From gaming worlds to digital workspaces, the metaverse is reshaping human interaction.',
-      date: '2025-01-12T00:00:00Z',
-      publishedAt: '2025-01-12T00:00:00Z',
-      image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?q=80&w=400&auto=format&fit=crop',
-      category: { name: 'Digital', slug: 'digital' },
-      contentHtml: ''
-    }
-  ], []);
-
-  const mockCategories: Category[] = useMemo(() => [
-    { name: 'AI', slug: 'ai' },
-    { name: 'Apple', slug: 'apple' },
-    { name: 'Digital', slug: 'digital' },
-    { name: 'Tech', slug: 'tech' },
-    { name: 'News', slug: 'news-2' }
-  ], []);
-
-  // Определяем какие данные использовать - переданные posts или моковые
+  // В продакшене используем только реальные статьи из API.
   const availablePosts = useMemo(() => {
-    return posts && posts.length > 0 ? posts : mockPosts;
-  }, [posts, mockPosts]);
+    return Array.isArray(posts) ? posts : [];
+  }, [posts]);
 
-  // Извлекаем уникальные категории из доступных статей
+  // Извлекаем уникальные категории из реальных статей
   const availableCategories = useMemo(() => {
-    if (posts && posts.length > 0) {
-      const uniqueCategories = Array.from(
-        new Map(posts.map(post => [post.category.slug, post.category])).values()
-      );
-      return uniqueCategories;
-    }
-    return mockCategories;
-  }, [posts, mockCategories]);
+    return Array.from(
+      new Map(availablePosts.map(post => [post.category.slug, post.category])).values()
+    );
+  }, [availablePosts]);
 
   // Загрузка категорий
   useEffect(() => {
@@ -121,8 +65,8 @@ export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearc
 
     setIsLoading(true);
     
-    // Имитация API запроса (убираем для реальных данных если они есть)
-    if (!posts || posts.length === 0) {
+    // Небольшая задержка только если статьи еще не загружены.
+    if (availablePosts.length === 0) {
       await new Promise(resolve => setTimeout(resolve, 300));
     }
     
@@ -184,7 +128,7 @@ export function AdvancedSearch({ isOpen, onClose, posts, locale }: AdvancedSearc
 
     setResults(filteredResults);
     setIsLoading(false);
-  }, [filters, availablePosts, posts]);
+  }, [filters, availablePosts]);
 
   // Функция расчета релевантности
   const calculateRelevanceScore = (post: Post, query: string): number => {

@@ -92,6 +92,8 @@ async function handleRequestMagicLink(body: AuthActionRequest) {
     );
   }
 
+  const requestedSelfSignupRole = resolveSelfSignupRole();
+  let pendingSelfSignupFinalization = false;
   let role = await ensureRoleForAuthenticatedUser(email);
   if (!role || !role.is_active) {
     if (!isSelfSignupEnabled()) {
@@ -104,7 +106,28 @@ async function handleRequestMagicLink(body: AuthActionRequest) {
       );
     }
 
-    role = await ensureRoleForSelfSignup(email, resolveSelfSignupRole());
+    try {
+      role = await ensureRoleForSelfSignup(email, requestedSelfSignupRole);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Self-signup failed';
+      const missingRolesTable = message.includes('admin_user_roles');
+
+      if (!missingRolesTable) {
+        throw error;
+      }
+
+      pendingSelfSignupFinalization = true;
+      const now = new Date().toISOString();
+      role = {
+        email,
+        role: requestedSelfSignupRole,
+        is_owner: false,
+        is_active: true,
+        invited_by: 'self-signup-pending',
+        created_at: now,
+        updated_at: now,
+      };
+    }
   }
 
   const nextPath = resolveNextPath(body.locale, body.next);
@@ -120,7 +143,11 @@ async function handleRequestMagicLink(body: AuthActionRequest) {
 
   return NextResponse.json({
     success: true,
-    message: role?.invited_by === 'self-signup' ? 'Account created. Magic link sent.' : 'Magic link sent',
+    message: pendingSelfSignupFinalization
+      ? 'Magic link sent. Role will be finalized on first login.'
+      : role?.invited_by === 'self-signup'
+        ? 'Account created. Magic link sent.'
+        : 'Magic link sent',
     email,
     role: role.role,
   });

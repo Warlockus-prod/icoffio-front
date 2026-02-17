@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.8] - 2026-02-17 - 🔐 Self-Signup Works Without Roles Table (Metadata Fallback)
+
+### ✅ What was fixed
+- Added fallback role resolution from Supabase Auth `app_metadata` when `admin_user_roles` table is missing.
+- `request_magic_link` no longer hard-fails on missing `admin_user_roles`:
+  - sends magic link,
+  - marks role as pending and finalizes role on first successful callback login.
+- `auth/callback` now finalizes self-signup via session user:
+  - tries DB role first,
+  - if table is missing, stores role in user metadata.
+- Admin session role checks now accept metadata role fallback (`owner/admin/editor/viewer`) for runtime access.
+- `GET /api/admin/auth?action=members` now handles missing roles table via safe fallback path (owner accounts remain visible).
+
+### ⚠️ Important
+- This is a compatibility fallback for production stability.
+- Recommended long-term path remains applying migration:
+  - `supabase/migrations/20260217_admin_roles_and_access.sql`
+
+### 🧪 Validation
+- `npm run type-check` — OK
+
 ## [8.7.7] - 2026-02-17 - 🔐 Admin Auth Stability + Optional Self-Signup
 
 ### ✅ Admin auth stability fixes

@@ -56,6 +56,11 @@ const ROLE_WEIGHT: Record<AdminRole, number> = {
   owner: 4,
 };
 
+const ADMIN_ROLE_META_KEY = 'icoffio_admin_role';
+const ADMIN_ACTIVE_META_KEY = 'icoffio_admin_active';
+const ADMIN_INVITED_BY_META_KEY = 'icoffio_admin_invited_by';
+const ADMIN_UPDATED_AT_META_KEY = 'icoffio_admin_updated_at';
+
 export const ADMIN_ACCESS_COOKIE = 'icoffio_admin_access_token';
 export const ADMIN_REFRESH_COOKIE = 'icoffio_admin_refresh_token';
 
@@ -193,6 +198,114 @@ function createOwnerMember(email: string, existing?: {
     created_at: existing?.created_at || now,
     updated_at: existing?.updated_at || now,
   };
+}
+
+function toAssignableRole(value: unknown): AssignableAdminRole | null {
+  if (value === 'admin' || value === 'editor' || value === 'viewer') {
+    return value;
+  }
+  return null;
+}
+
+function createMetadataMember(input: {
+  email: string;
+  role: AssignableAdminRole;
+  isActive?: boolean;
+  invitedBy?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}): AdminRoleMember {
+  const normalizedEmail = normalizeEmail(input.email);
+  const now = new Date().toISOString();
+
+  if (isOwnerEmail(normalizedEmail)) {
+    return createOwnerMember(normalizedEmail, {
+      created_at: input.createdAt || now,
+      updated_at: input.updatedAt || now,
+      invited_by: input.invitedBy || 'owner-policy',
+    });
+  }
+
+  return {
+    email: normalizedEmail,
+    role: input.role,
+    is_owner: false,
+    is_active: input.isActive ?? true,
+    invited_by: input.invitedBy || 'auth-metadata',
+    created_at: input.createdAt || now,
+    updated_at: input.updatedAt || now,
+  };
+}
+
+function extractMetadataRoleMember(user: User, email: string): AdminRoleMember | null {
+  const appMeta = user.app_metadata || {};
+  const userMeta = user.user_metadata || {};
+
+  const rawRole = appMeta[ADMIN_ROLE_META_KEY] ?? userMeta[ADMIN_ROLE_META_KEY];
+  const role = toAssignableRole(rawRole);
+  if (!role) return null;
+
+  const rawIsActive = appMeta[ADMIN_ACTIVE_META_KEY] ?? userMeta[ADMIN_ACTIVE_META_KEY];
+  const isActive =
+    typeof rawIsActive === 'boolean' ? rawIsActive : rawIsActive === 'false' ? false : true;
+
+  const invitedByRaw = appMeta[ADMIN_INVITED_BY_META_KEY] ?? userMeta[ADMIN_INVITED_BY_META_KEY];
+  const invitedBy = typeof invitedByRaw === 'string' && invitedByRaw.trim() ? invitedByRaw : 'auth-metadata';
+  const updatedAtRaw = appMeta[ADMIN_UPDATED_AT_META_KEY] ?? userMeta[ADMIN_UPDATED_AT_META_KEY];
+  const updatedAt = typeof updatedAtRaw === 'string' && updatedAtRaw.trim() ? updatedAtRaw : undefined;
+
+  return createMetadataMember({
+    email,
+    role,
+    isActive,
+    invitedBy,
+    createdAt: user.created_at || updatedAt,
+    updatedAt,
+  });
+}
+
+async function setMetadataRoleForUser(input: {
+  userId: string;
+  email: string;
+  role: AssignableAdminRole;
+  isActive?: boolean;
+  invitedBy?: string;
+}): Promise<AdminRoleMember> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const normalizedEmail = normalizeEmail(input.email);
+
+  const existingUserResponse = await supabase.auth.admin.getUserById(input.userId);
+  if (existingUserResponse.error || !existingUserResponse.data?.user) {
+    const errorMessage = existingUserResponse.error?.message || 'User not found';
+    throw new Error(`Set metadata role failed: ${errorMessage}`);
+  }
+
+  const existingUser = existingUserResponse.data.user;
+  const nextAppMetadata = {
+    ...(existingUser.app_metadata || {}),
+    [ADMIN_ROLE_META_KEY]: input.role,
+    [ADMIN_ACTIVE_META_KEY]: input.isActive ?? true,
+    [ADMIN_INVITED_BY_META_KEY]: input.invitedBy || 'self-signup',
+    [ADMIN_UPDATED_AT_META_KEY]: now,
+  };
+
+  const updateResponse = await supabase.auth.admin.updateUserById(input.userId, {
+    app_metadata: nextAppMetadata,
+  });
+
+  if (updateResponse.error) {
+    throw new Error(`Set metadata role failed: ${updateResponse.error.message}`);
+  }
+
+  return createMetadataMember({
+    email: normalizedEmail,
+    role: input.role,
+    isActive: input.isActive ?? true,
+    invitedBy: input.invitedBy || 'self-signup',
+    createdAt: existingUser.created_at || now,
+    updatedAt: now,
+  });
 }
 
 async function fetchRoleByEmail(
@@ -472,6 +585,10 @@ export async function requireAdminRole(
     roleMember = await resolveRoleByEmail(email, {
       allowBootstrap: options.allowBootstrap ?? false,
     });
+
+    if (!roleMember) {
+      roleMember = extractMetadataRoleMember(user, email);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to resolve role';
     return {
@@ -521,17 +638,47 @@ export async function getAdminMembers(): Promise<AdminRoleMember[]> {
     .order('created_at', { ascending: true });
 
   if (error) {
-    if (error.code === '42P01') {
+    if (isMissingAdminRolesTable(error.message, error.code)) {
+      const membersMap = new Map<string, AdminRoleMember>();
       const now = new Date().toISOString();
-      return getConfiguredOwnerEmails().map((ownerEmail) => ({
-        email: ownerEmail,
-        role: 'owner',
-        is_owner: true,
-        is_active: true,
-        invited_by: 'owner-policy',
-        created_at: now,
-        updated_at: now,
-      }));
+
+      getConfiguredOwnerEmails().forEach((ownerEmail) => {
+        membersMap.set(ownerEmail, {
+          email: ownerEmail,
+          role: 'owner',
+          is_owner: true,
+          is_active: true,
+          invited_by: 'owner-policy',
+          created_at: now,
+          updated_at: now,
+        });
+      });
+
+      let page = 1;
+      const perPage = 200;
+
+      for (;;) {
+        const usersResponse = await supabase.auth.admin.listUsers({ page, perPage });
+        if (usersResponse.error) break;
+
+        const users = usersResponse.data?.users || [];
+        if (users.length === 0) break;
+
+        users.forEach((user) => {
+          const email = user.email ? normalizeEmail(user.email) : '';
+          if (!email) return;
+          const member = extractMetadataRoleMember(user, email);
+          if (!member) return;
+          if (!member.is_active) return;
+          membersMap.set(email, member);
+        });
+
+        if (users.length < perPage) break;
+        page += 1;
+        if (page > 20) break;
+      }
+
+      return Array.from(membersMap.values()).sort((a, b) => a.email.localeCompare(b.email));
     }
     throw new Error(toReadableRoleError('Fetch members', error.message, error.code));
   }
@@ -583,6 +730,53 @@ export async function getAdminMembers(): Promise<AdminRoleMember[]> {
 
 export async function ensureRoleForAuthenticatedUser(email: string): Promise<AdminRoleMember | null> {
   return resolveRoleByEmail(email, { allowBootstrap: true });
+}
+
+export async function ensureRoleForAuthenticatedSessionUser(
+  user: User,
+  options: {
+    allowSelfSignup?: boolean;
+    defaultRole?: AssignableAdminRole;
+  } = {}
+): Promise<AdminRoleMember | null> {
+  const email = extractUserEmail(user);
+  if (!email) return null;
+
+  let member = await resolveRoleByEmail(email, { allowBootstrap: true });
+  if (member) {
+    if (!member.is_active) return null;
+    return member;
+  }
+
+  const metadataMember = extractMetadataRoleMember(user, email);
+  if (metadataMember) {
+    if (!metadataMember.is_active) return null;
+    return metadataMember;
+  }
+
+  if (!options.allowSelfSignup) {
+    return null;
+  }
+
+  const defaultRole = options.defaultRole === 'admin' ? 'editor' : options.defaultRole || 'viewer';
+
+  try {
+    member = await ensureRoleForSelfSignup(email, defaultRole);
+    return member;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create role';
+    if (!isMissingAdminRolesTable(message)) {
+      throw error;
+    }
+  }
+
+  return setMetadataRoleForUser({
+    userId: user.id,
+    email,
+    role: defaultRole,
+    isActive: true,
+    invitedBy: 'self-signup',
+  });
 }
 
 export async function ensureRoleForSelfSignup(

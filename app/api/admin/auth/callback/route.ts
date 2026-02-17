@@ -2,6 +2,7 @@ import { type EmailOtpType } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   ensureRoleForAuthenticatedUser,
+  ensureRoleForAuthenticatedSessionUser,
   normalizeEmail,
   sanitizeNextPath,
   setAdminSessionCookies,
@@ -19,6 +20,15 @@ const ALLOWED_OTP_TYPES: EmailOtpType[] = [
   'email_change',
   'email',
 ];
+
+function isSelfSignupEnabled(): boolean {
+  return process.env.ADMIN_SELF_SIGNUP_ENABLED === 'true';
+}
+
+function resolveSelfSignupRole(): 'viewer' | 'editor' {
+  const configured = (process.env.ADMIN_SELF_SIGNUP_DEFAULT_ROLE || '').trim().toLowerCase();
+  return configured === 'editor' ? 'editor' : 'viewer';
+}
 
 function isAllowedOtpType(value: string): value is EmailOtpType {
   return ALLOWED_OTP_TYPES.includes(value as EmailOtpType);
@@ -68,7 +78,14 @@ export async function GET(request: NextRequest) {
       return fallbackRedirect('missing_email');
     }
 
-    const roleMember = await ensureRoleForAuthenticatedUser(email);
+    let roleMember = await ensureRoleForAuthenticatedUser(email);
+    if (!roleMember && isSelfSignupEnabled()) {
+      roleMember = await ensureRoleForAuthenticatedSessionUser(data.user, {
+        allowSelfSignup: true,
+        defaultRole: resolveSelfSignupRole(),
+      });
+    }
+
     if (!roleMember || !roleMember.is_active) {
       return fallbackRedirect('not_invited');
     }

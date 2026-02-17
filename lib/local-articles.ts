@@ -1275,9 +1275,15 @@ W nadchodzących tygodniach oczekuje się jeszcze więcej interesujących ogłos
 // Временное хранилище для статей, добавленных через API
 const runtimeArticles: Post[] = [];
 
+// Статические seed-статьи нужны только для dev/локальной отладки.
+const ENABLE_LOCAL_SEED_ARTICLES =
+  process.env.ENABLE_LOCAL_SEED_ARTICLES === 'true' ||
+  process.env.NODE_ENV === 'development';
+
 // Функция для получения всех локальных статей
 export async function getLocalArticles(): Promise<Post[]> {
-  return [...localArticles, ...runtimeArticles];
+  const seedArticles = ENABLE_LOCAL_SEED_ARTICLES ? localArticles : [];
+  return [...seedArticles, ...runtimeArticles];
 }
 
 // Функция для добавления статьи в runtime хранилище

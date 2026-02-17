@@ -453,14 +453,44 @@ export default function ArticlesManager() {
     setSelectedArticles(newSelected);
   };
 
+  const deleteDynamicBySlugs = async (slugs: string[]): Promise<number> => {
+    if (slugs.length === 0) return 0;
+
+    const response = await fetch('/api/admin/bulk-delete-articles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slugs }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || 'Failed to delete dynamic articles');
+    }
+
+    return Number(result?.deleted || 0);
+  };
+
+  const deleteOneDynamicBySlug = async (slug: string): Promise<void> => {
+    const response = await fetch('/api/admin/delete-article', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || 'Failed to delete article');
+    }
+  };
+
   // Массовое удаление
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selectedCount = selectedArticles.size;
     const articlesToDelete = filteredArticles.filter(a => selectedArticles.has(a.id));
     const staticCount = articlesToDelete.filter(a => a.status === 'static').length;
     
     if (staticCount > 0) {
-      alert(`⚠️ Cannot delete static articles!\n\n${staticCount} of selected articles are static and cannot be deleted.\nOnly admin-created articles can be deleted.`);
+      alert(`⚠️ Cannot delete static articles!\n\n${staticCount} of selected articles are static and cannot be deleted.\nOnly dynamic/admin articles can be deleted.`);
       return;
     }
 
@@ -470,21 +500,33 @@ export default function ArticlesManager() {
 
     setIsLoading(true);
     try {
+      const dynamicSlugs = articlesToDelete
+        .filter(a => a.status === 'dynamic')
+        .map(a => a.slug);
+
       const adminArticles = localArticleStorage.getAllArticles();
       const adminIds = articlesToDelete
         .filter(a => a.status === 'admin')
         .map(a => a.id);
-      
-      // Удаляем по ID
-      const remaining = adminArticles.filter(article => !adminIds.includes(article.id));
-      localStorage.setItem('icoffio_admin_articles', JSON.stringify(remaining));
-      
+
+      const dynamicDeleted = await deleteDynamicBySlugs(dynamicSlugs);
+
+      let adminDeleted = 0;
+      if (adminIds.length > 0) {
+        const remaining = adminArticles.filter(article => !adminIds.includes(article.id));
+        localStorage.setItem('icoffio_admin_articles', JSON.stringify(remaining));
+        adminDeleted = adminIds.length;
+      }
+
+      const totalDeleted = dynamicDeleted + adminDeleted;
       adminLogger.info('user', 'bulk_delete_articles', `Bulk deleted ${selectedCount} articles`, { 
+        deletedDynamicSlugs: dynamicSlugs,
         deletedIds: adminIds,
-        count: selectedCount 
+        requestedCount: selectedCount,
+        deletedCount: totalDeleted
       });
       
-      alert(`✅ Successfully deleted ${selectedCount} articles!`);
+      alert(`✅ Successfully deleted ${totalDeleted} articles!`);
       setSelectedArticles(new Set());
       loadArticles();
     } catch (error) {
@@ -1014,13 +1056,22 @@ export default function ArticlesManager() {
                       >
                         🔗 View
                       </a>
-                      {article.status === 'admin' && (
+                      {article.status !== 'static' && (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (window.confirm(`Delete article "${article.title}"?\n\nThis action cannot be undone!`)) {
-                              localArticleStorage.deleteArticle(article.id);
-                              loadArticles();
-                              adminLogger.info('user', 'delete_single_article', `Deleted article: ${article.title}`);
+                              try {
+                                if (article.status === 'admin') {
+                                  localArticleStorage.deleteArticle(article.id);
+                                } else {
+                                  await deleteOneDynamicBySlug(article.slug);
+                                }
+                                loadArticles();
+                                adminLogger.info('user', 'delete_single_article', `Deleted article: ${article.title}`);
+                              } catch (error) {
+                                console.error('Single delete failed:', error);
+                                alert('❌ Failed to delete article. Please try again.');
+                              }
                             }
                           }}
                           className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded-lg font-medium transition-colors"
@@ -1049,13 +1100,27 @@ export default function ArticlesManager() {
                 alert(`Edit feature coming soon!\nArticle: ${article.title}`);
               }}
               onDelete={(id) => {
-                if (article.status === 'admin') {
-                  localArticleStorage.deleteArticle(id);
-                  loadArticles();
-                  adminLogger.info('user', 'delete_single_article', `Deleted article: ${article.title}`);
-                } else {
-                  alert('Only admin-created articles can be deleted.');
+                if (article.status === 'static') {
+                  alert('Static articles cannot be deleted.');
+                  return;
                 }
+
+                const runDelete = async () => {
+                  try {
+                    if (article.status === 'admin') {
+                      localArticleStorage.deleteArticle(id);
+                    } else {
+                      await deleteOneDynamicBySlug(article.slug);
+                    }
+                    loadArticles();
+                    adminLogger.info('user', 'delete_single_article', `Deleted article: ${article.title}`);
+                  } catch (error) {
+                    console.error('Mobile single delete failed:', error);
+                    alert('❌ Failed to delete article. Please try again.');
+                  }
+                };
+
+                void runDelete();
               }}
               onView={(url) => window.open(url, '_blank')}
             />

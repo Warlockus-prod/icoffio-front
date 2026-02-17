@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,9 @@ let errorLog: Array<{
 }> = [];
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'viewer', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -52,6 +56,9 @@ export async function GET(request: NextRequest) {
 
 // Add error (used by webhook)
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const errorData = await request.json();
     
@@ -76,7 +83,10 @@ export async function POST(request: NextRequest) {
 }
 
 // Clear errors
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   const count = errorLog.length;
   errorLog = [];
   
@@ -85,7 +95,6 @@ export async function DELETE() {
     cleared: count
   });
 }
-
 
 
 

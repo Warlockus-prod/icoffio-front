@@ -19,16 +19,45 @@ import { processSubmission } from '@/app/api/telegram-simple/webhook/route';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-function isWorkerAuthorized(request: NextRequest): boolean {
-  if (request.headers.get('x-vercel-cron')) return true;
+type WorkerAuthResult = {
+  ok: boolean;
+  status: number;
+  error?: string;
+};
 
-  const secret = process.env.TELEGRAM_WORKER_SECRET || process.env.CRON_SECRET;
-  if (!secret) return true;
+function getWorkerSecret(): string {
+  return (process.env.TELEGRAM_WORKER_SECRET || process.env.CRON_SECRET || '').trim();
+}
+
+function isWorkerAuthorized(request: NextRequest): WorkerAuthResult {
+  if (request.headers.get('x-vercel-cron')) {
+    return { ok: true, status: 200 };
+  }
+
+  const secret = getWorkerSecret();
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        ok: false,
+        status: 503,
+        error: 'Worker secret is not configured',
+      };
+    }
+    return { ok: true, status: 200 };
+  }
 
   const auth = request.headers.get('authorization') || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   const queryToken = request.nextUrl.searchParams.get('token') || '';
-  return bearer === secret || queryToken === secret;
+  if (bearer === secret || queryToken === secret) {
+    return { ok: true, status: 200 };
+  }
+
+  return {
+    ok: false,
+    status: 401,
+    error: 'Unauthorized worker call',
+  };
 }
 
 async function processClaimedJob(job: TelegramSimpleJob) {
@@ -99,8 +128,12 @@ async function runWorker(limit: number) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isWorkerAuthorized(request)) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized worker call' }, { status: 401 });
+  const auth = isWorkerAuthorized(request);
+  if (!auth.ok) {
+    return NextResponse.json(
+      { ok: false, error: auth.error || 'Unauthorized worker call' },
+      { status: auth.status }
+    );
   }
 
   const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit') || '2'), 1), 10);
@@ -109,8 +142,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isWorkerAuthorized(request)) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized worker call' }, { status: 401 });
+  const auth = isWorkerAuthorized(request);
+  if (!auth.ok) {
+    return NextResponse.json(
+      { ok: false, error: auth.error || 'Unauthorized worker call' },
+      { status: auth.status }
+    );
   }
 
   let limit = 2;

@@ -16,6 +16,45 @@ import { updateTelegramSubmission } from '@/lib/supabase-analytics';
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes (Pro tier only, but we set it anyway)
 
+type QueueAuthResult = {
+  ok: boolean;
+  status: number;
+  error?: string;
+};
+
+function authorizeQueueProcessor(request: NextRequest): QueueAuthResult {
+  const configuredSecret = (
+    process.env.TELEGRAM_QUEUE_SECRET ||
+    process.env.TELEGRAM_WORKER_SECRET ||
+    process.env.CRON_SECRET ||
+    ''
+  ).trim();
+
+  if (!configuredSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        ok: false,
+        status: 503,
+        error: 'Queue processor secret is not configured',
+      };
+    }
+    return { ok: true, status: 200 };
+  }
+
+  const authHeader = request.headers.get('authorization') || '';
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const queryToken = request.nextUrl.searchParams.get('token') || '';
+  if (bearer === configuredSecret || queryToken === configuredSecret) {
+    return { ok: true, status: 200 };
+  }
+
+  return {
+    ok: false,
+    status: 401,
+    error: 'Unauthorized queue processor call',
+  };
+}
+
 /**
  * Send message to Telegram
  */
@@ -53,6 +92,11 @@ async function sendTelegramMessage(chatId: number, text: string): Promise<void> 
  * Process a single job and send result to Telegram
  */
 export async function POST(request: NextRequest) {
+  const auth = authorizeQueueProcessor(request);
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { jobId, chatId } = await request.json();
 
@@ -221,4 +265,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

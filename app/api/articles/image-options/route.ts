@@ -7,11 +7,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateImageOptions, regenerateImageOptions } from '@/lib/image-options-generator';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 секунд для генерации изображений
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const { articleId, title, category, excerpt, regenerate = false } = body;
@@ -52,7 +56,10 @@ export async function POST(request: NextRequest) {
 }
 
 // GET endpoint для проверки статуса
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'viewer', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   return NextResponse.json({
     service: 'Image Options Generator',
     status: 'operational',
@@ -62,6 +69,4 @@ export async function GET() {
     }
   });
 }
-
-
 

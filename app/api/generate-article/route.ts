@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService } from '@/lib/unified-article-service';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 // POST /api/generate-article - DEPRECATED: используйте /api/articles вместо этого  
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   console.warn('⚠️ DEPRECATED API: /api/generate-article устарел. Используйте /api/articles вместо этого.');
   
   try {
@@ -126,7 +130,10 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/generate-article - DEPRECATED: используйте /api/articles вместо этого
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'viewer', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   console.warn('⚠️ DEPRECATED API: /api/generate-article устарел. Используйте /api/articles вместо этого.');
   
   return NextResponse.json({

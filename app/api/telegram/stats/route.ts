@@ -14,10 +14,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { telegramDB } from '@/lib/telegram-database-service';
 import { isSupabaseConfigured } from '@/lib/supabase-client';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'viewer', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     // Check if Supabase is configured
     if (!isSupabaseConfigured()) {
@@ -117,7 +121,6 @@ export async function GET(request: NextRequest) {
  * GET /api/telegram/stats?type=categories
  * → Statistics by category
  */
-
 
 
 

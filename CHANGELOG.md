@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.6] - 2026-02-17 - 🔐 API Surface Hardening (Auth + Anti-Abuse)
+
+### 🚨 Закрытые риски (production fail-closed)
+- `app/api/telegram-simple/webhook/route.ts`:
+  - если `TELEGRAM_SECRET_TOKEN`/`TELEGRAM_BOT_SECRET` не настроены в production, webhook теперь отклоняется (`503`) вместо fail-open;
+  - неверный `x-telegram-bot-api-secret-token` отклоняется (`401`).
+- `app/api/telegram-simple/worker/route.ts`:
+  - worker теперь требует `TELEGRAM_WORKER_SECRET` (или `CRON_SECRET`) в production;
+  - при отсутствии секрета endpoint не выполняется (`503`).
+- `app/api/articles/route.ts` (`create-from-telegram`):
+  - если `N8N_WEBHOOK_SECRET` не задан в production, запрос отклоняется;
+  - проверка Bearer-токена нормализована.
+
+### 🛡️ Защита от злоупотреблений/утечек
+- `app/api/check-url/route.ts`:
+  - добавлен RBAC (`viewer+`);
+  - добавлен базовый SSRF-guard: блок private/internal hostnames/IP + `redirect: manual`.
+- `app/api/generate-article/route.ts` (legacy):
+  - добавлен RBAC (`editor` для `POST`, `viewer` для `GET`).
+- `app/api/articles/image-options/route.ts`:
+  - добавлен RBAC (`editor` для `POST`, `viewer` для `GET`).
+- `app/api/telegram/process-queue/route.ts`:
+  - добавлена обязательная авторизация через `TELEGRAM_QUEUE_SECRET` (fallback: worker/cron secret);
+  - в production без секрета endpoint заблокирован (`503`).
+- Telegram observability endpoints теперь под RBAC:
+  - `app/api/telegram/stats/route.ts` (`viewer+`)
+  - `app/api/telegram/user-stats/route.ts` (`viewer+`)
+  - `app/api/telegram/errors/route.ts` (`viewer+` на чтение, `editor+` на изменение)
+
+### 📄 Документация
+- Добавлен отчет аудита: `security_best_practices_report.md`.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm audit --omit=dev` — выполнен (есть открытые dependency advisory, см. `security_best_practices_report.md`)
+- `npm run lint` — не выполнен, потому что в окружении не настроен ESLint-конфиг (Next интерактивно просит инициализацию)
+
 ## [8.7.5] - 2026-02-17 - 🔒 Security Hardening (VPS + API + Content Safety)
 
 ### 🚨 Critical fixes

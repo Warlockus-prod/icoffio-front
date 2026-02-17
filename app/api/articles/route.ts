@@ -840,10 +840,18 @@ async function handleWordPressHealth() {
  */
 async function checkAuthentication(request: NextRequest): Promise<{success: boolean; error?: string}> {
   // Проверка webhook secret для n8n
-  const webhookSecret = process.env.N8N_WEBHOOK_SECRET;
+  const webhookSecret = (process.env.N8N_WEBHOOK_SECRET || '').trim();
+  if (!webhookSecret && process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      error: 'Webhook secret is not configured'
+    };
+  }
+
   if (webhookSecret) {
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader !== `Bearer ${webhookSecret}`) {
+    const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
+    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (bearer !== webhookSecret) {
       return {
         success: false,
         error: 'Invalid webhook secret'

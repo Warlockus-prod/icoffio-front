@@ -351,7 +351,11 @@ function getEffectiveImageLabel(
   return 'Unsplash';
 }
 
-function verifyTelegramRequest(request: NextRequest): boolean {
+function verifyTelegramRequest(request: NextRequest): {
+  ok: boolean;
+  status: number;
+  error?: string;
+} {
   const configuredSecrets = Array.from(
     new Set(
       [process.env.TELEGRAM_SECRET_TOKEN, process.env.TELEGRAM_BOT_SECRET]
@@ -361,10 +365,21 @@ function verifyTelegramRequest(request: NextRequest): boolean {
   );
 
   if (configuredSecrets.length === 0) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[TelegramSimple] Secret token is not configured in production; webhook request rejected'
+      );
+      return {
+        ok: false,
+        status: 503,
+        error: 'Webhook secret token is not configured',
+      };
+    }
+
     console.warn(
-      '[TelegramSimple] Secret token is not configured; request accepted without verification'
+      '[TelegramSimple] Secret token is not configured; request accepted only in non-production mode'
     );
-    return true;
+    return { ok: true, status: 200 };
   }
 
   if (configuredSecrets.length > 1) {
@@ -374,10 +389,14 @@ function verifyTelegramRequest(request: NextRequest): boolean {
   const receivedSecret = request.headers.get('x-telegram-bot-api-secret-token');
   if (!receivedSecret || !configuredSecrets.includes(receivedSecret)) {
     console.warn('[TelegramSimple] Invalid webhook secret token');
-    return false;
+    return {
+      ok: false,
+      status: 401,
+      error: 'Invalid webhook secret token',
+    };
   }
 
-  return true;
+  return { ok: true, status: 200 };
 }
 
 function getActivitySupabaseClient() {
@@ -1301,8 +1320,12 @@ function triggerTelegramSimpleWorker(request: NextRequest): void {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyTelegramRequest(request)) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    const auth = verifyTelegramRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, error: auth.error || 'Unauthorized' },
+        { status: auth.status }
+      );
     }
 
     let update: any;

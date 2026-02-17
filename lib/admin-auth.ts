@@ -1,6 +1,5 @@
 import { createClient, type User } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac, timingSafeEqual } from 'crypto';
 
 export type AssignableAdminRole = 'admin' | 'editor' | 'viewer';
 export type AdminRole = 'owner' | AssignableAdminRole;
@@ -86,10 +85,13 @@ function getSupabaseCredentials(): { url: string; key: string } {
 }
 
 function safeStringEqual(left: string, right: string): boolean {
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  if (left.length !== right.length) return false;
+
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return mismatch === 0;
 }
 
 function getConfiguredAdminPassword(): string | null {
@@ -106,13 +108,48 @@ export function isAdminPasswordValid(input: string): boolean {
 function createLegacySessionSignature(payload: string): string {
   const configured = getConfiguredAdminPassword();
   if (!configured) return '';
-  return createHmac('sha256', configured).update(payload).digest('hex');
+
+  // Lightweight deterministic signature without Node-only crypto dependency.
+  const source = `${configured}:${payload}`;
+  let hash1 = 2166136261;
+  let hash2 = 1315423911;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index);
+    hash1 ^= code;
+    hash1 = Math.imul(hash1, 16777619);
+    hash2 ^= (hash2 << 5) + code + (hash2 >> 2);
+  }
+
+  return `${(hash1 >>> 0).toString(16).padStart(8, '0')}${(hash2 >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+function toBase64Url(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return globalThis
+    .btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function fromBase64Url(value: string): string {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '==='.slice((normalized.length + 3) % 4);
+  const binary = globalThis.atob(padded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 function createLegacySessionToken(email: string): string {
   const normalizedEmail = normalizeEmail(email);
   const expiresAt = Math.floor(Date.now() / 1000) + LEGACY_SESSION_TTL_SECONDS;
-  const emailEncoded = Buffer.from(normalizedEmail, 'utf8').toString('base64url');
+  const emailEncoded = toBase64Url(normalizedEmail);
   const payload = `${emailEncoded}:${expiresAt}`;
   const signature = createLegacySessionSignature(payload);
   return `${payload}.${signature}`;
@@ -140,7 +177,7 @@ function parseLegacySessionToken(token: string): { email: string; expiresAt: num
 
   let emailRaw = '';
   try {
-    emailRaw = Buffer.from(emailEncoded, 'base64url').toString('utf8');
+    emailRaw = fromBase64Url(emailEncoded);
   } catch {
     return null;
   }

@@ -22,9 +22,9 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
 
   return (
     <nav aria-label="Breadcrumb" className="mb-6">
-      <ol className="flex items-center space-x-2 text-sm text-neutral-600 dark:text-neutral-400">
+      <ol className="flex items-center text-sm text-neutral-600 dark:text-neutral-400 overflow-hidden">
         {allItems.map((item, index) => (
-          <li key={index} className="flex items-center">
+          <li key={index} className="flex items-center min-w-0">
             {index > 0 && (
               <svg 
                 className="w-4 h-4 mx-2 text-neutral-400 dark:text-neutral-500" 
@@ -39,15 +39,19 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
             {item.href && index < allItems.length - 1 ? (
               <Link 
                 href={item.href}
-                className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors hover:underline"
+                className="block max-w-[120px] sm:max-w-[180px] md:max-w-[240px] truncate hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors hover:underline"
+                title={item.label}
               >
                 {item.label}
               </Link>
             ) : (
               <span 
-                className={index === allItems.length - 1 
-                  ? "text-neutral-900 dark:text-neutral-100 font-medium" 
-                  : ""}
+                className={`block max-w-[52vw] sm:max-w-[58vw] md:max-w-[640px] truncate ${
+                  index === allItems.length - 1 
+                    ? "text-neutral-900 dark:text-neutral-100 font-medium" 
+                    : ""
+                }`}
+                title={item.label}
                 aria-current={index === allItems.length - 1 ? "page" : undefined}
               >
                 {item.label}
@@ -59,7 +63,6 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
     </nav>
   );
 }
-
 
 
 

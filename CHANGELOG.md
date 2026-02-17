@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.11] - 2026-02-17 - 🧭 Article Header UX Cleanup
+
+### ✅ Improved article readability
+- `Breadcrumbs` now truncate long labels instead of expanding into multi-line clutter.
+- Added title tooltip on breadcrumb items to keep full value accessible.
+- Article page now uses shortened UI breadcrumb label for long titles, while structured data keeps full title.
+- Hidden article excerpt when it duplicates the beginning of title (removes visual repetition under H1).
+
 ## [8.7.10] - 2026-02-17 - 🚑 Hotfix Homepage Runtime Error
 
 ### ✅ Fixed

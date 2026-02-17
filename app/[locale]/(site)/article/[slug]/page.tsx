@@ -55,6 +55,33 @@ function extractFirstContentImage(content: string): string {
   return '';
 }
 
+function normalizePlainText(value: string): string {
+  return (value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function truncateForUi(value: string, maxChars: number): string {
+  const normalized = normalizePlainText(value);
+  if (normalized.length <= maxChars) return normalized;
+
+  const softSlice = normalized.slice(0, maxChars);
+  const punctuationCut = Math.max(softSlice.lastIndexOf('.'), softSlice.lastIndexOf(','), softSlice.lastIndexOf(';'));
+  const cutoff = punctuationCut > maxChars * 0.6 ? punctuationCut : softSlice.lastIndexOf(' ');
+
+  return `${softSlice.slice(0, cutoff > 0 ? cutoff : maxChars).trim()}…`;
+}
+
+function isExcerptDuplicateOfTitle(title: string, excerpt: string): boolean {
+  const normalizedTitle = normalizePlainText(title).toLowerCase();
+  const normalizedExcerpt = normalizePlainText(excerpt).toLowerCase();
+  if (!normalizedExcerpt) return true;
+  if (normalizedTitle === normalizedExcerpt) return true;
+
+  const excerptPreview = normalizedExcerpt.slice(0, Math.min(90, normalizedExcerpt.length));
+  return Boolean(excerptPreview) && normalizedTitle.startsWith(excerptPreview);
+}
+
 export async function generateMetadata({ params }: { params: { locale: string; slug: string } }): Promise<Metadata> {
   const post = await getPostBySlug(params.slug, params.locale);
   if (!post) return {};
@@ -177,7 +204,15 @@ export default async function Article({ params }: { params: { locale: string; sl
     ? (post.image as string)
     : (contentDerivedHero || fallback);
 
+  const titleForBreadcrumb = truncateForUi(post.title, 92);
+  const normalizedExcerpt = normalizePlainText(post.excerpt || '');
+  const showExcerpt = normalizedExcerpt && !isExcerptDuplicateOfTitle(post.title, normalizedExcerpt);
+
   const breadcrumbItems = [
+    { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },
+    { label: titleForBreadcrumb }
+  ];
+  const breadcrumbSchemaItems = [
     { label: post.category.name, href: `/${params.locale}/category/${post.category.slug}` },
     { label: post.title }
   ];
@@ -185,7 +220,7 @@ export default async function Article({ params }: { params: { locale: string; sl
   return (
     <>
       <ArticleSchema post={post} locale={params.locale} />
-      <BreadcrumbSchema items={breadcrumbItems} locale={params.locale} />
+      <BreadcrumbSchema items={breadcrumbSchemaItems} locale={params.locale} />
       
       {/* Track article view for analytics */}
       <ArticleViewTracker articleSlug={post.slug} />
@@ -223,9 +258,11 @@ export default async function Article({ params }: { params: { locale: string; sl
               <h1 className="text-3xl md:text-4xl font-bold mb-6 text-neutral-900 dark:text-neutral-100 leading-tight">
                 {post.title}
               </h1>
-              <p className="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                {post.excerpt}
-              </p>
+              {showExcerpt && (
+                <p className="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                  {normalizedExcerpt}
+                </p>
+              )}
             </header>
 
             {/* Hero Image */}

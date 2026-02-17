@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { translationService } from '@/lib/translation-service';
 import { copywritingService } from '@/lib/copywriting-service';
 import { imageService } from '@/lib/image-service';
-import { wordpressService } from '@/lib/wordpress-service';
 import { getSiteBaseUrl } from '@/lib/site-url';
 
 // Интерфейсы для данных
@@ -141,8 +140,14 @@ async function processArticleFromTelegram(articleData: TelegramArticle) {
       translations
     };
 
-    // 6. Публикуем в WordPress (будем реализовывать отдельно)
-    const publicationResults = await publishToWordPress(processedArticle);
+    // 6. WordPress decommissioned: return explicit status for legacy clients.
+    const publicationResults = {
+      success: false,
+      decommissioned: true,
+      error: 'WordPress integration disabled. Use Supabase publication flow.',
+      publishedLanguages: [],
+      urls: {}
+    };
 
     return NextResponse.json({
       success: true,
@@ -266,61 +271,6 @@ async function translateToAllLanguages(content: { title: string; excerpt: string
   }
 }
 
-// Публикация в WordPress
-async function publishToWordPress(article: ProcessedArticle) {
-  try {
-    // Проверяем доступность WordPress API
-    const isAvailable = await wordpressService.isAvailable();
-    if (!isAvailable) {
-      console.warn('WordPress service not available, skipping publication');
-      return {
-        success: false,
-        error: 'WordPress API не доступен',
-        publishedLanguages: [],
-        urls: {}
-      };
-    }
-
-    // Публикуем статью на всех языках
-    const result = await wordpressService.publishMultilingualArticle({
-      id: article.id,
-      title: article.title,
-      content: article.content,
-      excerpt: article.excerpt,
-      slug: article.slug,
-      category: article.category || 'tech',
-      tags: [article.category || 'tech'],
-      image: article.image,
-      author: article.author || 'AI Assistant',
-      language: 'ru',
-      metaDescription: article.excerpt,
-      publishedAt: article.publishedAt
-    }, article.translations);
-
-    return {
-      success: result.success,
-      publishedLanguages: result.results.filter(r => r.success).map(r => r.language),
-      failedLanguages: result.results.filter(r => !r.success).map(r => ({ language: r.language, error: r.error })),
-      summary: result.summary,
-      urls: result.results.reduce((acc: any, r) => {
-        if (r.success && r.url) {
-          acc[r.language] = r.url;
-        }
-        return acc;
-      }, {})
-    };
-
-  } catch (error) {
-    console.error('WordPress publication error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      publishedLanguages: [],
-      urls: {}
-    };
-  }
-}
-
 // Генерация slug из заголовка
 function generateSlug(title: string): string {
   return title
@@ -346,8 +296,6 @@ function generateArticleUrls(slug: string) {
 async function healthCheck() {
   // Проверяем все сервисы
   const imageAvailability = imageService.getAvailability();
-  const wpAvailable = await wordpressService.isAvailable();
-  const wpAuth = await wordpressService.checkAuthentication();
 
   return NextResponse.json({
     success: true,
@@ -363,15 +311,14 @@ async function healthCheck() {
         anyService: imageAvailability.anyService
       },
       wordpress: {
-        apiAvailable: wpAvailable,
-        authenticated: wpAuth
+        apiAvailable: false,
+        authenticated: false,
+        decommissioned: true
       }
     },
     environment: {
       openaiKey: !!process.env.OPENAI_API_KEY,
       unsplashKey: !!process.env.UNSPLASH_ACCESS_KEY,
-      wordpressUrl: !!process.env.WORDPRESS_API_URL,
-      wordpressAuth: !!(process.env.WORDPRESS_USERNAME && process.env.WORDPRESS_APP_PASSWORD),
       webhookSecret: !!process.env.N8N_WEBHOOK_SECRET
     },
     supportedLanguages: SUPPORTED_LANGUAGES,
@@ -381,7 +328,6 @@ async function healthCheck() {
       'content-enhancement',
       'multilingual-translation',
       'image-generation',
-      'wordpress-publication',
       'telegram-integration'
     ]
   });

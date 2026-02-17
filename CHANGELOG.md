@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.6.49] - 2026-02-17 - 🧹 WordPress Decommission + 🐳 VPS Docker Runtime
+
+### 🎯 Что сделано
+- Полностью деактивирована WordPress-интеграция в runtime:
+  - `app/api/articles/route.ts` больше не публикует в WordPress,
+  - `lib/unified-article-service.ts` удалены вызовы WP publication,
+  - `app/api/n8n-webhook/route.ts` возвращает `decommissioned` статус для legacy publication flow.
+- Legacy WordPress endpoints переведены в явный `410 Gone`:
+  - `app/api/wordpress-articles/route.ts`
+  - `app/api/admin/bulk-delete-wordpress/route.ts`
+- Legacy delete endpoints отвязаны от WordPress и переведены на Supabase:
+  - `app/api/admin/delete-article/route.ts`
+  - `app/api/admin/bulk-delete-articles/route.ts`
+- Удалены npm-скрипты очистки WordPress из `package.json`.
+
+### 🐳 Docker (VPS)
+- Добавлены файлы контейнеризации:
+  - `Dockerfile`
+  - `docker-compose.vps.yml`
+  - `.dockerignore`
+  - `app/api/health/route.ts` (healthcheck endpoint)
+  - `scripts/vps-docker-deploy.sh`
+  - `docs/DOCKER_VPS_RUNBOOK.md`
+- Подготовлен переход с PM2 на Docker-контейнер `icoffio-front-app`:
+  - bind `127.0.0.1:4200`,
+  - `restart: unless-stopped`,
+  - healthcheck по `/api/health`,
+  - единый поток логов через `docker compose logs`.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.6.48] - 2026-02-17 - 🧹 Production Feed Cleanup (No Seed Articles)
 
 ### 🎯 Что исправлено

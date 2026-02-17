@@ -187,7 +187,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">WordPress</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Supabase Storage</span>
               </div>
               <span className="text-xs text-green-600 dark:text-green-400 font-medium">Connected</span>
             </div>
@@ -306,7 +306,6 @@ export default function Dashboard() {
     </div>
   );
 }
-
 
 
 

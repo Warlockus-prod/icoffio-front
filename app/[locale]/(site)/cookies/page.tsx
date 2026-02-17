@@ -78,9 +78,9 @@ const translations: Record<string, {
           '• Purpose: Ad delivery and tracking',
           '• Privacy Policy: Check VOX/Malware.Expert documentation',
           '',
-          '**WordPress (Content Management)**',
-          '• Domain: `icoffio.com`',
-          '• Purpose: Content delivery and caching',
+          '**Supabase (Data Platform)**',
+          '• Domain: `supabase.co`',
+          '• Purpose: Article and metadata storage',
           '',
           'These third-party services may use their own cookies according to their privacy policies.'
         ]
@@ -226,9 +226,9 @@ const translations: Record<string, {
           '• Cel: Dostarczanie i śledzenie reklam',
           '• Polityka prywatności: Zobacz dokumentację VOX/Malware.Expert',
           '',
-          '**WordPress (Zarządzanie treścią)**',
-          '• Domena: `icoffio.com`',
-          '• Cel: Dostarczanie treści i buforowanie',
+          '**Supabase (Platforma danych)**',
+          '• Domena: `supabase.co`',
+          '• Cel: Przechowywanie artykułów i metadanych',
           '',
           'Te usługi stron trzecich mogą używać własnych plików cookie zgodnie z ich politykami prywatności.'
         ]
@@ -440,7 +440,6 @@ export default function CookiesPage({ params }: CookiesPageProps) {
     </div>
   );
 }
-
 
 
 

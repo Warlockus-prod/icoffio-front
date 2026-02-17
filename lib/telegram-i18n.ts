@@ -263,7 +263,7 @@ export const translations: Record<BotLanguage, {
     error: '❌ <b>Ошибка</b>',
     jobNotFound: 'Задание не найдено. Попробуйте снова.',
     createdNotPublished: '✅ <b>Создано (не опубликовано)</b>',
-    checkSettings: 'Проверьте настройки WordPress.',
+    checkSettings: 'Проверьте настройки публикации.',
     errorAiGeneration: '❌ <b>Ошибка AI генерации</b>\n\nНе удалось создать контент статьи.',
     errorUrlParsing: '❌ <b>Ошибка парсинга URL</b>\n\nНе удалось получить контент по ссылке.',
     errorPublication: '❌ <b>Ошибка публикации</b>\n\nСтатья создана, но не опубликована.',
@@ -408,7 +408,7 @@ export const translations: Record<BotLanguage, {
     error: '❌ <b>Błąd</b>',
     jobNotFound: 'Zadanie nie znalezione. Spróbuj ponownie.',
     createdNotPublished: '✅ <b>Utworzono (nie opublikowano)</b>',
-    checkSettings: 'Sprawdź ustawienia WordPress.',
+    checkSettings: 'Sprawdź ustawienia publikacji.',
     errorAiGeneration: '❌ <b>Błąd generacji AI</b>\n\nNie udało się utworzyć treści artykułu.',
     errorUrlParsing: '❌ <b>Błąd parsowania URL</b>\n\nNie udało się pobrać treści z linku.',
     errorPublication: '❌ <b>Błąd publikacji</b>\n\nArtykuł utworzony, ale nie opublikowany.',
@@ -553,7 +553,7 @@ export const translations: Record<BotLanguage, {
     error: '❌ <b>Error</b>',
     jobNotFound: 'Job not found. Try again.',
     createdNotPublished: '✅ <b>Created (not published)</b>',
-    checkSettings: 'Check WordPress settings.',
+    checkSettings: 'Check publication settings.',
     errorAiGeneration: '❌ <b>AI generation error</b>\n\nFailed to create article content.',
     errorUrlParsing: '❌ <b>URL parsing error</b>\n\nFailed to get content from the link.',
     errorPublication: '❌ <b>Publication error</b>\n\nArticle created but not published.',
@@ -588,4 +588,3 @@ export function t(chatId: number, key: keyof typeof translations['ru']): string 
   const lang = getUserLanguage(chatId);
   return translations[lang][key];
 }
-

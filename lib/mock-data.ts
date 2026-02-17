@@ -5,7 +5,7 @@
  * Used when API/database is unavailable
  * 
  * IMPORTANT: This data is used as fallback only
- * Real data comes from Supabase/WordPress
+ * Real data comes from Supabase
  */
 
 import type { Post, Category } from './types';
@@ -266,4 +266,3 @@ export function getRelatedMockPosts(categorySlug: string, currentSlug: string, l
 export function getMockPostsForHomepage(limit: number = 9): Post[] {
   return mockPostsShort.slice(0, limit);
 }
-

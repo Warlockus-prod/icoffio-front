@@ -25,19 +25,31 @@ export function MassTranslation() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [results, setResults] = useState<TranslationResult[]>([]);
   const [currentArticle, setCurrentArticle] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Загрузка статей
   const loadArticles = async () => {
     setLoading(true);
+    setErrorMessage('');
     try {
-      const response = await fetch('/api/wordpress-articles');
+      const response = await fetch('/api/supabase-articles?lang=en&limit=200');
       const data = await response.json();
       if (data.success) {
-        setArticles(data.articles);
-        setSelectedArticles(data.articles.map((a: Article) => a.slug)); // Выбрать все
+        const mapped: Article[] = (data.articles || []).map((a: any) => ({
+          title: a.title,
+          slug: a.slug,
+          excerpt: a.excerpt,
+          content: a.content || '',
+          categories: { nodes: [{ name: a.category || 'tech' }] }
+        }));
+        setArticles(mapped);
+        setSelectedArticles(mapped.map((a: Article) => a.slug)); // Выбрать все
+      } else {
+        setErrorMessage(data.error || 'Не удалось загрузить статьи');
       }
     } catch (error) {
       console.error('Ошибка загрузки:', error);
+      setErrorMessage('Ошибка загрузки статей из Supabase');
     }
     setLoading(false);
   };
@@ -130,9 +142,15 @@ export function MassTranslation() {
             🌍 Массовый Автоперевод
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Переводим все статьи WordPress на 4 языка через OpenAI GPT-4o-mini
+            Переводим статьи из Supabase на 4 языка через OpenAI GPT-4o-mini
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Статистика */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -236,7 +254,6 @@ export function MassTranslation() {
     </div>
   );
 }
-
 
 
 

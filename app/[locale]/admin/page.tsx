@@ -239,7 +239,7 @@ export default function AdminPage() {
                       <span className="text-xs text-green-600 dark:text-green-400 font-medium">✅ Active</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">WordPress API</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Supabase Storage</span>
                       <span className="text-xs text-green-600 dark:text-green-400 font-medium">✅ Connected</span>
                     </div>
                   </div>
@@ -274,7 +274,7 @@ export default function AdminPage() {
                         const response = await fetch('/api/articles?action=health-check');
                         const result = await response.json();
                         if (result.success) {
-                          alert('✅ All API connections working!\n\n• OpenAI: ✅\n• Unsplash: ✅\n• WordPress: ✅');
+                          alert('✅ All API connections working!\n\n• OpenAI: ✅\n• Unsplash: ✅\n• Supabase: ✅');
                         }
                       } catch {
                         alert('❌ API connection check error');

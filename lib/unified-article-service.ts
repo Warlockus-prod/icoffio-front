@@ -6,7 +6,6 @@
 import { translationService } from './translation-service';
 import { copywritingService } from './copywriting-service';
 import { imageService } from './image-service';
-import { wordpressService } from './wordpress-service';
 import { urlParserService } from './url-parser-service';
 import { addRuntimeArticle } from './local-articles';
 import { formatContentToHtml, normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from './utils/content-formatter';
@@ -348,22 +347,12 @@ class UnifiedArticleService {
       // 6. СОХРАНЕНИЕ В ЛОКАЛЬНУЮ СИСТЕМУ (включая рантайм для сайта)
       await this.saveArticleLocally(processedArticle);
       
-      // 7. ПУБЛИКАЦИЯ В WORDPRESS (если включено)
+      // 7. WordPress decommissioned: publication is Supabase/runtime only.
       let publishedToWordPress = false;
       let urls: Record<string, string> = {};
       
-      if (input.publishToWordPress !== false) {
-        try {
-          const publishResult = await this.publishToWordPress(processedArticle);
-          publishedToWordPress = publishResult.success;
-          urls = publishResult.urls || {};
-          
-          if (!publishResult.success) {
-            warnings.push(`Failed to publish to WordPress: ${publishResult.error}`);
-          }
-        } catch (error: any) {
-          warnings.push(`WordPress publication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
+      if (input.publishToWordPress) {
+        warnings.push('WordPress publication disabled: integration decommissioned');
       }
       
       // 8. ФОРМИРОВАНИЕ РЕЗУЛЬТАТА
@@ -728,54 +717,6 @@ class UnifiedArticleService {
     }
   }
   
-  /**
-   * Публикация в WordPress
-   */
-  private async publishToWordPress(article: ProcessedArticle): Promise<{success: boolean; urls?: Record<string, string>; error?: string}> {
-    try {
-      const isAvailable = await wordpressService.isAvailable();
-      if (!isAvailable) {
-        return {
-          success: false,
-          error: 'WordPress API недоступен'
-        };
-      }
-      
-      const result = await wordpressService.publishMultilingualArticle({
-        id: article.id,
-        title: article.title,
-        content: article.content,
-        excerpt: article.excerpt,
-        slug: article.slug,
-        category: article.category,
-        tags: article.tags,
-        image: article.image || '',
-        author: article.author,
-        language: article.language,
-        metaDescription: article.metaDescription,
-        publishedAt: article.publishedAt || article.createdAt
-      }, article.translations);
-      
-      const urls: Record<string, string> = {};
-      for (const res of result.results) {
-        if (res.success && res.url) {
-          urls[res.language] = res.url;
-        }
-      }
-      
-      return {
-        success: result.success,
-        urls: Object.keys(urls).length > 0 ? urls : undefined,
-        error: result.success ? undefined : 'Публикация не удалась'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Неизвестная ошибка'
-      };
-    }
-  }
-  
   // ========== УТИЛИТЫ ==========
   
   /**
@@ -862,13 +803,12 @@ class UnifiedArticleService {
     urlParser: boolean;
   }> {
     const imageAvailability = imageService.getAvailability();
-    const wpAvailable = await wordpressService.isAvailable();
     
     return {
       translation: translationService.isAvailable(),
       copywriting: copywritingService.isAvailable(),
       images: imageAvailability.anyService,
-      wordpress: wpAvailable,
+      wordpress: false,
       urlParser: urlParserService.isAvailable()
     };
   }

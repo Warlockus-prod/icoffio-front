@@ -47,7 +47,7 @@ const translations: Record<string, {
           'We use the following third-party services:',
           '• **Google Analytics**: For website analytics and insights',
           '• **VOX**: For displaying relevant advertisements',
-          '• **WordPress**: For content management',
+          '• **Supabase**: For article storage and data operations',
           '',
           'These services may collect data according to their own privacy policies. Please review their policies for more information.'
         ]
@@ -135,7 +135,7 @@ const translations: Record<string, {
           'Korzystamy z następujących usług stron trzecich:',
           '• **Google Analytics**: Do analityki i statystyk witryny',
           '• **VOX**: Do wyświetlania trafnych reklam',
-          '• **WordPress**: Do zarządzania treścią',
+          '• **Supabase**: Do przechowywania artykułów i operacji danych',
           '',
           'Te usługi mogą zbierać dane zgodnie z własnymi politykami prywatności. Zapoznaj się z ich politykami, aby uzyskać więcej informacji.'
         ]
@@ -320,7 +320,6 @@ export default function PrivacyPage({ params }: PrivacyPageProps) {
     </div>
   );
 }
-
 
 
 

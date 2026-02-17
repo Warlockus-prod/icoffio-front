@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-service';
-import { wordpressService } from '@/lib/wordpress-service';
 import { urlParserService } from '@/lib/url-parser-service';
 // v7.30.0: Centralized content formatting utility
 import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
@@ -35,7 +34,8 @@ const MAX_TOTAL_SOURCE_CHARS = 18000;
 const MAX_SOURCE_TEXT_CHARS = 6000;
 const MAX_MANUAL_TEXT_CHARS = 12000;
 const SUPPORTED_CATEGORIES = new Set(['ai', 'apple', 'games', 'tech']);
-const ENABLE_WORDPRESS_PUBLISH = process.env.ENABLE_WORDPRESS_PUBLISH === 'true';
+// WordPress integration is fully decommissioned for VPS-first architecture.
+const ENABLE_WORDPRESS_PUBLISH = false;
 
 type SupportedCategory = 'ai' | 'apple' | 'games' | 'tech';
 
@@ -342,7 +342,7 @@ export async function GET(request: NextRequest) {
       'GET /api/articles': {
         'health-check': '?action=health-check',
         'categories': '?action=categories',
-        'wordpress-health': '?action=wordpress-health',
+        'wordpress-health (deprecated)': '?action=wordpress-health (returns 410)',
         'documentation': 'Default - this help'
       }
     },
@@ -359,7 +359,7 @@ export async function GET(request: NextRequest) {
       'content-enhancement',
       'multilingual-translation', 
       'image-generation',
-      'wordpress-publication',
+      'supabase-publication',
       'url-content-extraction',
       'telegram-integration',
       'local-storage',
@@ -736,8 +736,6 @@ async function handleHealthCheck() {
       environment: {
         openaiKey: !!process.env.OPENAI_API_KEY,
         unsplashKey: !!process.env.UNSPLASH_ACCESS_KEY,
-        wordpressUrl: !!process.env.WORDPRESS_API_URL,
-        wordpressAuth: !!(process.env.WORDPRESS_USERNAME && process.env.WORDPRESS_APP_PASSWORD),
         webhookSecret: !!process.env.N8N_WEBHOOK_SECRET
       },
       
@@ -753,7 +751,6 @@ async function handleHealthCheck() {
         'content-enhancement',
         'multilingual-translation',
         'image-generation',
-        'wordpress-publication',
         'local-storage',
         'health-monitoring'
       ],
@@ -792,46 +789,15 @@ async function handleGetCategories() {
  * Расширенная диагностика WordPress подключения
  */
 async function handleWordPressHealth() {
-  try {
-    const healthStatus = await wordpressService.getHealthStatus();
-    
-    return NextResponse.json({
-      success: true,
-      service: 'WordPress Integration',
-      timestamp: new Date().toISOString(),
-      
-      wordpress: healthStatus,
-      
-      recommendations: [
-        ...(healthStatus.available ? [] : ['Проверьте доступность WordPress REST API']),
-        ...(healthStatus.details.hasCredentials ? [] : ['Добавьте WORDPRESS_USERNAME и WORDPRESS_APP_PASSWORD в переменные окружения']),
-        ...(healthStatus.authenticated ? [] : ['Проверьте правильность учетных данных WordPress']),
-        ...(healthStatus.canCreatePosts ? [] : ['Убедитесь, что пользователь имеет права на создание постов']),
-        ...(healthStatus.categoriesAvailable ? [] : ['Проверьте доступность категорий WordPress'])
-      ],
-      
-      setup: {
-        requiredEnvVars: [
-          'WORDPRESS_API_URL',
-          'WORDPRESS_USERNAME', 
-          'WORDPRESS_APP_PASSWORD'
-        ],
-        instructions: [
-          '1. Войдите в WordPress Admin как администратор',
-          '2. Перейдите в "Пользователи → Ваш профиль"',
-          '3. В разделе "Application Passwords" создайте новый пароль',
-          '4. Скопируйте пароль в WORDPRESS_APP_PASSWORD (не основной пароль!)',
-          '5. Убедитесь, что REST API включен: /wp-json/wp/v2/posts'
-        ]
-      }
-    });
-  } catch (error) {
-    return NextResponse.json({
+  return NextResponse.json(
+    {
       success: false,
-      error: 'WordPress health check failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
-  }
+      service: 'WordPress Integration',
+      decommissioned: true,
+      message: 'WordPress integration is disabled. Publication flow is Supabase-only.'
+    },
+    { status: 410 }
+  );
 }
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
@@ -1196,40 +1162,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       console.log(`✅ Added PL to runtime: /pl/article/${plPost.slug}`);
     }
 
-    // 2. ОПЦИОНАЛЬНО: Пытаемся опубликовать в WordPress (только если включено флагом)
-    let wordpressPublished = false;
-    if (ENABLE_WORDPRESS_PUBLISH) {
-      try {
-        const publicationResult = await wordpressService.publishMultilingualArticle(
-          {
-            id: article.id || `article-${Date.now()}`,
-            title: article.title,
-            content: contentEn,
-            excerpt: cleanExcerptEn,
-            slug: baseSlug, // ✅ ИСПРАВЛЕНО: используем baseSlug
-            category: article.category || 'technology',
-            tags: ['imported', 'ai-processed'],
-            author: article.author || 'Admin',
-            language: 'en', // ✅ ИСПРАВЛЕНО: публикуем как EN
-            image: persistentHeroImage || '',
-            publishedAt
-          },
-          article.translations
-        );
-        
-        wordpressPublished = publicationResult.success;
-        
-        if (publicationResult.success) {
-          console.log('✅ Also published to WordPress');
-        } else {
-          console.warn('⚠️ WordPress publication failed, but article is available locally');
-        }
-      } catch (wpError) {
-        console.warn('⚠️ WordPress unavailable, article published locally only');
-      }
-    } else {
-      console.log('⏭️ WordPress publishing skipped (ENABLE_WORDPRESS_PUBLISH=false)');
-    }
+    // 2. WordPress integration decommissioned.
+    const wordpressPublished = ENABLE_WORDPRESS_PUBLISH;
+    console.log('⏭️ WordPress publishing skipped (decommissioned)');
 
     // 3. Возвращаем успешный результат (статья доступна локально)
     return NextResponse.json({

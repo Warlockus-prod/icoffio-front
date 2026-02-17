@@ -5,6 +5,11 @@ import {
   sanitizeArticleBodyText,
   sanitizeExcerptText,
 } from './utils/content-formatter';
+import {
+  evaluateTitlePolicy,
+  TITLE_MAX_LENGTH,
+  TITLE_MIN_LENGTH,
+} from './utils/title-policy';
 
 interface EditorialReviewInput {
   title: string;
@@ -32,9 +37,12 @@ class EditorialQualityService {
   }
 
   async reviewArticle(input: EditorialReviewInput): Promise<EditorialReviewResult> {
-    const cleanedTitle =
-      sanitizeExcerptText(input.title || '', 220).replace(/[.]{3,}\s*$/, '').trim() ||
-      'Untitled Article';
+    const normalizedTitle = evaluateTitlePolicy(input.title || '', {
+      fallback: 'Untitled Article',
+      minLength: TITLE_MIN_LENGTH,
+      maxLength: TITLE_MAX_LENGTH,
+    });
+    const cleanedTitle = normalizedTitle.title;
     const normalizedContent = normalizeAiGeneratedText(input.content || '');
     const deterministicContent = sanitizeArticleBodyText(normalizedContent, {
       language: input.language,
@@ -52,7 +60,10 @@ class EditorialQualityService {
         content: '',
         excerpt: cleanedExcerpt,
         qualityScore: 0,
-        issues: ['Article body is empty after cleanup'],
+        issues: this.uniqueIssues([
+          ...normalizedTitle.issues,
+          'Article body is empty after cleanup',
+        ]),
         usedAI: false,
       };
     }
@@ -63,9 +74,12 @@ class EditorialQualityService {
         content: cleanedContent,
         excerpt: cleanedExcerpt,
         qualityScore: this.estimateQuality(cleanedContent),
-        issues: hasSevereParserArtifacts(cleanedContent)
-          ? ['Parser artifacts were detected and cleaned with deterministic rules']
-          : [],
+        issues: this.uniqueIssues([
+          ...normalizedTitle.issues,
+          ...(hasSevereParserArtifacts(cleanedContent)
+            ? ['Parser artifacts were detected and cleaned with deterministic rules']
+            : []),
+        ]),
         usedAI: false,
       };
     }
@@ -87,7 +101,10 @@ class EditorialQualityService {
         content: cleanedContent,
         excerpt: cleanedExcerpt,
         qualityScore: this.estimateQuality(cleanedContent),
-        issues: ['AI review failed; deterministic cleanup was applied'],
+        issues: this.uniqueIssues([
+          ...normalizedTitle.issues,
+          'AI review failed; deterministic cleanup was applied',
+        ]),
         usedAI: false,
       };
     }
@@ -142,6 +159,7 @@ Task:
 - Keep factual meaning and article logic.
 - Do NOT invent facts.
 - Keep markdown-friendly structure (short paragraphs and optional ## headings).
+- Return a natural, human-written news title between ${TITLE_MIN_LENGTH} and ${TITLE_MAX_LENGTH} characters.
 
 Return ONLY JSON with this schema:
 {
@@ -196,21 +214,23 @@ ${reviewContent}
     const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
     const parsed = this.parseJsonPayload(rawText);
 
-    const title = sanitizeExcerptText(parsed.title || input.title, 220)
-      .replace(/[.]{3,}\s*$/, '')
-      .trim();
+    const titlePolicy = evaluateTitlePolicy(parsed.title || input.title, {
+      fallback: input.title || 'Untitled Article',
+      minLength: TITLE_MIN_LENGTH,
+      maxLength: TITLE_MAX_LENGTH,
+    });
+    const title = titlePolicy.title;
     const content = sanitizeArticleBodyText(normalizeAiGeneratedText(parsed.content || input.content), {
       language: input.language,
       aggressive: true,
     });
     const excerpt = sanitizeExcerptText(parsed.excerpt || input.excerpt || title, 200);
-    const qualityScore = this.normalizeQualityScore(parsed.qualityScore, content);
-    const issues = Array.isArray(parsed.issues)
-      ? parsed.issues
-          .map((issue: unknown) => String(issue || '').trim())
-          .filter(Boolean)
-          .slice(0, 8)
+    const baseQualityScore = this.normalizeQualityScore(parsed.qualityScore, content);
+    const qualityScore = this.applyTitlePolicyPenalty(baseQualityScore, titlePolicy.issues);
+    const parsedIssues = Array.isArray(parsed.issues)
+      ? parsed.issues.map((issue: unknown) => String(issue || '').trim()).filter(Boolean)
       : [];
+    const issues = this.uniqueIssues([...parsedIssues, ...titlePolicy.issues]).slice(0, 8);
 
     return {
       title: title || input.title,
@@ -247,7 +267,23 @@ ${reviewContent}
     }
     return this.estimateQuality(content);
   }
+
+  private applyTitlePolicyPenalty(score: number, titleIssues: string[]): number {
+    if (!titleIssues.length) {
+      return score;
+    }
+    return Math.max(0, score - Math.min(20, titleIssues.length * 8));
+  }
+
+  private uniqueIssues(issues: string[]): string[] {
+    return Array.from(
+      new Set(
+        issues
+          .map((issue) => String(issue || '').trim())
+          .filter(Boolean)
+      )
+    );
+  }
 }
 
 export const editorialQualityService = new EditorialQualityService();
-

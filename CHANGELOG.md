@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.12] - 2026-02-17 - 🧱 Title Policy in Quality Gate (55-95 chars)
+
+### ✅ Added
+- New shared title policy utility: `lib/utils/title-policy.ts`.
+- Strict editorial title window enforced at publish stage:
+  - minimum: `55` chars,
+  - maximum: `95` chars.
+- Quality gate now includes title policy validation and returns explicit title-length diagnostics in rejection payload.
+
+### ✅ Updated
+- `editorial-quality-service` now:
+  - normalizes title via shared policy,
+  - asks AI to return human-like title in the 55-95 range,
+  - includes title policy issues in quality output.
+- `publish-article` flow in `app/api/articles/route.ts` now:
+  - normalizes EN/PL titles with the same policy before save,
+  - rejects publish when title-length policy fails (if quality gate is enabled).
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/articles-api.test.ts` — OK
+- `npm test -- __tests__/title-policy.test.ts` — OK
+
 ## [8.7.11] - 2026-02-17 - 🧭 Article Header UX Cleanup
 
 ### ✅ Improved article readability

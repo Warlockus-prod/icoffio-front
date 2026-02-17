@@ -8,6 +8,7 @@ import { unifiedArticleService, type ArticleInput } from '@/lib/unified-article-
 import { urlParserService } from '@/lib/url-parser-service';
 // v7.30.0: Centralized content formatting utility
 import { formatContentToHtml, escapeHtml, normalizeAiGeneratedText, sanitizeArticleBodyText, sanitizeExcerptText } from '@/lib/utils/content-formatter';
+import { evaluateTitlePolicy, TITLE_MAX_LENGTH, TITLE_MIN_LENGTH } from '@/lib/utils/title-policy';
 // v8.4.0: Image placement utility
 import { placeImagesInContent } from '@/lib/utils/image-placer';
 import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settings';
@@ -87,6 +88,16 @@ function normalizeCategory(input?: string | null, fallback: SupportedCategory = 
     return normalized as SupportedCategory;
   }
   return fallback;
+}
+
+function uniqueIssueList(issues: string[]): string[] {
+  return Array.from(
+    new Set(
+      issues
+        .map((issue) => String(issue || '').trim())
+        .filter(Boolean)
+    )
+  );
 }
 
 function isValidHttpUrl(value: string): boolean {
@@ -1047,8 +1058,18 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     if (!contentPl) {
       contentPl = normalizeAiGeneratedText(article.translations?.pl?.content || article.content || '');
     }
-    let finalTitleEn = sanitizeExcerptText(article.title || '', 220).replace(/[.]{3,}\s*$/, '') || article.title;
-    let finalTitlePl = sanitizeExcerptText(article.translations?.pl?.title || finalTitleEn, 220).replace(/[.]{3,}\s*$/, '');
+    let enTitlePolicy = evaluateTitlePolicy(article.title || '', {
+      fallback: article.title || 'Untitled Article',
+      minLength: TITLE_MIN_LENGTH,
+      maxLength: TITLE_MAX_LENGTH,
+    });
+    let plTitlePolicy = evaluateTitlePolicy(article.translations?.pl?.title || enTitlePolicy.title, {
+      fallback: enTitlePolicy.title,
+      minLength: TITLE_MIN_LENGTH,
+      maxLength: TITLE_MAX_LENGTH,
+    });
+    let finalTitleEn = enTitlePolicy.title;
+    let finalTitlePl = plTitlePolicy.title;
     let finalExcerptEn = sanitizeExcerptText(article.excerpt || finalTitleEn || contentEn, 200);
     let finalExcerptPl = sanitizeExcerptText(
       article.translations?.pl?.excerpt || article.translations?.pl?.title || finalExcerptEn || contentPl,
@@ -1056,8 +1077,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     );
     let enQualityScore: number | null = null;
     let plQualityScore: number | null = null;
-    let enQualityIssues: string[] = [];
-    let plQualityIssues: string[] = [];
+    let enQualityIssues: string[] = [...enTitlePolicy.issues];
+    let plQualityIssues: string[] = article.translations?.pl ? [...plTitlePolicy.issues] : [];
 
     try {
       const reviewedEn = await editorialQualityService.reviewArticle({
@@ -1066,10 +1087,15 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         content: contentEn,
         language: 'en',
       });
-      finalTitleEn = reviewedEn.title || finalTitleEn;
+      enTitlePolicy = evaluateTitlePolicy(reviewedEn.title || finalTitleEn, {
+        fallback: finalTitleEn || article.title || 'Untitled Article',
+        minLength: TITLE_MIN_LENGTH,
+        maxLength: TITLE_MAX_LENGTH,
+      });
+      finalTitleEn = enTitlePolicy.title;
       finalExcerptEn = sanitizeExcerptText(reviewedEn.excerpt || finalExcerptEn || finalTitleEn, 200);
       enQualityScore = reviewedEn.qualityScore;
-      enQualityIssues = reviewedEn.issues || [];
+      enQualityIssues = uniqueIssueList([...(reviewedEn.issues || []), ...enTitlePolicy.issues]);
       contentEn =
         sanitizeArticleBodyText(reviewedEn.content || contentEn, {
           language: 'en',
@@ -1092,10 +1118,15 @@ async function handleArticlePublication(body: any, request: NextRequest) {
           content: contentPl,
           language: 'pl',
         });
-        finalTitlePl = reviewedPl.title || finalTitlePl || article.translations.pl.title;
+        plTitlePolicy = evaluateTitlePolicy(reviewedPl.title || finalTitlePl || article.translations.pl.title, {
+          fallback: finalTitlePl || finalTitleEn,
+          minLength: TITLE_MIN_LENGTH,
+          maxLength: TITLE_MAX_LENGTH,
+        });
+        finalTitlePl = plTitlePolicy.title;
         finalExcerptPl = sanitizeExcerptText(reviewedPl.excerpt || finalExcerptPl || finalTitlePl, 200);
         plQualityScore = reviewedPl.qualityScore;
-        plQualityIssues = reviewedPl.issues || [];
+        plQualityIssues = uniqueIssueList([...(reviewedPl.issues || []), ...plTitlePolicy.issues]);
         contentPl =
           sanitizeArticleBodyText(reviewedPl.content || contentPl, {
             language: 'pl',
@@ -1111,14 +1142,34 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       }
     }
 
+    enTitlePolicy = evaluateTitlePolicy(finalTitleEn, {
+      fallback: article.title || finalTitleEn || 'Untitled Article',
+      minLength: TITLE_MIN_LENGTH,
+      maxLength: TITLE_MAX_LENGTH,
+    });
+    enQualityIssues = uniqueIssueList([...enQualityIssues, ...enTitlePolicy.issues]);
+    finalTitleEn = enTitlePolicy.title;
+
+    if (article.translations?.pl) {
+      plTitlePolicy = evaluateTitlePolicy(finalTitlePl || finalTitleEn, {
+        fallback: finalTitleEn,
+        minLength: TITLE_MIN_LENGTH,
+        maxLength: TITLE_MAX_LENGTH,
+      });
+      plQualityIssues = uniqueIssueList([...plQualityIssues, ...plTitlePolicy.issues]);
+      finalTitlePl = plTitlePolicy.title;
+    }
+
     if (qualityGateEnabled) {
       const failedEn = typeof enQualityScore === 'number' && enQualityScore < minimumQualityScore;
       const failedPl =
         Boolean(article.translations?.pl) &&
         typeof plQualityScore === 'number' &&
         plQualityScore < minimumQualityScore;
+      const failedEnTitle = enTitlePolicy.issues.length > 0;
+      const failedPlTitle = Boolean(article.translations?.pl) && plTitlePolicy.issues.length > 0;
 
-      if (failedEn || failedPl) {
+      if (failedEn || failedPl || failedEnTitle || failedPlTitle) {
         return NextResponse.json(
           {
             success: false,
@@ -1126,9 +1177,27 @@ async function handleArticlePublication(body: any, request: NextRequest) {
             reason: 'quality_gate_failed',
             qualityGate: {
               minimumQualityScore,
+              titleLengthRange: {
+                min: TITLE_MIN_LENGTH,
+                max: TITLE_MAX_LENGTH,
+              },
               scores: {
                 en: enQualityScore,
                 pl: plQualityScore,
+              },
+              titles: {
+                en: {
+                  value: finalTitleEn,
+                  length: enTitlePolicy.length,
+                  issues: enTitlePolicy.issues,
+                },
+                pl: article.translations?.pl
+                  ? {
+                      value: finalTitlePl,
+                      length: plTitlePolicy.length,
+                      issues: plTitlePolicy.issues,
+                    }
+                  : null,
               },
               issues: {
                 en: enQualityIssues,

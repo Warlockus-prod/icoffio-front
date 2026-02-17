@@ -8,8 +8,8 @@ services:
     env_file:
       - .env.production
     ports:
-      # nginx runs in a separate Docker stack and reaches the app via host gateway.
-      - "4200:4200"
+      # Bind only to docker0 gateway used by nginx container (not public WAN IP).
+      - "172.17.0.1:4200:4200"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4200/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 30s

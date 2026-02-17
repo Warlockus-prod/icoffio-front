@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🧾 Better error behavior
 - `request_magic_link` now returns readable JSON error in failure cases (instead of frontend showing generic `Authentication request failed` due empty response body parse failure).
+- missing roles migration now returns explicit `503` with remediation hint.
 
 ### 🆕 Optional self-signup
 - Added optional self-signup mode for admin auth:

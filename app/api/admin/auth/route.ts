@@ -305,12 +305,17 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Admin auth POST error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    const isRolesMigrationMissing = message.includes('table admin_user_roles is missing');
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
+        error: message,
+        hint: isRolesMigrationMissing
+          ? 'Run Supabase migration 20260217_admin_roles_and_access.sql before inviting/self-signup users.'
+          : undefined,
       },
-      { status: 500 }
+      { status: isRolesMigrationMissing ? 503 : 500 }
     );
   }
 }

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 // Super Admin names (case-insensitive)
 const SUPER_ADMINS = ['andrey'];
@@ -24,6 +25,9 @@ function getSupabase() {
 
 // GET - Check if user is banned
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
@@ -65,6 +69,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Ban or Unban user
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const { username, action, admin_username, reason } = body;
@@ -157,4 +164,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

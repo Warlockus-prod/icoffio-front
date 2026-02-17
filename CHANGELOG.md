@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.3] - 2026-02-17 - 🔐 RBAC Auth + ✍️ Source Attribution + ✅ Publish Quality Gate
+
+### 🎯 Что добавлено
+- Полностью переведена админ-аутентификация на `email magic link` (Supabase Auth) вместо пароля.
+- Добавлены роли доступа:
+  - `admin`: полный доступ (логи, system info, Telegram settings, role management),
+  - `editor`: создание/генерация/публикация/удаление статей,
+  - `viewer`: read-only.
+- Добавлен callback endpoint для magic-link с установкой защищённых cookie-сессий:
+  - `GET /api/admin/auth/callback`.
+- Добавлен management UI для команды:
+  - приглашения по email,
+  - назначение ролей,
+  - включение/отключение аккаунтов:
+  - `components/admin/TeamAccessManager.tsx`.
+
+### 🔒 RBAC на API
+- Добавена role-проверка на ключевые endpoint'ы:
+  - `app/api/admin/*` (editor/admin по назначению),
+  - `app/api/upload-image/route.ts`,
+  - `app/api/articles/route.ts` для `create-from-url|create-from-text|publish-article`,
+  - `app/api/activity-log/*`,
+  - `app/api/telegram/settings/route.ts`,
+  - `app/api/telegram/submissions/route.ts`.
+
+### 🗂️ Source attribution (опционально)
+- В URL/Text creator добавлены опции публикации:
+  - `Add source links block at the end of article` (checkbox),
+  - `Quality gate` + порог качества.
+- При публикации (если опция включена) в конец статьи добавляется блок источников:
+  - EN: `## Sources`
+  - PL: `## Źródła`
+  - ссылки в формате markdown с доменом и URL.
+
+### ✅ Quality gate перед publish
+- В финальном publish-пайплайне добавлен блокирующий gate:
+  - если score ниже порога, публикация отклоняется с `422 quality_gate_failed`,
+  - EN/PL score и issues возвращаются в ответе API.
+- В `PublishingQueue` добавлено понятное сообщение об отказе по quality gate.
+
+### 🧱 DB migration
+- Добавлена миграция ролей:
+  - `supabase/migrations/20260217_admin_roles_and_access.sql`.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.7.2] - 2026-02-17 - 📋 Unified System Logs (Client + Server)
 
 ### 🎯 Что добавлено

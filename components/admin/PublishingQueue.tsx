@@ -254,6 +254,13 @@ export default function PublishingQueue() {
           }
         );
       } else {
+        if (result.reason === 'quality_gate_failed' && result.qualityGate) {
+          const enScore = result.qualityGate?.scores?.en ?? 'n/a';
+          const plScore = result.qualityGate?.scores?.pl ?? 'n/a';
+          const minScore = result.qualityGate?.minimumQualityScore ?? 'n/a';
+          throw new Error(`Quality gate blocked publish (EN: ${enScore}, PL: ${plScore}, min: ${minScore})`);
+        }
+
         throw new Error(result.error || 'Publication failed');
       }
     } catch (error) {

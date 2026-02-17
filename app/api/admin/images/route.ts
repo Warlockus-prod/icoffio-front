@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const UNSPLASH_API_URL = 'https://api.unsplash.com';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get('q') || 'technology';
   const page = parseInt(searchParams.get('page') || '1');
@@ -78,7 +82,6 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
-
 
 
 

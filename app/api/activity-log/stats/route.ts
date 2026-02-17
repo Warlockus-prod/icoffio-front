@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -40,6 +41,9 @@ function getPeriodDate(period: string): Date | null {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = request.nextUrl;
     const period = searchParams.get('period') || 'all';

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { buildSiteUrl, getSiteBaseUrl } from '@/lib/site-url';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -61,6 +62,9 @@ function generateSlug(title: string, language: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body: PublishRequest = await request.json();
     
@@ -195,7 +199,10 @@ export async function POST(request: NextRequest) {
 }
 
 // Health check
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;

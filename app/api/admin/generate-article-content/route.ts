@@ -8,11 +8,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateArticleContent, estimateGenerationCost } from '@/lib/ai-copywriting-service';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Allow up to 60 seconds for generation
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     
@@ -66,6 +70,9 @@ export async function POST(request: NextRequest) {
  * Estimate cost for article generation
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const prompt = searchParams.get('prompt') || '';
@@ -96,7 +103,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 
 
 

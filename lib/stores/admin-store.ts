@@ -28,11 +28,17 @@ interface TextProcessingOptions {
   skipTranslation?: boolean;
   skipImageGeneration?: boolean;
   sourceUrls?: string[];
+  includeSourceAttribution?: boolean;
+  enableQualityGate?: boolean;
+  minQualityScore?: number;
 }
 
 interface UrlProcessingOptions {
   sourceUrls?: string[];
   sourceText?: string;
+  includeSourceAttribution?: boolean;
+  enableQualityGate?: boolean;
+  minQualityScore?: number;
 }
 
 export interface Article {
@@ -52,6 +58,11 @@ export interface Article {
   selectedImageId?: string;
   monetizationSettings?: ArticleMonetizationSettings;
   publishedAt?: Date;
+  sourceUrls?: string[];
+  sourceText?: string;
+  includeSourceAttribution?: boolean;
+  qualityGateEnabled?: boolean;
+  minimumQualityScore?: number;
   
   // ✨ NEW: Staged Processing
   processingStage?: 'text' | 'image-selection' | 'final';
@@ -148,11 +159,19 @@ export interface ActivityItem {
   articleId?: string;
 }
 
+export type AdminRole = 'admin' | 'editor' | 'viewer';
+
+export interface AdminUser {
+  email: string;
+  role: AdminRole;
+}
+
 // Store Interface
 interface AdminStore {
   // Authentication
   isAuthenticated: boolean;
   isLoading: boolean;
+  currentUser: AdminUser | null;
   
   // Current View
   activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity' | 'telegram';
@@ -172,7 +191,9 @@ interface AdminStore {
   statistics: Statistics;
   
   // Actions
-  authenticate: (password: string) => Promise<boolean>;
+  authenticate: (email: string, locale?: 'en' | 'pl') => Promise<{ success: boolean; message?: string; error?: string }>;
+  checkSession: () => Promise<void>;
+  hasRole: (requiredRole: AdminRole) => boolean;
   logout: () => Promise<void>;
   setActiveTab: (tab: AdminStore['activeTab']) => void;
   
@@ -222,6 +243,7 @@ export const useAdminStore = create<AdminStore>()(
       // Initial State
       isAuthenticated: false,
       isLoading: false,
+      currentUser: null,
       activeTab: 'dashboard',
       parsingQueue: [],
       selectedArticle: null,
@@ -239,54 +261,100 @@ export const useAdminStore = create<AdminStore>()(
         recentActivity: []
       },
 
-      // Authentication — always via server-side API (no client-side passwords)
-      authenticate: async (password: string) => {
+      // Authentication — magic link + RBAC through server-side API
+      authenticate: async (email: string, locale: 'en' | 'pl' = 'en') => {
         try {
           const response = await fetch('/api/admin/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'login', password })
+            body: JSON.stringify({
+              action: 'request_magic_link',
+              email,
+              locale,
+              next: `/${locale}/admin`,
+            }),
           });
           
           const result = await response.json();
           
           if (result.success) {
-            adminLogger.info('user', 'login_success', 'User authenticated via API');
-            set({ isAuthenticated: true });
-            if (typeof window !== 'undefined') {
-              if (result.token) {
-                localStorage.setItem('icoffio_admin_token', result.token);
-              }
-              localStorage.setItem('icoffio_admin_auth', 'authenticated');
-            }
-            return true;
+            adminLogger.info('user', 'login_magic_link_sent', `Magic link sent to ${email}`);
+            return {
+              success: true,
+              message: result.message || 'Magic link sent to your email.',
+            };
           }
+
+          return {
+            success: false,
+            error: result.error || 'Failed to send magic link',
+          };
         } catch (error) {
           console.error('API auth error:', error);
+          return {
+            success: false,
+            error: 'Authentication request failed',
+          };
         }
-        
-        adminLogger.warn('user', 'login_failed', 'Invalid password');
-        return false;
+      },
+
+      checkSession: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await fetch('/api/admin/auth', {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          const result = await response.json();
+
+          if (result?.success && result?.authenticated && result?.user) {
+            const user: AdminUser = {
+              email: String(result.user.email || ''),
+              role: (result.user.role || 'viewer') as AdminRole,
+            };
+
+            set({
+              isAuthenticated: true,
+              currentUser: user,
+            });
+            adminLogger.info('user', 'session_restored', `Session restored for ${user.email}`);
+          } else {
+            set({
+              isAuthenticated: false,
+              currentUser: null,
+            });
+          }
+        } catch (error) {
+          console.error('Session check failed:', error);
+          set({
+            isAuthenticated: false,
+            currentUser: null,
+          });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      hasRole: (requiredRole: AdminRole) => {
+        const userRole = get().currentUser?.role || 'viewer';
+        const weight: Record<AdminRole, number> = { viewer: 1, editor: 2, admin: 3 };
+        return weight[userRole] >= weight[requiredRole];
       },
 
       logout: async () => {
         try {
-          // Call server to invalidate session
           await fetch('/api/admin/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'logout' })
+            body: JSON.stringify({ action: 'logout' }),
           });
         } catch (error) {
           console.error('Logout error:', error);
         }
         
         adminLogger.info('user', 'logout', 'User logged out from admin panel');
-        set({ isAuthenticated: false });
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('icoffio_admin_auth');
-          localStorage.removeItem('icoffio_admin_token');
-        }
+        set({ isAuthenticated: false, currentUser: null });
       },
 
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -673,6 +741,9 @@ export const useAdminStore = create<AdminStore>()(
           )
         ).slice(0, 5);
         const sourceText = options?.sourceText?.trim() || undefined;
+        const includeSourceAttribution = options?.includeSourceAttribution ?? true;
+        const qualityGateEnabled = options?.enableQualityGate ?? true;
+        const minimumQualityScore = options?.minQualityScore ?? 65;
         const mainUrl = sourceUrls[0] || url;
         const isMultiSource = sourceUrls.length > 1 || Boolean(sourceText);
         const timer = createApiTimer('parse_url');
@@ -702,6 +773,9 @@ export const useAdminStore = create<AdminStore>()(
               url: mainUrl,
               ...(isMultiSource ? { urls: sourceUrls } : {}),
               ...(sourceText ? { content: sourceText } : {}),
+              includeSourceAttribution,
+              qualityGateEnabled,
+              minimumQualityScore,
               category,
               contentStyle, // ✅ v8.4.0: Передаем стиль обработки
               stage: 'text-only' // ✨ NEW: Request text-only processing (no image generation)
@@ -758,6 +832,11 @@ export const useAdminStore = create<AdminStore>()(
                   excerpt: posts.pl.excerpt  
                 } : undefined
               },
+              sourceUrls,
+              sourceText,
+              includeSourceAttribution,
+              qualityGateEnabled,
+              minimumQualityScore,
               // ✅ ИСПРАВЛЕНИЕ: Сохраняем imageOptions для выбора нескольких картинок
               imageOptions: result.imageOptions || undefined,
               processingStage: result.imageOptions ? 'image-selection' : 'final'
@@ -848,6 +927,9 @@ export const useAdminStore = create<AdminStore>()(
                 .filter(Boolean)
             )
           ).slice(0, 5);
+          const includeSourceAttribution = options?.includeSourceAttribution ?? true;
+          const qualityGateEnabled = options?.enableQualityGate ?? true;
+          const minimumQualityScore = options?.minQualityScore ?? 65;
           
           // ✅ ИСПРАВЛЕНИЕ: Увеличенный таймаут для облачной обработки
           const controller = new AbortController();
@@ -866,6 +948,9 @@ export const useAdminStore = create<AdminStore>()(
               ...(sourceUrls.length > 0
                 ? { sourceUrls }
                 : {}),
+              includeSourceAttribution,
+              qualityGateEnabled,
+              minimumQualityScore,
               category: normalizedCategory,
               stage: 'text-only', // ✨ NEW: Request text-only processing (no image generation)
               enhanceContent: options?.skipEnhancement ? false : true,
@@ -910,7 +995,11 @@ export const useAdminStore = create<AdminStore>()(
                 content: posts.pl.content,
                 excerpt: posts.pl.excerpt  
               } : undefined
-            }
+            },
+            sourceUrls,
+            includeSourceAttribution,
+            qualityGateEnabled,
+            minimumQualityScore,
           };
           
           get().updateJobStatus(jobId, 'ready', 100, article);

@@ -8,11 +8,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { translateArticleContent } from '@/lib/ai-copywriting-service';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     
@@ -54,7 +58,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 
 
 

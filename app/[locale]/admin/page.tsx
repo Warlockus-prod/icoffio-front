@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
+import { usePathname, useSearchParams } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Dashboard from '@/components/admin/Dashboard';
 import URLParser from '@/components/admin/URLParser';
@@ -15,81 +16,83 @@ import AdvertisingManager from '@/components/admin/AdvertisingManager';
 import ContentPromptManager from '@/components/admin/ContentPromptManager';
 import ActivityLog from '@/components/admin/ActivityLog';
 import { TelegramSettings } from '@/components/admin/TelegramSettings';
+import TeamAccessManager from '@/components/admin/TeamAccessManager';
 
 export default function AdminPage() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { 
     isAuthenticated, 
     isLoading, 
     activeTab, 
-    authenticate 
+    currentUser,
+    authenticate,
+    checkSession,
+    hasRole,
+    setActiveTab,
   } = useAdminStore();
   
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const locale: 'en' | 'pl' = pathname?.split('/')[1] === 'pl' ? 'pl' : 'en';
 
-  // Check saved authentication on load
   useEffect(() => {
-    const checkAuth = async () => {
-      if (typeof window !== 'undefined') {
-        // ✅ v8.4.2: Проверяем ОБА варианта авторизации
-        const savedToken = localStorage.getItem('icoffio_admin_token');
-        const savedAuth = localStorage.getItem('icoffio_admin_auth');
-        
-        // 1. Если есть локальная авторизация - сразу авторизуем
-        if (savedAuth === 'authenticated') {
-          console.log('✅ Admin: Restored from local auth');
-          useAdminStore.setState({ isAuthenticated: true });
-          return;
-        }
-        
-        // 2. Если есть токен - валидируем через API
-        if (savedToken) {
-          try {
-            const response = await fetch('/api/admin/auth', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'validate', token: savedToken })
-            });
-            const result = await response.json();
-            
-            if (result.success && result.valid) {
-              console.log('✅ Admin: Token validated via API');
-              useAdminStore.setState({ isAuthenticated: true });
-            } else {
-              // Token expired - clear it
-              console.log('⚠️ Admin: Token expired, clearing');
-              localStorage.removeItem('icoffio_admin_token');
-              localStorage.removeItem('icoffio_admin_auth');
-            }
-          } catch (error) {
-            console.error('Token validation error:', error);
-            // На случай ошибки API - доверяем локальной авторизации если она есть
-            if (savedAuth === 'authenticated') {
-              useAdminStore.setState({ isAuthenticated: true });
-            }
-          }
-        }
-      }
-    };
-    
-    checkAuth();
-  }, []);
+    void checkSession();
+  }, [checkSession]);
 
-  // Handle authentication - now async
+  useEffect(() => {
+    const authStatus = searchParams.get('auth');
+    const authError = searchParams.get('auth_error');
+
+    if (authStatus === 'ok') {
+      setInfo('Magic link confirmed. Signing you in...');
+      setError('');
+      void checkSession();
+      return;
+    }
+
+    if (authError) {
+      if (authError === 'not_invited') {
+        setError('This email is not invited to admin panel.');
+      } else {
+        setError(`Authentication failed: ${authError}`);
+      }
+      setInfo('');
+    }
+  }, [checkSession, searchParams]);
+
+  useEffect(() => {
+    const currentTabRequiresAdmin = ['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(activeTab);
+    const currentTabRequiresEditor = ['parser', 'editor', 'images', 'queue'].includes(activeTab);
+
+    if (!isAuthenticated) return;
+
+    if (currentTabRequiresAdmin && !hasRole('admin')) {
+      setActiveTab('dashboard');
+      return;
+    }
+
+    if (currentTabRequiresEditor && !hasRole('editor')) {
+      setActiveTab('articles');
+    }
+  }, [activeTab, hasRole, isAuthenticated, setActiveTab]);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
     setError('');
+    setInfo('');
     
     try {
-      const success = await authenticate(password);
-      if (success) {
-        setError('');
-        setPassword('');
+      const result = await authenticate(email, locale);
+      if (result.success) {
+        setInfo(result.message || 'Magic link sent. Check your inbox.');
+        setEmail('');
       } else {
-        setError('Invalid password');
+        setError(result.error || 'Failed to send magic link');
       }
     } catch (error) {
       setError('Authentication error. Please try again.');
@@ -97,6 +100,17 @@ export default function AdminPage() {
       setIsAuthenticating(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin mx-auto mb-3 h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full" />
+          <p className="text-sm text-gray-600 dark:text-gray-300">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Login form
   if (!isAuthenticated) {
@@ -120,20 +134,28 @@ export default function AdminPage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
             <form onSubmit={handleAuth} className="space-y-6">
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Administrator Password
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Work Email
                 </label>
                 <input
-                  id="password"
-                  name="password"
-                  type="password"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                  placeholder="Enter password"
+                  placeholder="name@company.com"
                 />
               </div>
+
+              {info && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    {info}
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -154,10 +176,10 @@ export default function AdminPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Authenticating...
+                    Sending magic link...
                   </span>
                 ) : (
-                  '🚀 Login to Admin Panel'
+                  '✉️ Send Magic Link'
                 )}
               </button>
             </form>
@@ -193,7 +215,28 @@ export default function AdminPage() {
   }
 
   // Main admin panel after authentication
+  const canAccessTab = (tab: typeof activeTab): boolean => {
+    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(tab)) {
+      return hasRole('admin');
+    }
+    if (['parser', 'editor', 'images', 'queue'].includes(tab)) {
+      return hasRole('editor');
+    }
+    return hasRole('viewer');
+  };
+
   const renderActiveTab = () => {
+    if (!canAccessTab(activeTab)) {
+      return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Access Restricted</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Your role <span className="font-medium">{currentUser?.role || 'viewer'}</span> does not allow opening this section.
+          </p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard />;
@@ -220,6 +263,8 @@ export default function AdminPage() {
       case 'settings':
         return (
           <div className="space-y-6">
+            {hasRole('admin') && <TeamAccessManager currentUserEmail={currentUser?.email || ''} />}
+
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                 ⚙️ System Settings

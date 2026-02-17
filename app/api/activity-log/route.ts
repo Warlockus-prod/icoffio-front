@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 // Supabase client
 function getSupabase() {
@@ -22,6 +23,9 @@ function getSupabase() {
 
 // POST - Добавить запись
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     
@@ -101,6 +105,9 @@ export async function POST(request: NextRequest) {
 
 // GET - Получить записи
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -189,4 +196,3 @@ function formatTimeAgo(dateString: string): string {
   
   return date.toLocaleDateString();
 }
-

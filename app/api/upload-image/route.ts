@@ -13,6 +13,7 @@
 
 import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 // Максимальный размер файла (10MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -34,14 +35,10 @@ async function generateBlurPlaceholder(buffer: ArrayBuffer): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
-    // Проверяем авторизацию (простая проверка)
-    const authHeader = request.headers.get('authorization');
-    const adminToken = request.cookies.get('icoffio_admin_token')?.value;
-    
-    // Разрешаем загрузку для авторизованных админов
-    // В production добавить более строгую проверку
-    
     const formData = await request.formData();
     const file = (formData as unknown as { get: (name: string) => File | null }).get('file');
     
@@ -123,6 +120,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE endpoint для удаления изображений
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { url } = await request.json();
     

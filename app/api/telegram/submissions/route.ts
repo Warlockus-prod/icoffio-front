@@ -11,11 +11,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTelegramSubmissions } from '@/lib/supabase-analytics';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     
@@ -81,7 +85,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 
 
 

@@ -27,6 +27,30 @@ chmod +x scripts/vps-docker-deploy.sh
 ./scripts/vps-docker-deploy.sh
 ```
 
+## Required env for new admin auth (v8.7.3+)
+
+Set in `.env.production` (or your VPS env source):
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+ADMIN_BOOTSTRAP_EMAILS=owner@icoffio.com
+```
+
+Notes:
+- `ADMIN_BOOTSTRAP_EMAILS` is optional but recommended.
+- If it is missing and `admin_user_roles` is empty, the first authenticated email can bootstrap as `admin`.
+
+## Required Supabase migration (v8.7.3+)
+
+Run SQL migration:
+
+```sql
+supabase/migrations/20260217_admin_roles_and_access.sql
+```
+
+Without this migration, admin login/roles endpoints return an explicit error about missing table `admin_user_roles`.
+
 ## Validation
 
 ```bash

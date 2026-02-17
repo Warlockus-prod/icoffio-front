@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { InterfaceLanguage, TelegramSettings } from '@/lib/telegram-simple/types';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 function getSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,6 +34,9 @@ function normalizeInterfaceLanguage(raw?: string | null): InterfaceLanguage {
  * GET - получить настройки для chat_id
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const chatId = searchParams.get('chatId');
@@ -84,6 +88,9 @@ export async function GET(request: NextRequest) {
  * POST - сохранить настройки
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body: TelegramSettings = await request.json();
 

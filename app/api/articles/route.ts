@@ -14,6 +14,7 @@ import { injectMonetizationSettingsIntoContent } from '@/lib/monetization-settin
 import { editorialQualityService } from '@/lib/editorial-quality-service';
 import { buildSiteUrl } from '@/lib/site-url';
 import { appendServerLog } from '@/lib/server-log-store';
+import { requireAdminRole, type AdminRole } from '@/lib/admin-auth';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const PLACEHOLDER_IMAGE_MARKERS = [
@@ -210,7 +211,7 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-    // Проверка авторизации для определенных действий
+    // Проверка авторизации для webhook телеграма
     if (['create-from-telegram'].includes(action)) {
       const authResult = await checkAuthentication(request);
       if (!authResult.success) {
@@ -219,6 +220,23 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
+    }
+
+    // RBAC для админской части API
+    const actionRoleMap: Partial<Record<ActionType, AdminRole>> = {
+      'create-from-url': 'editor',
+      'create-from-text': 'editor',
+      'publish-article': 'editor',
+      'update-article': 'editor',
+      'delete-article': 'editor',
+      'list-articles': 'viewer',
+      'get-article': 'viewer',
+    };
+
+    const requiredRole = actionRoleMap[action];
+    if (requiredRole) {
+      const auth = await requireAdminRole(request, requiredRole, { allowRefresh: false });
+      if (!auth.ok) return auth.response;
     }
 
     // Маршрутизация по действиям
@@ -899,6 +917,42 @@ function formatPostsForAdmin(article: any): Record<string, any> {
   return posts;
 }
 
+function normalizeSourceUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .filter((url) => isValidHttpUrl(url))
+    )
+  );
+}
+
+function sourceHostLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./i, '');
+    return hostname || url;
+  } catch {
+    return url;
+  }
+}
+
+function appendSourceAttribution(
+  content: string,
+  urls: string[],
+  language: 'en' | 'pl'
+): string {
+  const normalizedContent = (content || '').trim();
+  if (!normalizedContent || urls.length === 0) return normalizedContent;
+  if (/^##\s*(sources|źródła)\b/im.test(normalizedContent)) return normalizedContent;
+
+  const heading = language === 'pl' ? '## Źródła' : '## Sources';
+  const lines = urls.map((url) => `- [${sourceHostLabel(url)}](${url})`);
+
+  return `${normalizedContent}\n\n${heading}\n${lines.join('\n')}`.trim();
+}
+
 // ✅ v7.30.0: formatContentToHtml and escapeHtml moved to lib/utils/content-formatter.ts
 // This eliminates code duplication - now imported at the top of this file
 
@@ -944,6 +998,16 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     const rawBaseSlug = article.slug || generateSlug(article.title);
     const baseSlug = rawBaseSlug.replace(/-(en|pl)$/i, '');
     const publishedAt = new Date().toISOString();
+    const includeSourceAttribution = article.includeSourceAttribution !== false;
+    const qualityGateEnabled = article.qualityGateEnabled !== false;
+    const parsedThreshold = Number(article.minimumQualityScore ?? 65);
+    const minimumQualityScore = Number.isFinite(parsedThreshold)
+      ? Math.min(95, Math.max(40, Math.round(parsedThreshold)))
+      : 65;
+
+    const normalizedSourceUrls = normalizeSourceUrls(article.sourceUrls);
+    const fallbackSource = typeof article.url === 'string' && isValidHttpUrl(article.url) ? [article.url] : [];
+    const sourceUrls = Array.from(new Set([...normalizedSourceUrls, ...fallbackSource])).slice(0, 8);
     
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
@@ -976,6 +1040,10 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       article.translations?.pl?.excerpt || article.translations?.pl?.title || finalExcerptEn || contentPl,
       200
     );
+    let enQualityScore: number | null = null;
+    let plQualityScore: number | null = null;
+    let enQualityIssues: string[] = [];
+    let plQualityIssues: string[] = [];
 
     try {
       const reviewedEn = await editorialQualityService.reviewArticle({
@@ -986,6 +1054,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       });
       finalTitleEn = reviewedEn.title || finalTitleEn;
       finalExcerptEn = sanitizeExcerptText(reviewedEn.excerpt || finalExcerptEn || finalTitleEn, 200);
+      enQualityScore = reviewedEn.qualityScore;
+      enQualityIssues = reviewedEn.issues || [];
       contentEn =
         sanitizeArticleBodyText(reviewedEn.content || contentEn, {
           language: 'en',
@@ -1010,6 +1080,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         });
         finalTitlePl = reviewedPl.title || finalTitlePl || article.translations.pl.title;
         finalExcerptPl = sanitizeExcerptText(reviewedPl.excerpt || finalExcerptPl || finalTitlePl, 200);
+        plQualityScore = reviewedPl.qualityScore;
+        plQualityIssues = reviewedPl.issues || [];
         contentPl =
           sanitizeArticleBodyText(reviewedPl.content || contentPl, {
             language: 'pl',
@@ -1022,6 +1094,36 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         );
       } catch (qualityError) {
         console.warn('[QualityGate] PL review failed, keeping deterministic cleanup only', qualityError);
+      }
+    }
+
+    if (qualityGateEnabled) {
+      const failedEn = typeof enQualityScore === 'number' && enQualityScore < minimumQualityScore;
+      const failedPl =
+        Boolean(article.translations?.pl) &&
+        typeof plQualityScore === 'number' &&
+        plQualityScore < minimumQualityScore;
+
+      if (failedEn || failedPl) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Quality gate rejected publication',
+            reason: 'quality_gate_failed',
+            qualityGate: {
+              minimumQualityScore,
+              scores: {
+                en: enQualityScore,
+                pl: plQualityScore,
+              },
+              issues: {
+                en: enQualityIssues,
+                pl: plQualityIssues,
+              },
+            },
+          },
+          { status: 422 }
+        );
       }
     }
 
@@ -1086,6 +1188,11 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         `💰 Applied custom monetization settings: ${article.monetizationSettings.enabledAdPlacementIds?.length || 0} ad slots, ` +
           `${article.monetizationSettings.enabledVideoPlayerIds?.length || 0} video players`
       );
+    }
+
+    if (includeSourceAttribution && sourceUrls.length > 0) {
+      contentEn = appendSourceAttribution(contentEn, sourceUrls, 'en');
+      contentPl = appendSourceAttribution(contentPl, sourceUrls, 'pl');
     }
     
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!

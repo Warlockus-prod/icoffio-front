@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { getArticleImage, type ImageSource } from '@/lib/image-generation-service';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 async function persistRemoteImage(imageUrl: string, title: string): Promise<string> {
   try {
@@ -45,6 +46,9 @@ async function persistRemoteImage(imageUrl: string, title: string): Promise<stri
  * Поддерживает DALL-E 3, Unsplash и custom URLs
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const source = body?.source || 'unsplash';

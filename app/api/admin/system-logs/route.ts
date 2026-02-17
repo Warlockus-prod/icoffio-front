@@ -1,33 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import {
   clearServerLogs,
   readServerLogs,
   type ServerLogCategory,
   type ServerLogLevel,
 } from '@/lib/server-log-store';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-function validateToken(token: string | undefined): boolean {
-  if (!token || !token.startsWith('icoffio_')) return false;
-  const parts = token.split('_');
-  if (parts.length < 2) return false;
-
-  const timestamp = parseInt(parts[1], 36);
-  if (!Number.isFinite(timestamp)) return false;
-
-  const now = Date.now();
-  const expirationMs = 24 * 60 * 60 * 1000;
-  return now - timestamp < expirationMs;
-}
-
-function isAdminAuthenticated(): boolean {
-  const cookieToken = cookies().get('admin_token')?.value;
-  return validateToken(cookieToken);
-}
 
 const ALLOWED_LEVELS: ServerLogLevel[] = ['debug', 'info', 'warn', 'error'];
 const ALLOWED_CATEGORIES: ServerLogCategory[] = ['parser', 'queue', 'api', 'system', 'telegram'];
@@ -45,9 +27,8 @@ function normalizeCategory(value: string | null): ServerLogCategory | undefined 
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAdminAuthenticated()) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const limit = Number(searchParams.get('limit') || '200');
@@ -66,12 +47,10 @@ export async function GET(request: NextRequest) {
   });
 }
 
-export async function DELETE() {
-  if (!isAdminAuthenticated()) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  }
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
 
   await clearServerLogs();
   return NextResponse.json({ success: true, message: 'System logs cleared' });
 }
-

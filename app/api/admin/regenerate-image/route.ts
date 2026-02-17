@@ -29,6 +29,7 @@ import {
   createDefaultImageMetadata
 } from '@/lib/types/image-metadata';
 import { buildSiteUrl } from '@/lib/site-url';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -66,6 +67,9 @@ interface ResolvedArticleData {
  * Returns: ImageRegenerationResponse
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body: ImageRegenerationRequest = await request.json();
 

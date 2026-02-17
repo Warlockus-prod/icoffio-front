@@ -7,11 +7,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { urlParserService } from '@/lib/url-parser-service';
 import { appendServerLog } from '@/lib/server-log-store';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds для парсинга
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { url } = await request.json();
 

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export const runtime = 'edge';
 
@@ -25,6 +26,9 @@ function getSupabaseClient() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body: BulkDeleteRequest = await request.json();
     const { slugs } = body;
@@ -106,4 +110,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

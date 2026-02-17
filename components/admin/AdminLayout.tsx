@@ -12,7 +12,7 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const { activeTab, setActiveTab, logout } = useAdminStore();
+  const { activeTab, setActiveTab, logout, currentUser, hasRole } = useAdminStore();
 
   const [adminUsername, setAdminUsername] = useState<string | null>(null);
 
@@ -36,6 +36,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings' }
   ] as const;
+
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(item.id)) {
+      return hasRole('admin');
+    }
+    if (['parser', 'editor', 'images', 'queue'].includes(item.id)) {
+      return hasRole('editor');
+    }
+    return hasRole('viewer');
+  });
 
   return (
     <>
@@ -68,7 +78,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id as any)}
@@ -114,7 +124,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <div className="flex items-center gap-3">
               {/* Mobile Menu Button */}
               <MobileNav
-                menuItems={menuItems}
+                menuItems={visibleMenuItems}
                 activeTab={activeTab}
                 onTabChange={(tab) => setActiveTab(tab as any)}
                 onLogout={logout}
@@ -154,7 +164,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {adminUsername || 'Admin'}
                   </div>
-                  <ChangeUsernameButton />
+                  <div className="flex items-center gap-2">
+                    <ChangeUsernameButton />
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 uppercase tracking-wide">
+                      {currentUser?.role || 'viewer'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -172,7 +187,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </>
   );
 }
-
 
 
 

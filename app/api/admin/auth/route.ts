@@ -1,142 +1,328 @@
-/**
- * 🔐 ADMIN AUTHENTICATION API
- * v7.29.0 - Secure server-side authentication
- * 
- * SECURITY FEATURES:
- * - Password validation happens server-side only
- * - Password is never exposed to client code
- * - Rate limiting prevents brute force attacks
- * - HTTP-only cookies for session management
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { checkRateLimit, createRateLimitResponse, addRateLimitHeaders } from '@/lib/api-rate-limiter';
+import { buildSiteUrl } from '@/lib/site-url';
+import {
+  clearAdminSessionCookies,
+  getAdminMembers,
+  getSupabaseAdminClient,
+  isRoleAllowed,
+  normalizeEmail,
+  requireAdminRole,
+  sanitizeNextPath,
+  setAdminSessionCookies,
+  upsertAdminRole,
+  ensureRoleForAuthenticatedUser,
+  type AdminRole,
+} from '@/lib/admin-auth';
 
-// Secure token generation
-function generateSecureToken(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 15);
-  const random2 = Math.random().toString(36).substring(2, 15);
-  return `icoffio_${timestamp}_${random}${random2}`;
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+interface AuthActionRequest {
+  action?: string;
+  email?: string;
+  role?: AdminRole;
+  locale?: 'en' | 'pl';
+  next?: string;
+  isActive?: boolean;
 }
 
-// Token validation (simple implementation - can be enhanced with JWT)
-function validateToken(token: string): boolean {
-  if (!token || !token.startsWith('icoffio_')) return false;
-  
-  // Extract timestamp from token
-  const parts = token.split('_');
-  if (parts.length < 2) return false;
-  
-  const timestamp = parseInt(parts[1], 36);
-  const now = Date.now();
-  
-  // Token expires after 24 hours
-  const expirationMs = 24 * 60 * 60 * 1000;
-  return (now - timestamp) < expirationMs;
+const VALID_ROLES: AdminRole[] = ['admin', 'editor', 'viewer'];
+
+function validateEmail(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const normalized = normalizeEmail(input);
+  if (!normalized) return null;
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(normalized)) return null;
+  return normalized;
+}
+
+function resolveNextPath(locale?: string, providedNext?: string): string {
+  const localeSafe = locale === 'pl' ? 'pl' : 'en';
+  return sanitizeNextPath(providedNext, `/${localeSafe}/admin`);
+}
+
+function buildCallbackRedirect(nextPath: string): string {
+  const encodedNext = encodeURIComponent(nextPath);
+  return buildSiteUrl(`/api/admin/auth/callback?next=${encodedNext}`);
+}
+
+async function sendMagicLinkEmail(input: {
+  email: string;
+  redirectTo: string;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = getSupabaseAdminClient();
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: input.email,
+    options: {
+      emailRedirectTo: input.redirectTo,
+      shouldCreateUser: true,
+    },
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+async function handleRequestMagicLink(body: AuthActionRequest) {
+  const email = validateEmail(body.email);
+  if (!email) {
+    return NextResponse.json(
+      { success: false, error: 'Valid email is required' },
+      { status: 400 }
+    );
+  }
+
+  const role = await ensureRoleForAuthenticatedUser(email);
+  if (!role || !role.is_active) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Email is not invited to admin panel',
+      },
+      { status: 403 }
+    );
+  }
+
+  const nextPath = resolveNextPath(body.locale, body.next);
+  const redirectTo = buildCallbackRedirect(nextPath);
+
+  const sent = await sendMagicLinkEmail({ email, redirectTo });
+  if (!sent.success) {
+    return NextResponse.json(
+      { success: false, error: sent.error },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: 'Magic link sent',
+    email,
+    role: role.role,
+  });
+}
+
+async function handleInvite(request: NextRequest, body: AuthActionRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: true, allowBootstrap: true });
+  if (!auth.ok) return auth.response;
+
+  const email = validateEmail(body.email);
+  if (!email) {
+    return NextResponse.json(
+      { success: false, error: 'Valid email is required' },
+      { status: 400 }
+    );
+  }
+
+  const role = VALID_ROLES.includes(body.role as AdminRole) ? (body.role as AdminRole) : null;
+  if (!role) {
+    return NextResponse.json(
+      { success: false, error: 'Invalid role. Use admin/editor/viewer' },
+      { status: 400 }
+    );
+  }
+
+  const nextPath = resolveNextPath(body.locale, body.next);
+  const redirectTo = buildCallbackRedirect(nextPath);
+
+  const member = await upsertAdminRole({
+    email,
+    role,
+    invitedBy: auth.context.email,
+    isActive: body.isActive ?? true,
+  });
+
+  const supabase = getSupabaseAdminClient();
+  const inviteResponse = await supabase.auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+  });
+
+  if (inviteResponse.error) {
+    const message = inviteResponse.error.message || 'Invite failed';
+    const lower = message.toLowerCase();
+
+    // Existing users may not be invite-able via admin endpoint, fallback to direct magic link.
+    if (lower.includes('already') || lower.includes('registered')) {
+      const sent = await sendMagicLinkEmail({ email, redirectTo });
+      if (!sent.success) {
+        return NextResponse.json(
+          { success: false, error: sent.error },
+          { status: 500 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { success: false, error: message },
+        { status: 500 }
+      );
+    }
+  }
+
+  const response = NextResponse.json({
+    success: true,
+    invited: true,
+    member,
+  });
+
+  if (auth.refreshedSession) {
+    setAdminSessionCookies(response, auth.refreshedSession);
+  }
+
+  return response;
+}
+
+async function handleSetRole(request: NextRequest, body: AuthActionRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: true, allowBootstrap: true });
+  if (!auth.ok) return auth.response;
+
+  const email = validateEmail(body.email);
+  if (!email) {
+    return NextResponse.json(
+      { success: false, error: 'Valid email is required' },
+      { status: 400 }
+    );
+  }
+
+  const role = VALID_ROLES.includes(body.role as AdminRole) ? (body.role as AdminRole) : null;
+  if (!role) {
+    return NextResponse.json(
+      { success: false, error: 'Invalid role. Use admin/editor/viewer' },
+      { status: 400 }
+    );
+  }
+
+  if (auth.context.email === email && !isRoleAllowed(role, 'admin')) {
+    return NextResponse.json(
+      { success: false, error: 'You cannot downgrade your own account from admin' },
+      { status: 400 }
+    );
+  }
+
+  if (auth.context.email === email && body.isActive === false) {
+    return NextResponse.json(
+      { success: false, error: 'You cannot disable your own account' },
+      { status: 400 }
+    );
+  }
+
+  const member = await upsertAdminRole({
+    email,
+    role,
+    invitedBy: auth.context.email,
+    isActive: body.isActive ?? true,
+  });
+
+  const response = NextResponse.json({ success: true, member });
+  if (auth.refreshedSession) {
+    setAdminSessionCookies(response, auth.refreshedSession);
+  }
+
+  return response;
+}
+
+async function handleLogout() {
+  const response = NextResponse.json({ success: true });
+  clearAdminSessionCookies(response);
+  return response;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, password } = body;
+    const body = (await request.json()) as AuthActionRequest;
+    const action = body.action || 'session';
 
-    // LOGIN action with rate limiting
-    if (action === 'login') {
-      // Check rate limit for login attempts
-      const rateLimitResult = checkRateLimit(request, 'AUTH');
-      if (!rateLimitResult.allowed) {
-        console.warn('⚠️ Login rate limit exceeded');
-        return createRateLimitResponse('AUTH', rateLimitResult);
-      }
-      // Get password from environment variable (MUST be set on Vercel)
-      const adminPassword = process.env.ADMIN_PASSWORD;
-      
-      if (!adminPassword) {
-        console.error('ADMIN_PASSWORD env variable not configured!');
-        return NextResponse.json(
-          { success: false, error: 'Server configuration error' },
-          { status: 500 }
-        );
-      }
-
-      // Validate password
-      if (password === adminPassword) {
-        const token = generateSecureToken();
-        
-        // Set HTTP-only cookie for additional security
-        const cookieStore = cookies();
-        cookieStore.set('admin_token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 24 * 60 * 60, // 24 hours
-          path: '/'
-        });
-
-        console.log('✅ Admin login successful');
-        
-        const response = NextResponse.json({
-          success: true,
-          token,
-          expiresIn: 24 * 60 * 60 * 1000 // 24 hours in ms
-        });
-        
-        return addRateLimitHeaders(response, 'AUTH', rateLimitResult);
-      } else {
-        console.warn('⚠️ Admin login failed - wrong password');
-        return NextResponse.json(
-          { success: false, error: 'Invalid password' },
-          { status: 401 }
-        );
-      }
+    if (action === 'request_magic_link') {
+      return handleRequestMagicLink(body);
     }
 
-    // LOGOUT action
+    if (action === 'invite') {
+      return handleInvite(request, body);
+    }
+
+    if (action === 'set_role') {
+      return handleSetRole(request, body);
+    }
+
     if (action === 'logout') {
-      const cookieStore = cookies();
-      cookieStore.delete('admin_token');
-      
-      return NextResponse.json({ success: true });
-    }
-
-    // VALIDATE action
-    if (action === 'validate') {
-      const { token } = body;
-      const cookieToken = cookies().get('admin_token')?.value;
-      
-      const tokenToValidate = token || cookieToken;
-      const isValid = tokenToValidate ? validateToken(tokenToValidate) : false;
-      
-      return NextResponse.json({ 
-        success: true, 
-        valid: isValid 
-      });
+      return handleLogout();
     }
 
     return NextResponse.json(
-      { success: false, error: 'Unknown action' },
+      { success: false, error: 'Unsupported action' },
       { status: 400 }
     );
-
   } catch (error) {
-    console.error('❌ Auth API error:', error);
+    console.error('Admin auth POST error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error',
+      },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
-  // Check if user is authenticated via cookie
-  const cookieToken = cookies().get('admin_token')?.value;
-  const isValid = cookieToken ? validateToken(cookieToken) : false;
-  
-  return NextResponse.json({ 
-    authenticated: isValid,
-    message: isValid ? 'Session valid' : 'Not authenticated or session expired'
-  });
-}
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action') || 'session';
 
+  try {
+    if (action === 'members') {
+      const auth = await requireAdminRole(request, 'admin', { allowRefresh: true, allowBootstrap: true });
+      if (!auth.ok) return auth.response;
+
+      const members = await getAdminMembers();
+      const response = NextResponse.json({ success: true, members });
+
+      if (auth.refreshedSession) {
+        setAdminSessionCookies(response, auth.refreshedSession);
+      }
+
+      return response;
+    }
+
+    const auth = await requireAdminRole(request, 'viewer', { allowRefresh: true, allowBootstrap: true });
+    if (!auth.ok) {
+      const status = auth.response.status;
+      if (status === 401 || status === 403) {
+        return NextResponse.json({
+          success: true,
+          authenticated: false,
+          user: null,
+        });
+      }
+      return auth.response;
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      authenticated: true,
+      user: {
+        email: auth.context.email,
+        role: auth.context.role,
+      },
+    });
+
+    if (auth.refreshedSession) {
+      setAdminSessionCookies(response, auth.refreshedSession);
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Admin auth GET error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error',
+      },
+      { status: 500 }
+    );
+  }
+}

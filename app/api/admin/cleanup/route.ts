@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 /**
  * 🗑️ ADMIN CLEANUP API
@@ -6,18 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'admin', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
-    const { action, password } = body;
-    
-    // Проверка пароля администратора
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'icoffio2025';
-    if (password !== adminPassword) {
-      return NextResponse.json(
-        { error: 'Invalid admin password' },
-        { status: 401 }
-      );
-    }
+    const { action } = body;
 
     switch (action) {
       case 'clean_test_articles':

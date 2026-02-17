@@ -41,6 +41,9 @@ export default function URLInput() {
   const [combineIntoSingleArticle, setCombineIntoSingleArticle] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('tech');
   const [selectedStyle, setSelectedStyle] = useState<ContentStyleType>('journalistic');
+  const [includeSourceAttribution, setIncludeSourceAttribution] = useState(true);
+  const [enableQualityGate, setEnableQualityGate] = useState(true);
+  const [minimumQualityScore, setMinimumQualityScore] = useState(65);
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,10 +142,19 @@ export default function URLInput() {
       if (shouldCreateSingleArticle) {
         addUrlToQueue(urls[0], selectedCategory, selectedStyle, {
           sourceUrls: urls,
-          sourceText: additionalContext.trim() || undefined
+          sourceText: additionalContext.trim() || undefined,
+          includeSourceAttribution,
+          enableQualityGate,
+          minQualityScore: minimumQualityScore,
         });
       } else {
-        urls.forEach((url) => addUrlToQueue(url, selectedCategory, selectedStyle));
+        urls.forEach((url) =>
+          addUrlToQueue(url, selectedCategory, selectedStyle, {
+            includeSourceAttribution,
+            enableQualityGate,
+            minQualityScore: minimumQualityScore,
+          })
+        );
       }
       setUrlInput('');
       setAdditionalContext('');
@@ -215,6 +227,51 @@ export default function URLInput() {
               <span>⚠️</span>
               {validationError}
             </p>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/20 space-y-3">
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white">Publication Safeguards</h4>
+
+          <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeSourceAttribution}
+              onChange={(e) => setIncludeSourceAttribution(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            <span>Add source links block at the end of article</span>
+          </label>
+
+          <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableQualityGate}
+              onChange={(e) => setEnableQualityGate(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            <span>Block publication when quality score is too low</span>
+          </label>
+
+          {enableQualityGate && (
+            <div>
+              <label htmlFor="quality-threshold" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                Minimum quality score: {minimumQualityScore}
+              </label>
+              <input
+                id="quality-threshold"
+                type="range"
+                min={40}
+                max={95}
+                step={1}
+                value={minimumQualityScore}
+                onChange={(e) => setMinimumQualityScore(Number(e.target.value))}
+                className="w-full"
+                disabled={isSubmitting}
+              />
+            </div>
           )}
         </div>
 

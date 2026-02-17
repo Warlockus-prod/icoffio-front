@@ -75,6 +75,11 @@ interface MultiSourceDigest {
   warnings: string[];
 }
 
+interface SourceAttribution {
+  label: string;
+  url: string;
+}
+
 function truncateText(value: string, maxChars: number): string {
   if (!value) return '';
   if (value.length <= maxChars) return value;
@@ -584,6 +589,9 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
 
     const result = await unifiedArticleService.processArticle(articleInput);
     const combinedWarnings = [...sourceWarnings, ...(result.warnings || [])];
+    const parsedSourceAttributions = result.success
+      ? normalizeSourceAttributions((result.article as any)?.sourceAttributions)
+      : [];
 
     if (result.success) {
       // ✅ АВТОМАТИЧЕСКАЯ РЕВАЛИДАЦИЯ СТРАНИЦ после создания статьи
@@ -616,7 +624,8 @@ async function handleUrlCreation(body: ApiRequest & { contentStyle?: string }, r
             slug: result.article!.slug,
             excerpt: result.article!.excerpt
           },
-          input: responseInput
+          input: responseInput,
+          sourceAttributions: parsedSourceAttributions.length > 0 ? parsedSourceAttributions : undefined
         },
         // ✅ ИСПРАВЛЕНИЕ: Передаем imageOptions для выбора нескольких картинок
         imageOptions: (result.article as any).imageOptions || undefined,
@@ -963,17 +972,87 @@ function sourceHostLabel(url: string): string {
   }
 }
 
+function normalizeSourceAttributions(value: unknown): SourceAttribution[] {
+  const rows = Array.isArray(value) ? value : [];
+  const seen = new Set<string>();
+  const items: SourceAttribution[] = [];
+
+  for (const row of rows) {
+    const label = String((row as any)?.label || '').trim();
+    const url = String((row as any)?.url || '').trim();
+    if (!label || !isValidHttpUrl(url)) continue;
+    const key = `${label.toLowerCase()}|${url.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({ label, url });
+    if (items.length >= 8) break;
+  }
+
+  return items;
+}
+
+function extractSourceAttributionsFromContent(content: string): SourceAttribution[] {
+  const text = String(content || '');
+  if (!text.trim()) return [];
+
+  const matches: SourceAttribution[] = [];
+  const patterns = [
+    /(?:источник|source|źr[óo]dł[oa])\s*:\s*\[([^\]]{2,140})\]\((https?:\/\/[^)\s]+)\)/gi,
+    /(?:источник|source|źr[óo]dł[oa])\s*:\s*<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>([^<]{2,140})<\/a>/gi,
+  ];
+
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null = null;
+    while ((match = pattern.exec(text)) !== null) {
+      const labelFromFirst = match[1] || '';
+      const urlFromSecond = match[2] || '';
+      const isHtmlPattern = pattern.source.includes('<a');
+      const label = isHtmlPattern ? String(match[2] || '').trim() : String(labelFromFirst).trim();
+      const url = isHtmlPattern ? String(match[1] || '').trim() : String(urlFromSecond).trim();
+      if (!label || !isValidHttpUrl(url)) continue;
+      matches.push({ label, url });
+      if (matches.length >= 8) break;
+    }
+    if (matches.length >= 8) break;
+  }
+
+  return normalizeSourceAttributions(matches);
+}
+
+async function hydrateSourceAttributionsFromUrls(urls: string[]): Promise<SourceAttribution[]> {
+  const result: SourceAttribution[] = [];
+
+  for (const sourceUrl of urls.slice(0, 3)) {
+    try {
+      const extracted = await urlParserService.extractContent(sourceUrl, {
+        timeout: 7000,
+        maxContentLength: 800,
+        includeImages: false,
+      });
+      const normalized = normalizeSourceAttributions((extracted as any).sourceAttributions);
+      if (normalized.length > 0) {
+        result.push(...normalized);
+      }
+      if (result.length >= 8) break;
+    } catch (error) {
+      console.warn(`[SourceAttribution] Failed to hydrate from ${sourceUrl}`, error);
+    }
+  }
+
+  return normalizeSourceAttributions(result);
+}
+
 function appendSourceAttribution(
   content: string,
-  urls: string[],
+  attributions: SourceAttribution[],
   language: 'en' | 'pl'
 ): string {
   const normalizedContent = (content || '').trim();
-  if (!normalizedContent || urls.length === 0) return normalizedContent;
+  if (!normalizedContent || attributions.length === 0) return normalizedContent;
   if (/^##\s*(sources|źródła)\b/im.test(normalizedContent)) return normalizedContent;
 
   const heading = language === 'pl' ? '## Źródła' : '## Sources';
-  const lines = urls.map((url) => `- [${sourceHostLabel(url)}](${url})`);
+  const lines = attributions.map((item) => `- [${item.label}](${item.url})`);
 
   return `${normalizedContent}\n\n${heading}\n${lines.join('\n')}`.trim();
 }
@@ -1033,6 +1112,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     const normalizedSourceUrls = normalizeSourceUrls(article.sourceUrls);
     const fallbackSource = typeof article.url === 'string' && isValidHttpUrl(article.url) ? [article.url] : [];
     const sourceUrls = Array.from(new Set([...normalizedSourceUrls, ...fallbackSource])).slice(0, 8);
+    const normalizedSourceAttributions = normalizeSourceAttributions(article.sourceAttributions);
     
     console.log(`📤 Publishing article with base slug: ${baseSlug}`);
     
@@ -1273,9 +1353,30 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       );
     }
 
-    if (includeSourceAttribution && sourceUrls.length > 0) {
-      contentEn = appendSourceAttribution(contentEn, sourceUrls, 'en');
-      contentPl = appendSourceAttribution(contentPl, sourceUrls, 'pl');
+    const inlineSourceAttributions = normalizeSourceAttributions([
+      ...extractSourceAttributionsFromContent(article.content || ''),
+      ...extractSourceAttributionsFromContent(article.translations?.pl?.content || ''),
+      ...extractSourceAttributionsFromContent(contentEn),
+      ...extractSourceAttributionsFromContent(contentPl),
+    ]);
+    let sourceAttributions = normalizeSourceAttributions([
+      ...normalizedSourceAttributions,
+      ...inlineSourceAttributions,
+    ]);
+
+    if (sourceAttributions.length === 0 && sourceUrls.length > 0) {
+      sourceAttributions = await hydrateSourceAttributionsFromUrls(sourceUrls);
+    }
+    if (sourceAttributions.length === 0 && sourceUrls.length > 0) {
+      sourceAttributions = sourceUrls.map((url) => ({
+        label: sourceHostLabel(url),
+        url,
+      }));
+    }
+
+    if (includeSourceAttribution && sourceAttributions.length > 0) {
+      contentEn = appendSourceAttribution(contentEn, sourceAttributions, 'en');
+      contentPl = appendSourceAttribution(contentPl, sourceAttributions, 'pl');
     }
     
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!

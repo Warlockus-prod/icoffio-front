@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.14] - 2026-02-17 - 🔗 Smart Source Attribution Priority (Explicit Source First)
+
+### ✅ Fixed
+- Source block now prioritizes explicit attribution from article source (e.g. `Источник: Bloomberg`) instead of always falling back to parser domain.
+- URL parser now extracts `sourceAttributions` from source pages (label + hyperlink).
+- Publication flow now resolves source attribution in this order:
+  1. explicit attribution carried in article payload,
+  2. explicit attribution detected in article content,
+  3. hydrated attribution from source URLs,
+  4. fallback to source hostname.
+- Admin queue article model now preserves `sourceAttributions` so final publish keeps original source link intent.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/articles-api.test.ts` — OK
+- `npm run build` — OK
+
 ## [8.7.13] - 2026-02-17 - 🧠 Human-like Title Shortening (No Broken Cut)
 
 ### ✅ Fixed

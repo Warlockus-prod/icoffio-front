@@ -18,6 +18,10 @@ export interface ExtractedContent {
   language?: string;
   source: string;
   siteName?: string;
+  sourceAttributions?: Array<{
+    label: string;
+    url: string;
+  }>;
 }
 
 export interface ParsingOptions {
@@ -64,7 +68,8 @@ class UrlParserService {
         category: this.categorizeFromUrl(url),
         language: this.detectLanguage($),
         source: new URL(url).hostname,
-        siteName: this.extractSiteName($)
+        siteName: this.extractSiteName($),
+        sourceAttributions: this.extractSourceAttributions($, url),
       };
 
       // 5. Валидация результата
@@ -455,6 +460,48 @@ class UrlParserService {
   }
 
   /**
+   * Извлечение explicit source attribution из исходной статьи
+   * Пример: "Источник: Bloomberg" с ссылкой на оригинал.
+   */
+  private extractSourceAttributions(
+    $: cheerio.CheerioAPI,
+    baseUrl: string
+  ): Array<{ label: string; url: string }> {
+    const markerRegex = /(источник|source|źr[óo]dł[oa])/i;
+    const labelRegex = /(?:источник|source|źr[óo]dł[oa])\s*[:\-]\s*([^\n|•]{2,140})/i;
+    const seen = new Set<string>();
+    const attributions: Array<{ label: string; url: string }> = [];
+
+    $('p, li, div, span, small, strong, em').each((_, el) => {
+      if (attributions.length >= 6) return false;
+
+      const element = $(el);
+      const text = this.cleanText(element.text() || '');
+      if (!text || text.length > 280 || !markerRegex.test(text)) return;
+
+      const links = element.find('a[href]').toArray();
+      for (const anchor of links) {
+        if (attributions.length >= 6) break;
+        const href = String($(anchor).attr('href') || '').trim();
+        const resolvedUrl = this.resolveUrl(href, baseUrl);
+        if (!this.isValidHttpUrl(resolvedUrl)) continue;
+
+        const anchorLabel = this.cleanText($(anchor).text() || '');
+        const fallbackLabel = this.cleanText((text.match(labelRegex)?.[1] || '').trim());
+        const label = anchorLabel || fallbackLabel;
+        if (!label || label.length < 2) continue;
+
+        const key = `${label.toLowerCase()}|${resolvedUrl.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        attributions.push({ label, url: resolvedUrl });
+      }
+    });
+
+    return attributions;
+  }
+
+  /**
    * Извлечение даты публикации
    */
   private extractPublishDate($: cheerio.CheerioAPI): string | undefined {
@@ -587,6 +634,15 @@ class UrlParserService {
       return new URL(url, baseUrl).href;
     } catch {
       return url;
+    }
+  }
+
+  private isValidHttpUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
     }
   }
 

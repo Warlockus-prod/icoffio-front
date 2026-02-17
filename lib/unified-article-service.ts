@@ -83,6 +83,10 @@ export interface ProcessedArticle {
     chatId?: string;
     messageId?: string;
   };
+  sourceAttributions?: Array<{
+    label: string;
+    url: string;
+  }>;
 }
 
 export interface ProcessingResult {
@@ -466,6 +470,7 @@ class UnifiedArticleService {
         image: extractedContent.image,
         source: extractedContent.source,
         siteName: extractedContent.siteName,
+        sourceAttributions: extractedContent.sourceAttributions || [],
         language: extractedContent.language || 'ru',
         hasError: false // ✅ Успешное извлечение
       };
@@ -655,7 +660,16 @@ class UnifiedArticleService {
         originalUrl: input.url,
         chatId: input.chatId,
         messageId: input.messageId
-      }
+      },
+      sourceAttributions: Array.isArray(articleData.sourceAttributions)
+        ? articleData.sourceAttributions
+            .map((item: any) => ({
+              label: String(item?.label || '').trim(),
+              url: String(item?.url || '').trim(),
+            }))
+            .filter((item: any) => item.label && item.url)
+            .slice(0, 8)
+        : []
     };
   }
   

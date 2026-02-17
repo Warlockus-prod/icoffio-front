@@ -59,6 +59,7 @@ export interface Article {
   monetizationSettings?: ArticleMonetizationSettings;
   publishedAt?: Date;
   sourceUrls?: string[];
+  sourceAttributions?: Array<{ label: string; url: string }>;
   sourceText?: string;
   includeSourceAttribution?: boolean;
   qualityGateEnabled?: boolean;
@@ -843,6 +844,9 @@ export const useAdminStore = create<AdminStore>()(
                 } : undefined
               },
               sourceUrls,
+              sourceAttributions: Array.isArray(result.data?.sourceAttributions)
+                ? result.data.sourceAttributions
+                : undefined,
               sourceText,
               includeSourceAttribution,
               qualityGateEnabled,

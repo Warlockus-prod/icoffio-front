@@ -7,9 +7,15 @@ All notable changes to this project will be documented in this file.
 ### 🎯 Что добавлено
 - Полностью переведена админ-аутентификация на `email magic link` (Supabase Auth) вместо пароля.
 - Добавлены роли доступа:
+  - `owner`: immutable super-admin,
   - `admin`: полный доступ (логи, system info, Telegram settings, role management),
   - `editor`: создание/генерация/публикация/удаление статей,
   - `viewer`: read-only.
+- Зафиксированы owner email (primary + backup):
+  - `ag@voxexchange.io`
+  - `andrzej.goleta@hybrid.ai`
+- Ограничение выдачи `admin` роли: только `owner`.
+- Защита owner-аккаунтов: нельзя удалить, отключить или понизить роль.
 - Добавлен callback endpoint для magic-link с установкой защищённых cookie-сессий:
   - `GET /api/admin/auth/callback`.
 - Добавлен management UI для команды:
@@ -45,6 +51,7 @@ All notable changes to this project will be documented in this file.
 ### 🧱 DB migration
 - Добавлена миграция ролей:
   - `supabase/migrations/20260217_admin_roles_and_access.sql`.
+  - включает owner protection trigger/policy baseline 2026.
 
 ### ✅ Проверки
 - `npm run type-check` — OK

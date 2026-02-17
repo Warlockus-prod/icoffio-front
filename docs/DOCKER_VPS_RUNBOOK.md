@@ -35,10 +35,12 @@ Set in `.env.production` (or your VPS env source):
 NEXT_PUBLIC_SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ADMIN_BOOTSTRAP_EMAILS=owner@icoffio.com
+ADMIN_OWNER_EMAILS=ag@voxexchange.io,andrzej.goleta@hybrid.ai
 ```
 
 Notes:
 - `ADMIN_BOOTSTRAP_EMAILS` is optional but recommended.
+- `ADMIN_OWNER_EMAILS` defines immutable owner accounts (cannot be disabled/deleted/downgraded).
 - If it is missing and `admin_user_roles` is empty, the first authenticated email can bootstrap as `admin`.
 
 ## Required Supabase migration (v8.7.3+)

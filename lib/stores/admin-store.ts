@@ -159,11 +159,12 @@ export interface ActivityItem {
   articleId?: string;
 }
 
-export type AdminRole = 'admin' | 'editor' | 'viewer';
+export type AdminRole = 'owner' | 'admin' | 'editor' | 'viewer';
 
 export interface AdminUser {
   email: string;
   role: AdminRole;
+  isOwner?: boolean;
 }
 
 // Store Interface
@@ -309,9 +310,11 @@ export const useAdminStore = create<AdminStore>()(
           const result = await response.json();
 
           if (result?.success && result?.authenticated && result?.user) {
+            const isOwner = Boolean(result.user.isOwner) || result.user.role === 'owner';
             const user: AdminUser = {
               email: String(result.user.email || ''),
-              role: (result.user.role || 'viewer') as AdminRole,
+              role: isOwner ? 'owner' : ((result.user.role || 'viewer') as AdminRole),
+              isOwner,
             };
 
             set({
@@ -338,7 +341,7 @@ export const useAdminStore = create<AdminStore>()(
 
       hasRole: (requiredRole: AdminRole) => {
         const userRole = get().currentUser?.role || 'viewer';
-        const weight: Record<AdminRole, number> = { viewer: 1, editor: 2, admin: 3 };
+        const weight: Record<AdminRole, number> = { viewer: 1, editor: 2, admin: 3, owner: 4 };
         return weight[userRole] >= weight[requiredRole];
       },
 

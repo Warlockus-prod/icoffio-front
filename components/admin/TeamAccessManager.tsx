@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { AdminRole } from '@/lib/stores/admin-store';
 
+type AssignableRole = Exclude<AdminRole, 'owner'>;
+
 interface MemberRecord {
   email: string;
   role: AdminRole;
+  is_owner?: boolean;
   is_active: boolean;
   invited_by: string | null;
   created_at: string;
@@ -17,16 +20,19 @@ interface TeamAccessManagerProps {
 }
 
 const ROLE_LABELS: Record<AdminRole, string> = {
+  owner: 'Owner',
   admin: 'Admin',
   editor: 'Editor',
   viewer: 'Viewer',
 };
 
+const ASSIGNABLE_ROLES: AssignableRole[] = ['admin', 'editor', 'viewer'];
+
 export default function TeamAccessManager({ currentUserEmail }: TeamAccessManagerProps) {
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [formEmail, setFormEmail] = useState('');
-  const [formRole, setFormRole] = useState<AdminRole>('editor');
+  const [formRole, setFormRole] = useState<AssignableRole>('editor');
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string>('');
 
@@ -92,7 +98,7 @@ export default function TeamAccessManager({ currentUserEmail }: TeamAccessManage
     }
   };
 
-  const updateMember = async (email: string, role: AdminRole, isActive: boolean) => {
+  const updateMember = async (email: string, role: AssignableRole, isActive: boolean) => {
     setStatus('');
     setError('');
 
@@ -135,7 +141,7 @@ export default function TeamAccessManager({ currentUserEmail }: TeamAccessManage
       </div>
 
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Roles: <strong>Admin</strong> (full access), <strong>Editor</strong> (create/publish/delete), <strong>Viewer</strong> (read-only).
+        Roles: <strong>Owner</strong> (immutable super-admin), <strong>Admin</strong> (full access), <strong>Editor</strong> (create/publish/delete), <strong>Viewer</strong> (read-only).
       </p>
 
       <form onSubmit={handleInvite} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
@@ -150,7 +156,7 @@ export default function TeamAccessManager({ currentUserEmail }: TeamAccessManage
 
         <select
           value={formRole}
-          onChange={(event) => setFormRole(event.target.value as AdminRole)}
+          onChange={(event) => setFormRole(event.target.value as AssignableRole)}
           className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
         >
           <option value="admin">Admin</option>
@@ -200,11 +206,20 @@ export default function TeamAccessManager({ currentUserEmail }: TeamAccessManage
             ) : (
               sortedMembers.map((member) => {
                 const isSelf = member.email === currentUserEmail;
+                const isOwnerRow = member.role === 'owner' || member.is_owner;
 
                 return (
                   <tr key={member.email} className="border-b border-gray-100 dark:border-gray-700/60">
                     <td className="py-3 pr-3 text-gray-900 dark:text-white">{member.email}</td>
-                    <td className="py-3 pr-3 text-gray-700 dark:text-gray-200">{ROLE_LABELS[member.role]}</td>
+                    <td className="py-3 pr-3 text-gray-700 dark:text-gray-200">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                        isOwnerRow
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                      }`}>
+                        {ROLE_LABELS[member.role]}
+                      </span>
+                    </td>
                     <td className="py-3 pr-3">
                       <span className={member.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                         {member.is_active ? 'Active' : 'Disabled'}
@@ -212,11 +227,11 @@ export default function TeamAccessManager({ currentUserEmail }: TeamAccessManage
                     </td>
                     <td className="py-3 pr-3">
                       <div className="flex flex-wrap gap-2">
-                        {(['admin', 'editor', 'viewer'] as AdminRole[]).map((roleOption) => (
+                        {ASSIGNABLE_ROLES.map((roleOption) => (
                           <button
                             key={`${member.email}-${roleOption}`}
                             type="button"
-                            disabled={member.role === roleOption || (isSelf && roleOption !== 'admin')}
+                            disabled={isOwnerRow || member.role === roleOption || (isSelf && roleOption !== 'admin')}
                             onClick={() => void updateMember(member.email, roleOption, member.is_active)}
                             className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs text-gray-700 dark:text-gray-200 disabled:opacity-40"
                           >
@@ -226,8 +241,8 @@ export default function TeamAccessManager({ currentUserEmail }: TeamAccessManage
 
                         <button
                           type="button"
-                          disabled={isSelf}
-                          onClick={() => void updateMember(member.email, member.role, !member.is_active)}
+                          disabled={isSelf || isOwnerRow}
+                          onClick={() => void updateMember(member.email, (member.role === 'owner' ? 'admin' : member.role) as AssignableRole, !member.is_active)}
                           className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs text-gray-700 dark:text-gray-200 disabled:opacity-40"
                         >
                           {member.is_active ? 'Disable' : 'Enable'}

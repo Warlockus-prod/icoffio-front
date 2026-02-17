@@ -5,13 +5,14 @@ import {
   getAdminMembers,
   getSupabaseAdminClient,
   isRoleAllowed,
+  isOwnerEmail,
   normalizeEmail,
   requireAdminRole,
   sanitizeNextPath,
   setAdminSessionCookies,
   upsertAdminRole,
   ensureRoleForAuthenticatedUser,
-  type AdminRole,
+  type AssignableAdminRole,
 } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
@@ -20,13 +21,13 @@ export const dynamic = 'force-dynamic';
 interface AuthActionRequest {
   action?: string;
   email?: string;
-  role?: AdminRole;
+  role?: AssignableAdminRole;
   locale?: 'en' | 'pl';
   next?: string;
   isActive?: boolean;
 }
 
-const VALID_ROLES: AdminRole[] = ['admin', 'editor', 'viewer'];
+const VALID_ROLES: AssignableAdminRole[] = ['admin', 'editor', 'viewer'];
 
 function validateEmail(input: unknown): string | null {
   if (typeof input !== 'string') return null;
@@ -120,10 +121,24 @@ async function handleInvite(request: NextRequest, body: AuthActionRequest) {
     );
   }
 
-  const role = VALID_ROLES.includes(body.role as AdminRole) ? (body.role as AdminRole) : null;
+  const role = VALID_ROLES.includes(body.role as AssignableAdminRole) ? (body.role as AssignableAdminRole) : null;
   if (!role) {
     return NextResponse.json(
       { success: false, error: 'Invalid role. Use admin/editor/viewer' },
+      { status: 400 }
+    );
+  }
+
+  if (role === 'admin' && !auth.context.isOwner) {
+    return NextResponse.json(
+      { success: false, error: 'Only owner can assign admin role' },
+      { status: 403 }
+    );
+  }
+
+  if (isOwnerEmail(email) && (role !== 'admin' || body.isActive === false)) {
+    return NextResponse.json(
+      { success: false, error: 'Owner account is immutable and must stay active admin' },
       { status: 400 }
     );
   }
@@ -189,11 +204,25 @@ async function handleSetRole(request: NextRequest, body: AuthActionRequest) {
     );
   }
 
-  const role = VALID_ROLES.includes(body.role as AdminRole) ? (body.role as AdminRole) : null;
+  const role = VALID_ROLES.includes(body.role as AssignableAdminRole) ? (body.role as AssignableAdminRole) : null;
   if (!role) {
     return NextResponse.json(
       { success: false, error: 'Invalid role. Use admin/editor/viewer' },
       { status: 400 }
+    );
+  }
+
+  if (role === 'admin' && !auth.context.isOwner) {
+    return NextResponse.json(
+      { success: false, error: 'Only owner can assign admin role' },
+      { status: 403 }
+    );
+  }
+
+  if (isOwnerEmail(email)) {
+    return NextResponse.json(
+      { success: false, error: 'Owner account cannot be modified' },
+      { status: 403 }
     );
   }
 
@@ -307,6 +336,7 @@ export async function GET(request: NextRequest) {
       user: {
         email: auth.context.email,
         role: auth.context.role,
+        isOwner: auth.context.isOwner,
       },
     });
 

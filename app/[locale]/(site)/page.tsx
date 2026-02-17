@@ -14,6 +14,11 @@ import { getSiteBaseUrl } from "@/lib/site-url";
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = getTranslation(params.locale as any);
   const siteUrl = getSiteBaseUrl();
+  const languageAlternates: Record<string, string> = {
+    en: `${siteUrl}/en`,
+    pl: `${siteUrl}/pl`,
+    "x-default": `${siteUrl}/en`,
+  };
 
   return {
     title: t.siteTitle,
@@ -52,10 +57,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     },
     alternates: {
       canonical: `${siteUrl}/${params.locale}`,
-      languages: {
-        en: '/en',
-        pl: '/pl',
-      },
+      languages: languageAlternates,
     },
   };
 }

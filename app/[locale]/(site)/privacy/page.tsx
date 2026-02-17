@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { getSiteBaseUrl } from '@/lib/site-url';
 
 interface PrivacyPageProps {
   params: {
@@ -198,10 +199,24 @@ const translations: Record<string, {
 export async function generateMetadata({ params }: PrivacyPageProps): Promise<Metadata> {
   const locale = params.locale || 'en';
   const t = translations[locale] || translations.en;
+  const siteUrl = getSiteBaseUrl();
+  const url = `${siteUrl}/${locale}/privacy`;
 
   return {
     title: `${t.title} | icoffio`,
     description: t.intro.substring(0, 160),
+    alternates: {
+      canonical: url,
+      languages: {
+        en: `${siteUrl}/en/privacy`,
+        pl: `${siteUrl}/pl/privacy`,
+        "x-default": `${siteUrl}/en/privacy`,
+      },
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   };
 }
 
@@ -320,7 +335,6 @@ export default function PrivacyPage({ params }: PrivacyPageProps) {
     </div>
   );
 }
-
 
 
 

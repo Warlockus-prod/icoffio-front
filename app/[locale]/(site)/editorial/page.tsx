@@ -1,15 +1,26 @@
 import { Container } from "@/components/Container";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { getTranslation } from "@/lib/i18n";
+import { getSiteBaseUrl } from "@/lib/site-url";
 import type { Metadata } from "next";
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = getTranslation(params.locale as any);
+  const siteUrl = getSiteBaseUrl();
+  const url = `${siteUrl}/${params.locale}/editorial`;
   
   return {
     title: `${t.editorial} | ${t.siteTitle}`,
     description: "icoffio Editorial - team of technology experts",
     keywords: "editorial, team, icoffio, technology, journalists",
+    alternates: {
+      canonical: url,
+      languages: {
+        en: `${siteUrl}/en/editorial`,
+        pl: `${siteUrl}/pl/editorial`,
+        "x-default": `${siteUrl}/en/editorial`,
+      },
+    },
   };
 }
 
@@ -99,5 +110,4 @@ export default function EditorialPage({ params }: { params: { locale: string } }
     </Container>
   );
 }
-
 

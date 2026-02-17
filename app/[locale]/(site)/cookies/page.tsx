@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { getSiteBaseUrl } from '@/lib/site-url';
 
 interface CookiesPageProps {
   params: {
@@ -318,10 +319,24 @@ const translations: Record<string, {
 export async function generateMetadata({ params }: CookiesPageProps): Promise<Metadata> {
   const locale = params.locale || 'en';
   const t = translations[locale] || translations.en;
+  const siteUrl = getSiteBaseUrl();
+  const url = `${siteUrl}/${locale}/cookies`;
 
   return {
     title: `${t.title} | icoffio`,
     description: t.intro.substring(0, 160),
+    alternates: {
+      canonical: url,
+      languages: {
+        en: `${siteUrl}/en/cookies`,
+        pl: `${siteUrl}/pl/cookies`,
+        "x-default": `${siteUrl}/en/cookies`,
+      },
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   };
 }
 
@@ -440,7 +455,6 @@ export default function CookiesPage({ params }: CookiesPageProps) {
     </div>
   );
 }
-
 
 
 

@@ -1,47 +1,54 @@
 import type { Post } from "@/lib/types";
+import { buildSiteUrl, getSiteBaseUrl } from "@/lib/site-url";
+
+function localeToLanguage(locale: string): string {
+  return locale === "pl" ? "pl-PL" : "en-US";
+}
+
+function toAbsoluteUrl(input?: string): string {
+  const value = (input || "").trim();
+  if (!value) return buildSiteUrl("/og.png");
+  if (/^https?:\/\//i.test(value)) return value;
+  return buildSiteUrl(value.startsWith("/") ? value : `/${value}`);
+}
+
+function stripText(input: string): string {
+  return (input || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 interface WebsiteSchemaProps {
   locale: string;
 }
 
 export function WebsiteSchema({ locale }: WebsiteSchemaProps) {
+  const siteUrl = getSiteBaseUrl();
   const schema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "icoffio",
-    "description": "Technology news, reviews, and articles about Apple, AI, games and new technologies",
-    "url": process.env.NEXT_PUBLIC_SITE_URL,
-    "inLanguage": locale,
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": {
-        "@type": "EntryPoint",
-        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/search?q={search_term_string}`
-      },
-      "query-input": "required name=search_term_string"
-    },
-    "publisher": {
+    name: "icoffio",
+    description: "Technology news, reviews, and articles about Apple, AI, games and new technologies",
+    url: `${siteUrl}/${locale}`,
+    inLanguage: localeToLanguage(locale),
+    publisher: {
       "@type": "Organization",
-      "name": "icoffio",
-      "url": process.env.NEXT_PUBLIC_SITE_URL,
-      "logo": {
+      name: "icoffio",
+      url: siteUrl,
+      logo: {
         "@type": "ImageObject",
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.svg`,
-        "width": 512,
-        "height": 512
+        url: buildSiteUrl("/logo.svg"),
+        width: 512,
+        height: 512,
       },
-      "sameAs": [
-        "https://twitter.com/icoffio",
-        "https://www.facebook.com/icoffio",
-        "https://www.linkedin.com/company/icoffio"
-      ]
-    }
+    },
   };
 
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema, null, 2) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
@@ -52,51 +59,54 @@ interface ArticleSchemaProps {
 }
 
 export function ArticleSchema({ post, locale }: ArticleSchemaProps) {
-  const publishedDate = post.publishedAt || post.date;
+  const publishedDate = new Date(post.publishedAt || post.date || Date.now()).toISOString();
+  const articleUrl = buildSiteUrl(`/${locale}/article/${post.slug}`);
+  const imageUrl = toAbsoluteUrl(post.image);
+  const description = stripText(post.excerpt || post.title || "");
+  const plainContent = stripText(post.contentHtml || post.content || "");
+  const wordCount = plainContent ? plainContent.split(" ").filter(Boolean).length : undefined;
+
   const schema = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": post.title,
-    "description": post.excerpt,
-    "image": {
-      "@type": "ImageObject",
-      "url": post.image,
-      "width": 1200,
-      "height": 630,
-      "caption": post.imageAlt || post.title
-    },
-    "datePublished": publishedDate,
-    "dateModified": publishedDate,
-    "author": {
-      "@type": "Organization",
-      "name": "icoffio Team",
-      "url": process.env.NEXT_PUBLIC_SITE_URL
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "icoffio",
-      "url": process.env.NEXT_PUBLIC_SITE_URL,
-      "logo": {
-        "@type": "ImageObject",
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.svg`,
-        "width": 512,
-        "height": 512
-      }
-    },
-    "mainEntityOfPage": {
+    "@type": "NewsArticle",
+    headline: post.title,
+    description,
+    image: [imageUrl],
+    datePublished: publishedDate,
+    dateModified: publishedDate,
+    inLanguage: localeToLanguage(locale),
+    mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/article/${post.slug}`
+      "@id": articleUrl,
     },
-    "articleSection": post.category.name,
-    "keywords": [post.category.name, "technology", "gadgets", "news"],
-    "inLanguage": locale,
-    "url": `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/article/${post.slug}`
+    url: articleUrl,
+    isAccessibleForFree: true,
+    articleSection: post.category.name,
+    author: [
+      {
+        "@type": "Organization",
+        name: "icoffio Editorial Team",
+        url: getSiteBaseUrl(),
+      },
+    ],
+    publisher: {
+      "@type": "Organization",
+      name: "icoffio",
+      url: getSiteBaseUrl(),
+      logo: {
+        "@type": "ImageObject",
+        url: buildSiteUrl("/logo.svg"),
+        width: 512,
+        height: 512,
+      },
+    },
+    ...(wordCount ? { wordCount } : {}),
   };
 
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema, null, 2) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
@@ -107,27 +117,24 @@ interface BreadcrumbSchemaProps {
 }
 
 export function BreadcrumbSchema({ items, locale }: BreadcrumbSchemaProps) {
-  // Добавляем Home в начало
-  const allItems = [
-    { label: "Home", href: `/${locale}` },
-    ...items
-  ];
+  const homeLabel = locale === "pl" ? "Strona glowna" : "Home";
+  const allItems = [{ label: homeLabel, href: `/${locale}` }, ...items];
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": allItems.map((item, index) => ({
+    itemListElement: allItems.map((item, index) => ({
       "@type": "ListItem",
-      "position": index + 1,
-      "name": item.label,
-      ...(item.href && { "item": `${process.env.NEXT_PUBLIC_SITE_URL}${item.href}` })
-    }))
+      position: index + 1,
+      name: item.label,
+      ...(item.href ? { item: buildSiteUrl(item.href) } : {}),
+    })),
   };
 
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema, null, 2) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
@@ -137,65 +144,39 @@ interface OrganizationSchemaProps {
 }
 
 export function OrganizationSchema({ locale }: OrganizationSchemaProps) {
+  const siteUrl = getSiteBaseUrl();
   const schema = {
     "@context": "https://schema.org",
-    "@type": ["Organization", "NewsMediaOrganization"],
-    "name": "icoffio",
-    "alternateName": "icoffio Tech News",
-    "description": "Leading technology news, reviews, and articles about Apple, AI, games and new technologies",
-    "url": process.env.NEXT_PUBLIC_SITE_URL,
-    "logo": {
+    "@type": "NewsMediaOrganization",
+    name: "icoffio",
+    alternateName: "icoffio Tech News",
+    url: siteUrl,
+    logo: {
       "@type": "ImageObject",
-      "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.svg`,
-      "width": 512,
-      "height": 512
+      url: buildSiteUrl("/logo.svg"),
+      width: 512,
+      height: 512,
     },
-    "image": {
+    image: {
       "@type": "ImageObject",
-      "url": `${process.env.NEXT_PUBLIC_SITE_URL}/og.png`,
-      "width": 1200,
-      "height": 630
+      url: buildSiteUrl("/og.png"),
+      width: 1200,
+      height: 630,
     },
-    "contactPoint": {
+    contactPoint: {
       "@type": "ContactPoint",
-      "contactType": "customer support",
-      "availableLanguage": ["English", "Polish", "German", "Romanian", "Czech"],
-      "email": "contact@icoffio.com"
+      contactType: "customer support",
+      email: "gtframestudioai@gmail.com",
+      availableLanguage: ["English", "Polish"],
     },
-    "address": {
-      "@type": "PostalAddress",
-      "addressCountry": "US"
-    },
-    "sameAs": [
-      "https://twitter.com/icoffio",
-      "https://www.facebook.com/icoffio", 
-      "https://www.linkedin.com/company/icoffio",
-      "https://www.instagram.com/icoffio",
-      "https://github.com/icoffio"
-    ],
-    "founder": {
-      "@type": "Person",
-      "name": "icoffio Editorial Team"
-    },
-    "foundingDate": "2024",
-    "knowsAbout": [
-      "Technology", "Apple products", "Artificial Intelligence", "Machine Learning",
-      "Gaming", "Consumer Electronics", "Software", "Hardware Reviews",
-      "Cybersecurity", "Blockchain", "Web3", "Metaverse", "Quantum Computing",
-      "Robotics", "Automation", "Sustainable Technology", "Green Computing"
-    ],
-    "publishingPrinciples": `${process.env.NEXT_PUBLIC_SITE_URL}/editorial-policy`,
-    "diversityPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/diversity-policy`,
-    "ethicsPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/ethics-policy`,
-    "masthead": `${process.env.NEXT_PUBLIC_SITE_URL}/about`,
-    "missionCoveragePrioritiesPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/coverage-policy`,
-    "verificationFactCheckingPolicy": `${process.env.NEXT_PUBLIC_SITE_URL}/fact-checking`
+    publishingPrinciples: buildSiteUrl(`/${locale}/editorial`),
+    inLanguage: localeToLanguage(locale),
   };
 
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema, null, 2) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
@@ -272,4 +253,3 @@ export function ProductReviewSchema({
     />
   );
 }
-

@@ -3,16 +3,44 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
 import { getTranslation } from "@/lib/i18n";
+import { getSiteBaseUrl } from "@/lib/site-url";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import type { Metadata } from "next";
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = getTranslation(params.locale as any);
+  const siteUrl = getSiteBaseUrl();
+  const url = `${siteUrl}/${params.locale}/articles`;
+  const languageAlternates: Record<string, string> = {
+    en: `${siteUrl}/en/articles`,
+    pl: `${siteUrl}/pl/articles`,
+    "x-default": `${siteUrl}/en/articles`,
+  };
 
   return {
     title: `${t.articles} | ${t.siteTitle}`,
     description: t.siteDescription,
     keywords: "articles, technology, gadgets, Apple, AI, games, news",
+    alternates: {
+      canonical: url,
+      languages: languageAlternates,
+    },
+    openGraph: {
+      title: `${t.articles} | icoffio`,
+      description: t.siteDescription,
+      url,
+      siteName: "icoffio",
+      type: "website",
+      locale: params.locale === "pl" ? "pl_PL" : "en_US",
+      images: [
+        {
+          url: "/og.png",
+          width: 1200,
+          height: 630,
+          alt: "icoffio",
+        },
+      ],
+    },
   };
 }
 

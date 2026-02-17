@@ -65,6 +65,21 @@ export async function generateMetadata({ params }: { params: { locale: string; s
   const metadataImage = isRenderableArticleImage(post.image || '')
     ? (post.image as string)
     : (contentImage || "/og.png");
+  const altLocale = params.locale === 'en' ? 'pl' : 'en';
+  const baseSlug = post.slug.replace(/-(en|pl)$/i, '');
+  const altSlugCandidate = `${baseSlug}-${altLocale}`;
+  const alternatePost = await getPostBySlug(altSlugCandidate, altLocale);
+  const alternateUrl = alternatePost
+    ? buildSiteUrl(`/${altLocale}/article/${alternatePost.slug}`)
+    : null;
+
+  const languageAlternates: Record<string, string> = {
+    [params.locale]: url,
+  };
+  if (alternateUrl) {
+    languageAlternates[altLocale] = alternateUrl;
+  }
+  languageAlternates['x-default'] = languageAlternates.en || url;
 
   return {
     title: post.title,
@@ -84,7 +99,8 @@ export async function generateMetadata({ params }: { params: { locale: string; s
           alt: post.imageAlt || post.title,
         },
       ],
-      locale: params.locale === 'en' ? 'en_US' : `${params.locale}_${params.locale.toUpperCase()}`,
+      locale: params.locale === 'pl' ? 'pl_PL' : 'en_US',
+      alternateLocale: alternateUrl ? [altLocale === 'pl' ? 'pl_PL' : 'en_US'] : undefined,
       type: "article",
       publishedTime,
       section: post.category.name,
@@ -106,6 +122,7 @@ export async function generateMetadata({ params }: { params: { locale: string; s
     },
     alternates: {
       canonical: url,
+      languages: languageAlternates,
     },
   };
 }

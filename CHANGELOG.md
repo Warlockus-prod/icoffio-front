@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.4] - 2026-02-17 - 🔎 SEO Technical Baseline (Schema + Metadata + Robots)
+
+### 🎯 Что улучшено
+- Усилена technical SEO-разметка по страницам:
+  - расширены canonical/hreflang alternates (включая `x-default`) для:
+    - home,
+    - article,
+    - articles list,
+    - category,
+    - editorial/privacy/cookies.
+- Для article pages добавлены language alternates в metadata между EN/PL версиями (если существует перевод).
+
+### 🧠 Structured Data
+- Обновлены schema-компоненты в `components/StructuredData.tsx`:
+  - `Article` -> `NewsArticle`,
+  - нормализованы absolute URL через `buildSiteUrl`,
+  - добавлены `mainEntityOfPage`, `isAccessibleForFree`, `wordCount`, `inLanguage`,
+  - убраны потенциально недостоверные/битые schema-поля.
+- `BreadcrumbList` локализован (`Home` / `Strona glowna`) и использует абсолютные URL.
+
+### 🤖 Crawling / Indexing
+- Добавлен динамический `robots` route:
+  - `app/robots.ts`
+  - правильный `sitemap` и `host` из текущего site URL.
+- Удален статический `public/robots.txt` с жестко заданным доменом.
+- Добавлен `noindex/nofollow` для admin-зоны:
+  - `app/[locale]/admin/layout.tsx`.
+
+### 🗺️ Sitemap
+- Улучшен `app/sitemap.ts`:
+  - `x-default` alternates,
+  - alternates для static/category/article routes,
+  - более аккуратная логика cross-locale article alternates.
+
+### ✅ Проверки
+- `npm run type-check` — OK
+- `npm test` — OK (58/58)
+- `npm run build` — OK
+
 ## [8.7.3] - 2026-02-17 - 🔐 RBAC Auth + ✍️ Source Attribution + ✅ Publish Quality Gate
 
 ### 🎯 Что добавлено

@@ -21,6 +21,10 @@ import { getSiteBaseUrl } from "@/lib/site-url";
 import { notFound } from "next/navigation";
 
 const locales = ['en', 'pl'];
+const OG_LOCALE: Record<string, string> = {
+  en: "en_US",
+  pl: "pl_PL",
+};
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   if (!locales.includes(params.locale)) {
@@ -29,6 +33,10 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 
   const t = getTranslation(params.locale as any);
   const siteUrl = getSiteBaseUrl();
+  const languageAlternates: Record<string, string> = Object.fromEntries(
+    locales.map((locale) => [locale, `${siteUrl}/${locale}`])
+  );
+  languageAlternates["x-default"] = `${siteUrl}/en`;
   
   return {
     metadataBase: new URL(siteUrl),
@@ -65,7 +73,10 @@ export async function generateMetadata({ params }: { params: { locale: string } 
           alt: "icoffio — Technology News and Reviews"
         }
       ], 
-      locale: params.locale === 'en' ? 'en_US' : `${params.locale}_${params.locale.toUpperCase()}`,
+      locale: OG_LOCALE[params.locale] || "en_US",
+      alternateLocale: locales
+        .filter((locale) => locale !== params.locale)
+        .map((locale) => OG_LOCALE[locale] || "en_US"),
       url: `${siteUrl}/${params.locale}`
     },
     twitter: {
@@ -78,9 +89,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     },
     alternates: {
       canonical: `${siteUrl}/${params.locale}`,
-      languages: Object.fromEntries(
-        locales.map(locale => [locale, `${siteUrl}/${locale}`])
-      ),
+      languages: languageAlternates,
     },
     icons: [
       { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },

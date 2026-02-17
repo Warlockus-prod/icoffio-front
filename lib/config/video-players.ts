@@ -36,6 +36,13 @@ const DEFAULT_DSP_PREROLL_AD_TAG =
   'https://ssp.hybrid.ai/?sKFoyZmDLeuKiI+KoajZYLWIx8rE3Y7V3QOnqIDJDcL11YVST0NUYKQtJ5Y5zw/Sd1ZIeA9rtoRkIQWE2uCpo20QOOBuBrWgNaAPT9Qe/cM=';
 
 /**
+ * Video players are disabled via env flag until proper VOX PlaceIDs are configured
+ * and the freeze regression is resolved.
+ * Set NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=true to re-enable.
+ */
+const VIDEO_ENABLED = process.env.NEXT_PUBLIC_VIDEO_PREROLL_ENABLED === 'true';
+
+/**
  * Конфигурация всех видео плееров
  */
 export const VIDEO_PLAYERS: VideoPlayerConfig[] = [
@@ -47,7 +54,7 @@ export const VIDEO_PLAYERS: VideoPlayerConfig[] = [
     position: 'article-end',
     voxPlaceId: '68f70a1c810d98e1a08f2740', // TODO: Заменить на реальный VOX PlaceID
     adTagUrl: DEFAULT_DSP_PREROLL_AD_TAG,
-    enabled: true,
+    enabled: VIDEO_ENABLED,
     autoplay: false,
     muted: true,
     device: 'all',
@@ -74,7 +81,7 @@ export const VIDEO_PLAYERS: VideoPlayerConfig[] = [
     type: 'outstream',
     position: 'sidebar-sticky',
     voxPlaceId: '68f70a1c810d98e1a08f2742', // TODO: Заменить на реальный VOX PlaceID
-    enabled: true,
+    enabled: VIDEO_ENABLED,
     autoplay: true,
     muted: true,
     device: 'desktop',
@@ -86,7 +93,7 @@ export const VIDEO_PLAYERS: VideoPlayerConfig[] = [
     type: 'outstream',
     position: 'in-content',
     voxPlaceId: '68f70a1c810d98e1a08f2743', // TODO: Заменить на реальный VOX PlaceID
-    enabled: true,
+    enabled: VIDEO_ENABLED,
     autoplay: true,
     muted: true,
     device: 'mobile',

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.10] - 2026-02-17 - 🚑 Hotfix Homepage Runtime Error
+
+### ✅ Fixed
+- Removed invalid `onError` event handlers from server component `components/Hero.tsx`.
+- This resolves production runtime error:
+  - `Event handlers cannot be passed to Client Component props`
+- Result: homepage/article rendering no longer throws repeated server errors during SSR.
+
 ## [8.7.9] - 2026-02-17 - 🔁 Admin Login Rollback to Password Session
 
 ### ✅ Rollback completed

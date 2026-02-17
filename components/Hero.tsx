@@ -36,7 +36,6 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
     const hasTemporaryImageUrl = /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(post.image || '');
     return post.image && !hasTemporaryImageUrl ? post.image : fallback;
   };
-  const mainFallback = getFallbackForPost(main);
 
   return (
     <Container>
@@ -48,11 +47,6 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
               src={getImage(main)} 
               alt={main.imageAlt || main.title} 
               className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
-              onError={(event) => {
-                if (event.currentTarget.src !== mainFallback) {
-                  event.currentTarget.src = mainFallback;
-                }
-              }}
             />
           </div>
           <div className="mt-3">
@@ -71,7 +65,6 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
         {/* Secondary Articles - 1 column */}
         <div className="flex flex-col gap-6">
           {rest.map((post) => {
-            const fallback = getFallbackForPost(post);
             return (
               <Link key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
                 <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
@@ -79,11 +72,6 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
                   src={getImage(post)} 
                   alt={post.imageAlt || post.title} 
                   className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" 
-                  onError={(event) => {
-                    if (event.currentTarget.src !== fallback) {
-                      event.currentTarget.src = fallback;
-                    }
-                  }}
                 />
                 </div>
                 <div className="mt-2">

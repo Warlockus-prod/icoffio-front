@@ -113,16 +113,66 @@ function prepareArticleContentForFrontend(content: string, language: 'en' | 'pl'
   return sanitized || normalizeAiGeneratedText(content || '');
 }
 
+function extractMarkdownHeading(content: string): string {
+  if (!content) return '';
+  const headingMatch = content.match(/^\s*#\s+(.+)$/m);
+  if (!headingMatch) return '';
+  return sanitizeExcerptText(headingMatch[1] || '', 180).replace(/[.]{3,}\s*$/, '').trim();
+}
+
+function extractLeadSentence(text: string, maxLength = 140): string {
+  const cleaned = sanitizeExcerptText(text || '', Math.max(maxLength * 2, 220))
+    .replace(/\s+/g, ' ')
+    .replace(/[.]{3,}\s*$/, '')
+    .trim();
+
+  if (!cleaned) return '';
+
+  const sentenceMatch = cleaned.match(/^(.{20,220}?[.!?])(?:\s|$)/);
+  const sentence = sentenceMatch ? sentenceMatch[1].trim() : cleaned;
+  if (sentence.length <= maxLength) return sentence;
+  return `${sentence.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function resolveLocalizedTitle(article: any, language: 'en' | 'pl'): string {
+  const baseTitle = sanitizeExcerptText(article?.title || '', 220).replace(/[.]{3,}\s*$/, '').trim();
+
+  if (language === 'pl') {
+    const heading = extractMarkdownHeading(article?.content_pl || '');
+    if (heading) return heading;
+
+    const excerptPl = sanitizeExcerptText(article?.excerpt_pl || '', 180).replace(/[.]{3,}\s*$/, '').trim();
+    if (excerptPl) return excerptPl;
+
+    const leadPl = extractLeadSentence(article?.content_pl || '', 140);
+    if (leadPl) return leadPl;
+  }
+
+  if (baseTitle) return baseTitle;
+
+  const headingEn = extractMarkdownHeading(article?.content_en || '');
+  if (headingEn) return headingEn;
+
+  const excerptEn = sanitizeExcerptText(article?.excerpt_en || '', 180).replace(/[.]{3,}\s*$/, '').trim();
+  if (excerptEn) return excerptEn;
+
+  const leadEn = extractLeadSentence(article?.content_en || '', 140);
+  if (leadEn) return leadEn;
+
+  return 'Untitled';
+}
+
 /** Transform a raw Supabase row into a Post for list views */
 function transformSupabaseArticleToPost(article: any, isEn: boolean): Post {
   const slug = isEn ? article.slug_en : article.slug_pl;
   const content = isEn ? article.content_en : article.content_pl;
   const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
   const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
+  const title = resolveLocalizedTitle(article, languageKey);
 
   return {
     slug: slug,
-    title: article.title || "Untitled",
+    title,
     excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
     date: article.created_at,
     publishedAt: article.created_at,
@@ -381,9 +431,10 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
     return uniqueArticles.slice(0, limit).map((article: any) => {
       const slug = isEn ? article.slug_en : article.slug_pl;
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
+      const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
       return {
         slug: slug,
-        title: article.title,
+        title: resolveLocalizedTitle(article, languageKey),
         excerpt: sanitizeExcerptText(excerpt || '', 200),
         date: article.created_at,
         publishedAt: article.created_at,

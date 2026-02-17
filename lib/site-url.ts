@@ -1,5 +1,4 @@
 const FALLBACK_SITE_URL = 'https://www.icoffio.com';
-const LEGACY_HOSTS = new Set(['app.icoffio.com', 'www.icoffio.com', 'icoffio.com']);
 
 function normalizeSiteUrl(raw: string): string | null {
   const candidate = (raw || '').trim();
@@ -8,11 +7,6 @@ function normalizeSiteUrl(raw: string): string | null {
   try {
     const url = new URL(candidate);
     if (!/^https?:$/i.test(url.protocol)) return null;
-
-    const hostname = url.hostname.toLowerCase();
-    if (LEGACY_HOSTS.has(hostname)) {
-      return FALLBACK_SITE_URL;
-    }
 
     return `${url.protocol}//${url.host}`;
   } catch {

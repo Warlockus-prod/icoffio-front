@@ -200,17 +200,22 @@ export async function publishArticle(
     console.log(`  🇬🇧 EN: ID=${data.id}, slug=${data.slug_en}`);
     console.log(`  🇵🇱 PL: slug=${data.slug_pl}`);
 
+    const resolvedEnUrl = buildArticleUrl('en', data.slug_en, siteBaseUrl);
+    const resolvedPlUrl = buildArticleUrl('pl', data.slug_pl, siteBaseUrl);
+
     return {
       success: true,
       en: {
         id: data.id,
         slug: data.slug_en,
-        url: data.url_en || buildArticleUrl('en', data.slug_en, siteBaseUrl),
+        // Avoid stale/legacy DB URL host values; always resolve from current canonical base + slug.
+        url: resolvedEnUrl,
       },
       pl: {
         id: data.id, // Same ID, different slug
         slug: data.slug_pl,
-        url: data.url_pl || buildArticleUrl('pl', data.slug_pl, siteBaseUrl),
+        // Avoid stale/legacy DB URL host values; always resolve from current canonical base + slug.
+        url: resolvedPlUrl,
       },
     };
 

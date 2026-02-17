@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.16] - 2026-02-17 - 🛡️ Telegram Canonical Domain Enforcement
+
+### ✅ Fixed
+- Telegram publish links no longer depend on DB-hosted `url_en/url_pl` values (which could contain legacy `icoffio.com` host).
+- Telegram publisher now always builds EN/PL URLs from:
+  - canonical site base URL,
+  - generated article slug.
+- Telegram webhook now resolves canonical site base with strict priority:
+  1. `TELEGRAM_PUBLIC_BASE_URL`
+  2. `NEXT_PUBLIC_SITE_URL`
+  3. `NEXT_PUBLIC_APP_URL`
+  4. `SITE_URL`
+  5. request forwarded headers / request origin fallback
+- This prevents `localhost`/proxy origin leakage into queue payload and keeps Telegram responses on the intended VPS domain.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/telegram-webhook.test.ts` — OK
+
 ## [8.7.15] - 2026-02-17 - 🤖 Telegram Domain Routing Fix (VPS-first links)
 
 ### ✅ Fixed

@@ -117,6 +117,41 @@ function normalizeSiteBaseUrl(raw?: string): string | null {
   }
 }
 
+function firstForwardedValue(raw?: string | null): string {
+  if (!raw) return '';
+  return raw
+    .split(',')
+    .map((part) => part.trim())
+    .find(Boolean) || '';
+}
+
+function resolveCanonicalSiteBaseUrl(request?: NextRequest): string {
+  const fromEnv =
+    normalizeSiteBaseUrl(process.env.TELEGRAM_PUBLIC_BASE_URL) ||
+    normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+    normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+    normalizeSiteBaseUrl(process.env.SITE_URL);
+  if (fromEnv) return fromEnv;
+
+  if (request) {
+    const forwardedProto = firstForwardedValue(request.headers.get('x-forwarded-proto'));
+    const forwardedHost = firstForwardedValue(request.headers.get('x-forwarded-host'));
+    const hostHeader = firstForwardedValue(request.headers.get('host'));
+    const host = forwardedHost || hostHeader;
+    const protocol =
+      forwardedProto ||
+      (request.nextUrl?.protocol || '').replace(':', '') ||
+      'https';
+    const fromHeaders = normalizeSiteBaseUrl(host ? `${protocol}://${host}` : '');
+    if (fromHeaders) return fromHeaders;
+
+    const fromRequest = normalizeSiteBaseUrl(request.nextUrl?.origin);
+    if (fromRequest) return fromRequest;
+  }
+
+  return getSiteBaseUrl();
+}
+
 function buildAbsoluteSiteUrl(path: string, preferredBaseUrl?: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const base =
@@ -1423,12 +1458,7 @@ function triggerTelegramSimpleWorker(request: NextRequest): void {
 
 export async function POST(request: NextRequest) {
   try {
-    const requestSiteBaseUrl =
-      normalizeSiteBaseUrl(request.nextUrl?.origin) ||
-      normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-      normalizeSiteBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
-      normalizeSiteBaseUrl(process.env.SITE_URL) ||
-      getSiteBaseUrl();
+    const requestSiteBaseUrl = resolveCanonicalSiteBaseUrl(request);
 
     const auth = verifyTelegramRequest(request);
     if (!auth.ok) {

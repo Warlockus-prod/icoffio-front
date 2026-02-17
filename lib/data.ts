@@ -347,32 +347,19 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
     }
 
     const isEn = locale === 'en' || article.slug_en === slug;
+    const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
+    const localizedTitle = resolveLocalizedTitle(article, languageKey);
 
-    // Extract Polish title from content/excerpt
-    let plTitle = article.title;
+    // Normalize Polish body: remove duplicated markdown heading if present.
     let plContent = article.content_pl || '';
-    const cleanedPlExcerpt = sanitizeExcerptText(article.excerpt_pl || '', 220).replace(/[.]{3,}\s*$/, '');
-
-    if (!isEn && article.content_pl) {
-      const headingMatch = article.content_pl.match(/^#\s+(.+)$/m);
-      if (headingMatch) {
-        plTitle = headingMatch[1];
-      } else if (cleanedPlExcerpt && cleanedPlExcerpt.length <= 140) {
-        plTitle = cleanedPlExcerpt;
-      }
-    }
-
-    // Remove first # heading from Polish content (to avoid duplication)
     if (!isEn && plContent) {
       plContent = plContent.replace(/^#\s+.+\n\n?/m, '');
     }
-
-    const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
     const rawContent = isEn ? article.content_en || '' : plContent || '';
 
     return {
       slug: isEn ? article.slug_en : article.slug_pl,
-      title: isEn ? article.title : plTitle,
+      title: localizedTitle,
       excerpt: sanitizeExcerptText(isEn ? article.excerpt_en : article.excerpt_pl, 200),
       date: article.created_at,
       publishedAt: article.created_at,

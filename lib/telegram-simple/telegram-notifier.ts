@@ -9,8 +9,12 @@ export interface InlineButton {
   callback_data: string;
 }
 
+export type TelegramReplyMarkup =
+  | { inline_keyboard: InlineButton[][] }
+  | { keyboard: { text: string }[][]; resize_keyboard?: boolean; is_persistent?: boolean };
+
 /**
- * Send message to Telegram chat (supports inline keyboard)
+ * Send message to Telegram chat (supports inline keyboard + reply keyboard)
  */
 export async function sendTelegramMessage(
   chatId: number,
@@ -18,9 +22,7 @@ export async function sendTelegramMessage(
   options?: {
     parse_mode?: 'HTML' | 'Markdown';
     disable_web_page_preview?: boolean;
-    reply_markup?: {
-      inline_keyboard: InlineButton[][];
-    };
+    reply_markup?: TelegramReplyMarkup;
   }
 ): Promise<boolean> {
   try {

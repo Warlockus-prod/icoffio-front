@@ -352,6 +352,22 @@ function buildSubmissionMeta(input: ProcessSubmissionInput): SubmissionMeta {
   };
 }
 
+function buildPersistentKeyboard(lang: InterfaceLanguage = 'ru') {
+  return {
+    keyboard: [
+      [
+        { text: localize(lang, '⚙️ Настройки', '⚙️ Settings', '⚙️ Ustawienia') },
+        { text: localize(lang, '📊 Очередь', '📊 Queue', '📊 Kolejka') },
+      ],
+      [
+        { text: localize(lang, '❓ Помощь', '❓ Help', '❓ Pomoc') },
+      ],
+    ],
+    resize_keyboard: true,
+    is_persistent: true,
+  };
+}
+
 function buildQuickActionsKeyboard(
   settings: TelegramSettings | Pick<TelegramSettings, 'combineUrlsAsSingle' | 'interfaceLanguage' | 'contentStyle' | 'imagesCount' | 'imagesSource' | 'autoPublish'>
 ) {
@@ -1873,49 +1889,33 @@ export async function POST(request: NextRequest) {
       const firstArg = args[0];
 
       if (command === '/start') {
-        await sendLocalized(
-          `🤖 <b>Привет! Я icoffio Bot</b>\n\n` +
-            `Отправь ссылку или текст, и я создам публикацию.\n` +
-            `Можно отправить сразу несколько URL (до ${MAX_BATCH_URLS} за сообщение).\n` +
-            `Для одной статьи из нескольких URL используй /single.\n\n` +
-            `⚙️ Команды:\n` +
-            `/settings - Твои настройки\n` +
-            `/queue - История и статус\n` +
-            `/language ru|en|pl - Язык интерфейса\n` +
-            `/mode single|batch - Режим multi URL\n` +
-            `/reload - Сброс зависших задач\n` +
-            `/help - Справка`,
-          `🤖 <b>Hello! I'm icoffio Bot</b>\n\n` +
-            `Send a URL or text and I will create a publication.\n` +
-            `You can send multiple URLs (up to ${MAX_BATCH_URLS} per message).\n` +
-            `Use /single to build one article from multiple URLs.\n\n` +
-            `⚙️ Commands:\n` +
-            `/settings - Your settings\n` +
-            `/queue - History and status\n` +
-            `/language ru|en|pl - Interface language\n` +
-            `/mode single|batch - Multi URL mode\n` +
-            `/reload - Reset stuck jobs\n` +
-            `/help - Help`,
-          `🤖 <b>Cześć! Jestem icoffio Bot</b>\n\n` +
-            `Wyślij URL lub tekst, a przygotuję publikację.\n` +
-            `Możesz wysłać kilka URL (do ${MAX_BATCH_URLS} w jednej wiadomości).\n` +
-            `Użyj /single, aby stworzyć jeden artykuł z wielu URL.\n\n` +
-            `⚙️ Komendy:\n` +
-            `/settings - Twoje ustawienia\n` +
-            `/queue - Historia i status\n` +
-            `/language ru|en|pl - Język interfejsu\n` +
-            `/mode single|batch - Tryb multi URL\n` +
-            `/reload - Reset zawieszonych zadań\n` +
-            `/help - Pomoc`
-        );
         await sendTelegramMessage(
           chatId,
           localize(
-            settings.interfaceLanguage,
-            '⚡ Быстрые кнопки:',
-            '⚡ Quick actions:',
-            '⚡ Szybkie akcje:'
+            uiLang,
+            `🤖 <b>Привет! Я icoffio Bot</b>\n\n` +
+              `Отправь ссылку или текст, и я создам публикацию.\n` +
+              `Можно отправить сразу несколько URL (до ${MAX_BATCH_URLS} за сообщение).\n` +
+              `Для одной статьи из нескольких URL используй /single.\n\n` +
+              `Используй кнопки внизу для быстрого доступа к настройкам и очереди.`,
+            `🤖 <b>Hello! I'm icoffio Bot</b>\n\n` +
+              `Send a URL or text and I will create a publication.\n` +
+              `You can send multiple URLs (up to ${MAX_BATCH_URLS} per message).\n` +
+              `Use /single to build one article from multiple URLs.\n\n` +
+              `Use the buttons below for quick access to settings and queue.`,
+            `🤖 <b>Cześć! Jestem icoffio Bot</b>\n\n` +
+              `Wyślij URL lub tekst, a przygotuję publikację.\n` +
+              `Możesz wysłać kilka URL (do ${MAX_BATCH_URLS} w jednej wiadomości).\n` +
+              `Użyj /single, aby stworzyć jeden artykuł z wielu URL.\n\n` +
+              `Użyj przycisków poniżej, aby szybko przejść do ustawień i kolejki.`
           ),
+          {
+            reply_markup: buildPersistentKeyboard(uiLang),
+          }
+        );
+        await sendTelegramMessage(
+          chatId,
+          localize(uiLang, '⚡ Быстрые кнопки:', '⚡ Quick actions:', '⚡ Szybkie akcje:'),
           {
             reply_markup: buildQuickActionsKeyboard(settings),
           }
@@ -2434,6 +2434,54 @@ export async function POST(request: NextRequest) {
         `❓ Nieznana komenda.\n\n` +
           `Dostępne:\n` +
           `/help\n/settings\n/queue\n/language\n/mode\n/style\n/images\n/source\n/single\n/reload\n/autopublish\n/admin`
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Persistent keyboard button handlers ---
+    const textLower = text.toLowerCase();
+    const settingsLabels = ['⚙️ настройки', '⚙️ settings', '⚙️ ustawienia'];
+    const queueLabels = ['📊 очередь', '📊 queue', '📊 kolejka'];
+    const helpLabels = ['❓ помощь', '❓ help', '❓ pomoc'];
+
+    if (settingsLabels.includes(textLower)) {
+      await sendTelegramMessage(chatId, buildSettingsMessage(settings, requestSiteBaseUrl), {
+        reply_markup: buildQuickActionsKeyboard(settings),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (queueLabels.includes(textLower)) {
+      await handleQueueCommand(chatId, userId, uiLang, requestSiteBaseUrl);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (helpLabels.includes(textLower)) {
+      await sendLocalized(
+        `📚 <b>Как использовать:</b>\n\n` +
+          `1. Отправь URL статьи или текст (от 100 символов)\n` +
+          `2. Подожди обработку\n` +
+          `3. Получи EN + PL ссылки\n\n` +
+          `<b>Команды:</b>\n` +
+          `/settings — настройки\n` +
+          `/queue — очередь\n` +
+          `/help — справка`,
+        `📚 <b>How to use:</b>\n\n` +
+          `1. Send a URL or text (100+ chars)\n` +
+          `2. Wait for processing\n` +
+          `3. Receive EN + PL links\n\n` +
+          `<b>Commands:</b>\n` +
+          `/settings — settings\n` +
+          `/queue — queue\n` +
+          `/help — help`,
+        `📚 <b>Jak używać:</b>\n\n` +
+          `1. Wyślij URL lub tekst (100+ znaków)\n` +
+          `2. Poczekaj na przetworzenie\n` +
+          `3. Otrzymaj linki EN + PL\n\n` +
+          `<b>Komendy:</b>\n` +
+          `/settings — ustawienia\n` +
+          `/queue — kolejka\n` +
+          `/help — pomoc`
       );
       return NextResponse.json({ ok: true });
     }

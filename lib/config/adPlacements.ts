@@ -111,7 +111,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
   },
   {
     id: 'mobile-2',
-    placeId: '68f644dc70e7b26b58596f34',
+    placeId: '68f6451d810d98e1a08f2725',
     format: '320x50',
     placement: 'mobile',
     name: 'Mobile Banner Bottom',

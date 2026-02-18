@@ -54,16 +54,12 @@ export function Analytics({ gaId }: AnalyticsProps) {
   useEffect(() => {
     // Only load analytics in production, if GA ID is provided AND if user consented
     if (process.env.NODE_ENV !== 'production' || !gaId) {
-      console.log('Analytics: Skipping in development or missing GA ID');
       return;
     }
 
     if (!hasConsent) {
-      console.log('Analytics: Waiting for cookie consent');
       return;
     }
-
-    console.log('Analytics: Loading Google Analytics with user consent');
 
     // Load Google Analytics script
     const script1 = document.createElement('script');

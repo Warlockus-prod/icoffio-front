@@ -313,7 +313,7 @@ async function handlePasswordLogin(body: AuthActionRequest) {
     return NextResponse.json({ success: false, error: 'Invalid password' }, { status: 401 });
   }
 
-  const ownerEmail = getOwnerEmails()[0] || 'ag@voxexchange.io';
+  const ownerEmail = getOwnerEmails()[0] || 'admin@icoffio.com';
   const response = NextResponse.json({
     success: true,
     message: 'Signed in successfully',

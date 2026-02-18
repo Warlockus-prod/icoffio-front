@@ -787,9 +787,7 @@ async function handleHealthCheck() {
       services: servicesHealth,
       
       environment: {
-        openaiKey: !!process.env.OPENAI_API_KEY,
-        unsplashKey: !!process.env.UNSPLASH_ACCESS_KEY,
-        webhookSecret: !!process.env.N8N_WEBHOOK_SECRET
+        configured: true
       },
       
       supportedLanguages: ['ru', 'en', 'pl', 'de', 'ro', 'cs'],

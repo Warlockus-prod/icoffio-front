@@ -46,7 +46,10 @@ export interface RequireRoleFailure {
 
 export type RequireRoleResult = RequireRoleSuccess | RequireRoleFailure;
 
-const DEFAULT_OWNER_EMAILS = ['ag@voxexchange.io', 'andrzej.goleta@hybrid.ai'];
+const DEFAULT_OWNER_EMAILS = (process.env.ADMIN_OWNER_EMAILS || 'ag@voxexchange.io,andrzej.goleta@hybrid.ai')
+  .split(',')
+  .map(e => e.trim())
+  .filter(Boolean);
 const PERSISTED_ROLES: AssignableAdminRole[] = ['admin', 'editor', 'viewer'];
 
 const ROLE_WEIGHT: Record<AdminRole, number> = {
@@ -95,7 +98,8 @@ function safeStringEqual(left: string, right: string): boolean {
 }
 
 function getConfiguredAdminPassword(): string | null {
-  const configured = (process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '').trim();
+  // SECURITY: Only use server-side ADMIN_PASSWORD. NEXT_PUBLIC_ prefix would leak to browser.
+  const configured = (process.env.ADMIN_PASSWORD || '').trim();
   return configured || null;
 }
 

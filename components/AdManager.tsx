@@ -123,9 +123,6 @@ export function AdManager() {
       // C. Trigger init if we have work to do.
       if (shouldInitInImage || displayPlaceIdsToInit.size > 0) {
         window._tx.init();
-        console.log(
-          `[VOX] init (${reason}) path=${pathname} inImage=${shouldInitInImage} display=${displayPlaceIdsToInit.size}`
-        );
       }
     } catch (err) {
       console.error('VOX init error:', err);

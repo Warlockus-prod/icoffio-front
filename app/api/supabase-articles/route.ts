@@ -166,14 +166,14 @@ export async function GET(request: Request) {
     const { data: articles, error } = await query;
 
     if (error) {
-      throw new Error(`Supabase query failed: ${error.message}`);
+      throw new Error('Failed to load articles');
     }
 
     // ✅ v8.4.1+: Дедупликация по slug с выбором "лучшей" версии записи
     const isEn = language === 'en';
     const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
     
-    console.log(`[supabase-articles] Filtered ${articles.length} -> ${uniqueArticles.length} unique for ${language}`);
+    // Dedup: ${articles.length} -> ${uniqueArticles.length}
 
     // Transform to frontend format
     const transformedArticles = uniqueArticles.map((article: any) => {
@@ -319,7 +319,7 @@ export async function POST(request: Request) {
 
       // ✅ FALLBACK: Если по категории ничего нет - берём последние статьи любой категории
       if (!error && (!articles || articles.length === 0)) {
-        console.log(`[get-related] No articles in category "${articleCategory}", falling back to latest`);
+        // No articles in this category, falling back to latest
         const fallback = await supabase
           .from('published_articles')
           .select('*')
@@ -334,7 +334,7 @@ export async function POST(request: Request) {
       }
 
       if (error) {
-        throw new Error(`Failed to get related articles: ${error.message}`);
+        throw new Error('Failed to get related articles');
       }
 
       // ✅ Удаляем дубликаты по slug и выбираем лучшую версию

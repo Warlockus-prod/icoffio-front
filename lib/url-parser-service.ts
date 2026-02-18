@@ -36,7 +36,7 @@ class UrlParserService {
     timeout: 15000, // 15 секунд (увеличено с 10)
     maxContentLength: 50000, // 50KB текста
     includeImages: true,
-    userAgent: 'Mozilla/5.0 (compatible; IcoffioBot/1.0; +https://icoffio.com)'
+    userAgent: 'Mozilla/5.0 (compatible; IcoffioBot/1.0; +https://web.icoffio.com)'
   };
 
   /**

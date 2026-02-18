@@ -184,6 +184,26 @@ export async function GET(request: Request) {
       });
     }
 
+    // Get single article by numeric ID (for editor)
+    if (action === 'get-by-id') {
+      const id = searchParams.get('id');
+      if (!id) {
+        return NextResponse.json({ success: false, error: 'Missing id parameter' }, { status: 400 });
+      }
+
+      const { data: article, error } = await supabase
+        .from('published_articles')
+        .select('*')
+        .eq('id', parseInt(id))
+        .single();
+
+      if (error || !article) {
+        return NextResponse.json({ success: false, error: 'Article not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, article });
+    }
+
     // Build query
     let query = supabase
       .from('published_articles')

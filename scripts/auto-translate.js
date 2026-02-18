@@ -10,7 +10,7 @@ const path = require('path');
 
 // Конфигурация
 const WORDPRESS_API = 'https://icoffio.com/graphql';
-const NEXTJS_API = 'https://www.icoffio.com/api/translate';
+const NEXTJS_API = 'https://web.icoffio.com/api/translate';
 const TARGET_LANGUAGES = ['pl', 'de', 'ro', 'cs']; // en уже есть
 const DELAY_BETWEEN_REQUESTS = 2000; // 2 секунды между запросами
 const MAX_RETRIES = 3;

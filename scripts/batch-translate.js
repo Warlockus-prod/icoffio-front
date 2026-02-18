@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 const WORDPRESS_API = 'https://icoffio.com/graphql';
-const NEXTJS_API = 'https://www.icoffio.com/api/translate';
+const NEXTJS_API = 'https://web.icoffio.com/api/translate';
 
 async function batchTranslateAll() {
   console.log('🚀 МАССОВЫЙ ПЕРЕВОД ВСЕХ СТАТЕЙ ICOFFIO');

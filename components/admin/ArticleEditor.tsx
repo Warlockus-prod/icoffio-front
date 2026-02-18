@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import { localArticleStorage } from '@/lib/local-article-storage';
 import toast from 'react-hot-toast';
@@ -9,11 +9,26 @@ import TranslationPanel from './ArticleEditor/TranslationPanel';
 import ContentEditor from './ArticleEditor/ContentEditor';
 import ImageMetadataEditor from './ImageMetadataEditor';
 
+const AUTO_SAVE_INTERVAL = 30_000; // 30 seconds
+
 export default function ArticleEditor() {
-  const { selectedArticle, parsingQueue, selectArticle } = useAdminStore();
+  const { selectedArticle, parsingQueue, selectArticle, updateArticle } = useAdminStore();
   const [activeTab, setActiveTab] = useState<'preview' | 'editor' | 'translations' | 'images'>('preview');
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pl'>('en');
-  
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  const [resumeDraft, setResumeDraft] = useState<{ id: string; title: string } | null>(null);
+  const [showSourceEditor, setShowSourceEditor] = useState(false);
+  const [newSourceLabel, setNewSourceLabel] = useState('');
+  const [newSourceUrl, setNewSourceUrl] = useState('');
+  const selectedArticleRef = useRef(selectedArticle);
+  const parsingQueueRef = useRef(parsingQueue);
+
+  // Keep refs in sync for use in beforeunload
+  useEffect(() => {
+    selectedArticleRef.current = selectedArticle;
+    parsingQueueRef.current = parsingQueue;
+  }, [selectedArticle, parsingQueue]);
+
   const toSlug = (value: string) =>
     value
       .toLowerCase()
@@ -22,19 +37,21 @@ export default function ArticleEditor() {
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
 
-  const handleSaveDraft = () => {
-    if (!selectedArticle) return;
+  const saveDraftSilently = useCallback((showToast = false) => {
+    const article = selectedArticleRef.current;
+    const queue = parsingQueueRef.current;
+    if (!article) return false;
 
-    const sourceJob = parsingQueue.find((job) => job.article?.id === selectedArticle.id);
+    const sourceJob = queue.find((job) => job.article?.id === article.id);
     const sourceType = sourceJob?.url?.startsWith('text:') ? 'text' : 'url';
-    const translations = Object.entries(selectedArticle.translations || {}).reduce(
+    const translations = Object.entries(article.translations || {}).reduce(
       (acc, [lang, translation]) => {
         if (!translation) return acc;
         acc[lang] = {
           title: translation.title,
           content: translation.content,
           excerpt: translation.excerpt,
-          slug: toSlug(translation.title || `${selectedArticle.title}-${lang}`),
+          slug: toSlug(translation.title || `${article.title}-${lang}`),
         };
         return acc;
       },
@@ -42,16 +59,16 @@ export default function ArticleEditor() {
     );
 
     const saved = localArticleStorage.saveArticle({
-      id: selectedArticle.id,
-      title: selectedArticle.title,
-      content: selectedArticle.content,
-      excerpt: selectedArticle.excerpt,
-      slug: toSlug(selectedArticle.title),
-      category: selectedArticle.category || 'tech',
-      author: selectedArticle.author || 'AI Assistant',
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      excerpt: article.excerpt,
+      slug: toSlug(article.title),
+      category: article.category || 'tech',
+      author: article.author || 'AI Assistant',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      image: selectedArticle.image,
+      image: article.image,
       status: 'draft',
       translations,
       source: {
@@ -61,10 +78,64 @@ export default function ArticleEditor() {
     });
 
     if (saved) {
-      toast.success('Draft saved in local storage');
-    } else {
+      setLastAutoSave(new Date());
+      if (showToast) toast.success('Draft saved');
+    } else if (showToast) {
       toast.error('Failed to save draft');
     }
+    return saved;
+  }, []);
+
+  const handleSaveDraft = () => saveDraftSilently(true);
+
+  // Auto-save on beforeunload (page close/refresh)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (selectedArticleRef.current) {
+        saveDraftSilently(false);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveDraftSilently]);
+
+  // Auto-save interval (every 30s while editing)
+  useEffect(() => {
+    if (!selectedArticle) return;
+    const interval = setInterval(() => {
+      saveDraftSilently(false);
+    }, AUTO_SAVE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [selectedArticle, saveDraftSilently]);
+
+  // Check for resumable draft on mount
+  useEffect(() => {
+    const drafts = localArticleStorage.getArticlesByStatus('draft');
+    if (drafts.length > 0 && !selectedArticle) {
+      const latest = drafts.sort((a, b) =>
+        new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+      )[0];
+      setResumeDraft({ id: latest.id, title: latest.title });
+    }
+  }, []);
+
+  const handleResumeDraft = () => {
+    if (!resumeDraft) return;
+    const stored = localArticleStorage.getArticle(resumeDraft.id);
+    if (stored) {
+      selectArticle({
+        id: stored.id,
+        title: stored.title,
+        content: stored.content,
+        excerpt: stored.excerpt,
+        category: stored.category,
+        author: stored.author,
+        image: stored.image,
+        translations: stored.translations as any,
+      });
+      toast.success('Draft restored');
+    }
+    setResumeDraft(null);
   };
   
   // Get articles ready for editing (from queue + local storage)
@@ -185,8 +256,60 @@ export default function ArticleEditor() {
     { code: 'pl', label: 'Polish', flag: '🇵🇱' }
   ];
 
+  // Handle "Add to Queue" — save as 'ready' and switch to queue tab
+  const handleAddToQueue = () => {
+    if (!selectedArticle) return;
+    const saved = saveDraftSilently(false);
+    if (saved) {
+      localArticleStorage.updateArticleStatus(selectedArticle.id, 'ready');
+    }
+    useAdminStore.getState().setActiveTab('queue');
+    toast.success('Article added to publishing queue');
+  };
+
+  // Source attribution helpers
+  const handleAddSource = () => {
+    if (!newSourceLabel.trim() || !newSourceUrl.trim() || !selectedArticle) return;
+    const existing = selectedArticle.sourceAttributions || [];
+    updateArticle({
+      sourceAttributions: [...existing, { label: newSourceLabel.trim(), url: newSourceUrl.trim() }],
+    });
+    setNewSourceLabel('');
+    setNewSourceUrl('');
+  };
+
+  const handleRemoveSource = (index: number) => {
+    if (!selectedArticle) return;
+    const existing = [...(selectedArticle.sourceAttributions || [])];
+    existing.splice(index, 1);
+    updateArticle({ sourceAttributions: existing });
+  };
+
   return (
     <div className="space-y-6">
+      {/* Resume Draft Banner */}
+      {resumeDraft && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 flex items-center justify-between">
+          <div className="text-sm text-yellow-800 dark:text-yellow-200">
+            <span className="font-medium">Unsaved draft found:</span> "{resumeDraft.title}"
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setResumeDraft(null)}
+              className="px-3 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              Dismiss
+            </button>
+            <button
+              onClick={handleResumeDraft}
+              className="px-3 py-1 text-xs bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg"
+            >
+              Resume Editing
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Article Selector */}
       {allArticles.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -331,6 +454,66 @@ export default function ArticleEditor() {
             )}
           </div>
 
+          {/* Source Attribution Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                Source Attribution
+              </h4>
+              <button
+                onClick={() => setShowSourceEditor(!showSourceEditor)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {showSourceEditor ? 'Hide' : (selectedArticle.sourceAttributions?.length ? 'Edit' : 'Add Source')}
+              </button>
+            </div>
+
+            {/* Existing sources */}
+            {(selectedArticle.sourceAttributions?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedArticle.sourceAttributions!.map((src, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300">
+                    <a href={src.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{src.label}</a>
+                    {showSourceEditor && (
+                      <button onClick={() => handleRemoveSource(i)} className="text-red-500 hover:text-red-700 ml-1">&times;</button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {(selectedArticle.sourceAttributions?.length ?? 0) === 0 && !showSourceEditor && (
+              <p className="text-xs text-gray-400">No source attribution set</p>
+            )}
+
+            {/* Add source form */}
+            {showSourceEditor && (
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={newSourceLabel}
+                  onChange={(e) => setNewSourceLabel(e.target.value)}
+                  placeholder="Source name"
+                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <input
+                  type="url"
+                  value={newSourceUrl}
+                  onChange={(e) => setNewSourceUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <button
+                  onClick={handleAddSource}
+                  disabled={!newSourceLabel.trim() || !newSourceUrl.trim()}
+                  className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Article Actions Footer */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
@@ -344,6 +527,11 @@ export default function ArticleEditor() {
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium">Category:</span> {selectedArticle.category}
                 </div>
+                {lastAutoSave && (
+                  <div className="text-xs text-green-600 dark:text-green-400">
+                    Auto-saved {lastAutoSave.toLocaleTimeString()}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">
@@ -351,21 +539,19 @@ export default function ArticleEditor() {
                   onClick={handleSaveDraft}
                   className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm"
                 >
-                  💾 Save Draft
+                  Save Draft
                 </button>
-                
-                <button 
-                  onClick={() => useAdminStore.getState().setActiveTab('queue')}
-                  className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 rounded-lg transition-colors text-sm"
+
+                <button
+                  onClick={handleAddToQueue}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
                 >
-                  📤 Go to Publishing Queue
+                  Add to Queue
                 </button>
-                
-                <button 
+
+                <button
                   onClick={async () => {
                     try {
-                      console.log('🚀 Publishing article:', selectedArticle.title);
-                      
                       const response = await fetch('/api/articles', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -377,20 +563,19 @@ export default function ArticleEditor() {
                       });
 
                       const result = await response.json();
-                      
+
                       if (result.success) {
-                        alert(`✅ "${selectedArticle.title}" added to publishing queue!`);
+                        toast.success(`"${selectedArticle.title}" published!`);
                       } else {
                         throw new Error(result.error || 'Publication failed');
                       }
                     } catch (error) {
-                      console.error('❌ Publication failed:', error);
-                      alert(`❌ Ошибка публикации: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                      toast.error(`Publication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     }
                   }}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
                 >
-                  🚀 Publish Now
+                  Publish Now
                 </button>
               </div>
             </div>

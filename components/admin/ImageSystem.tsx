@@ -12,7 +12,7 @@ export default function ImageSystem() {
   const [activeTab, setActiveTab] = useState<'search' | 'generate'>('search');
   const [images, setImages] = useState<ImageType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedImageId, setSelectedImageId] = useState<string | undefined>(undefined);
+  const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [previewImage, setPreviewImage] = useState<ImageType | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -31,10 +31,23 @@ export default function ImageSystem() {
   };
 
   const handleImageSelect = (image: ImageType) => {
-    setSelectedImageId(image.id);
-    if (selectedArticle) {
-      selectImage(image.id);
-    }
+    setSelectedImageIds(prev => {
+      const isAlreadySelected = prev.includes(image.id);
+      let next: string[];
+      if (isAlreadySelected) {
+        next = prev.filter(id => id !== image.id);
+      } else if (prev.length >= 5) {
+        // Max 5 images — replace the last one
+        next = [...prev.slice(0, 4), image.id];
+      } else {
+        next = [...prev, image.id];
+      }
+      // Update store with first selected image (hero)
+      if (selectedArticle && next.length > 0) {
+        selectImage(next[0]);
+      }
+      return next;
+    });
   };
 
   const handleImagePreview = (image: ImageType) => {
@@ -53,8 +66,9 @@ export default function ImageSystem() {
   };
 
   // Get selected image details
-  const selectedImage = images.find(img => img.id === selectedImageId);
-  const hasSelectedImage = Boolean(selectedImage);
+  const selectedImages = images.filter(img => selectedImageIds.includes(img.id));
+  const hasSelectedImage = selectedImages.length > 0;
+  const firstSelectedImage = selectedImages[0];
 
   return (
     <div className="space-y-6">
@@ -74,14 +88,18 @@ export default function ImageSystem() {
             {hasSelectedImage && (
               <div className="flex items-center gap-3">
                 <div className="text-sm text-green-600 dark:text-green-400">
-                  ✓ Image selected
+                  {selectedImages.length} image{selectedImages.length > 1 ? 's' : ''} selected
                 </div>
-                <div className="w-12 h-12 rounded border border-gray-200 dark:border-gray-600 overflow-hidden">
-                  <img
-                    src={selectedImage!.thumbnail || selectedImage!.url}
-                    alt="Selected"
-                    className="w-full h-full object-cover"
-                  />
+                <div className="flex -space-x-2">
+                  {selectedImages.slice(0, 5).map((img, i) => (
+                    <div key={img.id} className="w-10 h-10 rounded border-2 border-white dark:border-gray-800 overflow-hidden" style={{ zIndex: 5 - i }}>
+                      <img
+                        src={img.thumbnail || img.url}
+                        alt={`Selected ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -171,17 +189,17 @@ export default function ImageSystem() {
                 
                 {hasSelectedImage && (
                   <button
-                    onClick={() => setSelectedImageId(undefined)}
+                    onClick={() => setSelectedImageIds([])}
                     className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                   >
-                    Clear Selection
+                    Clear Selection ({selectedImages.length})
                   </button>
                 )}
               </div>
 
               <ImageGrid
                 images={images}
-                selectedImageId={selectedImageId}
+                selectedImageIds={selectedImageIds}
                 onImageSelect={handleImageSelect}
                 onImagePreview={handleImagePreview}
                 isLoading={isLoading}
@@ -242,13 +260,13 @@ export default function ImageSystem() {
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  hasSelectedImage 
-                    ? 'bg-green-50 dark:bg-green-900/20' 
+                  hasSelectedImage
+                    ? 'bg-green-50 dark:bg-green-900/20'
                     : 'bg-gray-50 dark:bg-gray-700'
                 }`}>
                   <span className={`text-lg ${
-                    hasSelectedImage 
-                      ? 'text-green-600 dark:text-green-400' 
+                    hasSelectedImage
+                      ? 'text-green-600 dark:text-green-400'
                       : 'text-gray-600 dark:text-gray-400'
                   }`}>
                     {hasSelectedImage ? '✅' : '⚪'}
@@ -256,7 +274,7 @@ export default function ImageSystem() {
                 </div>
                 <div>
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {hasSelectedImage ? '1' : '0'}
+                    {selectedImages.length}/5
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Selected
@@ -274,7 +292,7 @@ export default function ImageSystem() {
         isOpen={isPreviewOpen}
         onClose={handlePreviewClose}
         onSelect={handlePreviewSelect}
-        isSelected={previewImage?.id === selectedImageId}
+        isSelected={previewImage ? selectedImageIds.includes(previewImage.id) : false}
       />
     </div>
   );

@@ -1447,7 +1447,9 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
 }
 
 function triggerTelegramSimpleWorker(request: NextRequest): void {
-  const origin = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || getSiteBaseUrl();
+  // Use internal HTTP URL to avoid SSL issues when Nginx terminates SSL
+  const internalPort = process.env.PORT || '4200';
+  const origin = `http://localhost:${internalPort}`;
   const workerSecret = process.env.TELEGRAM_WORKER_SECRET || process.env.CRON_SECRET;
   const headers: Record<string, string> = {};
   if (workerSecret) {

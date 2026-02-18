@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { localArticleStorage, type StoredArticle } from '@/lib/local-article-storage';
 import { getLocalArticles } from '@/lib/local-articles';
 import { adminLogger } from '@/lib/admin-logger';
+import { useAdminStore } from '@/lib/stores/admin-store';
 import type { Post } from '@/lib/types';
 import MobileArticleCard from './MobileArticleCard';
 import AdvancedSearchPanel, { type SearchFilters } from './AdvancedSearchPanel';
@@ -389,6 +390,64 @@ export default function ArticlesManager() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Edit article: load into editor and switch tab
+  const handleEditArticle = async (article: ArticleItem) => {
+    const { selectArticle, setActiveTab } = useAdminStore.getState();
+
+    if (article.status === 'admin') {
+      // Load from localStorage
+      const stored = localArticleStorage.getArticle(article.id);
+      if (stored) {
+        selectArticle({
+          id: stored.id,
+          title: stored.title,
+          content: stored.content,
+          excerpt: stored.excerpt,
+          category: stored.category,
+          author: stored.author,
+          image: stored.image,
+          translations: stored.translations as any,
+        });
+        setActiveTab('editor');
+        return;
+      }
+    }
+
+    if (article.status === 'dynamic') {
+      // Load from Supabase — extract the raw Supabase ID from the composite id (supabase_{id}_{lang})
+      const match = article.id.match(/^supabase_(\d+)_/);
+      if (match) {
+        try {
+          const res = await fetch(`/api/supabase-articles?action=get-by-id&id=${match[1]}`);
+          const result = await res.json();
+          if (result.success && result.article) {
+            const a = result.article;
+            selectArticle({
+              id: `supabase_${a.id}`,
+              title: a.title_en || a.title || article.title,
+              content: a.content_en || '',
+              excerpt: a.excerpt_en || a.excerpt || '',
+              category: a.category || 'tech',
+              author: a.author || 'icoffio Editorial Team',
+              image: a.image_url,
+              translations: {
+                en: a.content_en ? { title: a.title_en || a.title, content: a.content_en, excerpt: a.excerpt_en || '' } : undefined,
+                pl: a.content_pl ? { title: a.title_pl || '', content: a.content_pl, excerpt: a.excerpt_pl || '' } : undefined,
+              },
+            });
+            setActiveTab('editor');
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to load article for editing:', err);
+        }
+      }
+    }
+
+    // Fallback: open article URL in a new tab
+    window.open(article.url, '_blank');
   };
 
   // Обновление статистики
@@ -1462,8 +1521,16 @@ export default function ArticlesManager() {
                         rel="noopener noreferrer"
                         className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs rounded-lg font-medium transition-colors"
                       >
-                        🔗 View
+                        View
                       </a>
+                      {article.status !== 'static' && (
+                        <button
+                          onClick={() => handleEditArticle(article)}
+                          className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 text-xs rounded-lg font-medium transition-colors"
+                        >
+                          Edit
+                        </button>
+                      )}
                       {article.status !== 'static' && (
                         <button
                           onClick={async () => {
@@ -1478,13 +1545,13 @@ export default function ArticlesManager() {
                                 adminLogger.info('user', 'delete_single_article', `Deleted article: ${article.title}`);
                               } catch (error) {
                                 console.error('Single delete failed:', error);
-                                alert('❌ Failed to delete article. Please try again.');
+                                alert('Failed to delete article. Please try again.');
                               }
                             }
                           }}
                           className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded-lg font-medium transition-colors"
                         >
-                          🗑️ Delete
+                          Delete
                         </button>
                       )}
                     </div>
@@ -1503,10 +1570,7 @@ export default function ArticlesManager() {
               article={article}
               isSelected={selectedArticles.has(article.id)}
               onSelect={handleSelectArticle}
-              onEdit={(article) => {
-                // In future, navigate to editor with article data
-                alert(`Edit feature coming soon!\nArticle: ${article.title}`);
-              }}
+              onEdit={(article) => handleEditArticle(article)}
               onDelete={(id) => {
                 if (article.status === 'static') {
                   alert('Static articles cannot be deleted.');

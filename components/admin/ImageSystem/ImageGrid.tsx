@@ -6,17 +6,19 @@ import { useAdminStore, type ImageType } from '@/lib/stores/admin-store';
 interface ImageGridProps {
   images: ImageType[];
   selectedImageId?: string;
+  selectedImageIds?: string[];
   onImageSelect: (image: ImageType) => void;
   onImagePreview: (image: ImageType) => void;
   isLoading?: boolean;
 }
 
-export default function ImageGrid({ 
-  images, 
-  selectedImageId, 
-  onImageSelect, 
+export default function ImageGrid({
+  images,
+  selectedImageId,
+  selectedImageIds,
+  onImageSelect,
   onImagePreview,
-  isLoading = false 
+  isLoading = false
 }: ImageGridProps) {
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [hoveredImageId, setHoveredImageId] = useState<string | null>(null);
@@ -64,7 +66,10 @@ export default function ImageGrid({
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {images.map((image) => {
-        const isSelected = selectedImageId === image.id;
+        const isSelected = selectedImageIds
+          ? selectedImageIds.includes(image.id)
+          : selectedImageId === image.id;
+        const selectionIndex = selectedImageIds ? selectedImageIds.indexOf(image.id) : -1;
         const hasError = imageLoadErrors.has(image.id);
         const isHovered = hoveredImageId === image.id;
 
@@ -106,7 +111,9 @@ export default function ImageGrid({
             {/* Selection indicator */}
             {isSelected && (
               <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">✓</span>
+                <span className="text-white text-xs font-bold">
+                  {selectionIndex >= 0 ? selectionIndex + 1 : '✓'}
+                </span>
               </div>
             )}
 

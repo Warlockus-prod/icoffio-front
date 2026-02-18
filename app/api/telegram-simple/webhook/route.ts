@@ -37,6 +37,27 @@ const DEDUP_WINDOW_MS = 15 * 60 * 1000;
 const PROCESSED_UPDATE_TTL_MS = 60 * 60 * 1000;
 const processedUpdateIds = new Map<number, number>();
 
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 15;
+const rateLimitMap = new Map<number, number[]>();
+
+function isRateLimited(chatId: number): boolean {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(chatId) || [];
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  rateLimitMap.set(chatId, recent);
+  // Cleanup old entries periodically
+  if (rateLimitMap.size > 500) {
+    for (const [id, ts] of rateLimitMap) {
+      const filtered = ts.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (filtered.length === 0) rateLimitMap.delete(id);
+      else rateLimitMap.set(id, filtered);
+    }
+  }
+  return recent.length > RATE_LIMIT_MAX;
+}
+
 interface TelegramActivityInput {
   chatId: number;
   username?: string;
@@ -1539,6 +1560,13 @@ export async function POST(request: NextRequest) {
       ))
     ) {
       return NextResponse.json({ ok: true, message: 'Duplicate update ignored' });
+    }
+
+    // Rate limiting per chat
+    const rateChatId = callbackChatId || messageChatId;
+    if (rateChatId && isRateLimited(rateChatId)) {
+      console.warn(`[TelegramSimple] Rate limited chat ${rateChatId}`);
+      return NextResponse.json({ ok: true, message: 'Rate limited' });
     }
 
     if (callbackQuery?.message?.chat?.id) {

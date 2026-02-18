@@ -8,7 +8,7 @@
  * npx ts-node scripts/publish-and-cleanup-articles.ts
  */
 
-const API_BASE = 'https://app.icoffio.com';
+const API_BASE = 'https://web.icoffio.com';
 
 // Хорошие статьи - ОПУБЛИКОВАТЬ
 const PUBLISH_SLUGS = [

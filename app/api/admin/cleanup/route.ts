@@ -114,7 +114,7 @@ async function handleCleanTestArticles() {
     success: true,
     cleanup_code: cleanupCode,
     instructions: [
-      '1. Open www.icoffio.com/en/admin in browser',
+      '1. Open web.icoffio.com/en/admin in browser',
       '2. Open Developer Tools (F12)',
       '3. Go to Console tab',
       '4. Paste the cleanup_code and press Enter',

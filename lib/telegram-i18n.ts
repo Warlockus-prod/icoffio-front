@@ -211,15 +211,15 @@ export const translations: Record<BotLanguage, {
     deleteCommand: '🗑️ <b>Удаление статьи</b>',
     deletePrompt: 'Отправьте ссылку на статью для удаления:\n\n' +
                   'Например:\n' +
-                  'https://www.icoffio.com/en/article/my-article-en\n' +
-                  'https://www.icoffio.com/pl/article/my-article-pl',
+                  'https://web.icoffio.com/en/article/my-article-en\n' +
+                  'https://web.icoffio.com/pl/article/my-article-pl',
     deleteSuccess: '✅ <b>Статья удалена!</b>\n\n' +
                    '📝 Slug: {slug}\n' +
                    '🌍 Язык: {lang}',
     deleteError: '❌ <b>Ошибка удаления</b>\n\n{error}',
     invalidArticleUrl: '❌ <b>Неверная ссылка</b>\n\n' +
                        'Ссылка должна быть в формате:\n' +
-                       'https://www.icoffio.com/[язык]/article/[slug]',
+                       'https://web.icoffio.com/[язык]/article/[slug]',
 
     // Style command
     styleCommand: '🎨 <b>Выберите стиль публикации:</b>\n\n' +
@@ -356,15 +356,15 @@ export const translations: Record<BotLanguage, {
     deleteCommand: '🗑️ <b>Usuwanie artykułu</b>',
     deletePrompt: 'Wyślij link do artykułu do usunięcia:\n\n' +
                   'Na przykład:\n' +
-                  'https://www.icoffio.com/en/article/my-article-en\n' +
-                  'https://www.icoffio.com/pl/article/my-article-pl',
+                  'https://web.icoffio.com/en/article/my-article-en\n' +
+                  'https://web.icoffio.com/pl/article/my-article-pl',
     deleteSuccess: '✅ <b>Artykuł usunięty!</b>\n\n' +
                    '📝 Slug: {slug}\n' +
                    '🌍 Język: {lang}',
     deleteError: '❌ <b>Błąd usuwania</b>\n\n{error}',
     invalidArticleUrl: '❌ <b>Nieprawidłowy link</b>\n\n' +
                        'Link powinien być w formacie:\n' +
-                       'https://www.icoffio.com/[język]/article/[slug]',
+                       'https://web.icoffio.com/[język]/article/[slug]',
 
     // Style command
     styleCommand: '🎨 <b>Wybierz styl publikacji:</b>\n\n' +
@@ -501,15 +501,15 @@ export const translations: Record<BotLanguage, {
     deleteCommand: '🗑️ <b>Delete article</b>',
     deletePrompt: 'Send article link to delete:\n\n' +
                   'For example:\n' +
-                  'https://www.icoffio.com/en/article/my-article-en\n' +
-                  'https://www.icoffio.com/pl/article/my-article-pl',
+                  'https://web.icoffio.com/en/article/my-article-en\n' +
+                  'https://web.icoffio.com/pl/article/my-article-pl',
     deleteSuccess: '✅ <b>Article deleted!</b>\n\n' +
                    '📝 Slug: {slug}\n' +
                    '🌍 Language: {lang}',
     deleteError: '❌ <b>Deletion error</b>\n\n{error}',
     invalidArticleUrl: '❌ <b>Invalid link</b>\n\n' +
                        'Link should be in format:\n' +
-                       'https://www.icoffio.com/[language]/article/[slug]',
+                       'https://web.icoffio.com/[language]/article/[slug]',
 
     // Style command
     styleCommand: '🎨 <b>Choose publication style:</b>\n\n' +

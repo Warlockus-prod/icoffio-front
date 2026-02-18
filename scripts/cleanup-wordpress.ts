@@ -11,7 +11,7 @@
  * npx ts-node scripts/cleanup-wordpress.ts
  */
 
-const API_BASE = 'https://app.icoffio.com';
+const API_BASE = 'https://web.icoffio.com';
 
 interface Article {
   slug: string;

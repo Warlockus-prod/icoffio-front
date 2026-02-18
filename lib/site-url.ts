@@ -1,4 +1,4 @@
-const FALLBACK_SITE_URL = 'https://app.icoffio.com';
+const FALLBACK_SITE_URL = 'https://web.icoffio.com';
 
 function normalizeSiteUrl(raw: string): string | null {
   const candidate = (raw || '').trim();

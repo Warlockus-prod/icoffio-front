@@ -8,6 +8,8 @@ import type { Post } from '@/lib/types';
 import MobileArticleCard from './MobileArticleCard';
 import AdvancedSearchPanel, { type SearchFilters } from './AdvancedSearchPanel';
 
+const SITE_BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://web.icoffio.com';
+
 interface ArticleItem {
   id: string;
   title: string;
@@ -218,7 +220,7 @@ export default function ArticlesManager() {
                 source: article.source || 'supabase',
                 createdAt: article.created_at,
                 status: 'dynamic' as const,
-                url: `https://www.icoffio.com/en/article/${article.slug_en}`,
+                url: `${SITE_BASE_URL}/en/article/${article.slug_en}`,
                 excerpt: article.excerpt_en || article.excerpt || '',
                 image: imageUrl,
                 isFallbackImage: fallbackImage,
@@ -240,7 +242,7 @@ export default function ArticlesManager() {
                 source: article.source || 'supabase',
                 createdAt: article.created_at,
                 status: 'dynamic' as const,
-                url: `https://www.icoffio.com/pl/article/${article.slug_pl}`,
+                url: `${SITE_BASE_URL}/pl/article/${article.slug_pl}`,
                 excerpt: article.excerpt_pl || article.excerpt || '',
                 image: imageUrl,
                 isFallbackImage: fallbackImage,
@@ -266,7 +268,7 @@ export default function ArticlesManager() {
                 source: article.source || 'supabase',
                 createdAt: article.date || article.created_at || new Date().toISOString(),
                 status: 'dynamic' as const,
-                url: `https://www.icoffio.com/${inferredLanguage}/article/${article.slug}`,
+                url: `${SITE_BASE_URL}/${inferredLanguage}/article/${article.slug}`,
                 excerpt: article.excerpt || '',
                 image: imageUrl,
                 isFallbackImage: fallbackImage,
@@ -298,7 +300,7 @@ export default function ArticlesManager() {
           source: 'admin-local',
           createdAt: article.createdAt,
           status: 'admin',
-          url: `https://www.icoffio.com/${language}/article/${article.slug}`,
+          url: `${SITE_BASE_URL}/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
           image: imageUrl,
           isFallbackImage: !hasCustomPersistentImage(imageUrl),
@@ -329,7 +331,7 @@ export default function ArticlesManager() {
           publishStatus: 'published' as const,
           createdAt: article.publishedAt || article.date || new Date().toISOString(),
           status: 'static',
-          url: `https://www.icoffio.com/${language}/article/${article.slug}`,
+          url: `${SITE_BASE_URL}/${language}/article/${article.slug}`,
           excerpt: article.excerpt,
           image: imageUrl,
           isFallbackImage: !hasCustomPersistentImage(imageUrl)

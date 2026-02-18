@@ -229,9 +229,17 @@ export async function GET(request: Request) {
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
       const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
 
+      const resolvedTitle = resolveLocalizedTitle(article, languageKey);
+      // DEBUG: temporary logging for PL title resolution
+      if (languageKey === 'pl') {
+        const plContent = article?.content_pl || '';
+        const h1 = plContent.match(/^\s*#\s+(.+)$/m);
+        console.log(`[PL-TITLE-DEBUG] id=${article.id} baseTitle="${(article.title || '').slice(0, 40)}" h1="${h1 ? h1[1].slice(0, 40) : 'NONE'}" resolved="${resolvedTitle.slice(0, 40)}" langKey=${languageKey}`);
+      }
+
       return {
         id: article.id.toString(),
-        title: resolveLocalizedTitle(article, languageKey),
+        title: resolvedTitle,
         slug: slug,
         excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
         content: prepareArticleContentForFrontend(content || '', languageKey),

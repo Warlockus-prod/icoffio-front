@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { answerCallbackQuery, sendTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
+import { answerCallbackQuery, sendTelegramMessage, editTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
 import { parseUrl } from '@/lib/telegram-simple/url-parser';
 import { processText } from '@/lib/telegram-simple/content-processor';
 import { publishArticle } from '@/lib/telegram-simple/publisher';
@@ -1527,6 +1527,7 @@ export async function POST(request: NextRequest) {
 
     if (callbackQuery?.message?.chat?.id) {
       const chatId = Number(callbackQuery.message.chat.id);
+      const messageId = Number(callbackQuery.message.message_id);
       const userId = callbackQuery.from?.id || chatId;
       const username = callbackQuery.from?.username;
       const firstName = callbackQuery.from?.first_name;
@@ -1535,9 +1536,12 @@ export async function POST(request: NextRequest) {
       const uiLang = settings.interfaceLanguage || getLanguageFromTelegramCode(languageCode);
       const callbackData = String(callbackQuery.data || '');
 
+      // Helper: edit the callback message instead of sending a new one
+      const editMessage = (text: string, opts?: Parameters<typeof editTelegramMessage>[3]) =>
+        editTelegramMessage(chatId, messageId, text, opts);
+
       if (callbackData === 'lang:menu') {
-        await sendTelegramMessage(
-          chatId,
+        await editMessage(
           localize(
             uiLang,
             '🌍 <b>Выберите язык интерфейса:</b>',
@@ -1556,8 +1560,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (callbackData === 'actions:menu') {
-        await sendTelegramMessage(
-          chatId,
+        await editMessage(
           localize(uiLang, '⚡ Быстрые кнопки:', '⚡ Quick actions:', '⚡ Szybkie akcje:'),
           {
             reply_markup: buildQuickActionsKeyboard(settings),
@@ -1578,8 +1581,7 @@ export async function POST(request: NextRequest) {
             { interfaceLanguage: selectedLanguage },
             languageCode
           );
-          await sendTelegramMessage(
-            chatId,
+          await editMessage(
             localize(
               updated.interfaceLanguage,
               `✅ Язык обновлен: <b>${updated.interfaceLanguage.toUpperCase()}</b>`,
@@ -1638,7 +1640,7 @@ export async function POST(request: NextRequest) {
             trigger: 'callback_query',
           },
         });
-        await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+        await editMessage(buildSettingsMessage(updated, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(updated),
         });
         await answerCallbackQuery(
@@ -1669,8 +1671,7 @@ export async function POST(request: NextRequest) {
           text: localize(uiLang, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
           callback_data: 'settings:main',
         }]);
-        await sendTelegramMessage(
-          chatId,
+        await editMessage(
           localize(uiLang, '📝 <b>Выберите стиль:</b>', '📝 <b>Choose style:</b>', '📝 <b>Wybierz styl:</b>'),
           { reply_markup: { inline_keyboard: keyboard } }
         );
@@ -1682,7 +1683,7 @@ export async function POST(request: NextRequest) {
         const style = normalizeContentStyle(callbackData.replace('style:', ''));
         if (style) {
           const updated = await saveTelegramSettings(chatId, { contentStyle: style }, languageCode);
-          await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+          await editMessage(buildSettingsMessage(updated, requestSiteBaseUrl), {
             reply_markup: buildQuickActionsKeyboard(updated),
           });
           await answerCallbackQuery(
@@ -1706,8 +1707,7 @@ export async function POST(request: NextRequest) {
           text: localize(uiLang, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
           callback_data: 'settings:main',
         }]);
-        await sendTelegramMessage(
-          chatId,
+        await editMessage(
           localize(
             uiLang,
             '🖼️ <b>Количество картинок (0-3):</b>',
@@ -1724,7 +1724,7 @@ export async function POST(request: NextRequest) {
         const count = Number(callbackData.replace('images:', ''));
         if (Number.isInteger(count) && count >= 0 && count <= 3) {
           const updated = await saveTelegramSettings(chatId, { imagesCount: count }, languageCode);
-          await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+          await editMessage(buildSettingsMessage(updated, requestSiteBaseUrl), {
             reply_markup: buildQuickActionsKeyboard(updated),
           });
           await answerCallbackQuery(
@@ -1752,8 +1752,7 @@ export async function POST(request: NextRequest) {
           text: localize(uiLang, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
           callback_data: 'settings:main',
         }]);
-        await sendTelegramMessage(
-          chatId,
+        await editMessage(
           localize(
             uiLang,
             '📸 <b>Источник изображений:</b>',
@@ -1770,7 +1769,7 @@ export async function POST(request: NextRequest) {
         const source = normalizeImagesSource(callbackData.replace('source:', ''));
         if (source) {
           const updated = await saveTelegramSettings(chatId, { imagesSource: source }, languageCode);
-          await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+          await editMessage(buildSettingsMessage(updated, requestSiteBaseUrl), {
             reply_markup: buildQuickActionsKeyboard(updated),
           });
           await answerCallbackQuery(
@@ -1787,7 +1786,7 @@ export async function POST(request: NextRequest) {
       if (callbackData.startsWith('autopub:')) {
         const autoPublish = callbackData === 'autopub:on';
         const updated = await saveTelegramSettings(chatId, { autoPublish }, languageCode);
-        await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+        await editMessage(buildSettingsMessage(updated, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(updated),
         });
         await answerCallbackQuery(
@@ -1801,7 +1800,7 @@ export async function POST(request: NextRequest) {
 
       // --- Back to settings main ---
       if (callbackData === 'settings:main') {
-        await sendTelegramMessage(chatId, buildSettingsMessage(settings, requestSiteBaseUrl), {
+        await editMessage(buildSettingsMessage(settings, requestSiteBaseUrl), {
           reply_markup: buildQuickActionsKeyboard(settings),
         });
         await answerCallbackQuery(callbackQuery.id);
@@ -1810,8 +1809,7 @@ export async function POST(request: NextRequest) {
 
       if (callbackData === 'reload:stale') {
         const resetCount = await markStaleSubmissionsAsFailed(userId);
-        await sendTelegramMessage(
-          chatId,
+        await editMessage(
           localize(
             uiLang,
             `🔄 <b>Сброшено задач:</b> ${resetCount}\nПроверьте /queue.`,

@@ -353,7 +353,7 @@ function buildSubmissionMeta(input: ProcessSubmissionInput): SubmissionMeta {
 }
 
 function buildQuickActionsKeyboard(
-  settings: Pick<TelegramSettings, 'combineUrlsAsSingle' | 'interfaceLanguage'>
+  settings: TelegramSettings | Pick<TelegramSettings, 'combineUrlsAsSingle' | 'interfaceLanguage' | 'contentStyle' | 'imagesCount' | 'imagesSource' | 'autoPublish'>
 ) {
   const lang = settings.interfaceLanguage || 'ru';
   const languageLabel = localize(lang, '🌍 Язык', '🌍 Language', '🌍 Język');
@@ -361,11 +361,29 @@ function buildQuickActionsKeyboard(
     ? localize(lang, '🧩 Режим: Single', '🧩 Mode: Single', '🧩 Tryb: Single')
     : localize(lang, '📦 Режим: Batch', '📦 Mode: Batch', '📦 Tryb: Batch');
   const modeAction = settings.combineUrlsAsSingle ? 'mode:batch' : 'mode:single';
+
+  const styleLabel = `📝 ${localize(lang, 'Стиль', 'Style', 'Styl')}: ${getStyleLabel('contentStyle' in settings ? settings.contentStyle : 'journalistic')}`;
+  const imagesCount = 'imagesCount' in settings ? settings.imagesCount : 2;
+  const imagesLabel = `🖼️ ${localize(lang, 'Картинки', 'Images', 'Obrazy')}: ${imagesCount}`;
+  const imagesSource = 'imagesSource' in settings ? settings.imagesSource : 'unsplash';
+  const sourceLabel = `📸 ${localize(lang, 'Источник', 'Source', 'Źródło')}: ${imagesSource}`;
+  const autoPublish = 'autoPublish' in settings ? settings.autoPublish : true;
+  const publishLabel = autoPublish
+    ? localize(lang, '✅ Авто-публикация', '✅ Auto-publish', '✅ Auto-publikacja')
+    : localize(lang, '📝 Черновик', '📝 Draft mode', '📝 Tryb szkicu');
+  const publishAction = autoPublish ? 'autopub:off' : 'autopub:on';
+
   const reloadLabel = localize(lang, '🔄 Сброс зависших', '🔄 Reload stuck', '🔄 Reset zawieszonych');
 
   return {
     inline_keyboard: [
       [{ text: languageLabel, callback_data: 'lang:menu' }],
+      [{ text: styleLabel, callback_data: 'style:menu' }],
+      [
+        { text: imagesLabel, callback_data: 'images:menu' },
+        { text: sourceLabel, callback_data: 'source:menu' },
+      ],
+      [{ text: publishLabel, callback_data: publishAction }],
       [{ text: modeLabel, callback_data: modeAction }],
       [{ text: reloadLabel, callback_data: 'reload:stale' }],
     ],
@@ -613,7 +631,10 @@ async function saveTelegramSettings(
     );
 
   // Backward compatibility if migration was not applied yet.
-  if (error && error.code === '42703') {
+  // 42703 = PostgreSQL "column does not exist"
+  // PGRST204 = PostgREST "column not found in schema cache"
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    console.log('[TelegramSimple] Column combine_urls_as_single missing, retrying without it');
     const retry = await supabase
       .from('telegram_user_preferences')
       .upsert(basePayload, { onConflict: 'chat_id' });
@@ -1630,6 +1651,163 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, callback: callbackData });
       }
 
+      // --- Style selection menu ---
+      if (callbackData === 'style:menu') {
+        const styles: Array<{ label: string; value: string }> = [
+          { label: '📰 Journalistic', value: 'journalistic' },
+          { label: '📋 Keep As Is', value: 'keep_as_is' },
+          { label: '🔍 SEO', value: 'seo_optimized' },
+          { label: '🎓 Academic', value: 'academic' },
+          { label: '💬 Casual', value: 'casual' },
+          { label: '⚙️ Technical', value: 'technical' },
+        ];
+        const keyboard = styles.map((s) => [{
+          text: `${settings.contentStyle === s.value ? '✅ ' : ''}${s.label}`,
+          callback_data: `style:${s.value}`,
+        }]);
+        keyboard.push([{
+          text: localize(uiLang, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
+          callback_data: 'settings:main',
+        }]);
+        await sendTelegramMessage(
+          chatId,
+          localize(uiLang, '📝 <b>Выберите стиль:</b>', '📝 <b>Choose style:</b>', '📝 <b>Wybierz styl:</b>'),
+          { reply_markup: { inline_keyboard: keyboard } }
+        );
+        await answerCallbackQuery(callbackQuery.id);
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      if (callbackData.startsWith('style:') && callbackData !== 'style:menu') {
+        const style = normalizeContentStyle(callbackData.replace('style:', ''));
+        if (style) {
+          const updated = await saveTelegramSettings(chatId, { contentStyle: style }, languageCode);
+          await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+            reply_markup: buildQuickActionsKeyboard(updated),
+          });
+          await answerCallbackQuery(
+            callbackQuery.id,
+            `✅ ${getStyleLabel(style)}`
+          );
+        } else {
+          await answerCallbackQuery(callbackQuery.id, '❌');
+        }
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      // --- Images count menu ---
+      if (callbackData === 'images:menu') {
+        const counts = [0, 1, 2, 3];
+        const keyboard = [counts.map((n) => ({
+          text: `${settings.imagesCount === n ? '✅ ' : ''}${n}`,
+          callback_data: `images:${n}`,
+        }))];
+        keyboard.push([{
+          text: localize(uiLang, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
+          callback_data: 'settings:main',
+        }]);
+        await sendTelegramMessage(
+          chatId,
+          localize(
+            uiLang,
+            '🖼️ <b>Количество картинок (0-3):</b>',
+            '🖼️ <b>Number of images (0-3):</b>',
+            '🖼️ <b>Liczba obrazów (0-3):</b>'
+          ),
+          { reply_markup: { inline_keyboard: keyboard } }
+        );
+        await answerCallbackQuery(callbackQuery.id);
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      if (callbackData.startsWith('images:') && callbackData !== 'images:menu') {
+        const count = Number(callbackData.replace('images:', ''));
+        if (Number.isInteger(count) && count >= 0 && count <= 3) {
+          const updated = await saveTelegramSettings(chatId, { imagesCount: count }, languageCode);
+          await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+            reply_markup: buildQuickActionsKeyboard(updated),
+          });
+          await answerCallbackQuery(
+            callbackQuery.id,
+            `✅ ${localize(uiLang, 'Картинок', 'Images', 'Obrazów')}: ${count}`
+          );
+        } else {
+          await answerCallbackQuery(callbackQuery.id, '❌');
+        }
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      // --- Image source menu ---
+      if (callbackData === 'source:menu') {
+        const sources: Array<{ label: string; value: string }> = [
+          { label: '📷 Unsplash', value: 'unsplash' },
+          { label: '🤖 AI (DALL-E)', value: 'ai' },
+          { label: '🚫 None', value: 'none' },
+        ];
+        const keyboard = sources.map((s) => [{
+          text: `${settings.imagesSource === s.value ? '✅ ' : ''}${s.label}`,
+          callback_data: `source:${s.value}`,
+        }]);
+        keyboard.push([{
+          text: localize(uiLang, '⬅️ Назад', '⬅️ Back', '⬅️ Wstecz'),
+          callback_data: 'settings:main',
+        }]);
+        await sendTelegramMessage(
+          chatId,
+          localize(
+            uiLang,
+            '📸 <b>Источник изображений:</b>',
+            '📸 <b>Image source:</b>',
+            '📸 <b>Źródło obrazów:</b>'
+          ),
+          { reply_markup: { inline_keyboard: keyboard } }
+        );
+        await answerCallbackQuery(callbackQuery.id);
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      if (callbackData.startsWith('source:') && callbackData !== 'source:menu') {
+        const source = normalizeImagesSource(callbackData.replace('source:', ''));
+        if (source) {
+          const updated = await saveTelegramSettings(chatId, { imagesSource: source }, languageCode);
+          await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+            reply_markup: buildQuickActionsKeyboard(updated),
+          });
+          await answerCallbackQuery(
+            callbackQuery.id,
+            `✅ ${source.toUpperCase()}`
+          );
+        } else {
+          await answerCallbackQuery(callbackQuery.id, '❌');
+        }
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      // --- Auto-publish toggle ---
+      if (callbackData.startsWith('autopub:')) {
+        const autoPublish = callbackData === 'autopub:on';
+        const updated = await saveTelegramSettings(chatId, { autoPublish }, languageCode);
+        await sendTelegramMessage(chatId, buildSettingsMessage(updated, requestSiteBaseUrl), {
+          reply_markup: buildQuickActionsKeyboard(updated),
+        });
+        await answerCallbackQuery(
+          callbackQuery.id,
+          autoPublish
+            ? localize(uiLang, '✅ Авто-публикация', '✅ Auto-publish', '✅ Auto-publikacja')
+            : localize(uiLang, '📝 Черновик', '📝 Draft', '📝 Szkic')
+        );
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      // --- Back to settings main ---
+      if (callbackData === 'settings:main') {
+        await sendTelegramMessage(chatId, buildSettingsMessage(settings, requestSiteBaseUrl), {
+          reply_markup: buildQuickActionsKeyboard(settings),
+        });
+        await answerCallbackQuery(callbackQuery.id);
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
       if (callbackData === 'reload:stale') {
         const resetCount = await markStaleSubmissionsAsFailed(userId);
         await sendTelegramMessage(
@@ -1870,19 +2048,36 @@ export async function POST(request: NextRequest) {
 
       if (command === '/mode') {
         if (!firstArg) {
-          await sendLocalized(
-            `🧩 <b>Режим multi URL</b>\n\n` +
-              `single — несколько URL как одна статья\n` +
-              `batch — каждый URL как отдельная статья\n\n` +
-              `Пример: <code>/mode single</code>`,
-            `🧩 <b>Multi URL mode</b>\n\n` +
-              `single — several URLs as one article\n` +
-              `batch — each URL as separate article\n\n` +
-              `Example: <code>/mode single</code>`,
-            `🧩 <b>Tryb multi URL</b>\n\n` +
-              `single — wiele URL jako jeden artykuł\n` +
-              `batch — każdy URL jako osobny artykuł\n\n` +
-              `Przykład: <code>/mode single</code>`
+          const keyboard = [
+            [
+              {
+                text: `${settings.combineUrlsAsSingle ? '✅ ' : ''}🧩 Single`,
+                callback_data: 'mode:single',
+              },
+              {
+                text: `${!settings.combineUrlsAsSingle ? '✅ ' : ''}📦 Batch`,
+                callback_data: 'mode:batch',
+              },
+            ],
+          ];
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              uiLang,
+              `🧩 <b>Режим multi URL:</b>\n\n` +
+                `<b>Single</b> — несколько URL → одна статья\n` +
+                `<b>Batch</b> — каждый URL → отдельная статья\n\n` +
+                `Текущий: <b>${settings.combineUrlsAsSingle ? 'Single' : 'Batch'}</b>`,
+              `🧩 <b>Multi URL mode:</b>\n\n` +
+                `<b>Single</b> — multiple URLs → one article\n` +
+                `<b>Batch</b> — each URL → separate article\n\n` +
+                `Current: <b>${settings.combineUrlsAsSingle ? 'Single' : 'Batch'}</b>`,
+              `🧩 <b>Tryb multi URL:</b>\n\n` +
+                `<b>Single</b> — wiele URL → jeden artykuł\n` +
+                `<b>Batch</b> — każdy URL → osobny artykuł\n\n` +
+                `Obecny: <b>${settings.combineUrlsAsSingle ? 'Single' : 'Batch'}</b>`
+            ),
+            { reply_markup: { inline_keyboard: keyboard } }
           );
           return NextResponse.json({ ok: true });
         }
@@ -1982,34 +2177,27 @@ export async function POST(request: NextRequest) {
 
       if (command === '/style') {
         if (!firstArg) {
-          await sendLocalized(
-            `📝 <b>Выбор стиля</b>\n\n` +
-              `Пример: <code>/style technical</code>\n\n` +
-              `Доступно:\n` +
-              `• journalistic\n` +
-              `• keep_as_is\n` +
-              `• seo\n` +
-              `• academic\n` +
-              `• casual\n` +
-              `• technical`,
-            `📝 <b>Style selection</b>\n\n` +
-              `Example: <code>/style technical</code>\n\n` +
-              `Available:\n` +
-              `• journalistic\n` +
-              `• keep_as_is\n` +
-              `• seo\n` +
-              `• academic\n` +
-              `• casual\n` +
-              `• technical`,
-            `📝 <b>Wybór stylu</b>\n\n` +
-              `Przykład: <code>/style technical</code>\n\n` +
-              `Dostępne:\n` +
-              `• journalistic\n` +
-              `• keep_as_is\n` +
-              `• seo\n` +
-              `• academic\n` +
-              `• casual\n` +
-              `• technical`
+          const styles: Array<{ label: string; value: string }> = [
+            { label: '📰 Journalistic', value: 'journalistic' },
+            { label: '📋 Keep As Is', value: 'keep_as_is' },
+            { label: '🔍 SEO', value: 'seo_optimized' },
+            { label: '🎓 Academic', value: 'academic' },
+            { label: '💬 Casual', value: 'casual' },
+            { label: '⚙️ Technical', value: 'technical' },
+          ];
+          const keyboard = styles.map((s) => [{
+            text: `${settings.contentStyle === s.value ? '✅ ' : ''}${s.label}`,
+            callback_data: `style:${s.value}`,
+          }]);
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              uiLang,
+              `📝 <b>Выберите стиль:</b>\n\nТекущий: <b>${escapeHtml(getStyleLabel(settings.contentStyle))}</b>`,
+              `📝 <b>Choose style:</b>\n\nCurrent: <b>${escapeHtml(getStyleLabel(settings.contentStyle))}</b>`,
+              `📝 <b>Wybierz styl:</b>\n\nObecny: <b>${escapeHtml(getStyleLabel(settings.contentStyle))}</b>`
+            ),
+            { reply_markup: { inline_keyboard: keyboard } }
           );
           return NextResponse.json({ ok: true });
         }
@@ -2048,16 +2236,20 @@ export async function POST(request: NextRequest) {
 
       if (command === '/images') {
         if (!firstArg) {
-          await sendLocalized(
-            `🖼️ <b>Количество картинок</b>\n\n` +
-              `Пример: <code>/images 2</code>\n` +
-              `Допустимо: 0, 1, 2, 3`,
-            `🖼️ <b>Number of images</b>\n\n` +
-              `Example: <code>/images 2</code>\n` +
-              `Allowed: 0, 1, 2, 3`,
-            `🖼️ <b>Liczba obrazów</b>\n\n` +
-              `Przykład: <code>/images 2</code>\n` +
-              `Dozwolone: 0, 1, 2, 3`
+          const counts = [0, 1, 2, 3];
+          const keyboard = [counts.map((n) => ({
+            text: `${settings.imagesCount === n ? '✅ ' : ''}${n}`,
+            callback_data: `images:${n}`,
+          }))];
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              uiLang,
+              `🖼️ <b>Количество картинок:</b>\n\nТекущее: <b>${settings.imagesCount}</b>`,
+              `🖼️ <b>Number of images:</b>\n\nCurrent: <b>${settings.imagesCount}</b>`,
+              `🖼️ <b>Liczba obrazów:</b>\n\nObecna: <b>${settings.imagesCount}</b>`
+            ),
+            { reply_markup: { inline_keyboard: keyboard } }
           );
           return NextResponse.json({ ok: true });
         }
@@ -2105,16 +2297,24 @@ export async function POST(request: NextRequest) {
 
       if (command === '/source') {
         if (!firstArg) {
-          await sendLocalized(
-            `📸 <b>Источник изображений</b>\n\n` +
-              `Пример: <code>/source unsplash</code>\n` +
-              `Доступно: unsplash, ai, none`,
-            `📸 <b>Image source</b>\n\n` +
-              `Example: <code>/source unsplash</code>\n` +
-              `Available: unsplash, ai, none`,
-            `📸 <b>Źródło obrazów</b>\n\n` +
-              `Przykład: <code>/source unsplash</code>\n` +
-              `Dostępne: unsplash, ai, none`
+          const sources: Array<{ label: string; value: string }> = [
+            { label: '📷 Unsplash', value: 'unsplash' },
+            { label: '🤖 AI (DALL-E)', value: 'ai' },
+            { label: '🚫 None', value: 'none' },
+          ];
+          const keyboard = sources.map((s) => [{
+            text: `${settings.imagesSource === s.value ? '✅ ' : ''}${s.label}`,
+            callback_data: `source:${s.value}`,
+          }]);
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              uiLang,
+              `📸 <b>Источник изображений:</b>\n\nТекущий: <b>${escapeHtml(settings.imagesSource)}</b>`,
+              `📸 <b>Image source:</b>\n\nCurrent: <b>${escapeHtml(settings.imagesSource)}</b>`,
+              `📸 <b>Źródło obrazów:</b>\n\nObecne: <b>${escapeHtml(settings.imagesSource)}</b>`
+            ),
+            { reply_markup: { inline_keyboard: keyboard } }
           );
           return NextResponse.json({ ok: true });
         }
@@ -2162,16 +2362,27 @@ export async function POST(request: NextRequest) {
 
       if (command === '/autopublish') {
         if (!firstArg) {
-          await sendLocalized(
-            `🚀 <b>Автопубликация</b>\n\n` +
-              `Пример: <code>/autopublish on</code>\n` +
-              `Значения: on или off`,
-            `🚀 <b>Auto publish</b>\n\n` +
-              `Example: <code>/autopublish on</code>\n` +
-              `Values: on or off`,
-            `🚀 <b>Auto publikacja</b>\n\n` +
-              `Przykład: <code>/autopublish on</code>\n` +
-              `Wartości: on lub off`
+          const keyboard = [
+            [
+              {
+                text: `${settings.autoPublish ? '✅ ' : ''}${localize(uiLang, 'Авто', 'Auto', 'Auto')}`,
+                callback_data: 'autopub:on',
+              },
+              {
+                text: `${!settings.autoPublish ? '✅ ' : ''}${localize(uiLang, 'Черновик', 'Draft', 'Szkic')}`,
+                callback_data: 'autopub:off',
+              },
+            ],
+          ];
+          await sendTelegramMessage(
+            chatId,
+            localize(
+              uiLang,
+              `🚀 <b>Режим публикации:</b>\n\nТекущий: <b>${settings.autoPublish ? 'Автоматически' : 'Черновик'}</b>`,
+              `🚀 <b>Publish mode:</b>\n\nCurrent: <b>${settings.autoPublish ? 'Auto publish' : 'Draft'}</b>`,
+              `🚀 <b>Tryb publikacji:</b>\n\nObecny: <b>${settings.autoPublish ? 'Auto publikacja' : 'Szkic'}</b>`
+            ),
+            { reply_markup: { inline_keyboard: keyboard } }
           );
           return NextResponse.json({ ok: true });
         }

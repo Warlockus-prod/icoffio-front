@@ -191,6 +191,7 @@ function transformSupabaseArticleToPost(article: any, isEn: boolean): Post {
     date: article.created_at,
     publishedAt: article.created_at,
     image: article.image_url || '',
+    imageAlt: article.image_url ? title : '',
     category: normalizeCategory(article.category),
     contentHtml: prepareArticleContentForFrontend(content || '', languageKey),
     content: prepareArticleContentForFrontend(content || '', languageKey),

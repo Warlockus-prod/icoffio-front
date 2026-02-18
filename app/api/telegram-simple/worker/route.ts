@@ -36,14 +36,12 @@ function isWorkerAuthorized(request: NextRequest): WorkerAuthResult {
 
   const secret = getWorkerSecret();
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      return {
-        ok: false,
-        status: 503,
-        error: 'Worker secret is not configured',
-      };
-    }
-    return { ok: true, status: 200 };
+    // Worker secret must be configured in all environments
+    return {
+      ok: false,
+      status: 503,
+      error: 'Worker secret is not configured',
+    };
   }
 
   const auth = request.headers.get('authorization') || '';

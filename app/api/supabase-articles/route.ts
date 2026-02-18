@@ -79,6 +79,53 @@ function dedupeArticlesBySlug(articles: any[], language: 'en' | 'pl'): any[] {
     .filter(Boolean) as any[];
 }
 
+/**
+ * Resolve localized title: for PL articles, extract Polish title from
+ * tags[0] (telegram-simple stores PL title there), content_pl H1 heading,
+ * or excerpt_pl. Falls back to English title.
+ */
+function resolveLocalizedTitle(article: any, language: 'en' | 'pl'): string {
+  const baseTitle = sanitizeExcerptText(article?.title || '', 260);
+
+  if (language === 'pl') {
+    // 1. H1 heading from content_pl (most reliable)
+    const plContent = article?.content_pl || '';
+    const headingMatch = plContent.match(/^\s*#\s+(.+)$/m);
+    if (headingMatch && headingMatch[1].trim().length > 10) {
+      return sanitizeExcerptText(headingMatch[1].trim(), 260);
+    }
+    // 2. tags[0] often contains the full Polish title (telegram-simple pipeline)
+    //    Skip meta tags like 'ai-processed', 'imported'
+    const META_TAGS = new Set(['ai-processed', 'imported', 'telegram', 'manual']);
+    if (Array.isArray(article.tags) && article.tags.length > 0) {
+      const firstTag = article.tags[0];
+      if (typeof firstTag === 'string' && firstTag.length > 15 && !META_TAGS.has(firstTag.toLowerCase())) {
+        // Use tag if it differs from the English title
+        if (firstTag.toLowerCase() !== (baseTitle || '').toLowerCase()) {
+          return sanitizeExcerptText(firstTag, 260);
+        }
+      }
+    }
+    // 3. excerpt_pl — use first sentence or truncate as title
+    const excerptPl = (article?.excerpt_pl || '').trim();
+    if (excerptPl) {
+      // Try first sentence (up to first period)
+      const sentenceMatch = excerptPl.match(/^(.{15,200}?[.!?])(?:\s|$)/);
+      if (sentenceMatch) {
+        return sanitizeExcerptText(sentenceMatch[1].trim(), 200);
+      }
+      // Truncate at word boundary
+      if (excerptPl.length <= 200) {
+        return sanitizeExcerptText(excerptPl, 200);
+      }
+      const truncated = excerptPl.slice(0, 197).replace(/\s+\S*$/, '');
+      return sanitizeExcerptText(truncated + '...', 200);
+    }
+  }
+
+  return baseTitle || 'Untitled';
+}
+
 function prepareArticleContentForFrontend(content: string, language: 'en' | 'pl'): string {
   const sanitized = sanitizeArticleBodyText(content || '', {
     language,
@@ -91,9 +138,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
-    const language = searchParams.get('lang') || 'en';
+    const language = searchParams.get('lang') || searchParams.get('locale') || 'en';
     const category = searchParams.get('category');
-    const limit = parseInt(searchParams.get('limit') || '100');
+    const limit = parseInt(searchParams.get('limit') || searchParams.get('pageSize') || '100');
     const featured = searchParams.get('featured') === 'true';
 
     const supabase = getSupabaseClient();
@@ -184,12 +231,13 @@ export async function GET(request: Request) {
 
       return {
         id: article.id.toString(),
-        title: article.title,
+        title: resolveLocalizedTitle(article, languageKey),
         slug: slug,
         excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
         content: prepareArticleContentForFrontend(content || '', languageKey),
         date: article.created_at,
         image: article.image_url || '',
+        imageAlt: article.image_url ? resolveLocalizedTitle(article, languageKey) : '',
         category: {
           name: article.category || 'General',
           slug: (article.category || 'general').toLowerCase()
@@ -342,12 +390,14 @@ export async function POST(request: Request) {
 
       const transformedArticles = uniqueArticles.map((article: any) => {
         const isEn = lang === 'en';
+        const langKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
         return {
           id: article.id.toString(),
-          title: article.title,
+          title: resolveLocalizedTitle(article, langKey),
           slug: isEn ? article.slug_en : article.slug_pl,
           excerpt: sanitizeExcerptText(isEn ? article.excerpt_en : article.excerpt_pl, 200),
           image: article.image_url || '',
+          imageAlt: article.image_url ? resolveLocalizedTitle(article, langKey) : '',
           category: {
             name: article.category || 'General',
             slug: (article.category || 'general').toLowerCase()

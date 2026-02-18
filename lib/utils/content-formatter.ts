@@ -224,6 +224,9 @@ export function sanitizeArticleBodyText(
     options.preserveMonetizationMarker === false ? '' : markerMatch?.[0]?.trim() || '';
   normalized = normalized.replace(/<!--\s*ICOFFIO_MONETIZATION[\s\S]*?-->/gi, '').trim();
 
+  // Strip broken/empty markdown image refs: ![alt text]() or ![]()
+  normalized = normalized.replace(/!\[[^\]]*\]\(\s*\)/g, '');
+
   const rawParagraphs = normalized
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())

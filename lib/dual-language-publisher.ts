@@ -10,6 +10,7 @@ import { translateArticleContent } from './ai-copywriting-service';
 import { detectCategory, generateOptimizedTitle } from './ai-category-detector';
 import { getPublicationStyle, PublicationStyle } from './telegram-user-preferences';
 import { buildImageKeywordPhrase, extractImageKeywords } from './image-keywords';
+import { buildInternalServiceHeaders } from './internal-service-auth';
 import { getSiteBaseUrl } from './site-url';
 
 const BASE_URL = getSiteBaseUrl();
@@ -67,6 +68,10 @@ export async function publishDualLanguageArticle(
   chatId?: number
 ): Promise<DualLanguagePublishResult> {
   try {
+    const internalHeaders = buildInternalServiceHeaders({
+      'Content-Type': 'application/json',
+    });
+
     // Step 0: AI Category Detection and Title Generation
     console.log(`[DualLang] AI detecting category...`);
     const categoryResult = await detectCategory(prompt, userTitle);
@@ -101,7 +106,7 @@ export async function publishDualLanguageArticle(
     
     const generateResponse = await fetch(`${BASE_URL}/api/admin/generate-article-content`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: internalHeaders,
       body: JSON.stringify({
         prompt,
         title: finalTitle,
@@ -142,7 +147,7 @@ export async function publishDualLanguageArticle(
     
     const enPublishResponse = await fetch(`${BASE_URL}/api/admin/publish-article`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: internalHeaders,
       body: JSON.stringify({
         title: enContent.title,
         content: enContentWithImages,
@@ -171,7 +176,7 @@ export async function publishDualLanguageArticle(
       
       const plPublishResponse = await fetch(`${BASE_URL}/api/admin/publish-article`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: internalHeaders,
         body: JSON.stringify({
           title: plTranslation.translatedTitle,
           content: plTranslation.translatedContent,
@@ -248,7 +253,9 @@ async function insertImagesIntoContent(
     const [image1Response, image2Response] = await Promise.all([
       fetch(`${BASE_URL}/api/admin/generate-image`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildInternalServiceHeaders({
+          'Content-Type': 'application/json',
+        }),
         body: JSON.stringify({
           source: 'unsplash',
           title: `${keywordPhrase} ${secondaryKeyword}`.trim(),
@@ -259,7 +266,9 @@ async function insertImagesIntoContent(
       
       fetch(`${BASE_URL}/api/admin/generate-image`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildInternalServiceHeaders({
+          'Content-Type': 'application/json',
+        }),
         body: JSON.stringify({
           source: 'dalle',
           title: `${keywordPhrase} ${category} digital concept`,

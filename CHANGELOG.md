@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.7.18] - 2026-02-18 - 🖼️ Telegram Image Reliability + Internal Auth
+
+### ✅ Fixed
+- Added secure internal-service auth path for `POST /api/admin/generate-image`:
+  - request is accepted for internal calls only when `x-internal-service-secret` (or Bearer token) matches configured internal secret.
+  - browser/admin role auth remains unchanged for external calls.
+- Telegram image pipeline now sends internal-service secret header for server-to-server image generation requests.
+- Improved Telegram image generation stability:
+  - retry logic for image requests,
+  - hard fallback from failed DALL-E slot to Unsplash,
+  - final fill pass to reach requested image count whenever possible,
+  - URL deduplication and stronger failure logging.
+- Legacy dual-language publisher now also uses internal-service headers for its internal admin API calls (`generate-article-content`, `publish-article`, `generate-image`) to avoid silent 401 failures.
+
+### 🧪 Validation
+- `npm run type-check` — OK
+- `npm test -- __tests__/telegram-webhook.test.ts __tests__/image-pipeline.test.ts` — OK
+
 ## [8.7.17] - 2026-02-17 - 🇵🇱 Telegram Duplicate Reply Includes PL Link
 
 ### ✅ Fixed

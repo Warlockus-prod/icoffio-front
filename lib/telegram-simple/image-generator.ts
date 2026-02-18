@@ -6,6 +6,7 @@
  */
 
 import { buildImageKeywordPhrase, extractImageKeywords } from '../image-keywords';
+import { buildInternalServiceHeaders } from '../internal-service-auth';
 import { getSiteBaseUrl } from '../site-url';
 
 function isRenderableImageUrl(url: string): boolean {
@@ -24,6 +25,9 @@ export interface ImageGenerationOptions {
   excerpt: string;
   category: string;
 }
+
+const IMAGE_REQUEST_RETRIES = 2;
+const RETRY_DELAY_MS = 600;
 
 /**
  * Generate images and insert them into content
@@ -81,41 +85,65 @@ async function generateImages(
   );
   console.log(`[TelegramImages] Title keywords: ${keywordPhrase}`);
 
-  // Create parallel requests according to source plan
-  const requests = sourcePlan.map((apiSource, index) => {
-    const keywordVariant = keywords[index % Math.max(1, keywords.length)] || keywordPhrase;
-    const prompt =
-      apiSource === 'dalle'
-        ? `${keywordPhrase} ${keywordVariant} ${category} product concept`
-        : `${keywordPhrase} ${keywordVariant}`;
+  const generated = await Promise.all(
+    sourcePlan.map(async (apiSource, index) => {
+      const keywordVariant = keywords[index % Math.max(1, keywords.length)] || keywordPhrase;
+      const payload = buildImageRequestPayload({
+        apiSource,
+        title,
+        keywordPhrase,
+        keywordVariant,
+        excerpt,
+        category,
+        imageIndex: index,
+      });
 
-    return fetch(`${getSiteBaseUrl()}/api/admin/generate-image`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source: apiSource,
-        title: prompt,
-        excerpt: excerpt || keywordPhrase,
-        category: category
-      }),
-    });
-  });
+      const url = await requestImageWithRetries(payload, IMAGE_REQUEST_RETRIES);
+      if (url) return url;
 
-  // Wait for all requests (parallel)
-  const responses = await Promise.all(requests);
+      // Hard fallback: if DALL-E failed, fill missing slot from Unsplash.
+      if (apiSource === 'dalle') {
+        const fallbackPayload = buildImageRequestPayload({
+          apiSource: 'unsplash',
+          title,
+          keywordPhrase,
+          keywordVariant,
+          excerpt,
+          category,
+          imageIndex: index,
+        });
+        return requestImageWithRetries(fallbackPayload, 1);
+      }
 
-  // Extract URLs
-  const imageUrls: string[] = [];
-  for (const response of responses) {
-    if (response.ok) {
-      const data = await response.json();
-      if (isRenderableImageUrl(data.url)) {
-        imageUrls.push(data.url);
+      return null;
+    })
+  );
+
+  const imageUrls = Array.from(
+    new Set(generated.filter((url): url is string => Boolean(url && isRenderableImageUrl(url))))
+  );
+
+  // Final fill to reach requested count.
+  if (imageUrls.length < count) {
+    for (let index = imageUrls.length; index < count; index++) {
+      const keywordVariant = keywords[index % Math.max(1, keywords.length)] || keywordPhrase;
+      const fallbackPayload = buildImageRequestPayload({
+        apiSource: 'unsplash',
+        title,
+        keywordPhrase,
+        keywordVariant,
+        excerpt,
+        category,
+        imageIndex: index,
+      });
+      const fallbackUrl = await requestImageWithRetries(fallbackPayload, 1);
+      if (fallbackUrl && isRenderableImageUrl(fallbackUrl)) {
+        imageUrls.push(fallbackUrl);
       }
     }
   }
 
-  return imageUrls;
+  return imageUrls.slice(0, count);
 }
 
 function buildImageSourcePlan(
@@ -129,6 +157,86 @@ function buildImageSourcePlan(
 
   const apiSource = source === 'ai' ? 'dalle' : 'unsplash';
   return Array.from({ length: count }, () => apiSource);
+}
+
+type ImageApiSource = 'unsplash' | 'dalle';
+
+interface ImageRequestPayload {
+  source: ImageApiSource;
+  title: string;
+  excerpt: string;
+  category: string;
+}
+
+function buildImageRequestPayload(input: {
+  apiSource: ImageApiSource;
+  title: string;
+  keywordPhrase: string;
+  keywordVariant: string;
+  excerpt: string;
+  category: string;
+  imageIndex: number;
+}): ImageRequestPayload {
+  const { apiSource, title, keywordPhrase, keywordVariant, excerpt, category, imageIndex } = input;
+
+  if (apiSource === 'dalle') {
+    // DALL-E path: pass meaningful context; prompt construction happens server-side in image service.
+    return {
+      source: 'dalle',
+      title: `${title} ${keywordVariant}`.trim(),
+      excerpt: excerpt || keywordPhrase,
+      category,
+    };
+  }
+
+  // Unsplash path: compact search query from title keywords.
+  const query = [keywordPhrase, keywordVariant, category].filter(Boolean).join(' ').trim();
+  return {
+    source: 'unsplash',
+    title: query || `${title} ${imageIndex + 1}`.trim(),
+    excerpt: excerpt || keywordPhrase,
+    category,
+  };
+}
+
+async function requestImageWithRetries(
+  payload: ImageRequestPayload,
+  maxAttempts: number
+): Promise<string | null> {
+  for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt++) {
+    try {
+      const response = await fetch(`${getSiteBaseUrl()}/api/admin/generate-image`, {
+        method: 'POST',
+        headers: buildInternalServiceHeaders({
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (isRenderableImageUrl(data.url)) {
+          return data.url as string;
+        }
+      } else {
+        const body = await response.text().catch(() => '');
+        console.warn(
+          `[TelegramImages] ${payload.source} generation failed (attempt ${attempt}/${maxAttempts}): ${response.status} ${body.slice(0, 180)}`
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `[TelegramImages] ${payload.source} request error (attempt ${attempt}/${maxAttempts}):`,
+        error
+      );
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+    }
+  }
+
+  return null;
 }
 
 /**

@@ -1332,6 +1332,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       heroImage = enResult.heroImage || heroImage;
       
       console.log(`🖼️ EN: Hero + ${enResult.placements.length} images placed at ${enResult.placements.join('%, ')}%`);
+      // Debug: check if image URLs are in content
+      const imgMatches = contentEn.match(/!\[.*?\]\(.*?\)/g) || [];
+      console.log(`🖼️ DEBUG: Image markdown tags in EN content: ${imgMatches.length}`, imgMatches.map(m => m.substring(0, 80)));
       
       // Расставляем изображения в польском контенте
       if (article.translations?.pl?.content) {
@@ -1390,6 +1393,10 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     );
     const persistentHeroImage = heroImage && !isPlaceholderImage(heroImage) ? heroImage : null;
     
+    // Debug: final check before Supabase insert
+    const finalImgMatches = contentEn.match(/!\[.*?\]\(.*?\)/g) || [];
+    console.log(`🖼️ FINAL before Supabase: ${finalImgMatches.length} image tags`, finalImgMatches.map(m => m.substring(0, 100)));
+
     // Подготовка данных для Supabase
     const supabaseData = {
       chat_id: 0, // Admin panel

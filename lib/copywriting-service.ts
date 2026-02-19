@@ -328,7 +328,7 @@ ${enhancedContent.substring(0, 1000)}...
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4.1-mini',
         messages: [
           {
             role: 'system',

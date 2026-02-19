@@ -105,7 +105,7 @@ Please provide ONLY the translation, without any additional comments or explanat
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini', // Быстрая и эффективная модель для переводов
+          model: 'gpt-4.1-mini', // Быстрая и эффективная модель для переводов
           messages: [
             {
               role: 'user',

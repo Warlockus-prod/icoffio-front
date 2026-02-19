@@ -62,7 +62,7 @@ ${title ? `Title: ${title}\n\n` : ''}Text: ${text.substring(0, 500)}...
 Respond with ONLY the category name (one word: AI, Technology, Games, Apple, Digital, or News).`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -160,7 +160,7 @@ Requirements:
 Respond with ONLY the title (no quotes, no extra text).`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',

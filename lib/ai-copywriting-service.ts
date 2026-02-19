@@ -78,7 +78,7 @@ export async function generateArticleContent(
 
     // Call GPT-4o
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o', // Latest, fastest, most cost-effective
+      model: 'gpt-4.1-mini', // Latest, fastest, most cost-effective
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -332,7 +332,7 @@ Requirements:
     const userPrompt = `${title ? `Title: ${title}\n\n` : ''}Article content:\n\n${content}`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4.1-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }

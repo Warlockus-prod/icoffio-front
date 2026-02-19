@@ -99,7 +99,7 @@ Make sure prompts are:
 Return valid JSON only.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Быстрая и дешевая модель для промптов
+        model: 'gpt-4.1-mini', // Быстрая и дешевая модель для промптов
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -169,7 +169,7 @@ Return valid JSON only.`;
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-mini',
         messages: [
           {
             role: 'system',

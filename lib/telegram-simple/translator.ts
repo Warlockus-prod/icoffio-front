@@ -66,7 +66,7 @@ Return ONLY valid JSON, no other text.
 
     const startTime = Date.now();
     const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -79,7 +79,7 @@ Return ONLY valid JSON, no other text.
       ],
       response_format: { type: 'json_object' },
       temperature: 0.3, // Lower for more accurate translation
-      max_tokens: 2500,
+      max_tokens: 4000,
     });
 
     const duration = Date.now() - startTime;

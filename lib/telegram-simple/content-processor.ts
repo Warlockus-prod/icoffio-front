@@ -35,8 +35,8 @@ export async function processText(
     // Get style-specific instructions
     const styleInstructions = getStyleInstructions(contentStyle);
 
-    // Truncate input to avoid exceeding model context limits (~12k chars ≈ 3k tokens for content)
-    const MAX_INPUT_CHARS = 12000;
+    // Soft-truncate very large inputs to keep cost/latency reasonable (~50k chars ≈ 12k tokens)
+    const MAX_INPUT_CHARS = 50000;
     let inputText = text;
     if (text.length > MAX_INPUT_CHARS) {
       console.log(`[TelegramSimple] ⚠️ Input too long (${text.length} chars), truncating to ${MAX_INPUT_CHARS}`);
@@ -88,7 +88,7 @@ Return ONLY valid JSON, no other text.
     // Call OpenAI
     const startTime = Date.now();
     const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini', // Faster and cheaper than gpt-4
+      model: 'gpt-4.1-mini', // Faster and cheaper than gpt-4
       messages: [
         {
           role: 'system',
@@ -101,7 +101,7 @@ Return ONLY valid JSON, no other text.
       ],
       response_format: { type: 'json_object' },
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const duration = Date.now() - startTime;
@@ -126,7 +126,7 @@ Return ONLY valid JSON, no other text.
       console.log(`[TelegramSimple] ⚠️ Title contains non-English characters, translating...`);
       try {
         const translateResponse = await getOpenAI().chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1-mini',
           messages: [
             {
               role: 'system',

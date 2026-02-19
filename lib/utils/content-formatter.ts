@@ -250,9 +250,20 @@ export function sanitizeArticleBodyText(
       break;
     }
 
+    // Temporarily protect markdown images ![alt](url) and links [text](url)
+    // from URL-stripping patterns
+    const mdTokens: string[] = [];
+    let shielded = paragraph.replace(/(!?\[[^\]]*\]\(https?:\/\/[^\s)]+\))/g, (match) => {
+      mdTokens.push(match);
+      return `__MD_TOKEN_${mdTokens.length - 1}__`;
+    });
+
     for (const pattern of PARSER_INLINE_NOISE_PATTERNS) {
-      paragraph = paragraph.replace(pattern, ' ');
+      shielded = shielded.replace(pattern, ' ');
     }
+
+    // Restore markdown images/links
+    paragraph = shielded.replace(/__MD_TOKEN_(\d+)__/g, (_, idx) => mdTokens[Number(idx)]);
 
     paragraph = paragraph
       .replace(/\s+([,.!?;:])/g, '$1')

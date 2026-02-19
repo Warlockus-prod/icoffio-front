@@ -86,18 +86,55 @@ function dedupeArticlesBySlug(articles: any[], language: ActiveLanguage): any[] 
     .filter(Boolean) as any[];
 }
 
+/**
+ * Resolve localized title — for PL extracts Polish title from content H1,
+ * tags[0], or excerpt_pl. Falls back to article.title (EN).
+ */
+function resolveLocalizedTitle(article: any, language: ActiveLanguage): string {
+  const baseTitle = sanitizeExcerptText(article?.title || '', 260);
+
+  if (language === 'pl') {
+    // 1. H1 heading from content_pl (most reliable — publisher prepends PL title)
+    const plContent = article?.content_pl || '';
+    const headingMatch = plContent.match(/^\s*#\s+(.+)$/m);
+    if (headingMatch && headingMatch[1].trim().length > 10) {
+      return sanitizeExcerptText(headingMatch[1].trim(), 260);
+    }
+    // 2. tags[0] often contains the full Polish title (telegram-simple pipeline)
+    const META_TAGS = new Set(['ai-processed', 'imported', 'telegram', 'manual']);
+    if (Array.isArray(article.tags) && article.tags.length > 0) {
+      const firstTag = article.tags[0];
+      if (typeof firstTag === 'string' && firstTag.length > 15 && !META_TAGS.has(firstTag.toLowerCase())) {
+        if (firstTag.toLowerCase() !== (baseTitle || '').toLowerCase()) {
+          return sanitizeExcerptText(firstTag, 260);
+        }
+      }
+    }
+    // 3. excerpt_pl as fallback title
+    const excerptPl = (article?.excerpt_pl || '').trim();
+    if (excerptPl && excerptPl.length > 10) {
+      return sanitizeExcerptText(excerptPl, 200);
+    }
+  }
+
+  return baseTitle || 'Untitled';
+}
+
 function toPost(article: any, language: ActiveLanguage, views: number) {
   const isEn = language === 'en';
   const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
+  const title = resolveLocalizedTitle(article, language);
 
   return {
     id: String(article.id),
-    title: article.title,
+    title,
     slug: isEn ? article.slug_en : article.slug_pl,
-    excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
+    excerpt: sanitizeExcerptText(excerpt || title || '', 200),
     content: isEn ? article.content_en : article.content_pl,
     date: article.created_at,
+    publishedAt: article.created_at,
     image: article.image_url || '',
+    imageAlt: article.image_url ? title : '',
     category: {
       name: article.category || 'General',
       slug: (article.category || 'general').toLowerCase(),

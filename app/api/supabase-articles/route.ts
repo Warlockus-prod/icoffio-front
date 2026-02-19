@@ -249,15 +249,17 @@ export async function GET(request: Request) {
       const excerpt = isEn ? article.excerpt_en : article.excerpt_pl;
       const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
 
+      const localizedTitle = resolveLocalizedTitle(article, languageKey);
       return {
         id: article.id.toString(),
-        title: resolveLocalizedTitle(article, languageKey),
+        title: localizedTitle,
         slug: slug,
-        excerpt: sanitizeExcerptText(excerpt || article.title || '', 200),
+        excerpt: sanitizeExcerptText(excerpt || localizedTitle || '', 200),
         content: prepareArticleContentForFrontend(content || '', languageKey),
         date: article.created_at,
+        publishedAt: article.created_at,
         image: article.image_url || '',
-        imageAlt: article.image_url ? resolveLocalizedTitle(article, languageKey) : '',
+        imageAlt: article.image_url ? localizedTitle : '',
         category: {
           name: article.category || 'General',
           slug: (article.category || 'general').toLowerCase()

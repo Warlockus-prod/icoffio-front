@@ -34,13 +34,21 @@ export async function processText(
   try {
     // Get style-specific instructions
     const styleInstructions = getStyleInstructions(contentStyle);
-    
+
+    // Truncate input to avoid exceeding model context limits (~12k chars ≈ 3k tokens for content)
+    const MAX_INPUT_CHARS = 12000;
+    let inputText = text;
+    if (text.length > MAX_INPUT_CHARS) {
+      console.log(`[TelegramSimple] ⚠️ Input too long (${text.length} chars), truncating to ${MAX_INPUT_CHARS}`);
+      inputText = text.substring(0, MAX_INPUT_CHARS) + '\n\n[Content truncated for processing]';
+    }
+
     // Create prompt
     const prompt = `
 You are a professional tech article writer. Transform the following text into a well-structured article.
 
 SOURCE TEXT:
-${text}
+${inputText}
 
 CRITICAL REQUIREMENTS:
 - **ALL OUTPUT MUST BE IN ENGLISH** (translate if source is in another language)

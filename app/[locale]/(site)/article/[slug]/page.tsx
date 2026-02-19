@@ -268,12 +268,27 @@ export default async function Article({ params }: { params: { locale: string; sl
 
             {/* Hero Image */}
             <div className="mb-8">
-              <img 
-                src={heroImage} 
-                alt={post.imageAlt || post.title} 
-                className="w-full rounded-xl aspect-[16/9] object-cover" 
+              <img
+                src={heroImage}
+                alt={post.imageAlt || post.title}
+                className="w-full rounded-xl aspect-[16/9] object-cover"
               />
             </div>
+
+            {/* Source Attribution */}
+            {post.sourceUrl && (
+              <div className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
+                {params.locale === 'pl' ? 'Źródło: ' : 'Source: '}
+                <a
+                  href={post.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {(() => { try { return new URL(post.sourceUrl).hostname.replace(/^www\./, ''); } catch { return post.sourceUrl; } })()}
+                </a>
+              </div>
+            )}
 
             {/* Article Content with Mid-Content Ad */}
             <ArticleContentWithAd 

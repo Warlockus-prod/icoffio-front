@@ -38,6 +38,7 @@ export type Post = {
   language?: SupportedLanguage;
   views?: number;
   readingTime?: number;
+  sourceUrl?: string;
 };
 
 // Article with required content (for full article pages)

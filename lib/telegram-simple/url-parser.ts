@@ -61,17 +61,20 @@ export async function parseUrl(url: string): Promise<ParsedUrl> {
       'p',
     ];
 
+    // Patterns that indicate junk paragraphs (not article content)
+    const junkPatterns = /\b(subscribe|newsletter|sign\s*up|follow\s+us|cookie|privacy\s+policy|terms\s+of\s+(service|use)|copyright\s*©?|all\s+rights\s+reserved|read\s+more|you\s+might\s+also|related\s+articles|share\s+this|join\s+our|get\s+notified|don'?t\s+miss|stay\s+updated)\b/i;
+
     let foundContent = false;
     for (const selector of contentSelectors) {
       $(selector).each((_, el) => {
         const text = $(el).text().trim();
         // Filter out short paragraphs (likely navigation/footer)
-        if (text.length > 50) {
+        if (text.length > 50 && !junkPatterns.test(text)) {
           paragraphs.push(text);
           foundContent = true;
         }
       });
-      
+
       if (foundContent && paragraphs.length >= 3) {
         break; // Got enough content
       }

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>icoffio Architecture</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{
+    background:#1a1a2e;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    color:#e0e0e0;
+  }
+
+  /* Header */
+  header{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 28px;
+    background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    backdrop-filter:blur(10px);
+  }
+  header h1{font-size:20px;font-weight:600;letter-spacing:.5px}
+  header h1 span{color:#e94560;font-weight:700}
+  header .subtitle{font-size:12px;color:#888;letter-spacing:1px;text-transform:uppercase}
+  .legend{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa}
+  .legend-dot{width:10px;height:10px;border-radius:3px}
+
+  /* SVG canvas */
+  #canvas-wrap{
+    position:absolute;top:0;left:0;right:0;bottom:0;
+    padding-top:56px;
+  }
+  svg{width:100%;height:100%;display:block}
+
+  /* Node styling */
+  .node-group{cursor:pointer}
+  .node-rect{
+    rx:10;ry:10;
+    stroke-width:2;
+    transition:filter .25s,stroke-width .25s,transform .25s;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  }
+  .node-group:hover .node-rect{
+    stroke-width:3;
+    filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  }
+  .node-title{
+    font-family:'Segoe UI',system-ui,sans-serif;
+    font-size:13px;font-weight:600;fill:#fff;
+    pointer-events:none;
+  }
+  .node-path{
+    font-family:'SF Mono','Fira Code',monospace;
+    font-size:10px;fill:rgba(255,255,255,0.65);
+    pointer-events:none;
+  }
+
+  /* Arrows */
+  .flow-arrow{
+    stroke-width:2;
+    fill:none;
+    opacity:0.5;
+    transition:opacity .3s,stroke-width .3s;
+  }
+  .flow-arrow.highlighted{
+    opacity:1;
+    stroke-width:3;
+  }
+
+  /* Dimming */
+  .node-group.dimmed .node-rect{opacity:0.25}
+  .node-group.dimmed .node-title{opacity:0.25}
+  .node-group.dimmed .node-path{opacity:0.15}
+  .flow-arrow.dimmed{opacity:0.08}
+
+  /* Group labels */
+  .group-label{
+    font-family:'Segoe UI',system-ui,sans-serif;
+    font-size:13px;font-weight:700;
+    letter-spacing:2px;text-transform:uppercase;
+    pointer-events:none;
+    opacity:0.45;
+  }
+  .group-bg{
+    rx:14;ry:14;
+    opacity:0.04;
+    pointer-events:none;
+  }
+
+  /* Tooltip */
+  #tooltip{
+    position:fixed;
+    padding:10px 14px;
+    background:rgba(22,33,62,0.96);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:8px;
+    font-size:12px;
+    line-height:1.5;
+    color:#ccc;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .2s;
+    z-index:200;
+    max-width:300px;
+    backdrop-filter:blur(8px);
+  }
+  #tooltip.visible{opacity:1}
+  #tooltip .tt-title{font-weight:600;color:#fff;margin-bottom:4px}
+  #tooltip .tt-desc{color:#aaa}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1><span>icoffio</span> Architecture</h1>
+    <div class="subtitle">Platform Data Flow Diagram</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#4a90d9"></div>Input</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e8873a"></div>Processing</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4caf7a"></div>Storage</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#9b59b6"></div>Output</div>
+  </div>
+</header>
+
+<div id="canvas-wrap">
+  <svg id="diagram" viewBox="0 0 1400 820" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<div id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-desc"></div>
+</div>
+
+<script>
+(function(){
+  // ── Color palette ──
+  const COLORS = {
+    input:      { fill:'#1e3a5f', stroke:'#4a90d9', text:'#4a90d9', arrow:'#4a90d9' },
+    processing: { fill:'#4a3020', stroke:'#e8873a', text:'#e8873a', arrow:'#e8873a' },
+    storage:    { fill:'#1e3d2e', stroke:'#4caf7a', text:'#4caf7a', arrow:'#4caf7a' },
+    output:     { fill:'#3a1e4a', stroke:'#9b59b6', text:'#9b59b6', arrow:'#9b59b6' },
+  };
+
+  // ── Node definitions ──
+  const NODES = [
+    // Input layer
+    { id:'telegram',   group:'input',      x:60,   y:100, w:180, h:64, title:'Telegram Bot',     path:'Users send URLs / text',           desc:'Entry point for content via Telegram messages. Users share URLs or plain text that get processed into articles.' },
+    { id:'admin',      group:'input',      x:60,   y:190, w:180, h:64, title:'Admin Panel',      path:'/admin',                           desc:'Web-based admin interface for manual article creation, editing and publishing control.' },
+    { id:'api',        group:'input',      x:60,   y:280, w:180, h:64, title:'API Endpoint',     path:'/api/articles',                    desc:'RESTful API for programmatic article submission and management.' },
+
+    // Processing layer
+    { id:'webhook',    group:'processing', x:340,  y:80,  w:200, h:64, title:'Webhook Handler',  path:'/api/telegram-simple/webhook',     desc:'Receives and validates incoming Telegram updates. Deduplicates messages and routes to the processing pipeline.' },
+    { id:'urlparser',  group:'processing', x:340,  y:170, w:200, h:64, title:'URL Parser',       path:'url-parser.ts',                    desc:'Extracts article title and main content from submitted URLs using Cheerio HTML parser.' },
+    { id:'contentproc',group:'processing', x:340,  y:260, w:200, h:64, title:'Content Processor', path:'content-processor.ts',             desc:'AI-powered content enhancement via GPT-4o-mini. Supports 6 writing styles, generates 400-600 word articles.' },
+    { id:'translator', group:'processing', x:340,  y:350, w:200, h:64, title:'Translator',       path:'translator.ts',                    desc:'Translates articles from English to Polish using GPT-4o-mini for dual-language publication.' },
+    { id:'imagegen',   group:'processing', x:340,  y:440, w:200, h:64, title:'Image Generator',  path:'image-generator.ts',               desc:'Sources relevant images from Unsplash or generates via DALL-E. Attaches 0-3 images per article.' },
+    { id:'publisher',  group:'processing', x:340,  y:530, w:200, h:64, title:'Publisher',        path:'publisher.ts',                     desc:'Final pipeline stage. Generates URL slugs, assembles article payload and saves to Supabase.' },
+
+    // Storage layer
+    { id:'supabase',   group:'storage',    x:660,  y:160, w:220, h:72, title:'Supabase',         path:'published_articles',               desc:'Primary data store. Houses published_articles (dual-language content), telegram_submissions (job queue), telegram_user_preferences, and webhook_updates (dedup).' },
+    { id:'submissions',group:'storage',    x:660,  y:260, w:220, h:56, title:'Submissions Queue', path:'telegram_submissions',             desc:'Job queue table tracking Telegram submissions through the processing pipeline.' },
+    { id:'prefs',      group:'storage',    x:660,  y:340, w:220, h:56, title:'User Preferences', path:'telegram_user_preferences',        desc:'Stores per-user Telegram bot settings: preferred writing style, language, image count.' },
+    { id:'dedup',      group:'storage',    x:660,  y:420, w:220, h:56, title:'Webhook Dedup',    path:'telegram_webhook_updates',         desc:'Tracks processed webhook update IDs to prevent duplicate article creation.' },
+
+    // Output layer
+    { id:'frontend',   group:'output',     x:1000, y:100, w:200, h:64, title:'Frontend Pages',   path:'/{locale}/article/{slug}',         desc:'Next.js server-rendered article pages with i18n support (EN + PL locales).' },
+    { id:'categories', group:'output',     x:1000, y:190, w:200, h:64, title:'Category Pages',   path:'/{locale}/category/{slug}',        desc:'Browsable category listing pages aggregating articles by topic.' },
+    { id:'dashboard',  group:'output',     x:1000, y:280, w:200, h:64, title:'Admin Dashboard',  path:'/admin/dashboard',                 desc:'Article management UI: publishing queue, status tracking, bulk operations.' },
+    { id:'seo',        group:'output',     x:1000, y:370, w:200, h:64, title:'SEO Layer',        path:'sitemap.xml, robots.txt, JSON-LD', desc:'Automated sitemap generation, robots.txt, and structured data (JSON-LD) for search engine optimization.' },
+  ];
+
+  // ── Connections ──
+  const CONNECTIONS = [
+    // Main Telegram pipeline
+    { from:'telegram',  to:'webhook',     label:'sends update' },
+    { from:'webhook',   to:'urlparser',   label:'extract URL' },
+    { from:'urlparser', to:'contentproc', label:'raw content' },
+    { from:'contentproc',to:'translator', label:'EN article' },
+    { from:'translator',to:'imagegen',   label:'EN+PL text' },
+    { from:'imagegen',  to:'publisher',   label:'with images' },
+    { from:'publisher', to:'supabase',    label:'save article' },
+
+    // Admin flow
+    { from:'admin',     to:'api',         label:'create/edit' },
+    { from:'api',       to:'publisher',   label:'article data' },
+
+    // Storage internal
+    { from:'webhook',   to:'dedup',       label:'check dedup',  dashed:true },
+    { from:'webhook',   to:'submissions', label:'queue job',    dashed:true },
+    { from:'supabase',  to:'submissions', label:'',             dashed:true, hidden:true },
+    { from:'supabase',  to:'prefs',       label:'',             dashed:true, hidden:true },
+    { from:'supabase',  to:'dedup',       label:'',             dashed:true, hidden:true },
+
+    // Output reads
+    { from:'supabase',  to:'frontend',    label:'lib/data.ts' },
+    { from:'supabase',  to:'categories',  label:'data loader' },
+    { from:'supabase',  to:'dashboard',   label:'admin API' },
+    { from:'supabase',  to:'seo',         label:'sitemap gen' },
+
+    // Feedback loop
+    { from:'webhook',   to:'telegram',    label:'result message', reverse:true },
+  ];
+
+  // ── SVG helpers ──
+  const svg = document.getElementById('diagram');
+  const NS  = 'http://www.w3.org/2000/svg';
+
+  function el(tag, attrs, parent){
+    const e = document.createElementNS(NS, tag);
+    for(const [k,v] of Object.entries(attrs||{})) e.setAttribute(k,v);
+    if(parent) parent.appendChild(e);
+    return e;
+  }
+
+  // ── Draw group backgrounds & labels ──
+  const groups = [
+    { id:'input',      label:'INPUT',      x:40,  y:70,  w:220, h:300, color:COLORS.input },
+    { id:'processing', label:'PROCESSING', x:320, y:50,  w:240, h:570, color:COLORS.processing },
+    { id:'storage',    label:'STORAGE',    x:640, y:130, w:260, h:380, color:COLORS.storage },
+    { id:'output',     label:'OUTPUT',     x:980, y:70,  w:240, h:390, color:COLORS.output },
+  ];
+
+  // Defs: arrow markers
+  const defs = el('defs',{},svg);
+
+  for(const [name, c] of Object.entries(COLORS)){
+    const marker = el('marker',{
+      id:'arrow-'+name,
+      viewBox:'0 0 10 7',
+      refX:'10', refY:'3.5',
+      markerWidth:'8', markerHeight:'6',
+      orient:'auto-start-reverse',
+      fill:c.arrow,
+    }, defs);
+    el('polygon',{points:'0 0, 10 3.5, 0 7'},marker);
+
+    // highlighted version
+    const marker2 = el('marker',{
+      id:'arrow-'+name+'-hl',
+      viewBox:'0 0 10 7',
+      refX:'10', refY:'3.5',
+      markerWidth:'10', markerHeight:'8',
+      orient:'auto-start-reverse',
+      fill:c.arrow,
+    }, defs);
+    el('polygon',{points:'0 0, 10 3.5, 0 7'},marker2);
+  }
+
+  // Draw group bgs
+  for(const g of groups){
+    el('rect',{
+      class:'group-bg',
+      x:g.x, y:g.y, width:g.w, height:g.h,
+      fill:g.color.stroke,
+    }, svg);
+    el('text',{
+      class:'group-label',
+      x:g.x+g.w/2, y:g.y+20,
+      'text-anchor':'middle',
+      fill:g.color.text,
+    }, svg).textContent = g.label;
+  }
+
+  // ── Draw connections ──
+  const arrowEls = [];
+  const nodeMap = {};
+  NODES.forEach(n => nodeMap[n.id] = n);
+
+  function getPort(node, side){
+    const cx = node.x + node.w/2;
+    const cy = node.y + node.h/2;
+    switch(side){
+      case 'right': return { x: node.x+node.w, y: cy };
+      case 'left':  return { x: node.x, y: cy };
+      case 'bottom':return { x: cx, y: node.y+node.h };
+      case 'top':   return { x: cx, y: node.y };
+    }
+  }
+
+  function bestPorts(a, b){
+    // Determine best exit/entry sides
+    const dx = b.x - (a.x+a.w);
+    const dy = (b.y+b.h/2) - (a.y+a.h/2);
+
+    // If b is to the right
+    if(dx > -40){
+      return [getPort(a,'right'), getPort(b,'left')];
+    }
+    // If b is to the left (reverse arrow)
+    if(b.x + b.w < a.x + 40){
+      return [getPort(a,'left'), getPort(b,'right')];
+    }
+    // Below
+    if(dy > 0){
+      return [getPort(a,'bottom'), getPort(b,'top')];
+    }
+    return [getPort(a,'top'), getPort(b,'bottom')];
+  }
+
+  for(const conn of CONNECTIONS){
+    if(conn.hidden) continue;
+    const a = nodeMap[conn.from];
+    const b = nodeMap[conn.to];
+    if(!a||!b) continue;
+
+    let [p1,p2] = conn.reverse ? bestPorts(b,a) : bestPorts(a,b);
+    if(conn.reverse){ [p1,p2] = [p2,p1]; }
+
+    const fromGroup = a.group;
+    const color = COLORS[fromGroup].arrow;
+
+    // Build a curved path
+    const mx = (p1.x+p2.x)/2;
+    const my = (p1.y+p2.y)/2;
+    const dx = Math.abs(p2.x-p1.x);
+    const cpOff = Math.max(40, dx*0.35);
+
+    let d;
+    if(Math.abs(p1.x - p2.x) > Math.abs(p1.y - p2.y)*0.5){
+      // Mostly horizontal
+      d = `M${p1.x},${p1.y} C${p1.x+cpOff},${p1.y} ${p2.x-cpOff},${p2.y} ${p2.x},${p2.y}`;
+    } else {
+      // Mostly vertical
+      d = `M${p1.x},${p1.y} C${p1.x},${p1.y+cpOff} ${p2.x},${p2.y-cpOff} ${p2.x},${p2.y}`;
+    }
+
+    const markerName = 'arrow-'+fromGroup;
+    const path = el('path',{
+      class:'flow-arrow',
+      d:d,
+      stroke:color,
+      'marker-end':'url(#'+markerName+')',
+      'stroke-dasharray': conn.dashed ? '6,4' : 'none',
+    }, svg);
+
+    arrowEls.push({
+      el: path,
+      from: conn.from,
+      to: conn.to,
+      fromGroup: fromGroup,
+      markerName: markerName,
+    });
+
+    // Connection label
+    if(conn.label){
+      const lx = mx;
+      const ly = my - 6;
+      const labelEl = el('text',{
+        x:lx, y:ly,
+        'text-anchor':'middle',
+        'font-size':'9',
+        fill:'rgba(255,255,255,0.35)',
+        'font-family':'SF Mono, Fira Code, monospace',
+        'pointer-events':'none',
+      }, svg);
+      labelEl.textContent = conn.label;
+    }
+  }
+
+  // ── Draw nodes ──
+  const nodeEls = {};
+  const tooltip = document.getElementById('tooltip');
+  const ttTitle = tooltip.querySelector('.tt-title');
+  const ttDesc  = tooltip.querySelector('.tt-desc');
+
+  for(const n of NODES){
+    const c = COLORS[n.group];
+    const g = el('g',{class:'node-group','data-id':n.id}, svg);
+
+    el('rect',{
+      class:'node-rect',
+      x:n.x, y:n.y, width:n.w, height:n.h,
+      fill:c.fill, stroke:c.stroke,
+    }, g);
+
+    el('text',{
+      class:'node-title',
+      x:n.x+n.w/2, y:n.y + (n.h > 60 ? 28 : 24),
+      'text-anchor':'middle',
+    }, g).textContent = n.title;
+
+    el('text',{
+      class:'node-path',
+      x:n.x+n.w/2, y:n.y + (n.h > 60 ? 46 : 42),
+      'text-anchor':'middle',
+    }, g).textContent = n.path;
+
+    nodeEls[n.id] = g;
+
+    // Hover interaction
+    g.addEventListener('mouseenter', function(e){
+      const id = n.id;
+      // Highlight connected arrows, dim everything else
+      for(const a of arrowEls){
+        if(a.from===id || a.to===id){
+          a.el.classList.add('highlighted');
+          a.el.classList.remove('dimmed');
+          a.el.setAttribute('marker-end','url(#'+a.markerName+'-hl)');
+        } else {
+          a.el.classList.add('dimmed');
+          a.el.classList.remove('highlighted');
+        }
+      }
+      // Get connected node IDs
+      const connected = new Set([id]);
+      for(const a of arrowEls){
+        if(a.from===id) connected.add(a.to);
+        if(a.to===id)   connected.add(a.from);
+      }
+      for(const [nid,nel] of Object.entries(nodeEls)){
+        if(!connected.has(nid)) nel.classList.add('dimmed');
+        else nel.classList.remove('dimmed');
+      }
+      // Tooltip
+      ttTitle.textContent = n.title;
+      ttDesc.textContent = n.desc;
+      tooltip.classList.add('visible');
+    });
+
+    g.addEventListener('mousemove', function(e){
+      tooltip.style.left = (e.clientX+16)+'px';
+      tooltip.style.top  = (e.clientY+16)+'px';
+    });
+
+    g.addEventListener('mouseleave', function(){
+      for(const a of arrowEls){
+        a.el.classList.remove('highlighted','dimmed');
+        a.el.setAttribute('marker-end','url(#'+a.markerName+')');
+      }
+      for(const nel of Object.values(nodeEls)){
+        nel.classList.remove('dimmed');
+      }
+      tooltip.classList.remove('visible');
+    });
+  }
+
+  // ── Responsive viewBox adjustment ──
+  function adjustViewBox(){
+    const wrap = document.getElementById('canvas-wrap');
+    const aspect = wrap.clientWidth / wrap.clientHeight;
+    if(aspect < 1.4){
+      // Narrow viewport: show more vertical space
+      svg.setAttribute('viewBox','0 0 1300 850');
+    } else {
+      svg.setAttribute('viewBox','0 0 1400 820');
+    }
+  }
+  window.addEventListener('resize', adjustViewBox);
+  adjustViewBox();
+
+})();
+</script>
+</body>
+</html>

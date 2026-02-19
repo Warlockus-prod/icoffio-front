@@ -55,6 +55,20 @@ function extractImageUrlsFromContent(content: string): string[] {
   return Array.from(found);
 }
 
+const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
+  ai: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=1200&auto=format&fit=crop',
+  security: 'https://images.unsplash.com/photo-1614064641938-3bbee52942c7?q=80&w=1200&auto=format&fit=crop',
+  software: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200&auto=format&fit=crop',
+  hardware: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop',
+  internet: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop',
+  gadgets: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=1200&auto=format&fit=crop',
+  tech: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?q=80&w=1200&auto=format&fit=crop',
+};
+
+function getCategoryFallbackImage(category: string): string {
+  return CATEGORY_FALLBACK_IMAGES[category] || CATEGORY_FALLBACK_IMAGES.tech;
+}
+
 const buildArticleUrl = (locale: 'en' | 'pl', slug: string, siteBaseUrl?: string) => {
   const path = `/${locale}/article/${slug}`;
   const base = normalizeSiteBaseUrl(siteBaseUrl);
@@ -90,7 +104,8 @@ export async function publishArticle(
   chatId: number,
   autoPublish: boolean = true,
   imageSettings?: { imagesCount: number; imagesSource: 'unsplash' | 'ai' | 'none' },
-  siteBaseUrl?: string
+  siteBaseUrl?: string,
+  sourceUrl?: string
 ): Promise<PublishResult> {
   console.log(`[TelegramSimple] 📤 Publishing dual-language: "${article.title}" (autoPublish: ${autoPublish})`);
 
@@ -134,7 +149,7 @@ export async function publishArticle(
     }
 
     const extractedImageUrls = extractImageUrlsFromContent(finalContentEn);
-    const heroImageUrl = extractedImageUrls[0] || '';
+    const heroImageUrl = extractedImageUrls[0] || getCategoryFallbackImage(article.category);
 
     // Step 3: Prepare article data for BOTH languages
     
@@ -175,7 +190,9 @@ export async function publishArticle(
       published: autoPublish,
       featured: false,
       source: 'telegram-simple',
-      
+      source_url: sourceUrl || null,
+      original_input: sourceUrl || article.title,
+
       // Timestamps
       created_at: now,
     };

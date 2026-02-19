@@ -1120,15 +1120,17 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
       article = await processText(normalizedText, undefined, settings.contentStyle);
     }
 
+    // Always save as draft — user will choose "Publish Now" or "To Queue" via inline buttons
     const publishResult = await publishArticle(
       article,
       input.chatId,
-      settings.autoPublish,
+      false,
       {
         imagesCount: settings.imagesCount,
         imagesSource: settings.imagesSource,
       },
-      input.siteBaseUrl
+      input.siteBaseUrl,
+      singleUrl || (combineUrlsAsSingle ? candidateUrls.join(', ') : undefined)
     );
 
     if (!publishResult.success) {
@@ -1177,27 +1179,35 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
     });
 
     if (input.sendResultMessage !== false) {
-      const statusText = settings.autoPublish
-        ? localize(uiLang, 'ОПУБЛИКОВАНО', 'PUBLISHED', 'OPUBLIKOWANO')
-        : localize(uiLang, 'СОХРАНЕНО КАК ЧЕРНОВИК', 'SAVED AS DRAFT', 'ZAPISANO JAKO SZKIC');
-      const statusNote = settings.autoPublish
-        ? localize(uiLang, 'Статья опубликована на сайте.', 'Article is published on the site.', 'Artykuł został opublikowany.')
-        : localize(uiLang, 'Черновик сохранен. Опубликуйте через админ панель.', 'Draft saved. Publish from admin panel.', 'Szkic zapisany. Opublikuj w panelu admina.');
-
+      const articleId = publishResult.en.id;
       await sendTelegramMessage(
         input.chatId,
-        `${settings.autoPublish ? '✅' : '📝'} <b>${statusText}</b>\n\n` +
+        `📝 <b>${localize(uiLang, 'ГОТОВО — ВЫБЕРИТЕ ДЕЙСТВИЕ', 'READY — CHOOSE ACTION', 'GOTOWE — WYBIERZ AKCJĘ')}</b>\n\n` +
           `${localize(uiLang, '📝 <b>Заголовок:</b>', '📝 <b>Title:</b>', '📝 <b>Tytuł:</b>')} ${escapeHtml(article.title)}\n` +
           `${localize(uiLang, '📊 <b>Статистика:</b>', '📊 <b>Stats:</b>', '📊 <b>Statystyki:</b>')}\n` +
           `• ${localize(uiLang, 'Слов', 'Words', 'Słów')}: ${article.wordCount}\n` +
           `• ${localize(uiLang, 'Категория', 'Category', 'Kategoria')}: ${escapeHtml(article.category)}\n` +
           `• ${localize(uiLang, 'Время', 'Time', 'Czas')}: ${durationSec}s\n\n` +
-          `${localize(uiLang, '🔗 <b>Ссылки:</b>', '🔗 <b>Links:</b>', '🔗 <b>Linki:</b>')}\n` +
+          `${localize(uiLang, '🔗 <b>Ссылки (после публикации):</b>', '🔗 <b>Links (after publishing):</b>', '🔗 <b>Linki (po publikacji):</b>')}\n` +
           `🇬🇧 EN: ${publishResult.en.url}\n` +
-          `🇵🇱 PL: ${publishResult.pl.url}\n\n` +
-          `${statusNote}\n` +
-          `🎨 Редактирование: ${buildAbsoluteSiteUrl('/en/admin', input.siteBaseUrl)}`,
-        { disable_web_page_preview: false }
+          `🇵🇱 PL: ${publishResult.pl.url}`,
+        {
+          disable_web_page_preview: true,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: localize(uiLang, '✅ Опубликовать сейчас', '✅ Publish Now', '✅ Publikuj teraz'),
+                  callback_data: `pub:now:${articleId}`,
+                },
+                {
+                  text: localize(uiLang, '📥 В очередь', '📥 To Queue', '📥 Do kolejki'),
+                  callback_data: `pub:queue:${articleId}`,
+                },
+              ],
+            ],
+          },
+        }
       );
     }
 
@@ -1865,6 +1875,61 @@ export async function POST(request: NextRequest) {
           callbackQuery.id,
           localize(uiLang, 'Сброс выполнен', 'Reload complete', 'Przeładowanie zakończone')
         );
+        return NextResponse.json({ ok: true, callback: callbackData });
+      }
+
+      // --- Publish Now / To Queue buttons ---
+      if (callbackData.startsWith('pub:now:') || callbackData.startsWith('pub:queue:')) {
+        const articleId = Number(callbackData.split(':')[2]);
+        if (!articleId) {
+          await answerCallbackQuery(callbackQuery.id, 'Invalid article ID');
+          return NextResponse.json({ ok: true, callback: callbackData });
+        }
+
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        if (callbackData.startsWith('pub:now:')) {
+          const { error: pubError } = await supabase
+            .from('published_articles')
+            .update({ published: true })
+            .eq('id', articleId);
+
+          if (pubError) {
+            await answerCallbackQuery(callbackQuery.id, 'Error publishing');
+            return NextResponse.json({ ok: false, error: pubError.message });
+          }
+
+          await editMessage(
+            localize(
+              uiLang,
+              `✅ <b>ОПУБЛИКОВАНО</b>\n\nСтатья #${articleId} опубликована на сайте.`,
+              `✅ <b>PUBLISHED</b>\n\nArticle #${articleId} is now live.`,
+              `✅ <b>OPUBLIKOWANO</b>\n\nArtykuł #${articleId} jest opublikowany.`
+            )
+          );
+          await answerCallbackQuery(
+            callbackQuery.id,
+            localize(uiLang, 'Опубликовано!', 'Published!', 'Opublikowano!')
+          );
+        } else {
+          // pub:queue — keep as draft
+          await editMessage(
+            localize(
+              uiLang,
+              `📥 <b>В ОЧЕРЕДИ</b>\n\nСтатья #${articleId} сохранена как черновик.\nОпубликуйте через /admin.`,
+              `📥 <b>QUEUED</b>\n\nArticle #${articleId} saved as draft.\nPublish from /admin.`,
+              `📥 <b>W KOLEJCE</b>\n\nArtykuł #${articleId} zapisany jako szkic.\nOpublikuj przez /admin.`
+            )
+          );
+          await answerCallbackQuery(
+            callbackQuery.id,
+            localize(uiLang, 'В очереди', 'Queued', 'W kolejce')
+          );
+        }
+
         return NextResponse.json({ ok: true, callback: callbackData });
       }
 

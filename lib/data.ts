@@ -384,7 +384,8 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       content: prepareArticleContentForFrontend(rawContent, languageKey),
       tags: Array.isArray(article.tags)
         ? article.tags.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') }))
-        : []
+        : [],
+      sourceUrl: article.source_url || undefined,
     };
   } catch (error) {
     console.warn('[data] Supabase unavailable for getPostBySlug:', error);

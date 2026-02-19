@@ -52,6 +52,7 @@ REQUIREMENTS:
 - Maintain technical terms appropriately
 - Keep the same structure and tone
 - Preserve all links and technical accuracy
+- Polish title MUST be between 55 and 95 characters. If translation is too long, rephrase shorter while keeping the meaning. Do NOT truncate mid-word or mid-number
 
 OUTPUT FORMAT (JSON):
 {

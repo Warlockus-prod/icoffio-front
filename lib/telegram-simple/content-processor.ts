@@ -50,9 +50,23 @@ CRITICAL REQUIREMENTS:
 - Focus on key points and insights
 ${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title'}
 
+TITLE RULES:
+- Title MUST be between 55 and 95 characters long
+- If the original title is too long, REPHRASE it shorter while preserving the key meaning
+- Do NOT simply truncate — the title must be a complete, meaningful sentence
+- Preserve important numbers, names, and facts in the title
+
+CONTENT CLEANING (mandatory):
+- Remove ALL promotional text: newsletter signups, subscription prompts, "follow us", social media links
+- Remove ALL copyright notices, disclaimers, "about the author" sections
+- Remove ALL cookie/privacy notices that leaked into content
+- Remove ALL "related articles", "read more", or "you might also like" sections
+- Remove ALL calls to action or self-promotion from the source
+- The output must read as a standalone, professional article with no traces of the original website
+
 OUTPUT FORMAT (JSON):
 {
-  "title": "Article title IN ENGLISH",
+  "title": "Article title IN ENGLISH (55-95 characters)",
   "content": "Full article content in Markdown with ## headings IN ENGLISH",
   "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH",
   "category": "One of: ai, tech, gadgets, software, hardware, internet, security"

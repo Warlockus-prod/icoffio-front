@@ -1404,6 +1404,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       word_count: Math.round((article.content?.split(/\s+/).length || 0)),
       languages: article.translations?.pl ? ['en', 'pl'] : ['en'],
       source: 'admin-panel',
+      source_url: sourceUrls.length > 0 ? sourceUrls[0] : null,
       original_input: article.title,
       meta_description: cleanExcerptEn.substring(0, 160),
       published: true,

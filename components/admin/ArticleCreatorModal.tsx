@@ -550,7 +550,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     const monetizationSettings = buildMonetizationSettings();
 
     setIsPublishing(true);
-    const toastId = toast.loading('📤 Adding to publishing queue...');
+    const toastId = toast.loading('📤 Publishing article...');
     
     try {
       // ✅ v8.2.0: Publish with both languages + multiple images
@@ -569,6 +569,10 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
             image: heroImage,
             images: contentImages,
             monetizationSettings,
+            // ✅ v8.7.33: Pass source URLs for attribution
+            sourceUrls: article.sourceUrls || [],
+            url: article.sourceUrls?.[0] || undefined,
+            includeSourceAttribution: true,
             translations: {
               en: { title, content: normalizedEnContent, excerpt },
               pl: { title: plTitle, content: normalizedPlContent, excerpt: plExcerpt }
@@ -583,10 +587,10 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
         removeJobFromQueue(article.id);
         addActivity({
           type: 'article_published',
-          message: `Added to publishing queue: ${title}`,
+          message: `Published: ${title}`,
           url: result.urls?.en || `/en/article/${article.id}`
         });
-        toast.success(`✅ "${title.substring(0, 40)}..." added to queue!`, { id: toastId });
+        toast.success(`✅ "${title.substring(0, 40)}..." published!`, { id: toastId });
         onPublish?.({
           ...article,
           title,
@@ -1512,7 +1516,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                     disabled={isPublishing}
                     className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 transition-all disabled:opacity-50"
                   >
-                    {isPublishing ? '⏳ Adding...' : '🚀 Add to Queue'}
+                    {isPublishing ? '⏳ Publishing...' : '🚀 Publish Now'}
                   </button>
                 </>
               )}

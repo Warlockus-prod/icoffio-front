@@ -1188,7 +1188,10 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
           `• ${localize(uiLang, 'Слов', 'Words', 'Słów')}: ${article.wordCount}\n` +
           `• ${localize(uiLang, 'Категория', 'Category', 'Kategoria')}: ${escapeHtml(article.category)}\n` +
           `• ${localize(uiLang, 'Время', 'Time', 'Czas')}: ${durationSec}s\n\n` +
-          `${localize(uiLang, '🔗 <b>Ссылки (после публикации):</b>', '🔗 <b>Links (after publishing):</b>', '🔗 <b>Linki (po publikacji):</b>')}\n` +
+          (singleUrl
+            ? `${localize(uiLang, '🔗 <b>Источник:</b>', '🔗 <b>Source:</b>', '🔗 <b>Źródło:</b>')} ${escapeHtml(singleUrl)}\n\n`
+            : '') +
+          `${localize(uiLang, '🌐 <b>Ссылки (после публикации):</b>', '🌐 <b>Links (after publishing):</b>', '🌐 <b>Linki (po publikacji):</b>')}\n` +
           `🇬🇧 EN: ${publishResult.en.url}\n` +
           `🇵🇱 PL: ${publishResult.pl.url}`,
         {

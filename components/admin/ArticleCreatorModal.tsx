@@ -533,7 +533,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     }
   };
 
-  const handlePublish = async () => {
+  const handlePublishOrQueue = async (publishImmediately: boolean) => {
     // Validate required fields
     if (!title.trim()) {
       toast.error('Title is required');
@@ -543,17 +543,17 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       toast.error('Content is required');
       return;
     }
-    
+
     const normalizedEnContent = normalizeAiGeneratedText(content);
     const normalizedPlContent = normalizeAiGeneratedText(plContent);
     const { heroImage, contentImages } = resolveImageSelection();
     const monetizationSettings = buildMonetizationSettings();
 
     setIsPublishing(true);
-    const toastId = toast.loading('📤 Publishing article...');
-    
+    const actionLabel = publishImmediately ? 'Publishing' : 'Saving to queue';
+    const toastId = toast.loading(`📤 ${actionLabel}...`);
+
     try {
-      // ✅ v8.2.0: Publish with both languages + multiple images
       const response = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -569,7 +569,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
             image: heroImage,
             images: contentImages,
             monetizationSettings,
-            // ✅ v8.7.33: Pass source URLs for attribution
+            publishImmediately,
             sourceUrls: article.sourceUrls || [],
             url: article.sourceUrls?.[0] || undefined,
             includeSourceAttribution: true,
@@ -582,15 +582,20 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         removeJobFromQueue(article.id);
         addActivity({
-          type: 'article_published',
-          message: `Published: ${title}`,
+          type: publishImmediately ? 'article_published' : 'article_queued',
+          message: `${publishImmediately ? 'Published' : 'Queued'}: ${title}`,
           url: result.urls?.en || `/en/article/${article.id}`
         });
-        toast.success(`✅ "${title.substring(0, 40)}..." published!`, { id: toastId });
+        toast.success(
+          publishImmediately
+            ? `✅ "${title.substring(0, 40)}..." published!`
+            : `📥 "${title.substring(0, 40)}..." saved to queue`,
+          { id: toastId }
+        );
         onPublish?.({
           ...article,
           title,
@@ -611,6 +616,9 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       setIsPublishing(false);
     }
   };
+
+  const handlePublish = () => handlePublishOrQueue(true);
+  const handleSaveToQueue = () => handlePublishOrQueue(false);
 
   const handleClose = () => {
     if (isPublishing) {
@@ -1511,6 +1519,13 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
                       ⬇️ Minimize
                     </button>
                   )}
+                  <button
+                    onClick={handleSaveToQueue}
+                    disabled={isPublishing}
+                    className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+                  >
+                    {isPublishing ? '⏳...' : '📥 Save to Queue'}
+                  </button>
                   <button
                     onClick={handlePublish}
                     disabled={isPublishing}

@@ -153,7 +153,7 @@ export interface Statistics {
 
 export interface ActivityItem {
   id: string;
-  type: 'url_added' | 'parsing_started' | 'parsing_completed' | 'article_published' | 'parsing_failed';
+  type: 'url_added' | 'parsing_started' | 'parsing_completed' | 'article_published' | 'article_queued' | 'parsing_failed';
   message: string;
   timestamp: Date;
   url?: string;

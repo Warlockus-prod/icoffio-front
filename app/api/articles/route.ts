@@ -1306,6 +1306,8 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       rawImages.push(...article.images);
     }
 
+    console.log(`🖼️ Raw images received: ${rawImages.length} [${rawImages.map(u => u?.substring(0, 60)).join(', ')}]`);
+
     const uniqueImages = Array.from(new Set(rawImages.filter((img: string) => Boolean(img && img.trim()))));
     const persistentImages = uniqueImages.filter((img) => !isPlaceholderImage(img));
     const preferredHeroImage = persistentImages[0] || '';
@@ -1314,7 +1316,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
         ? [preferredHeroImage, ...persistentImages.filter((img) => img !== preferredHeroImage)]
         : [];
     let heroImage = preferredHeroImage;
-    
+
+    console.log(`🖼️ After filtering: unique=${uniqueImages.length}, persistent=${persistentImages.length}, allImages=${allImages.length}`);
+
     if (allImages.length > 0) {
       console.log(`🖼️ Placing ${allImages.length} images in content`);
       
@@ -1372,10 +1376,9 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       }));
     }
 
-    if (includeSourceAttribution && sourceAttributions.length > 0) {
-      contentEn = appendSourceAttribution(contentEn, sourceAttributions, 'en');
-      contentPl = appendSourceAttribution(contentPl, sourceAttributions, 'pl');
-    }
+    // v8.7.34: Don't append source attribution into content — the article page
+    // template renders source_url from Supabase directly (prevents duplicate "Sources" block).
+    // Source URL is stored in the dedicated source_url column instead.
     
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохраняем в Supabase для персистентности!
     const enSlug = `${baseSlug}-en`;
@@ -1407,7 +1410,7 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       source_url: sourceUrls.length > 0 ? sourceUrls[0] : null,
       original_input: article.title,
       meta_description: cleanExcerptEn.substring(0, 160),
-      published: true,
+      published: article.publishImmediately !== false,
       featured: false,
       url_en: buildSiteUrl(`/en/article/${enSlug}`),
       url_pl: buildSiteUrl(`/pl/article/${plSlug}`)

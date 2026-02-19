@@ -279,7 +279,7 @@ export const useAdminStore = create<AdminStore>()(
           
           if (result.success) {
             const user: AdminUser = {
-              email: String(result?.user?.email || 'ag@voxexchange.io'),
+              email: String(result?.user?.email || 'admin@icoffio.com'),
               role: (result?.user?.role || 'owner') as AdminRole,
               isOwner: Boolean(result?.user?.isOwner ?? true),
             };

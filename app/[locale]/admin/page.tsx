@@ -13,6 +13,7 @@ import LogsViewer from '@/components/admin/LogsViewer';
 import CleanupTool from '@/components/admin/CleanupTool';
 import ArticlesManager from '@/components/admin/ArticlesManager';
 import AdvertisingManager from '@/components/admin/AdvertisingManager';
+import packageJson from '@/package.json';
 import ContentPromptManager from '@/components/admin/ContentPromptManager';
 import ActivityLog from '@/components/admin/ActivityLog';
 import { TelegramSettings } from '@/components/admin/TelegramSettings';
@@ -341,7 +342,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Version</div>
-                  <div className="text-gray-600 dark:text-gray-400">1.8.0</div>
+                  <div className="text-gray-600 dark:text-gray-400">{packageJson.version}</div>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Environment</div>
@@ -349,7 +350,7 @@ export default function AdminPage() {
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="font-medium text-gray-900 dark:text-white">Last Updated</div>
-                  <div className="text-gray-600 dark:text-gray-400">Oct 11, 2025</div>
+                  <div className="text-gray-600 dark:text-gray-400">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
                 </div>
               </div>
             </div>

@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { answerCallbackQuery, sendTelegramMessage, editTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
 import { parseUrl } from '@/lib/telegram-simple/url-parser';
@@ -1903,6 +1904,26 @@ export async function POST(request: NextRequest) {
           if (pubError) {
             await answerCallbackQuery(callbackQuery.id, 'Error publishing');
             return NextResponse.json({ ok: false, error: pubError.message });
+          }
+
+          // Revalidate article page cache so the page is available immediately
+          try {
+            const { data: artRow } = await supabase
+              .from('published_articles')
+              .select('slug_en,slug_pl')
+              .eq('id', articleId)
+              .single();
+            if (artRow?.slug_en) {
+              revalidatePath(`/en/article/${artRow.slug_en}`);
+              revalidatePath(`/pl/article/${artRow.slug_pl}`);
+            }
+            // Also revalidate the homepage and articles list
+            revalidatePath('/en');
+            revalidatePath('/pl');
+            revalidatePath('/en/articles');
+            revalidatePath('/pl/articles');
+          } catch (revalErr) {
+            console.warn('[TelegramSimple] Revalidation failed:', revalErr);
           }
 
           await editMessage(

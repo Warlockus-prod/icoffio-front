@@ -351,21 +351,15 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       .limit(20);
 
     if (error) {
-      console.error(`[getPostBySlug] Supabase error for slug="${slug}":`, error.message);
       throw new Error(`Supabase query failed: ${error.message}`);
     }
-
-    console.log(`[getPostBySlug] slug="${slug}" locale="${locale}" found=${articles?.length || 0}`);
 
     const articleLanguage = slug?.endsWith('-pl') || locale === 'pl' ? 'pl' : 'en';
     const article = selectBestArticleVersion(articles || [], articleLanguage);
 
     if (!article) {
-      console.log(`[getPostBySlug] No best article selected for slug="${slug}"`);
       return await loadRuntimeArticleBySlug(slug);
     }
-
-    console.log(`[getPostBySlug] Selected article id=${article.id} content_pl_len=${(article.content_pl || '').length} content_en_len=${(article.content_en || '').length}`);
 
     const isEn = locale === 'en' || article.slug_en === slug;
     const languageKey: 'en' | 'pl' = isEn ? 'en' : 'pl';
@@ -377,10 +371,6 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       plContent = plContent.replace(/^#\s+.+\n\n?/m, '');
     }
     const rawContent = isEn ? article.content_en || '' : plContent || '';
-    console.log(`[getPostBySlug] rawContent length=${rawContent.length} languageKey=${languageKey}`);
-
-    const processedContent = prepareArticleContentForFrontend(rawContent, languageKey);
-    console.log(`[getPostBySlug] processedContent length=${processedContent.length}`);
 
     return {
       slug: isEn ? article.slug_en : article.slug_pl,
@@ -390,15 +380,14 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       publishedAt: article.created_at,
       image: article.image_url || "",
       category: normalizeCategory(article.category),
-      contentHtml: processedContent,
-      content: processedContent,
+      contentHtml: prepareArticleContentForFrontend(rawContent, languageKey),
+      content: prepareArticleContentForFrontend(rawContent, languageKey),
       tags: Array.isArray(article.tags)
         ? article.tags.map((tag: string) => ({ name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-') }))
         : [],
       sourceUrl: article.source_url || undefined,
     };
-  } catch (err) {
-    console.error(`[getPostBySlug] CATCH for slug="${slug}":`, err instanceof Error ? err.stack : err);
+  } catch {
     return await loadRuntimeArticleBySlug(slug);
   }
 

@@ -244,6 +244,12 @@ export function sanitizeArticleBodyText(
       continue;
     }
 
+    if (!isHeading && /(affiliate|afiliacyjn|partnersk|prowizj)/i.test(paragraph) &&
+        /(link|odnośnik|klikając|clicking|commission|cost|koszt)/i.test(paragraph)) {
+      // Affiliate disclaimers leaked from source articles.
+      continue;
+    }
+
     // If obvious side-column/news-ticker section starts, drop the tail of the article.
     const shouldStop = PARSER_HARD_STOP_PATTERNS.some((pattern) => pattern.test(paragraph));
     if (shouldStop && cleanedParagraphs.length >= minParagraphs) {

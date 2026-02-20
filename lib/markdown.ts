@@ -41,7 +41,22 @@ function sanitizeHtmlImages(html: string): string {
   });
 
   // Убираем пустые абзацы после удаления битых изображений.
-  return withoutInvalidImages.replace(/<p>\s*(?:<br\s*\/?>\s*)*<\/p>/gi, '');
+  let cleaned = withoutInvalidImages.replace(/<p>\s*(?:<br\s*\/?>\s*)*<\/p>/gi, '');
+
+  // Fix hydration: extract <img> from inside <p> tags.
+  // Browsers auto-close <p> before block elements, causing SSR/client mismatch.
+  cleaned = cleaned.replace(/<p>([^<]*(?:<(?!img\b)[^>]*>[^<]*)*)<img\b([^>]*)>([^<]*(?:<(?!img\b)[^>]*>[^<]*)*)<\/p>/gi,
+    (_, before, imgAttrs, after) => {
+      const beforeText = (before || '').replace(/<br\s*\/?>/gi, '').trim();
+      const afterText = (after || '').replace(/<br\s*\/?>/gi, '').trim();
+      let result = '';
+      if (beforeText) result += `<p>${before.trim()}</p>`;
+      result += `<img${imgAttrs}>`;
+      if (afterText) result += `<p>${after.trim()}</p>`;
+      return result;
+    });
+
+  return cleaned;
 }
 
 function escapeHtml(text: string): string {

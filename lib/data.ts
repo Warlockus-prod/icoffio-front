@@ -351,13 +351,17 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       .limit(20);
 
     if (error) {
+      console.error(`[getPostBySlug] Supabase query error slug="${slug}":`, error.message);
       throw new Error(`Supabase query failed: ${error.message}`);
     }
+
+    console.log(`[getPostBySlug] slug="${slug}" locale="${locale}" found=${articles?.length ?? 0}`);
 
     const articleLanguage = slug?.endsWith('-pl') || locale === 'pl' ? 'pl' : 'en';
     const article = selectBestArticleVersion(articles || [], articleLanguage);
 
     if (!article) {
+      console.warn(`[getPostBySlug] selectBestArticleVersion returned null for slug="${slug}"`);
       return await loadRuntimeArticleBySlug(slug);
     }
 
@@ -387,7 +391,8 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
         : [],
       sourceUrl: article.source_url || undefined,
     };
-  } catch {
+  } catch (err) {
+    console.error(`[getPostBySlug] EXCEPTION slug="${slug}":`, err instanceof Error ? err.message : err);
     return await loadRuntimeArticleBySlug(slug);
   }
 

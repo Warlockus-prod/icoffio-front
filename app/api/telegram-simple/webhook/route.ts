@@ -1906,7 +1906,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: false, error: pubError.message });
           }
 
-          // Revalidate article page cache so the page is available immediately
+          // Fetch slugs for revalidation and final links
+          let enUrl = '';
+          let plUrl = '';
           try {
             const { data: artRow } = await supabase
               .from('published_articles')
@@ -1914,6 +1916,8 @@ export async function POST(request: NextRequest) {
               .eq('id', articleId)
               .single();
             if (artRow?.slug_en) {
+              enUrl = buildAbsoluteSiteUrl(`/en/article/${artRow.slug_en}`);
+              plUrl = buildAbsoluteSiteUrl(`/pl/article/${artRow.slug_pl}`);
               revalidatePath(`/en/article/${artRow.slug_en}`);
               revalidatePath(`/pl/article/${artRow.slug_pl}`);
             }
@@ -1926,13 +1930,18 @@ export async function POST(request: NextRequest) {
             console.warn('[TelegramSimple] Revalidation failed:', revalErr);
           }
 
+          const linksBlock = enUrl
+            ? `\n\n🌐 ${localize(uiLang, '<b>Ссылки:</b>', '<b>Links:</b>', '<b>Linki:</b>')}\n🇬🇧 EN: ${enUrl}\n🇵🇱 PL: ${plUrl}`
+            : '';
+
           await editMessage(
             localize(
               uiLang,
-              `✅ <b>ОПУБЛИКОВАНО</b>\n\nСтатья #${articleId} опубликована на сайте.`,
-              `✅ <b>PUBLISHED</b>\n\nArticle #${articleId} is now live.`,
-              `✅ <b>OPUBLIKOWANO</b>\n\nArtykuł #${articleId} jest opublikowany.`
-            )
+              `✅ <b>ОПУБЛИКОВАНО</b>\n\nСтатья #${articleId} опубликована на сайте.${linksBlock}`,
+              `✅ <b>PUBLISHED</b>\n\nArticle #${articleId} is now live.${linksBlock}`,
+              `✅ <b>OPUBLIKOWANO</b>\n\nArtykuł #${articleId} jest opublikowany.${linksBlock}`
+            ),
+            { disable_web_page_preview: true }
           );
           await answerCallbackQuery(
             callbackQuery.id,

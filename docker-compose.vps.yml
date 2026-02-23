@@ -11,7 +11,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./supabase/init:/docker-entrypoint-initdb.d
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U icoffio -d icoffio"]
       interval: 10s

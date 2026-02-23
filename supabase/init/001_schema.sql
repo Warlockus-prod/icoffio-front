@@ -464,12 +464,12 @@ RETURNS TABLE (
 BEGIN
   IF lang = 'en' THEN
     RETURN QUERY
-    SELECT pa.id, pa.slug_en as slug, pa.title, pa.excerpt_en as excerpt,
-      pa.image_url, pa.category, pa.created_at,
-      COALESCE(av.view_count, 0) as view_count
+    SELECT pa.id, pa.slug_en::text as slug, pa.title::text, pa.excerpt_en::text as excerpt,
+      pa.image_url::text, pa.category::text, pa.created_at,
+      COALESCE(av.view_count, 0::bigint) as view_count
     FROM published_articles pa
     LEFT JOIN (
-      SELECT article_slug, COUNT(*) as view_count
+      SELECT article_slug, COUNT(*)::bigint as view_count
       FROM article_views WHERE article_slug LIKE '%-en'
       GROUP BY article_slug
     ) av ON pa.slug_en = av.article_slug
@@ -478,12 +478,12 @@ BEGIN
     LIMIT article_limit;
   ELSIF lang = 'pl' THEN
     RETURN QUERY
-    SELECT pa.id, pa.slug_pl as slug, pa.title, pa.excerpt_pl as excerpt,
-      pa.image_url, pa.category, pa.created_at,
-      COALESCE(av.view_count, 0) as view_count
+    SELECT pa.id, pa.slug_pl::text as slug, pa.title::text, pa.excerpt_pl::text as excerpt,
+      pa.image_url::text, pa.category::text, pa.created_at,
+      COALESCE(av.view_count, 0::bigint) as view_count
     FROM published_articles pa
     LEFT JOIN (
-      SELECT article_slug, COUNT(*) as view_count
+      SELECT article_slug, COUNT(*)::bigint as view_count
       FROM article_views WHERE article_slug LIKE '%-pl'
       GROUP BY article_slug
     ) av ON pa.slug_pl = av.article_slug
@@ -492,9 +492,9 @@ BEGIN
     LIMIT article_limit;
   ELSE
     RETURN QUERY
-    SELECT pa.id, COALESCE(pa.slug_en, pa.slug_pl) as slug, pa.title,
-      COALESCE(pa.excerpt_en, pa.excerpt_pl) as excerpt,
-      pa.image_url, pa.category, pa.created_at, 0::BIGINT as view_count
+    SELECT pa.id, COALESCE(pa.slug_en, pa.slug_pl)::text as slug, pa.title::text,
+      COALESCE(pa.excerpt_en, pa.excerpt_pl)::text as excerpt,
+      pa.image_url::text, pa.category::text, pa.created_at, 0::BIGINT as view_count
     FROM published_articles pa
     WHERE pa.published = true
     ORDER BY pa.created_at DESC
@@ -514,25 +514,25 @@ RETURNS TABLE (
 DECLARE
   article_category TEXT;
 BEGIN
-  SELECT pa.category INTO article_category
+  SELECT pa.category::text INTO article_category
   FROM published_articles pa
   WHERE pa.slug_en = article_slug OR pa.slug_pl = article_slug
   LIMIT 1;
 
   IF lang = 'en' THEN
     RETURN QUERY
-    SELECT pa.id, pa.slug_en as slug, pa.title, pa.excerpt_en as excerpt,
-      pa.image_url, pa.category, pa.created_at
+    SELECT pa.id, pa.slug_en::text as slug, pa.title::text, pa.excerpt_en::text as excerpt,
+      pa.image_url::text, pa.category::text, pa.created_at
     FROM published_articles pa
-    WHERE pa.category = article_category AND pa.slug_en != article_slug
+    WHERE pa.category::text = article_category AND pa.slug_en != article_slug
       AND pa.published = true AND pa.content_en IS NOT NULL
     ORDER BY pa.created_at DESC LIMIT article_limit;
   ELSIF lang = 'pl' THEN
     RETURN QUERY
-    SELECT pa.id, pa.slug_pl as slug, pa.title, pa.excerpt_pl as excerpt,
-      pa.image_url, pa.category, pa.created_at
+    SELECT pa.id, pa.slug_pl::text as slug, pa.title::text, pa.excerpt_pl::text as excerpt,
+      pa.image_url::text, pa.category::text, pa.created_at
     FROM published_articles pa
-    WHERE pa.category = article_category AND pa.slug_pl != article_slug
+    WHERE pa.category::text = article_category AND pa.slug_pl != article_slug
       AND pa.published = true AND pa.content_pl IS NOT NULL
     ORDER BY pa.created_at DESC LIMIT article_limit;
   END IF;

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import type { TelegramSettings } from './types';
 
 type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';

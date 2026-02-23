@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { buildSiteUrl, getSiteBaseUrl } from '@/lib/site-url';
 import { requireAdminRole } from '@/lib/admin-auth';
 

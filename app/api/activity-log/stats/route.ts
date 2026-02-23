@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { requireAdminRole } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       .from('banned_users')
       .select('username');
     
-    const bannedSet = new Set((bannedData || []).map(b => b.username?.toLowerCase()));
+    const bannedSet = new Set((bannedData || []).map((b: any) => b.username?.toLowerCase()));
 
     // Агрегируем статистику по пользователям
     const userMap = new Map<string, {

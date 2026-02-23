@@ -7,10 +7,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { sanitizeExcerptText } from '@/lib/utils/content-formatter';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type ActiveLanguage = 'en' | 'pl';
@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
           article_slug: row?.slug,
           total_views: Number(row?.view_count || 0),
         }))
-        .filter((row) => typeof row.article_slug === 'string' && row.article_slug.length > 0);
+        .filter((row: any) => typeof row.article_slug === 'string' && row.article_slug.length > 0);
     } else {
       if (rpcResult.error) {
         console.warn('[Popular Posts API] get_popular_articles RPC unavailable, using materialized view fallback:', rpcResult.error.message);
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
           total_views: Number(row?.total_views || 0),
           popularity_score: Number(row?.popularity_score || 0),
         }))
-        .filter((row) => typeof row.article_slug === 'string' && row.article_slug.length > 0);
+        .filter((row: any) => typeof row.article_slug === 'string' && row.article_slug.length > 0);
     }
 
     if (ranking.length === 0) {

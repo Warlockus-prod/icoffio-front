@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { requireAdminRole } from '@/lib/admin-auth';
 
 // Supabase client
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Форматируем для отображения
-    const activities = (data || []).map(entry => ({
+    const activities = (data || []).map((entry: any) => ({
       ...entry,
       display_user: formatDisplayUser(entry),
       time_ago: formatTimeAgo(entry.created_at)

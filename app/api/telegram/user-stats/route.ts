@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTelegramUserStats } from '@/lib/supabase-analytics';
 import { requireAdminRole } from '@/lib/admin-auth';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {

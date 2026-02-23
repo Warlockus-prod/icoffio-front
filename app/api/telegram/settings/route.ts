@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import type { InterfaceLanguage, TelegramSettings } from '@/lib/telegram-simple/types';
 import { requireAdminRole } from '@/lib/admin-auth';
 

@@ -1,21 +1,30 @@
+/**
+ * Admin Auth Route
+ *
+ * v10.0.0 — Simplified to password-based auth only.
+ * Magic link / Supabase Auth removed.
+ *
+ * Actions:
+ *   POST { action: 'password_login', password } — login with admin password
+ *   POST { action: 'invite', email, role } — add user to admin_user_roles
+ *   POST { action: 'set_role', email, role, isActive } — update role
+ *   POST { action: 'logout' } — clear session
+ *   GET ?action=session — check current session
+ *   GET ?action=members — list admin members
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { buildSiteUrl } from '@/lib/site-url';
 import {
   clearAdminSessionCookies,
-  ensureRoleForSelfSignup,
   getAdminMembers,
   getOwnerEmails,
-  getSupabaseAdminClient,
   isAdminPasswordValid,
   isRoleAllowed,
   isOwnerEmail,
   normalizeEmail,
   requireAdminRole,
-  sanitizeNextPath,
   setLegacyAdminSessionCookie,
-  setAdminSessionCookies,
   upsertAdminRole,
-  ensureRoleForAuthenticatedUser,
   type AssignableAdminRole,
 } from '@/lib/admin-auth';
 
@@ -38,270 +47,12 @@ function validateEmail(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   const normalized = normalizeEmail(input);
   if (!normalized) return null;
-
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailPattern.test(normalized)) return null;
   return normalized;
 }
 
-function resolveNextPath(locale?: string, providedNext?: string): string {
-  const localeSafe = locale === 'pl' ? 'pl' : 'en';
-  return sanitizeNextPath(providedNext, `/${localeSafe}/admin`);
-}
-
-function buildCallbackRedirect(nextPath: string): string {
-  const encodedNext = encodeURIComponent(nextPath);
-  return buildSiteUrl(`/api/admin/auth/callback?next=${encodedNext}`);
-}
-
-function isSelfSignupEnabled(): boolean {
-  return process.env.ADMIN_SELF_SIGNUP_ENABLED === 'true';
-}
-
-function resolveSelfSignupRole(): AssignableAdminRole {
-  const configured = (process.env.ADMIN_SELF_SIGNUP_DEFAULT_ROLE || '').trim().toLowerCase();
-  if (configured === 'editor') return 'editor';
-  if (configured === 'viewer') return 'viewer';
-  if (configured === 'admin') return 'editor';
-  return 'viewer';
-}
-
-async function sendMagicLinkEmail(input: {
-  email: string;
-  redirectTo: string;
-}): Promise<{ success: true } | { success: false; error: string }> {
-  const supabase = getSupabaseAdminClient();
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email: input.email,
-    options: {
-      emailRedirectTo: input.redirectTo,
-      shouldCreateUser: true,
-    },
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
-async function handleRequestMagicLink(body: AuthActionRequest) {
-  const email = validateEmail(body.email);
-  if (!email) {
-    return NextResponse.json(
-      { success: false, error: 'Valid email is required' },
-      { status: 400 }
-    );
-  }
-
-  const requestedSelfSignupRole = resolveSelfSignupRole();
-  let pendingSelfSignupFinalization = false;
-  let role = await ensureRoleForAuthenticatedUser(email);
-  if (!role || !role.is_active) {
-    if (!isSelfSignupEnabled()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Email is not invited to admin panel',
-        },
-        { status: 403 }
-      );
-    }
-
-    try {
-      role = await ensureRoleForSelfSignup(email, requestedSelfSignupRole);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Self-signup failed';
-      const missingRolesTable = message.includes('admin_user_roles');
-
-      if (!missingRolesTable) {
-        throw error;
-      }
-
-      pendingSelfSignupFinalization = true;
-      const now = new Date().toISOString();
-      role = {
-        email,
-        role: requestedSelfSignupRole,
-        is_owner: false,
-        is_active: true,
-        invited_by: 'self-signup-pending',
-        created_at: now,
-        updated_at: now,
-      };
-    }
-  }
-
-  const nextPath = resolveNextPath(body.locale, body.next);
-  const redirectTo = buildCallbackRedirect(nextPath);
-
-  const sent = await sendMagicLinkEmail({ email, redirectTo });
-  if (!sent.success) {
-    return NextResponse.json(
-      { success: false, error: sent.error },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: pendingSelfSignupFinalization
-      ? 'Magic link sent. Role will be finalized on first login.'
-      : role?.invited_by === 'self-signup'
-        ? 'Account created. Magic link sent.'
-        : 'Magic link sent',
-    email,
-    role: role.role,
-  });
-}
-
-async function handleInvite(request: NextRequest, body: AuthActionRequest) {
-  const auth = await requireAdminRole(request, 'admin', { allowRefresh: true, allowBootstrap: true });
-  if (!auth.ok) return auth.response;
-
-  const email = validateEmail(body.email);
-  if (!email) {
-    return NextResponse.json(
-      { success: false, error: 'Valid email is required' },
-      { status: 400 }
-    );
-  }
-
-  const role = VALID_ROLES.includes(body.role as AssignableAdminRole) ? (body.role as AssignableAdminRole) : null;
-  if (!role) {
-    return NextResponse.json(
-      { success: false, error: 'Invalid role. Use admin/editor/viewer' },
-      { status: 400 }
-    );
-  }
-
-  if (role === 'admin' && !auth.context.isOwner) {
-    return NextResponse.json(
-      { success: false, error: 'Only owner can assign admin role' },
-      { status: 403 }
-    );
-  }
-
-  if (isOwnerEmail(email) && (role !== 'admin' || body.isActive === false)) {
-    return NextResponse.json(
-      { success: false, error: 'Owner account is immutable and must stay active admin' },
-      { status: 400 }
-    );
-  }
-
-  const nextPath = resolveNextPath(body.locale, body.next);
-  const redirectTo = buildCallbackRedirect(nextPath);
-
-  const member = await upsertAdminRole({
-    email,
-    role,
-    invitedBy: auth.context.email,
-    isActive: body.isActive ?? true,
-  });
-
-  const supabase = getSupabaseAdminClient();
-  const inviteResponse = await supabase.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
-  });
-
-  if (inviteResponse.error) {
-    const message = inviteResponse.error.message || 'Invite failed';
-    const lower = message.toLowerCase();
-
-    // Existing users may not be invite-able via admin endpoint, fallback to direct magic link.
-    if (lower.includes('already') || lower.includes('registered')) {
-      const sent = await sendMagicLinkEmail({ email, redirectTo });
-      if (!sent.success) {
-        return NextResponse.json(
-          { success: false, error: sent.error },
-          { status: 500 }
-        );
-      }
-    } else {
-      return NextResponse.json(
-        { success: false, error: message },
-        { status: 500 }
-      );
-    }
-  }
-
-  const response = NextResponse.json({
-    success: true,
-    invited: true,
-    member,
-  });
-
-  if (auth.refreshedSession) {
-    setAdminSessionCookies(response, auth.refreshedSession);
-  }
-
-  return response;
-}
-
-async function handleSetRole(request: NextRequest, body: AuthActionRequest) {
-  const auth = await requireAdminRole(request, 'admin', { allowRefresh: true, allowBootstrap: true });
-  if (!auth.ok) return auth.response;
-
-  const email = validateEmail(body.email);
-  if (!email) {
-    return NextResponse.json(
-      { success: false, error: 'Valid email is required' },
-      { status: 400 }
-    );
-  }
-
-  const role = VALID_ROLES.includes(body.role as AssignableAdminRole) ? (body.role as AssignableAdminRole) : null;
-  if (!role) {
-    return NextResponse.json(
-      { success: false, error: 'Invalid role. Use admin/editor/viewer' },
-      { status: 400 }
-    );
-  }
-
-  if (role === 'admin' && !auth.context.isOwner) {
-    return NextResponse.json(
-      { success: false, error: 'Only owner can assign admin role' },
-      { status: 403 }
-    );
-  }
-
-  if (isOwnerEmail(email)) {
-    return NextResponse.json(
-      { success: false, error: 'Owner account cannot be modified' },
-      { status: 403 }
-    );
-  }
-
-  if (auth.context.email === email && !isRoleAllowed(role, 'admin')) {
-    return NextResponse.json(
-      { success: false, error: 'You cannot downgrade your own account from admin' },
-      { status: 400 }
-    );
-  }
-
-  if (auth.context.email === email && body.isActive === false) {
-    return NextResponse.json(
-      { success: false, error: 'You cannot disable your own account' },
-      { status: 400 }
-    );
-  }
-
-  const member = await upsertAdminRole({
-    email,
-    role,
-    invitedBy: auth.context.email,
-    isActive: body.isActive ?? true,
-  });
-
-  const response = NextResponse.json({ success: true, member });
-  if (auth.refreshedSession) {
-    setAdminSessionCookies(response, auth.refreshedSession);
-  }
-
-  return response;
-}
+/* ---------- Handlers ---------- */
 
 async function handlePasswordLogin(body: AuthActionRequest) {
   const password = typeof body.password === 'string' ? body.password : '';
@@ -328,11 +79,85 @@ async function handlePasswordLogin(body: AuthActionRequest) {
   return response;
 }
 
+async function handleInvite(request: NextRequest, body: AuthActionRequest) {
+  const auth = await requireAdminRole(request, 'admin');
+  if (!auth.ok) return auth.response;
+
+  const email = validateEmail(body.email);
+  if (!email) {
+    return NextResponse.json({ success: false, error: 'Valid email is required' }, { status: 400 });
+  }
+
+  const role = VALID_ROLES.includes(body.role as AssignableAdminRole) ? (body.role as AssignableAdminRole) : null;
+  if (!role) {
+    return NextResponse.json({ success: false, error: 'Invalid role. Use admin/editor/viewer' }, { status: 400 });
+  }
+
+  if (role === 'admin' && !auth.context.isOwner) {
+    return NextResponse.json({ success: false, error: 'Only owner can assign admin role' }, { status: 403 });
+  }
+
+  if (isOwnerEmail(email) && (role !== 'admin' || body.isActive === false)) {
+    return NextResponse.json({ success: false, error: 'Owner account is immutable and must stay active admin' }, { status: 400 });
+  }
+
+  const member = await upsertAdminRole({
+    email,
+    role,
+    invitedBy: auth.context.email,
+    isActive: body.isActive ?? true,
+  });
+
+  return NextResponse.json({ success: true, invited: true, member });
+}
+
+async function handleSetRole(request: NextRequest, body: AuthActionRequest) {
+  const auth = await requireAdminRole(request, 'admin');
+  if (!auth.ok) return auth.response;
+
+  const email = validateEmail(body.email);
+  if (!email) {
+    return NextResponse.json({ success: false, error: 'Valid email is required' }, { status: 400 });
+  }
+
+  const role = VALID_ROLES.includes(body.role as AssignableAdminRole) ? (body.role as AssignableAdminRole) : null;
+  if (!role) {
+    return NextResponse.json({ success: false, error: 'Invalid role. Use admin/editor/viewer' }, { status: 400 });
+  }
+
+  if (role === 'admin' && !auth.context.isOwner) {
+    return NextResponse.json({ success: false, error: 'Only owner can assign admin role' }, { status: 403 });
+  }
+
+  if (isOwnerEmail(email)) {
+    return NextResponse.json({ success: false, error: 'Owner account cannot be modified' }, { status: 403 });
+  }
+
+  if (auth.context.email === email && !isRoleAllowed(role, 'admin')) {
+    return NextResponse.json({ success: false, error: 'You cannot downgrade your own account from admin' }, { status: 400 });
+  }
+
+  if (auth.context.email === email && body.isActive === false) {
+    return NextResponse.json({ success: false, error: 'You cannot disable your own account' }, { status: 400 });
+  }
+
+  const member = await upsertAdminRole({
+    email,
+    role,
+    invitedBy: auth.context.email,
+    isActive: body.isActive ?? true,
+  });
+
+  return NextResponse.json({ success: true, member });
+}
+
 async function handleLogout() {
   const response = NextResponse.json({ success: true });
   clearAdminSessionCookies(response);
   return response;
 }
+
+/* ---------- Routes ---------- */
 
 export async function POST(request: NextRequest) {
   try {
@@ -340,7 +165,11 @@ export async function POST(request: NextRequest) {
     const action = body.action || 'session';
 
     if (action === 'request_magic_link') {
-      return await handleRequestMagicLink(body);
+      // Magic link auth removed — use password login instead.
+      return NextResponse.json(
+        { success: false, error: 'Magic link auth is no longer available. Use password login.' },
+        { status: 410 }
+      );
     }
 
     if (action === 'password_login') {
@@ -359,24 +188,11 @@ export async function POST(request: NextRequest) {
       return await handleLogout();
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Unsupported action' },
-      { status: 400 }
-    );
+    return NextResponse.json({ success: false, error: 'Unsupported action' }, { status: 400 });
   } catch (error) {
     console.error('Admin auth POST error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
-    const isRolesMigrationMissing = message.includes('table admin_user_roles is missing');
-    return NextResponse.json(
-      {
-        success: false,
-        error: message,
-        hint: isRolesMigrationMissing
-          ? 'Run Supabase migration 20260217_admin_roles_and_access.sql before inviting/self-signup users.'
-          : undefined,
-      },
-      { status: isRolesMigrationMissing ? 503 : 500 }
-    );
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
@@ -386,20 +202,14 @@ export async function GET(request: NextRequest) {
 
   try {
     if (action === 'members') {
-      const auth = await requireAdminRole(request, 'admin', { allowRefresh: true, allowBootstrap: true });
+      const auth = await requireAdminRole(request, 'admin');
       if (!auth.ok) return auth.response;
 
       const members = await getAdminMembers();
-      const response = NextResponse.json({ success: true, members });
-
-      if (auth.refreshedSession) {
-        setAdminSessionCookies(response, auth.refreshedSession);
-      }
-
-      return response;
+      return NextResponse.json({ success: true, members });
     }
 
-    const auth = await requireAdminRole(request, 'viewer', { allowRefresh: true, allowBootstrap: true });
+    const auth = await requireAdminRole(request, 'viewer');
     if (!auth.ok) {
       const status = auth.response.status;
       if (status === 401 || status === 403) {
@@ -412,7 +222,7 @@ export async function GET(request: NextRequest) {
       return auth.response;
     }
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       authenticated: true,
       user: {
@@ -421,19 +231,10 @@ export async function GET(request: NextRequest) {
         isOwner: auth.context.isOwner,
       },
     });
-
-    if (auth.refreshedSession) {
-      setAdminSessionCookies(response, auth.refreshedSession);
-    }
-
-    return response;
   } catch (error) {
     console.error('Admin auth GET error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

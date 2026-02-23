@@ -7,9 +7,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
           };
         });
 
-        const totalViews = articles.reduce((sum, article) => sum + (article.total_views || 0), 0);
-        const totalUniqueViews = articles.reduce((sum, article) => sum + (article.unique_views || 0), 0);
+        const totalViews = articles.reduce((sum: any, article: any) => sum + (article.total_views || 0), 0);
+        const totalUniqueViews = articles.reduce((sum: any, article: any) => sum + (article.unique_views || 0), 0);
 
         return NextResponse.json({
           success: true,
@@ -174,8 +174,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate total stats
-    const totalViews = data?.reduce((sum, article) => sum + (article.total_views || 0), 0) || 0;
-    const totalUniqueViews = data?.reduce((sum, article) => sum + (article.unique_views || 0), 0) || 0;
+    const totalViews = data?.reduce((sum: any, article: any) => sum + (article.total_views || 0), 0) || 0;
+    const totalUniqueViews = data?.reduce((sum: any, article: any) => sum + (article.unique_views || 0), 0) || 0;
 
     return NextResponse.json({
       success: true,

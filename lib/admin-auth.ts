@@ -1,4 +1,4 @@
-import { createClient, type User } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export type AssignableAdminRole = 'admin' | 'editor' | 'viewer';
@@ -59,10 +59,7 @@ const ROLE_WEIGHT: Record<AdminRole, number> = {
   owner: 4,
 };
 
-const ADMIN_ROLE_META_KEY = 'icoffio_admin_role';
-const ADMIN_ACTIVE_META_KEY = 'icoffio_admin_active';
-const ADMIN_INVITED_BY_META_KEY = 'icoffio_admin_invited_by';
-const ADMIN_UPDATED_AT_META_KEY = 'icoffio_admin_updated_at';
+// Supabase Auth metadata keys removed — no longer needed.
 
 export const ADMIN_ACCESS_COOKIE = 'icoffio_admin_access_token';
 export const ADMIN_REFRESH_COOKIE = 'icoffio_admin_refresh_token';
@@ -76,16 +73,7 @@ const ADMIN_COOKIE_BASE_OPTIONS = {
   path: '/',
 };
 
-function getSupabaseCredentials(): { url: string; key: string } {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-  if (!url || !key) {
-    throw new Error('Supabase credentials are not configured');
-  }
-
-  return { url, key };
-}
+// Database credentials are now handled by pg-pool via DATABASE_URL
 
 function safeStringEqual(left: string, right: string): boolean {
   if (left.length !== right.length) return false;
@@ -231,13 +219,7 @@ function toReadableRoleError(operation: string, message: string, code?: string):
 }
 
 export function getSupabaseAdminClient() {
-  const { url, key } = getSupabaseCredentials();
-  return createClient(url, key, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  return createClient();
 }
 
 export function normalizeEmail(email: string): string {
@@ -365,76 +347,10 @@ function createMetadataMember(input: {
   };
 }
 
-function extractMetadataRoleMember(user: User, email: string): AdminRoleMember | null {
-  const appMeta = user.app_metadata || {};
-  const userMeta = user.user_metadata || {};
+// extractMetadataRoleMember removed — Supabase Auth metadata no longer used.
+// Role resolution is now purely database-based via admin_user_roles table.
 
-  const rawRole = appMeta[ADMIN_ROLE_META_KEY] ?? userMeta[ADMIN_ROLE_META_KEY];
-  const role = toAssignableRole(rawRole);
-  if (!role) return null;
-
-  const rawIsActive = appMeta[ADMIN_ACTIVE_META_KEY] ?? userMeta[ADMIN_ACTIVE_META_KEY];
-  const isActive =
-    typeof rawIsActive === 'boolean' ? rawIsActive : rawIsActive === 'false' ? false : true;
-
-  const invitedByRaw = appMeta[ADMIN_INVITED_BY_META_KEY] ?? userMeta[ADMIN_INVITED_BY_META_KEY];
-  const invitedBy = typeof invitedByRaw === 'string' && invitedByRaw.trim() ? invitedByRaw : 'auth-metadata';
-  const updatedAtRaw = appMeta[ADMIN_UPDATED_AT_META_KEY] ?? userMeta[ADMIN_UPDATED_AT_META_KEY];
-  const updatedAt = typeof updatedAtRaw === 'string' && updatedAtRaw.trim() ? updatedAtRaw : undefined;
-
-  return createMetadataMember({
-    email,
-    role,
-    isActive,
-    invitedBy,
-    createdAt: user.created_at || updatedAt,
-    updatedAt,
-  });
-}
-
-async function setMetadataRoleForUser(input: {
-  userId: string;
-  email: string;
-  role: AssignableAdminRole;
-  isActive?: boolean;
-  invitedBy?: string;
-}): Promise<AdminRoleMember> {
-  const supabase = getSupabaseAdminClient();
-  const now = new Date().toISOString();
-  const normalizedEmail = normalizeEmail(input.email);
-
-  const existingUserResponse = await supabase.auth.admin.getUserById(input.userId);
-  if (existingUserResponse.error || !existingUserResponse.data?.user) {
-    const errorMessage = existingUserResponse.error?.message || 'User not found';
-    throw new Error(`Set metadata role failed: ${errorMessage}`);
-  }
-
-  const existingUser = existingUserResponse.data.user;
-  const nextAppMetadata = {
-    ...(existingUser.app_metadata || {}),
-    [ADMIN_ROLE_META_KEY]: input.role,
-    [ADMIN_ACTIVE_META_KEY]: input.isActive ?? true,
-    [ADMIN_INVITED_BY_META_KEY]: input.invitedBy || 'self-signup',
-    [ADMIN_UPDATED_AT_META_KEY]: now,
-  };
-
-  const updateResponse = await supabase.auth.admin.updateUserById(input.userId, {
-    app_metadata: nextAppMetadata,
-  });
-
-  if (updateResponse.error) {
-    throw new Error(`Set metadata role failed: ${updateResponse.error.message}`);
-  }
-
-  return createMetadataMember({
-    email: normalizedEmail,
-    role: input.role,
-    isActive: input.isActive ?? true,
-    invitedBy: input.invitedBy || 'self-signup',
-    createdAt: existingUser.created_at || now,
-    updatedAt: now,
-  });
-}
+// setMetadataRoleForUser removed — Supabase Auth metadata no longer used.
 
 async function fetchRoleByEmail(
   email: string,
@@ -640,145 +556,31 @@ export function clearAdminSessionCookies(response: NextResponse) {
   });
 }
 
-async function getUserFromToken(token: string): Promise<User | null> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user;
-}
-
-async function tryRefreshSession(refreshToken: string): Promise<{
-  user: User | null;
-  accessToken: string;
-  refreshToken: string;
-} | null> {
-  const supabase = getSupabaseAdminClient();
-
-  const { data, error } = await supabase.auth.refreshSession({
-    refresh_token: refreshToken,
-  });
-
-  if (error || !data.session || !data.user) {
-    return null;
-  }
-
-  return {
-    user: data.user,
-    accessToken: data.session.access_token,
-    refreshToken: data.session.refresh_token,
-  };
-}
-
-function extractUserEmail(user: User): string | null {
-  if (user.email) {
-    return normalizeEmail(user.email);
-  }
-
-  const raw = user.user_metadata?.email;
-  if (typeof raw === 'string' && raw.trim()) {
-    return normalizeEmail(raw);
-  }
-
-  return null;
-}
+// getUserFromToken, tryRefreshSession, extractUserEmail removed —
+// Supabase Auth tokens no longer used. Authentication is via legacy session cookies only.
 
 export async function requireAdminRole(
   request: NextRequest,
   requiredRole: AdminRole,
-  options: RequireRoleOptions = {}
+  _options: RequireRoleOptions = {}
 ): Promise<RequireRoleResult> {
+  // Authentication is now purely via legacy session cookies (password-based).
   const legacyContext = getLegacySessionContextFromRequest(request);
-  if (legacyContext) {
-    if (!isRoleAllowed(legacyContext.role, requiredRole)) {
-      return {
-        ok: false,
-        response: NextResponse.json(
-          {
-            success: false,
-            error: `Forbidden. Required role: ${requiredRole}`,
-            role: legacyContext.role,
-          },
-          { status: 403 }
-        ),
-      };
-    }
-
-    return {
-      ok: true,
-      context: legacyContext,
-    };
-  }
-
-  const accessToken = getAuthTokenFromRequest(request);
-
-  let user: User | null = null;
-  let refreshedSession: { accessToken: string; refreshToken: string } | undefined;
-
-  if (accessToken) {
-    user = await getUserFromToken(accessToken);
-  }
-
-  if (!user && options.allowRefresh !== false) {
-    const refreshToken = getRefreshTokenFromRequest(request);
-    if (refreshToken) {
-      const refreshed = await tryRefreshSession(refreshToken);
-      if (refreshed?.user) {
-        user = refreshed.user;
-        refreshedSession = {
-          accessToken: refreshed.accessToken,
-          refreshToken: refreshed.refreshToken,
-        };
-      }
-    }
-  }
-
-  if (!user) {
+  if (!legacyContext) {
     return {
       ok: false,
       response: NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 }),
     };
   }
 
-  const email = extractUserEmail(user);
-  if (!email) {
-    return {
-      ok: false,
-      response: NextResponse.json({ success: false, error: 'User email is missing' }, { status: 403 }),
-    };
-  }
-
-  let roleMember: AdminRoleMember | null = null;
-  try {
-    roleMember = await resolveRoleByEmail(email, {
-      allowBootstrap: options.allowBootstrap ?? false,
-    });
-
-    if (!roleMember) {
-      roleMember = extractMetadataRoleMember(user, email);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to resolve role';
-    return {
-      ok: false,
-      response: NextResponse.json({ success: false, error: message }, { status: 500 }),
-    };
-  }
-
-  if (!roleMember) {
-    return {
-      ok: false,
-      response: NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 }),
-    };
-  }
-
-  if (!isRoleAllowed(roleMember.role, requiredRole)) {
+  if (!isRoleAllowed(legacyContext.role, requiredRole)) {
     return {
       ok: false,
       response: NextResponse.json(
         {
           success: false,
           error: `Forbidden. Required role: ${requiredRole}`,
-          role: roleMember.role,
+          role: legacyContext.role,
         },
         { status: 403 }
       ),
@@ -787,13 +589,7 @@ export async function requireAdminRole(
 
   return {
     ok: true,
-    context: {
-      userId: user.id,
-      email,
-      role: roleMember.role,
-      isOwner: roleMember.is_owner,
-    },
-    refreshedSession,
+    context: legacyContext,
   };
 }
 
@@ -806,53 +602,24 @@ export async function getAdminMembers(): Promise<AdminRoleMember[]> {
 
   if (error) {
     if (isMissingAdminRolesTable(error.message, error.code)) {
-      const membersMap = new Map<string, AdminRoleMember>();
+      // Table missing — return hardcoded owner accounts only
       const now = new Date().toISOString();
-
-      getConfiguredOwnerEmails().forEach((ownerEmail) => {
-        membersMap.set(ownerEmail, {
-          email: ownerEmail,
-          role: 'owner',
-          is_owner: true,
-          is_active: true,
-          invited_by: 'owner-policy',
-          created_at: now,
-          updated_at: now,
-        });
-      });
-
-      let page = 1;
-      const perPage = 200;
-
-      for (;;) {
-        const usersResponse = await supabase.auth.admin.listUsers({ page, perPage });
-        if (usersResponse.error) break;
-
-        const users = usersResponse.data?.users || [];
-        if (users.length === 0) break;
-
-        users.forEach((user) => {
-          const email = user.email ? normalizeEmail(user.email) : '';
-          if (!email) return;
-          const member = extractMetadataRoleMember(user, email);
-          if (!member) return;
-          if (!member.is_active) return;
-          membersMap.set(email, member);
-        });
-
-        if (users.length < perPage) break;
-        page += 1;
-        if (page > 20) break;
-      }
-
-      return Array.from(membersMap.values()).sort((a, b) => a.email.localeCompare(b.email));
+      return getConfiguredOwnerEmails().map((ownerEmail) => ({
+        email: ownerEmail,
+        role: 'owner' as AdminRole,
+        is_owner: true,
+        is_active: true,
+        invited_by: 'owner-policy',
+        created_at: now,
+        updated_at: now,
+      }));
     }
     throw new Error(toReadableRoleError('Fetch members', error.message, error.code));
   }
 
   const membersMap = new Map<string, AdminRoleMember>();
 
-  (data || []).forEach((row) => {
+  (data || []).forEach((row: any) => {
     const email = normalizeEmail(row.email);
     const role = (row.role || 'viewer') as AssignableAdminRole;
     if (!PERSISTED_ROLES.includes(role)) return;
@@ -900,25 +667,19 @@ export async function ensureRoleForAuthenticatedUser(email: string): Promise<Adm
 }
 
 export async function ensureRoleForAuthenticatedSessionUser(
-  user: User,
+  email: string,
   options: {
     allowSelfSignup?: boolean;
     defaultRole?: AssignableAdminRole;
   } = {}
 ): Promise<AdminRoleMember | null> {
-  const email = extractUserEmail(user);
   if (!email) return null;
+  const normalizedEmail = normalizeEmail(email);
 
-  let member = await resolveRoleByEmail(email, { allowBootstrap: true });
+  let member = await resolveRoleByEmail(normalizedEmail, { allowBootstrap: true });
   if (member) {
     if (!member.is_active) return null;
     return member;
-  }
-
-  const metadataMember = extractMetadataRoleMember(user, email);
-  if (metadataMember) {
-    if (!metadataMember.is_active) return null;
-    return metadataMember;
   }
 
   if (!options.allowSelfSignup) {
@@ -926,24 +687,7 @@ export async function ensureRoleForAuthenticatedSessionUser(
   }
 
   const defaultRole = options.defaultRole === 'admin' ? 'editor' : options.defaultRole || 'viewer';
-
-  try {
-    member = await ensureRoleForSelfSignup(email, defaultRole);
-    return member;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create role';
-    if (!isMissingAdminRolesTable(message)) {
-      throw error;
-    }
-  }
-
-  return setMetadataRoleForUser({
-    userId: user.id,
-    email,
-    role: defaultRole,
-    isActive: true,
-    invitedBy: 'self-signup',
-  });
+  return ensureRoleForSelfSignup(normalizedEmail, defaultRole);
 }
 
 export async function ensureRoleForSelfSignup(

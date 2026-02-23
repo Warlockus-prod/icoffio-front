@@ -5,7 +5,7 @@
  * With image generation support
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import type { ProcessedArticle, PublishResult } from './types';
 import { translateToPolish } from './translator';
 import { insertImages, type ImageGenerationOptions } from './image-generator';

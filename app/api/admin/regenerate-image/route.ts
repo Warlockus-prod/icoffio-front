@@ -12,8 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { 
   generateSmartImagePrompts, 
   buildUnsplashQueryFromTags 
@@ -394,7 +393,7 @@ function buildReferenceCandidates(reference: string): string[] {
   return Array.from(candidates).filter(Boolean);
 }
 
-async function findPublishedArticleByReference(supabase: SupabaseClient, reference: string) {
+async function findPublishedArticleByReference(supabase: any, reference: string) {
   const selectFields = 'id,title,category,content_en,content_pl,excerpt_en,excerpt_pl,slug_en,slug_pl,image_url';
 
   if (/^\d+$/.test(reference)) {

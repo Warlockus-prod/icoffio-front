@@ -1,4 +1,29 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: icoffio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: icoffio
+      POSTGRES_USER: icoffio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./supabase/init:/docker-entrypoint-initdb.d
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U icoffio -d icoffio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   icoffio-front:
     container_name: icoffio-front-app
     build:
@@ -7,6 +32,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       # Bind only to docker0 gateway used by nginx container (not public WAN IP).
       - "172.17.0.1:4200:4200"
@@ -24,3 +52,6 @@ services:
       options:
         max-size: "20m"
         max-file: "5"
+
+volumes:
+  pgdata:

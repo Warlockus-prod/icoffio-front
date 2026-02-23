@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackArticleView } from '@/lib/supabase-analytics';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {

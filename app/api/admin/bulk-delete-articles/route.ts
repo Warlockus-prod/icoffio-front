@@ -5,10 +5,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { requireAdminRole } from '@/lib/admin-auth';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 interface BulkDeleteRequest {
   slugs: string[];

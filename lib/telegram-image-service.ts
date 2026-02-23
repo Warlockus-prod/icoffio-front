@@ -9,7 +9,7 @@
  * @date 2025-10-31
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 
 export interface ImageLibraryEntry {
   id?: number;
@@ -23,10 +23,10 @@ export interface ImageLibraryEntry {
 }
 
 // Lazy initialization для Supabase
-let supabaseClient: SupabaseClient | null = null;
+let supabaseClient: any = null;
 let supabaseAvailable: boolean = true;
 
-function getSupabase(): SupabaseClient | null {
+function getSupabase(): any {
   if (!supabaseAvailable) return null;
   
   if (!supabaseClient) {

@@ -17,7 +17,7 @@
  * @date 2025-10-30
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { publishDualLanguageArticle } from './dual-language-publisher';
 import { getSiteBaseUrl } from './site-url';
 import { appendServerLog } from './server-log-store';
@@ -54,10 +54,10 @@ async function sendTelegramNotification(chatId: number, message: string): Promis
 }
 
 // Lazy initialization для Supabase
-let supabaseClient: SupabaseClient | null = null;
+let supabaseClient: any = null;
 let supabaseAvailable: boolean = true;
 
-function getSupabase(): SupabaseClient | null {
+function getSupabase(): any {
   if (!supabaseAvailable) return null;
   
   if (!supabaseClient) {
@@ -692,10 +692,10 @@ class QueueService {
           console.log(`[Queue] 📊 Supabase stats: ${data.length} total jobs`);
           return {
             total: data.length,
-            pending: data.filter(j => j.status === 'pending').length,
-            processing: data.filter(j => j.status === 'processing').length,
-            completed: data.filter(j => j.status === 'completed').length,
-            failed: data.filter(j => j.status === 'failed').length,
+            pending: data.filter((j: any) => j.status === 'pending').length,
+            processing: data.filter((j: any) => j.status === 'processing').length,
+            completed: data.filter((j: any) => j.status === 'completed').length,
+            failed: data.filter((j: any) => j.status === 'failed').length,
           };
         }
         

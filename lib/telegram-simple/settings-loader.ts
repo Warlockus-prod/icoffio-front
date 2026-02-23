@@ -4,7 +4,7 @@
  * Загружает настройки пользователя из БД
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import type { InterfaceLanguage, TelegramSettings } from './types';
 
 function getSupabase() {

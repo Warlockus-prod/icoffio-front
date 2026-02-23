@@ -4,7 +4,7 @@
  * Для отслеживания просмотров статей и определения популярных статей
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/pg-client';
 import { getRateLimiter, RateLimits } from './rate-limiter';
 
 // Ленивая инициализация клиента

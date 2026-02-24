@@ -9,7 +9,62 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { marked } from 'marked';
 import RichTextEditor from './RichTextEditor';
+
+// Regex to match the ICOFFIO monetization HTML comment
+const MONETIZATION_COMMENT_RE = /^<!--\s*ICOFFIO_MONETIZATION\s+[\s\S]*?-->\s*/;
+
+/**
+ * Detect whether content is Markdown (not HTML).
+ * Simple heuristic: if it has no HTML block-level tags but has Markdown headings or lists, it's Markdown.
+ */
+function isMarkdownContent(content: string): boolean {
+  const stripped = content.replace(MONETIZATION_COMMENT_RE, '').trim();
+  if (!stripped) return false;
+  // Has HTML block tags? → it's HTML
+  if (/<(p|div|h[1-6]|ul|ol|li|blockquote|table|section|article)\b/i.test(stripped)) return false;
+  // Has Markdown syntax? → it's Markdown
+  if (/^#{1,6}\s/m.test(stripped)) return true;  // headings
+  if (/^\s*[-*+]\s/m.test(stripped)) return true; // unordered list
+  if (/^\s*\d+\.\s/m.test(stripped)) return true; // ordered list
+  if (/\*\*.+\*\*/m.test(stripped)) return true;  // bold
+  // If it's plain text with newlines, treat as markdown for proper rendering
+  if (stripped.includes('\n\n')) return true;
+  return false;
+}
+
+/**
+ * Prepare content for TipTap editor:
+ * 1. Strip monetization comment (stored separately)
+ * 2. Convert Markdown → HTML if needed
+ */
+function prepareContentForEditor(raw: string): { html: string; monetizationComment: string } {
+  let monetizationComment = '';
+  let content = raw || '';
+
+  // Extract monetization comment
+  const match = content.match(MONETIZATION_COMMENT_RE);
+  if (match) {
+    monetizationComment = match[0];
+    content = content.slice(match[0].length).trim();
+  }
+
+  // Convert Markdown to HTML if needed
+  if (isMarkdownContent(content)) {
+    content = marked.parse(content, { async: false }) as string;
+  }
+
+  return { html: content, monetizationComment };
+}
+
+/**
+ * Re-add monetization comment before saving back to DB
+ */
+function prepareContentForSave(html: string, monetizationComment: string): string {
+  if (!monetizationComment) return html;
+  return monetizationComment + html;
+}
 
 interface PublishedArticle {
   id: number;
@@ -55,6 +110,9 @@ export default function PublishedArticleEditor({
   // Polish title extracted from tags or content_pl H1
   const [polishTitle, setPolishTitle] = useState('');
 
+  // Monetization comments preserved per-language (stripped for editing, re-added on save)
+  const monetizationCommentsRef = useRef<{ en: string; pl: string }>({ en: '', pl: '' });
+
   // Load article
   useEffect(() => {
     const loadArticle = async () => {
@@ -65,7 +123,22 @@ export default function PublishedArticleEditor({
         const result = await res.json();
         if (result.success && result.article) {
           const a = result.article;
-          setArticle(a);
+
+          // Prepare content: strip monetization comments, convert Markdown → HTML
+          const enPrepared = prepareContentForEditor(a.content_en || '');
+          const plPrepared = prepareContentForEditor(a.content_pl || '');
+
+          monetizationCommentsRef.current = {
+            en: enPrepared.monetizationComment,
+            pl: plPrepared.monetizationComment,
+          };
+
+          // Store article with clean HTML content for the editor
+          setArticle({
+            ...a,
+            content_en: enPrepared.html,
+            content_pl: plPrepared.html,
+          });
 
           // Extract Polish title from tags[0] or content_pl H1
           let plTitle = '';
@@ -126,6 +199,14 @@ export default function PublishedArticleEditor({
 
     const changes = { ...pendingChangesRef.current };
     if (Object.keys(changes).length === 0) return;
+
+    // Re-add monetization comments to content fields before saving
+    if (changes.content_en !== undefined) {
+      changes.content_en = prepareContentForSave(changes.content_en, monetizationCommentsRef.current.en);
+    }
+    if (changes.content_pl !== undefined) {
+      changes.content_pl = prepareContentForSave(changes.content_pl, monetizationCommentsRef.current.pl);
+    }
 
     setSaving(true);
     try {

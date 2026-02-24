@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { marked } from 'marked';
 import RichTextEditor from './RichTextEditor';
+import ImagePickerModal from './ImagePickerModal';
 
 // Regex to match the ICOFFIO monetization HTML comment
 const MONETIZATION_COMMENT_RE = /^<!--\s*ICOFFIO_MONETIZATION\s+[\s\S]*?-->\s*/;
@@ -112,6 +113,11 @@ export default function PublishedArticleEditor({
 
   // Monetization comments preserved per-language (stripped for editing, re-added on save)
   const monetizationCommentsRef = useRef<{ en: string; pl: string }>({ en: '', pl: '' });
+
+  // Image Picker Modal state
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [imagePickerCurrentSrc, setImagePickerCurrentSrc] = useState<string | undefined>(undefined);
+  const imagePickerCallbackRef = useRef<((url: string, alt?: string) => void) | null>(null);
 
   // Load article
   useEffect(() => {
@@ -244,11 +250,38 @@ export default function PublishedArticleEditor({
   }, [saveArticle]);
 
   const handleHeroImageReplace = useCallback(() => {
-    const url = window.prompt('Enter new hero image URL:', article?.image_url || '');
-    if (url !== null && url !== article?.image_url) {
+    imagePickerCallbackRef.current = (url: string) => {
       updateField('image_url', url);
-    }
+    };
+    setImagePickerCurrentSrc(article?.image_url || undefined);
+    setImagePickerOpen(true);
   }, [article?.image_url, updateField]);
+
+  /** Called by RichTextEditor when it wants to open the picker for inline image insert/replace */
+  const handleOpenImagePicker = useCallback(
+    (callback: (url: string, alt?: string) => void, currentSrc?: string) => {
+      imagePickerCallbackRef.current = callback;
+      setImagePickerCurrentSrc(currentSrc);
+      setImagePickerOpen(true);
+    },
+    []
+  );
+
+  const handleImagePickerSelect = useCallback(
+    (url: string, alt?: string) => {
+      if (imagePickerCallbackRef.current) {
+        imagePickerCallbackRef.current(url, alt);
+        imagePickerCallbackRef.current = null;
+      }
+    },
+    []
+  );
+
+  const handleImagePickerClose = useCallback(() => {
+    setImagePickerOpen(false);
+    setImagePickerCurrentSrc(undefined);
+    imagePickerCallbackRef.current = null;
+  }, []);
 
   if (loading) {
     return (
@@ -504,6 +537,7 @@ export default function PublishedArticleEditor({
             }
             placeholder={`Write ${activeLanguage === 'en' ? 'English' : 'Polish'} content...`}
             enableImages
+            onOpenImagePicker={handleOpenImagePicker}
           />
         </div>
       </div>
@@ -536,6 +570,16 @@ export default function PublishedArticleEditor({
           </button>
         </div>
       </div>
+
+      {/* Image Picker Modal */}
+      <ImagePickerModal
+        isOpen={imagePickerOpen}
+        onClose={handleImagePickerClose}
+        onSelect={handleImagePickerSelect}
+        currentImageUrl={imagePickerCurrentSrc}
+        articleCategory={article.category}
+        articleTitle={article.title}
+      />
     </div>
   );
 }

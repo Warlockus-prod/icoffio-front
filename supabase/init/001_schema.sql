@@ -131,6 +131,10 @@ CREATE TABLE IF NOT EXISTS telegram_image_library (
   keywords TEXT[],
   usage_count INTEGER DEFAULT 0,
   last_used_at TIMESTAMP WITH TIME ZONE,
+  source_type VARCHAR(20) DEFAULT 'unknown',
+  alt_text TEXT,
+  author VARCHAR(255),
+  article_id INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -139,6 +143,8 @@ CREATE INDEX IF NOT EXISTS idx_image_category ON telegram_image_library(category
 CREATE INDEX IF NOT EXISTS idx_image_keywords ON telegram_image_library USING GIN(keywords);
 CREATE INDEX IF NOT EXISTS idx_image_usage ON telegram_image_library(usage_count DESC);
 CREATE INDEX IF NOT EXISTS idx_image_last_used ON telegram_image_library(last_used_at DESC);
+CREATE INDEX IF NOT EXISTS idx_image_source_type ON telegram_image_library(source_type);
+CREATE INDEX IF NOT EXISTS idx_image_article_id ON telegram_image_library(article_id);
 
 CREATE OR REPLACE FUNCTION update_image_library_updated_at()
 RETURNS TRIGGER AS $$

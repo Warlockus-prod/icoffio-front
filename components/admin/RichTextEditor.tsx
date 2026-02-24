@@ -16,6 +16,8 @@ interface RichTextEditorProps {
   onImageClick?: (currentSrc: string) => void;
   /** Enable image support (insert/replace toolbar) */
   enableImages?: boolean;
+  /** Callback to open image picker (replaces window.prompt). Called with callback that receives selected URL. */
+  onOpenImagePicker?: (callback: (url: string, alt?: string) => void, currentSrc?: string) => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export default function RichTextEditor({
   className = '',
   onImageClick,
   enableImages = false,
+  onOpenImagePicker,
 }: RichTextEditorProps) {
   const [selectedImage, setSelectedImage] = useState<{ src: string; pos: number } | null>(null);
   const imagePopoverRef = useRef<HTMLDivElement>(null);
@@ -178,9 +181,15 @@ export default function RichTextEditor({
   };
 
   const insertImage = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
+    if (onOpenImagePicker) {
+      onOpenImagePicker((url: string, alt?: string) => {
+        editor.chain().focus().setImage({ src: url, alt: alt || '' }).run();
+      });
+    } else {
+      const url = window.prompt('Enter image URL:');
+      if (url) {
+        editor.chain().focus().setImage({ src: url }).run();
+      }
     }
   };
 
@@ -384,9 +393,15 @@ export default function RichTextEditor({
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  const newUrl = window.prompt('Enter new image URL:', selectedImage.src);
-                  if (newUrl && newUrl !== selectedImage.src) {
-                    replaceSelectedImage(newUrl);
+                  if (onOpenImagePicker) {
+                    onOpenImagePicker((url: string) => {
+                      replaceSelectedImage(url);
+                    }, selectedImage.src);
+                  } else {
+                    const newUrl = window.prompt('Enter new image URL:', selectedImage.src);
+                    if (newUrl && newUrl !== selectedImage.src) {
+                      replaceSelectedImage(newUrl);
+                    }
                   }
                 }}
                 className="px-2.5 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-medium transition-colors"

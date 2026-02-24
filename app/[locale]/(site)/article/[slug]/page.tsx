@@ -17,7 +17,7 @@ import { UniversalAd } from "@/components/UniversalAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import VideoPlayer from "@/components/VideoPlayer";
-import { getInstreamPlayers, getOutstreamPlayers } from "@/lib/config/video-players";
+import { getInstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
 import { extractMonetizationSettingsFromContent } from "@/lib/monetization-settings";
 import { buildSiteUrl } from "@/lib/site-url";
@@ -174,16 +174,12 @@ export default async function Article({ params }: { params: { locale: string; sl
     : defaultArticleAds;
 
   const defaultInstreamPlayers = getInstreamPlayers();
-  const defaultOutstreamPlayers = getOutstreamPlayers();
   const enabledVideoIds = articleMonetizationSettings
     ? new Set(articleMonetizationSettings.enabledVideoPlayerIds)
     : null;
   const articleInstreamPlayers = enabledVideoIds
     ? defaultInstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
     : defaultInstreamPlayers;
-  const articleOutstreamPlayers = enabledVideoIds
-    ? defaultOutstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
-    : defaultOutstreamPlayers;
 
   // Split by position AND device for proper display
   // Desktop banners
@@ -341,15 +337,11 @@ export default async function Article({ params }: { params: { locale: string; sl
                   key={player.id}
                   type={player.type}
                   position={player.position}
-                  videoUrl={player.videoUrl}
-                  videoPlaylist={player.videoPlaylist}
                   adTagUrl={player.adTagUrl}
                   adTagPlaylist={player.adTagPlaylist}
-                  voxPlaceId={player.voxPlaceId}
-                  autoplay={player.autoplay}
                   muted={player.muted}
                   videoTitle={post.title}
-                  className={`mt-12 ${player.device === 'desktop' ? 'lg:block hidden' : player.device === 'mobile' ? 'lg:hidden' : ''}`}
+                  className="mt-12"
                 />
               ))}
 
@@ -368,25 +360,6 @@ export default async function Article({ params }: { params: { locale: string; sl
                 enabled={ad.enabled}
               />
             ))}
-
-            {/* Outstream Video Player - Sticky Sidebar (Desktop only) */}
-            {articleOutstreamPlayers
-              .filter(p => p.position === 'sidebar-sticky' && p.device === 'desktop')
-              .map((player) => (
-                <VideoPlayer
-                  key={player.id}
-                  type={player.type}
-                  position={player.position}
-                  videoUrl={player.videoUrl}
-                  videoPlaylist={player.videoPlaylist}
-                  adTagUrl={player.adTagUrl}
-                  adTagPlaylist={player.adTagPlaylist}
-                  voxPlaceId={player.voxPlaceId}
-                  autoplay={player.autoplay}
-                  muted={player.muted}
-                  className="mt-6"
-                />
-              ))}
 
             {/* Sidebar bottom ads */}
             {adsSidebarBottom.map((ad) => (

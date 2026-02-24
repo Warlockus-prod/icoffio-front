@@ -6,19 +6,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import type { InterfaceLanguage, TelegramSettings } from '@/lib/telegram-simple/types';
 import { requireAdminRole } from '@/lib/admin-auth';
 
 function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase credentials not configured');
+  if (!isSupabaseConfigured()) {
+    throw new Error('Database is not configured (DATABASE_URL missing)');
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient();
 }
 
 function normalizeInterfaceLanguage(raw?: string | null): InterfaceLanguage {

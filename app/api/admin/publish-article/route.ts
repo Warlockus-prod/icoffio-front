@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import { buildSiteUrl, getSiteBaseUrl } from '@/lib/site-url';
 import { requireAdminRole } from '@/lib/admin-auth';
 
@@ -31,14 +31,11 @@ interface PublishRequest {
 
 // Initialize Supabase client
 function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase credentials not configured');
+  if (!isSupabaseConfigured()) {
+    throw new Error('Database is not configured (DATABASE_URL missing)');
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient();
 }
 
 // Generate slug from title
@@ -146,7 +143,7 @@ export async function POST(request: NextRequest) {
         { 
           error: 'Failed to publish to database',
           published: false,
-          reason: 'supabase_error',
+          reason: 'database_error',
           details: insertError.message
         },
         { status: 500 }
@@ -186,7 +183,7 @@ export async function POST(request: NextRequest) {
       category: category || 'general',
       language: language,
       publishedAt: insertedArticle.created_at || new Date().toISOString(),
-      message: `Article published successfully to Supabase (ID: ${insertedArticle.id})`
+      message: `Article published successfully to database (ID: ${insertedArticle.id})`
     });
 
   } catch (error: any) {
@@ -209,10 +206,7 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-    
-    const configured = !!(supabaseUrl && supabaseKey);
+    const configured = isSupabaseConfigured();
 
     let dbStatus = 'unknown';
     if (configured) {
@@ -232,13 +226,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       service: 'Article Publisher',
       version: '7.14.0',
-      storage: 'Supabase',
+      storage: 'PostgreSQL',
       supabase: {
         configured,
         status: dbStatus,
-        url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'not configured'
+        url: configured ? 'DATABASE_URL configured' : 'not configured'
       },
-      message: 'WordPress dependency removed. Publishing directly to Supabase.'
+      message: 'WordPress dependency removed. Publishing directly to PostgreSQL.'
     });
   } catch (error: any) {
     return NextResponse.json({

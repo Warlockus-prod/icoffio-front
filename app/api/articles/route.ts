@@ -16,6 +16,7 @@ import { editorialQualityService } from '@/lib/editorial-quality-service';
 import { buildSiteUrl } from '@/lib/site-url';
 import { appendServerLog } from '@/lib/server-log-store';
 import { requireAdminRole, type AdminRole } from '@/lib/admin-auth';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 
 const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const PLACEHOLDER_IMAGE_MARKERS = [
@@ -1075,15 +1076,11 @@ async function handleArticlePublication(body: any, request: NextRequest) {
 
     // 1. КРИТИЧЕСКИ ВАЖНО: Сохраняем в Supabase для персистентности
     // Runtime storage НЕ работает в serverless (каждый запрос на разных серверах!)
-    const { createClient } = require('@supabase/supabase-js');
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured()) {
+      throw new Error('Database is not configured (DATABASE_URL missing)');
     }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const supabase = createClient();
     const { addRuntimeArticle } = require('@/lib/local-articles');
     
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Генерируем slug С СУФФИКСАМИ (система требует!)

@@ -4,16 +4,16 @@ services:
     container_name: icoffio-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: icoffio
-      POSTGRES_USER: icoffio
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-icoffio}
+      POSTGRES_USER: ${POSTGRES_USER:-icoffio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./supabase/init:/docker-entrypoint-initdb.d
     ports:
       - "127.0.0.1:5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U icoffio -d icoffio"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-icoffio} -d ${POSTGRES_DB:-icoffio}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,6 +32,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
+    environment:
+      NODE_ENV: production
     depends_on:
       postgres:
         condition: service_healthy

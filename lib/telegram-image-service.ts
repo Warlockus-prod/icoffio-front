@@ -9,7 +9,7 @@
  * @date 2025-10-31
  */
 
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 
 export interface ImageLibraryEntry {
   id?: number;
@@ -30,17 +30,14 @@ function getSupabase(): any {
   if (!supabaseAvailable) return null;
   
   if (!supabaseClient) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.warn('[ImageLibrary] Supabase not configured, image reuse disabled');
+    if (!isSupabaseConfigured()) {
+      console.warn('[ImageLibrary] Database not configured, image reuse disabled');
       supabaseAvailable = false;
       return null;
     }
     
     try {
-      supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+      supabaseClient = createClient();
       console.log('[ImageLibrary] Supabase client initialized');
     } catch (error) {
       console.error('[ImageLibrary] Failed to initialize Supabase:', error);
@@ -234,4 +231,3 @@ export async function getOrGenerateImage(
   
   return newImageUrl;
 }
-

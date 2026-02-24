@@ -10,6 +10,8 @@
  * @date 2025-10-31
  */
 
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
+
 export type PublicationStyle = 'news' | 'analytical' | 'tutorial' | 'opinion';
 
 export interface UserPreferences {
@@ -39,12 +41,8 @@ const DEFAULT_PREFERENCES: Omit<UserPreferences, 'chatId'> = {
 export async function getUserPreferences(chatId: number): Promise<UserPreferences> {
   // Try Supabase first
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
       
       const { data, error } = await supabase
         .from('telegram_user_preferences')
@@ -58,7 +56,7 @@ export async function getUserPreferences(chatId: number): Promise<UserPreference
       }
     }
   } catch (err) {
-    console.warn('[Preferences] Supabase not available, using memory');
+    console.warn('[Preferences] Database not available, using memory');
   }
 
   // Fallback to memory
@@ -88,12 +86,8 @@ export async function setPublicationStyle(chatId: number, style: PublicationStyl
 
   // Try Supabase first
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
       
       const { error } = await supabase
         .from('telegram_user_preferences')
@@ -113,7 +107,7 @@ export async function setPublicationStyle(chatId: number, style: PublicationStyl
       }
     }
   } catch (err) {
-    console.warn('[Preferences] Supabase not available, using memory');
+    console.warn('[Preferences] Database not available, using memory');
   }
 
   // Fallback to memory
@@ -143,12 +137,8 @@ export async function setLanguage(chatId: number, language: string): Promise<voi
 
   // Try Supabase first
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
       
       await supabase
         .from('telegram_user_preferences')
@@ -166,7 +156,7 @@ export async function setLanguage(chatId: number, language: string): Promise<voi
       return;
     }
   } catch (err) {
-    console.warn('[Preferences] Supabase not available, using memory');
+    console.warn('[Preferences] Database not available, using memory');
   }
 
   // Fallback to memory
@@ -180,4 +170,3 @@ export async function setLanguage(chatId: number, language: string): Promise<voi
 export async function getAllPreferences(chatId: number): Promise<UserPreferences> {
   return await getUserPreferences(chatId);
 }
-

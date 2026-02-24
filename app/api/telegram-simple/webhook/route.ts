@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import { answerCallbackQuery, sendTelegramMessage, editTelegramMessage } from '@/lib/telegram-simple/telegram-notifier';
 import { parseUrl } from '@/lib/telegram-simple/url-parser';
 import { processText } from '@/lib/telegram-simple/content-processor';
@@ -545,14 +545,11 @@ function verifyTelegramRequest(request: NextRequest): {
 }
 
 function getActivitySupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
+  if (!isSupabaseConfigured()) {
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient();
 }
 
 async function isDuplicateTelegramUpdatePersistent(
@@ -644,7 +641,7 @@ async function saveTelegramSettings(
 
   const supabase = getActivitySupabaseClient();
   if (!supabase) {
-    console.warn('[TelegramSimple] Supabase not configured, settings change cannot be persisted');
+    console.warn('[TelegramSimple] Database not configured, settings change cannot be persisted');
     return merged;
   }
 
@@ -1046,6 +1043,7 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
       });
     } else {
       submissionId = await createTelegramSubmission({
+        chat_id: input.chatId,
         user_id: input.userId,
         username: input.username,
         first_name: input.firstName,
@@ -1121,11 +1119,11 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
       article = await processText(normalizedText, undefined, settings.contentStyle);
     }
 
-    // Always save as draft — user will choose "Publish Now" or "To Queue" via inline buttons
+    // Respect user setting: auto-publish immediately or keep draft for manual publish.
     const publishResult = await publishArticle(
       article,
       input.chatId,
-      false,
+      settings.autoPublish,
       {
         imagesCount: settings.imagesCount,
         imagesSource: settings.imagesSource,
@@ -1181,38 +1179,60 @@ export async function processSubmission(input: ProcessSubmissionInput): Promise<
 
     if (input.sendResultMessage !== false) {
       const articleId = publishResult.en.id;
-      await sendTelegramMessage(
-        input.chatId,
-        `📝 <b>${localize(uiLang, 'ГОТОВО — ВЫБЕРИТЕ ДЕЙСТВИЕ', 'READY — CHOOSE ACTION', 'GOTOWE — WYBIERZ AKCJĘ')}</b>\n\n` +
-          `${localize(uiLang, '📝 <b>Заголовок:</b>', '📝 <b>Title:</b>', '📝 <b>Tytuł:</b>')} ${escapeHtml(article.title)}\n` +
-          `${localize(uiLang, '📊 <b>Статистика:</b>', '📊 <b>Stats:</b>', '📊 <b>Statystyki:</b>')}\n` +
-          `• ${localize(uiLang, 'Слов', 'Words', 'Słów')}: ${article.wordCount}\n` +
-          `• ${localize(uiLang, 'Категория', 'Category', 'Kategoria')}: ${escapeHtml(article.category)}\n` +
-          `• ${localize(uiLang, 'Время', 'Time', 'Czas')}: ${durationSec}s\n\n` +
-          (singleUrl
-            ? `${localize(uiLang, '🔗 <b>Источник:</b>', '🔗 <b>Source:</b>', '🔗 <b>Źródło:</b>')} ${escapeHtml(singleUrl)}\n\n`
-            : '') +
-          `${localize(uiLang, '🌐 <b>Ссылки (после публикации):</b>', '🌐 <b>Links (after publishing):</b>', '🌐 <b>Linki (po publikacji):</b>')}\n` +
-          `🇬🇧 EN: ${publishResult.en.url}\n` +
-          `🇵🇱 PL: ${publishResult.pl.url}`,
-        {
-          disable_web_page_preview: true,
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: localize(uiLang, '✅ Опубликовать сейчас', '✅ Publish Now', '✅ Publikuj teraz'),
-                  callback_data: `pub:now:${articleId}`,
-                },
-                {
-                  text: localize(uiLang, '📥 В очередь', '📥 To Queue', '📥 Do kolejki'),
-                  callback_data: `pub:queue:${articleId}`,
-                },
+
+      if (settings.autoPublish) {
+        await sendTelegramMessage(
+          input.chatId,
+          `✅ <b>${localize(uiLang, 'ОПУБЛИКОВАНО', 'PUBLISHED', 'OPUBLIKOWANO')}</b>\n\n` +
+            `${localize(uiLang, '📝 <b>Заголовок:</b>', '📝 <b>Title:</b>', '📝 <b>Tytuł:</b>')} ${escapeHtml(article.title)}\n` +
+            `${localize(uiLang, '📊 <b>Статистика:</b>', '📊 <b>Stats:</b>', '📊 <b>Statystyki:</b>')}\n` +
+            `• ${localize(uiLang, 'Слов', 'Words', 'Słów')}: ${article.wordCount}\n` +
+            `• ${localize(uiLang, 'Категория', 'Category', 'Kategoria')}: ${escapeHtml(article.category)}\n` +
+            `• ${localize(uiLang, 'Время', 'Time', 'Czas')}: ${durationSec}s\n\n` +
+            (singleUrl
+              ? `${localize(uiLang, '🔗 <b>Источник:</b>', '🔗 <b>Source:</b>', '🔗 <b>Źródło:</b>')} ${escapeHtml(singleUrl)}\n\n`
+              : '') +
+            `${localize(uiLang, '🌐 <b>Ссылки:</b>', '🌐 <b>Links:</b>', '🌐 <b>Linki:</b>')}\n` +
+            `🇬🇧 EN: ${publishResult.en.url}\n` +
+            `🇵🇱 PL: ${publishResult.pl.url}`,
+          {
+            disable_web_page_preview: true,
+          }
+        );
+      } else {
+        await sendTelegramMessage(
+          input.chatId,
+          `📝 <b>${localize(uiLang, 'ГОТОВО — ВЫБЕРИТЕ ДЕЙСТВИЕ', 'READY — CHOOSE ACTION', 'GOTOWE — WYBIERZ AKCJĘ')}</b>\n\n` +
+            `${localize(uiLang, '📝 <b>Заголовок:</b>', '📝 <b>Title:</b>', '📝 <b>Tytuł:</b>')} ${escapeHtml(article.title)}\n` +
+            `${localize(uiLang, '📊 <b>Статистика:</b>', '📊 <b>Stats:</b>', '📊 <b>Statystyki:</b>')}\n` +
+            `• ${localize(uiLang, 'Слов', 'Words', 'Słów')}: ${article.wordCount}\n` +
+            `• ${localize(uiLang, 'Категория', 'Category', 'Kategoria')}: ${escapeHtml(article.category)}\n` +
+            `• ${localize(uiLang, 'Время', 'Time', 'Czas')}: ${durationSec}s\n\n` +
+            (singleUrl
+              ? `${localize(uiLang, '🔗 <b>Источник:</b>', '🔗 <b>Source:</b>', '🔗 <b>Źródło:</b>')} ${escapeHtml(singleUrl)}\n\n`
+              : '') +
+            `${localize(uiLang, '🌐 <b>Ссылки (после публикации):</b>', '🌐 <b>Links (after publishing):</b>', '🌐 <b>Linki (po publikacji):</b>')}\n` +
+            `🇬🇧 EN: ${publishResult.en.url}\n` +
+            `🇵🇱 PL: ${publishResult.pl.url}`,
+          {
+            disable_web_page_preview: true,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: localize(uiLang, '✅ Опубликовать сейчас', '✅ Publish Now', '✅ Publikuj teraz'),
+                    callback_data: `pub:now:${articleId}`,
+                  },
+                  {
+                    text: localize(uiLang, '📥 В очередь', '📥 To Queue', '📥 Do kolejki'),
+                    callback_data: `pub:queue:${articleId}`,
+                  },
+                ],
               ],
-            ],
-          },
-        }
-      );
+            },
+          }
+        );
+      }
     }
 
     return {
@@ -1403,6 +1423,7 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
   }
 
   let submissionId = await createTelegramSubmission({
+    chat_id: input.chatId,
     user_id: input.userId,
     username: input.username,
     first_name: input.firstName,
@@ -1416,6 +1437,7 @@ async function enqueueSubmission(input: ProcessSubmissionInput): Promise<Process
   // Backward compatibility if DB status check does not include "queued" yet.
   if (!submissionId) {
     submissionId = await createTelegramSubmission({
+      chat_id: input.chatId,
       user_id: input.userId,
       username: input.username,
       first_name: input.firstName,
@@ -1890,10 +1912,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true, callback: callbackData });
         }
 
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+        const supabase = createClient();
 
         if (callbackData.startsWith('pub:now:')) {
           const { error: pubError } = await supabase

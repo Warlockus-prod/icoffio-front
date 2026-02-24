@@ -17,7 +17,7 @@
  * @date 2025-10-30
  */
 
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import { publishDualLanguageArticle } from './dual-language-publisher';
 import { getSiteBaseUrl } from './site-url';
 import { appendServerLog } from './server-log-store';
@@ -61,22 +61,14 @@ function getSupabase(): any {
   if (!supabaseAvailable) return null;
   
   if (!supabaseClient) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    console.log('[Queue] 🔑 Checking Supabase credentials:', {
-      url: supabaseUrl ? '✅ SET' : '❌ MISSING',
-      key: supabaseServiceKey ? '✅ SET' : '❌ MISSING',
-    });
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[Queue] ❌❌❌ CRITICAL: Supabase NOT configured! In-memory queue will NOT work in serverless!');
+    if (!isSupabaseConfigured()) {
+      console.error('[Queue] ❌❌❌ CRITICAL: DATABASE_URL is missing! In-memory queue will NOT work in serverless!');
       supabaseAvailable = false;
       return null;
     }
     
     try {
-      supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+      supabaseClient = createClient();
       console.log('[Queue] ✅ Supabase client initialized successfully');
     } catch (error) {
       console.error('[Queue] ❌ Failed to initialize Supabase:', error);

@@ -5,21 +5,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import { requireAdminRole } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase not configured');
+  if (!isSupabaseConfigured()) {
+    throw new Error('Database is not configured (DATABASE_URL missing)');
   }
-  
-  return createClient(supabaseUrl, supabaseKey);
+
+  return createClient();
 }
 
 function getPeriodDate(period: string): Date | null {

@@ -5,7 +5,7 @@
  * With image generation support
  */
 
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import type { ProcessedArticle, PublishResult } from './types';
 import { translateToPolish } from './translator';
 import { insertImages, type ImageGenerationOptions } from './image-generator';
@@ -86,14 +86,11 @@ const buildArticleUrl = (locale: 'en' | 'pl', slug: string, siteBaseUrl?: string
  * Get Supabase client
  */
 function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase credentials not configured');
+  if (!isSupabaseConfigured()) {
+    throw new Error('Database is not configured (DATABASE_URL missing)');
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient();
 }
 
 /**

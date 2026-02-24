@@ -198,8 +198,26 @@ $$ LANGUAGE plpgsql;
 -- ============================
 CREATE TABLE IF NOT EXISTS telegram_submissions (
   id SERIAL PRIMARY KEY,
+  user_id BIGINT,
   chat_id BIGINT NOT NULL,
   username VARCHAR(255),
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  submission_type VARCHAR(20) CHECK (submission_type IN ('url', 'text')),
+  submission_content TEXT,
+  article_slug_en VARCHAR(255),
+  article_slug_pl VARCHAR(255),
+  article_url_en TEXT,
+  article_url_pl TEXT,
+  error_message TEXT,
+  error_details JSONB,
+  wp_post_id_en BIGINT,
+  wp_post_id_pl BIGINT,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed_at TIMESTAMP WITH TIME ZONE,
+  processing_time_ms INTEGER,
+  category VARCHAR(100),
+  language VARCHAR(10),
   url TEXT,
   text_content TEXT,
   status VARCHAR(20) DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'published', 'failed')),
@@ -210,6 +228,28 @@ CREATE TABLE IF NOT EXISTS telegram_submissions (
 
 CREATE INDEX IF NOT EXISTS idx_submissions_chat_id ON telegram_submissions(chat_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_status ON telegram_submissions(status);
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'telegram_submissions'
+      AND column_name = 'user_id'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_submissions_user_id ON telegram_submissions(user_id);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'telegram_submissions'
+      AND column_name = 'submitted_at'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON telegram_submissions(submitted_at DESC);
+  END IF;
+END $$;
 
 -- ============================
 -- 8. activity_logs

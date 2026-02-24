@@ -251,7 +251,7 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
   }
 
   try {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured()) throw new Error('Database not configured');
 
     const supabase = getSupabaseClient();
     const isEn = locale === 'en';
@@ -271,7 +271,7 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
 
     const { data: articles, error } = await query;
 
-    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+    if (error) throw new Error(`Database query failed: ${error.message}`);
 
     const uniqueArticles = dedupeArticlesBySlug(articles || [], isEn ? 'en' : 'pl');
 
@@ -279,7 +279,7 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
       transformSupabaseArticleToPost(article, isEn)
     );
 
-    // Runtime articles (dev only) FIRST, then Supabase articles
+    // Runtime articles (dev only) FIRST, then database articles
     const combined = runtimeFiltered.length > 0
       ? [...runtimeFiltered, ...dbPosts]
       : dbPosts;
@@ -291,7 +291,7 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
 
     return unique.slice(0, limit);
   } catch (error) {
-    console.warn('[data] Supabase query failed, using local only:', error);
+    console.warn('[data] Database query failed, using local only:', error);
     return runtimeFiltered.slice(0, limit);
   }
 }
@@ -300,7 +300,7 @@ export async function getTopPosts(limit = 1) { return getAllPosts(limit); }
 
 export async function getAllSlugs(): Promise<string[]> {
   try {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured()) throw new Error('Database not configured');
 
     const supabase = getSupabaseClient();
 
@@ -311,7 +311,7 @@ export async function getAllSlugs(): Promise<string[]> {
       .order('created_at', { ascending: false })
       .limit(400);
 
-    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+    if (error) throw new Error(`Database query failed: ${error.message}`);
 
     const allSlugs: string[] = [];
     for (const article of articles || []) {
@@ -328,7 +328,7 @@ export async function getAllSlugs(): Promise<string[]> {
       return [...new Set([...allSlugs, ...localSlugs])];
     }
   } catch (error) {
-    console.warn('[data] Supabase unavailable for getAllSlugs:', error);
+    console.warn('[data] Database unavailable for getAllSlugs:', error);
   }
 
   const localArticles = await loadRuntimeArticles();
@@ -336,9 +336,9 @@ export async function getAllSlugs(): Promise<string[]> {
 }
 
 export async function getPostBySlug(slug: string, locale: string = 'en'): Promise<Post|null> {
-  // Direct Supabase query (source of truth in production)
+  // Direct database query (source of truth in production)
   try {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured()) throw new Error('Database not configured');
 
     const supabase = getSupabaseClient();
 
@@ -351,8 +351,8 @@ export async function getPostBySlug(slug: string, locale: string = 'en'): Promis
       .limit(20);
 
     if (error) {
-      console.error(`[getPostBySlug] Supabase query error slug="${slug}":`, error.message);
-      throw new Error(`Supabase query failed: ${error.message}`);
+      console.error(`[getPostBySlug] Database query error slug="${slug}":`, error.message);
+      throw new Error(`Database query failed: ${error.message}`);
     }
 
     console.log(`[getPostBySlug] slug="${slug}" locale="${locale}" found=${articles?.length ?? 0}`);
@@ -405,7 +405,7 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
   const targetCategorySlug = (cat?.slug || '').trim();
 
   try {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured()) throw new Error('Database not configured');
 
     const supabase = getSupabaseClient();
 
@@ -424,7 +424,7 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
         .order('created_at', { ascending: false })
         .limit(240);
 
-      if (error) throw new Error(`Supabase related query failed: ${error.message}`);
+      if (error) throw new Error(`Database related query failed: ${error.message}`);
       return data || [];
     };
 
@@ -451,7 +451,7 @@ export async function getRelated(cat: Category, excludeSlug: string, limit = 4):
       } as Post;
     });
   } catch (error) {
-    console.warn('[data] Supabase unavailable for getRelated:', error);
+    console.warn('[data] Database unavailable for getRelated:', error);
   }
 
   // Fallback to local articles
@@ -524,7 +524,7 @@ export async function getCategories(locale: string = 'en'): Promise<Category[]> 
         .limit(1200);
 
       if (error) {
-        throw new Error(`Supabase category query failed: ${error.message}`);
+        throw new Error(`Database category query failed: ${error.message}`);
       }
 
       for (const row of data || []) {
@@ -534,7 +534,7 @@ export async function getCategories(locale: string = 'en'): Promise<Category[]> 
       }
     }
   } catch (error) {
-    console.warn('[data] Supabase categories unavailable, using local only:', error);
+    console.warn('[data] Database categories unavailable, using local only:', error);
   }
 
   return Array.from(categoriesMap.values());
@@ -561,7 +561,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
   let supabasePosts: Post[] = [];
 
   try {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured()) throw new Error('Database not configured');
 
     const supabase = getSupabaseClient();
 
@@ -585,7 +585,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
         .order('created_at', { ascending: false })
         .limit(Math.max(limit * 10, 240));
 
-      if (error) throw new Error(`Supabase query failed: ${error.message}`);
+      if (error) throw new Error(`Database query failed: ${error.message}`);
       return data || [];
     };
 
@@ -597,7 +597,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
       transformSupabaseArticleToPost(article, isEn)
     );
 
-    console.log(`[data] Loaded ${supabasePosts.length} articles from Supabase for category ${slug}`);
+    console.log(`[data] Loaded ${supabasePosts.length} articles from database for category ${slug}`);
 
     const combinedByCategory = localFiltered.length > 0
       ? [...localFiltered, ...supabasePosts]

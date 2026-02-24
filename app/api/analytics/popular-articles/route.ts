@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,21 +34,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.SUPABASE_SERVICE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
+    if (!isSupabaseConfigured()) {
       return NextResponse.json(
-        { error: 'Supabase not configured' },
+        { error: 'Database is not configured (DATABASE_URL missing)' },
         { status: 503 }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient();
 
     // Live path for locale-specific stats (en/pl): uses article_views aggregation via RPC
     // to avoid stale materialized-view reads.

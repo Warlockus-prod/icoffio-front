@@ -59,7 +59,7 @@ class TelegramDatabaseService {
    */
   async trackUser(user: TelegramUser): Promise<void> {
     if (!isSupabaseConfigured()) {
-      console.log('[DB] Supabase not configured, skipping user tracking');
+      console.log('[DB] Database not configured, skipping user tracking');
       return;
     }
 
@@ -148,7 +148,7 @@ class TelegramDatabaseService {
    */
   async logUsage(log: UsageLog): Promise<void> {
     if (!isSupabaseConfigured()) {
-      console.log('[DB] Supabase not configured, skipping usage log');
+      console.log('[DB] Database not configured, skipping usage log');
       return;
     }
 
@@ -186,7 +186,7 @@ class TelegramDatabaseService {
    */
   async logArticle(article: PublishedArticle): Promise<void> {
     if (!isSupabaseConfigured()) {
-      console.log('[DB] Supabase not configured, skipping article log');
+      console.log('[DB] Database not configured, skipping article log');
       return;
     }
 
@@ -358,7 +358,6 @@ class TelegramDatabaseService {
 
 // Singleton instance
 export const telegramDB = new TelegramDatabaseService();
-
 
 
 

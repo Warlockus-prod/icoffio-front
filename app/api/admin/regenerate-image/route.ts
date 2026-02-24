@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import { 
   generateSmartImagePrompts, 
   buildUnsplashQueryFromTags 
@@ -368,14 +368,11 @@ async function getArticleData(params: {
 }
 
 function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
+  if (!isSupabaseConfigured()) {
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient();
 }
 
 function buildReferenceCandidates(reference: string): string[] {

@@ -4,7 +4,7 @@
  * Для отслеживания просмотров статей и определения популярных статей
  */
 
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import { getRateLimiter, RateLimits } from './rate-limiter';
 
 // Ленивая инициализация клиента
@@ -19,24 +19,12 @@ const POPULAR_ARTICLES_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
  */
 function getSupabaseClient() {
   if (!supabaseClient) {
-    // Prefer NEXT_PUBLIC_SUPABASE_URL to avoid production outages when SUPABASE_URL is stale/misconfigured.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.SUPABASE_SERVICE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.warn('[Supabase Analytics] Missing credentials, analytics disabled');
+    if (!isSupabaseConfigured()) {
+      console.warn('[Supabase Analytics] DATABASE_URL is not configured, analytics disabled');
       return null;
     }
 
-    supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
+    supabaseClient = createClient();
 
     console.log('[Supabase Analytics] Client initialized');
   }
@@ -182,6 +170,7 @@ export async function getArticleViews(articleSlug: string): Promise<number> {
 
 export interface TelegramSubmission {
   id?: number;
+  chat_id?: number;
   user_id: number;
   username?: string;
   first_name?: string;
@@ -214,9 +203,16 @@ export async function createTelegramSubmission(
   if (!client) return null;
 
   try {
+    const payload: Record<string, any> = { ...(submission as any) };
+
+    // Backward-compatible fallback for schemas where chat_id is NOT NULL.
+    if (payload.chat_id == null && typeof payload.user_id === 'number') {
+      payload.chat_id = payload.user_id;
+    }
+
     const { data, error } = await (client as any)
       .from('telegram_submissions')
-      .insert(submission)
+      .insert(payload)
       .select('id')
       .single();
 

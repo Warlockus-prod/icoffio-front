@@ -4,19 +4,16 @@
  * Загружает настройки пользователя из БД
  */
 
-import { createClient } from '@/lib/pg-client';
+import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 import type { InterfaceLanguage, TelegramSettings } from './types';
 
 function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn('[SettingsLoader] Supabase not configured, using defaults');
+  if (!isSupabaseConfigured()) {
+    console.warn('[SettingsLoader] Database not configured, using defaults');
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient();
 }
 
 function normalizeInterfaceLanguage(raw?: string | null): InterfaceLanguage {

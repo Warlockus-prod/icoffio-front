@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VIDEO PLAYER WITH DSP PREROLL v10.1.0
+ * VIDEO PLAYER WITH DSP PREROLL v10.1.2
  *
  * Instream video ad player:
  * - Resolves VAST tags via /api/video/preroll → MP4
@@ -9,7 +9,7 @@
  * - Loops ad playlist when no content video
  * - Zero MutationObservers — no Chrome freeze risk
  *
- * @version 10.1.0
+ * @version 10.1.2
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,6 +29,9 @@ interface VideoPlayerProps {
 const PREROLL_SKIP_DELAY_MS = 5000;
 const PREROLL_RESOLVE_TIMEOUT_MS = 15000;
 
+/** Stable empty array — avoids new reference on every render */
+const EMPTY_PLAYLIST: string[] = [];
+
 type PlayerState = 'loading' | 'ready' | 'playing' | 'ended' | 'failed';
 
 interface ResolvedAd {
@@ -40,11 +43,14 @@ export default function VideoPlayer({
   type,
   position,
   adTagUrl,
-  adTagPlaylist = [],
+  adTagPlaylist,
   videoTitle,
   muted = true,
   className = '',
 }: VideoPlayerProps) {
+  // Use stable reference for empty playlist
+  const playlist = adTagPlaylist && adTagPlaylist.length > 0 ? adTagPlaylist : EMPTY_PLAYLIST;
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<PlayerState>('loading');
   const [adQueue, setAdQueue] = useState<ResolvedAd[]>([]);
@@ -55,19 +61,22 @@ export default function VideoPlayer({
   const skipTimerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
 
-  // Only instream type is supported
-  if (type !== 'instream') return null;
+  // Serialize ad tag URLs for stable dependency
+  const adTagUrlsKey = useMemo(
+    () => JSON.stringify([adTagUrl || '', ...playlist]),
+    [adTagUrl, playlist]
+  );
 
   // Collect and validate ad tag URLs
   const adTagUrls = useMemo(() => {
-    return [adTagUrl, ...adTagPlaylist]
+    return [adTagUrl, ...playlist]
       .flatMap((v) => (v || '').split(/\r?\n+/))
       .map((v) => v.trim())
       .filter((v) => /^https?:\/\//i.test(v));
-  }, [adTagUrl, adTagPlaylist]);
+  }, [adTagUrl, playlist]);
 
-  // Nothing to play
-  if (adTagUrls.length === 0) return null;
+  const isUnsupported = type !== 'instream';
+  const noAds = adTagUrls.length === 0;
 
   const currentAd = adQueue[queueIndex] || null;
 
@@ -83,8 +92,10 @@ export default function VideoPlayer({
     }
   }, []);
 
-  // --- Resolve VAST tags on mount ---
+  // --- Resolve VAST tags on mount (uses serialized key for stable deps) ---
   useEffect(() => {
+    if (isUnsupported || noAds) return;
+
     let cancelled = false;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), PREROLL_RESOLVE_TIMEOUT_MS);
@@ -153,7 +164,8 @@ export default function VideoPlayer({
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [adTagUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adTagUrlsKey]);
 
   // --- Autoplay when ad is ready ---
   useEffect(() => {
@@ -167,7 +179,7 @@ export default function VideoPlayer({
       video.play().catch(() => {
         setNeedsInteraction(true);
       });
-    }, 100);
+    }, 150);
 
     return () => window.clearTimeout(id);
   }, [state, currentAd, queueIndex]);
@@ -251,8 +263,8 @@ export default function VideoPlayer({
     videoRef.current?.play().catch(() => undefined);
   }, []);
 
-  // --- Don't render if failed or no ads ---
-  if (state === 'failed' || state === 'ended') return null;
+  // --- Don't render if unsupported, no ads, failed, or ended ---
+  if (isUnsupported || noAds || state === 'failed' || state === 'ended') return null;
 
   const durationLabel =
     currentAd?.durationSeconds && currentAd.durationSeconds > 0

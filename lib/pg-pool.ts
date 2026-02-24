@@ -35,10 +35,6 @@ export function getPool(): Pool {
       console.error('[PG Pool] Unexpected idle-client error:', err.message);
     });
 
-    pool.on('connect', () => {
-      console.log('[PG Pool] New client connected');
-    });
-
     console.log('[PG Pool] Pool initialized (max=20)');
   }
 

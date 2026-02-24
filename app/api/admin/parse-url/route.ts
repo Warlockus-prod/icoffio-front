@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
       category: result.category,
       language: result.language,
       source: result.source,
-      siteName: result.siteName
+      siteName: result.siteName,
+      sourceImages: result.sourceImages || [],
     });
 
   } catch (error: any) {

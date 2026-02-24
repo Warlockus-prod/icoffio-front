@@ -23,21 +23,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }, []);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', description: 'Statistics and overview' },
-    { id: 'parser', label: 'Create Articles', icon: '🔗', description: 'URL/Text/AI creation' },
-    { id: 'articles', label: 'All Articles', icon: '📚', description: 'Manage all articles' },
-    { id: 'editor', label: 'Article Editor', icon: '✏️', description: 'Edit content' },
-    { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Publication queue' },
-    { id: 'images', label: 'Images', icon: '🖼️', description: 'Image gallery' },
-    { id: 'advertising', label: 'Advertising', icon: '📊', description: 'Manage ad placements' },
-    { id: 'content-prompts', label: 'Content Prompts', icon: '📝', description: 'Manage text processing styles' },
-    { id: 'activity', label: 'Activity', icon: '📊', description: 'User activity log' },
-    { id: 'telegram', label: 'Telegram', icon: '🤖', description: 'Telegram bot settings' },
-    { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings' }
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', description: 'Statistics and overview', hidden: false },
+    { id: 'parser', label: 'Create Articles', icon: '🔗', description: 'URL/Text/AI creation', hidden: false },
+    { id: 'articles', label: 'All Articles', icon: '📚', description: 'Manage all articles', hidden: false },
+    { id: 'editor', label: 'Article Editor', icon: '✏️', description: 'Edit content', hidden: false },
+    { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Publication queue', hidden: false },
+    { id: 'images', label: 'Images', icon: '🖼️', description: 'Image gallery', hidden: false },
+    { id: 'advertising', label: 'Advertising', icon: '📊', description: 'Manage ad placements', hidden: false },
+    { id: 'content-prompts', label: 'Content Prompts', icon: '📝', description: 'Manage text processing styles', hidden: false },
+    { id: 'activity', label: 'Activity', icon: '📊', description: 'User activity log', hidden: false },
+    { id: 'telegram', label: 'Telegram', icon: '🤖', description: 'Telegram bot settings', hidden: false },
+    { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics', hidden: false },
+    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings', hidden: false },
+    // Hidden tab — only shown when editing a published article (not in sidebar)
+    { id: 'published-editor', label: 'Edit Article', icon: '📝', description: 'Edit published article', hidden: true },
   ] as const;
 
   const visibleMenuItems = menuItems.filter((item) => {
+    // Never show hidden tabs in sidebar
+    if (item.hidden) return false;
     if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(item.id)) {
       return hasRole('admin');
     }

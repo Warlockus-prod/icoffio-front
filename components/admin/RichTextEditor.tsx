@@ -3,14 +3,19 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
   className?: string;
+  /** Callback fired when user clicks an image in the editor. Receives current src, returns new src (or null to cancel). */
+  onImageClick?: (currentSrc: string) => void;
+  /** Enable image support (insert/replace toolbar) */
+  enableImages?: boolean;
 }
 
 /**
@@ -31,7 +36,12 @@ export default function RichTextEditor({
   onChange,
   placeholder = 'Start writing...',
   className = '',
+  onImageClick,
+  enableImages = false,
 }: RichTextEditorProps) {
+  const [selectedImage, setSelectedImage] = useState<{ src: string; pos: number } | null>(null);
+  const imagePopoverRef = useRef<HTMLDivElement>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -46,6 +56,17 @@ export default function RichTextEditor({
           class: 'text-blue-600 hover:text-blue-800 underline',
         },
       }),
+      ...(enableImages
+        ? [
+            Image.configure({
+              inline: false,
+              allowBase64: false,
+              HTMLAttributes: {
+                class: 'rounded-lg max-w-full cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all',
+              },
+            }),
+          ]
+        : []),
       Placeholder.configure({
         placeholder,
       }),
@@ -61,6 +82,20 @@ export default function RichTextEditor({
         'data-gramm_editor': 'false',
         'data-enable-grammarly': 'false',
       },
+      handleClick(view, pos, event) {
+        if (!enableImages) return false;
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'IMG') {
+          const src = target.getAttribute('src') || '';
+          setSelectedImage({ src, pos });
+          if (onImageClick) {
+            onImageClick(src);
+          }
+          return true;
+        }
+        setSelectedImage(null);
+        return false;
+      },
     },
   });
 
@@ -70,6 +105,57 @@ export default function RichTextEditor({
       editor.commands.setContent(content);
     }
   }, [content, editor]);
+
+  // Close image popover on outside click
+  useEffect(() => {
+    if (!selectedImage) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (imagePopoverRef.current && !imagePopoverRef.current.contains(e.target as Node)) {
+        setSelectedImage(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedImage]);
+
+  const replaceSelectedImage = useCallback(
+    (newSrc: string) => {
+      if (!editor || !selectedImage) return;
+      // Find and replace the image node
+      const { state } = editor;
+      let found = false;
+      state.doc.descendants((node, pos) => {
+        if (found) return false;
+        if (node.type.name === 'image' && node.attrs.src === selectedImage.src) {
+          editor
+            .chain()
+            .focus()
+            .setNodeSelection(pos)
+            .setImage({ src: newSrc, alt: node.attrs.alt || '' })
+            .run();
+          found = true;
+          return false;
+        }
+      });
+      setSelectedImage(null);
+    },
+    [editor, selectedImage]
+  );
+
+  const removeSelectedImage = useCallback(() => {
+    if (!editor || !selectedImage) return;
+    const { state } = editor;
+    let found = false;
+    state.doc.descendants((node, pos) => {
+      if (found) return false;
+      if (node.type.name === 'image' && node.attrs.src === selectedImage.src) {
+        editor.chain().focus().setNodeSelection(pos).deleteSelection().run();
+        found = true;
+        return false;
+      }
+    });
+    setSelectedImage(null);
+  }, [editor, selectedImage]);
 
   if (!editor) {
     return null;
@@ -89,6 +175,13 @@ export default function RichTextEditor({
     }
 
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  };
+
+  const insertImage = () => {
+    const url = window.prompt('Enter image URL:');
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
   };
 
   return (
@@ -236,6 +329,19 @@ export default function RichTextEditor({
           )}
         </div>
 
+        {/* Image (when enabled) */}
+        {enableImages && (
+          <div className="flex gap-1 pr-2 border-r border-gray-300 dark:border-gray-600">
+            <button
+              onClick={insertImage}
+              className="px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors text-gray-700 dark:text-gray-300 touch-none"
+              title="Insert Image"
+            >
+              🖼️ <span className="hidden sm:inline">Image</span>
+            </button>
+          </div>
+        )}
+
         {/* Undo/Redo */}
         <div className="flex gap-1">
           <button
@@ -257,9 +363,76 @@ export default function RichTextEditor({
         </div>
       </div>
 
+      {/* Inline Image Popover */}
+      {enableImages && selectedImage && (
+        <div
+          ref={imagePopoverRef}
+          className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 flex items-center gap-2"
+        >
+          <img
+            src={selectedImage.src}
+            alt=""
+            className="w-16 h-16 object-cover rounded"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <div className="flex flex-col gap-1.5">
+            <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]" title={selectedImage.src}>
+              {selectedImage.src.split('/').pop()?.substring(0, 30) || 'Image'}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const newUrl = window.prompt('Enter new image URL:', selectedImage.src);
+                  if (newUrl && newUrl !== selectedImage.src) {
+                    replaceSelectedImage(newUrl);
+                  }
+                }}
+                className="px-2.5 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-medium transition-colors"
+              >
+                Replace
+              </button>
+              <button
+                onClick={() => {
+                  const alt = window.prompt(
+                    'Enter alt text:',
+                    editor?.getAttributes('image').alt || ''
+                  );
+                  if (alt !== null && editor) {
+                    const { state } = editor;
+                    state.doc.descendants((node, pos) => {
+                      if (node.type.name === 'image' && node.attrs.src === selectedImage.src) {
+                        editor.chain().focus().setNodeSelection(pos).updateAttributes('image', { alt }).run();
+                        return false;
+                      }
+                    });
+                  }
+                }}
+                className="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 rounded font-medium transition-colors"
+              >
+                Alt Text
+              </button>
+              <button
+                onClick={removeSelectedImage}
+                className="px-2.5 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded font-medium transition-colors"
+              >
+                Remove
+              </button>
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 rounded font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Editor Content */}
-      <EditorContent 
-        editor={editor} 
+      <EditorContent
+        editor={editor}
         className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
       />
     </div>

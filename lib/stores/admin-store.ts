@@ -176,7 +176,10 @@ interface AdminStore {
   currentUser: AdminUser | null;
   
   // Current View
-  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity' | 'telegram';
+  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity' | 'telegram' | 'published-editor';
+
+  // Published article editing
+  editingPublishedArticleId: number | null;
   
   // Parsing Queue
   parsingQueue: ParseJob[];
@@ -198,6 +201,7 @@ interface AdminStore {
   hasRole: (requiredRole: AdminRole) => boolean;
   logout: () => Promise<void>;
   setActiveTab: (tab: AdminStore['activeTab']) => void;
+  setEditingPublishedArticle: (id: number | null) => void;
   
   // Parsing Actions
   addUrlToQueue: (url: string, category: string, contentStyle?: ContentStyleType, options?: UrlProcessingOptions) => void;
@@ -247,6 +251,7 @@ export const useAdminStore = create<AdminStore>()(
       isLoading: false,
       currentUser: null,
       activeTab: 'dashboard',
+      editingPublishedArticleId: null,
       parsingQueue: [],
       selectedArticle: null,
       publishingQueue: [],
@@ -369,6 +374,13 @@ export const useAdminStore = create<AdminStore>()(
       },
 
       setActiveTab: (tab) => set({ activeTab: tab }),
+      setEditingPublishedArticle: (id) => {
+        if (id !== null) {
+          set({ editingPublishedArticleId: id, activeTab: 'published-editor' });
+        } else {
+          set({ editingPublishedArticleId: null, activeTab: 'articles' });
+        }
+      },
 
       // Parsing Actions
       addUrlToQueue: (url, category, contentStyle = 'journalistic', options) => {

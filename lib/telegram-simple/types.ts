@@ -1,6 +1,6 @@
 /**
  * TELEGRAM SIMPLE - TYPE DEFINITIONS
- * 
+ *
  * Простые типы для упрощенной системы
  */
 
@@ -10,6 +10,10 @@ export interface ProcessedArticle {
   excerpt: string;
   category: string;
   wordCount: number;
+  /** GPT-optimized Unsplash search phrase based on article content */
+  imageSearchQuery?: string;
+  /** GPT-optimized DALL-E prompt based on article content */
+  imagePrompt?: string;
 }
 
 export interface PublishResult {
@@ -27,15 +31,29 @@ export interface PublishResult {
   error?: string;
 }
 
+/** Image extracted from a source article HTML page */
+export interface ExtractedImage {
+  url: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+  /** Where the image was found: "og", "content", "figure", "hero" */
+  context?: string;
+  /** Relevance score (higher = more likely to be useful) */
+  score?: number;
+}
+
 export interface ParsedUrl {
   title: string;
   content: string;
+  /** Images extracted from the source page */
+  images?: ExtractedImage[];
 }
 
 /**
  * TELEGRAM SETTINGS v8.5.0
  */
-export type ContentStyle = 
+export type ContentStyle =
   | 'journalistic'
   | 'keep_as_is'
   | 'seo_optimized'

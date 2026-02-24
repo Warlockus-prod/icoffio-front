@@ -6,6 +6,8 @@
 import * as cheerio from 'cheerio';
 import { sanitizeArticleBodyText } from './utils/content-formatter';
 import { appendServerLog } from './server-log-store';
+import { extractSourceImages } from './utils/extract-source-images';
+import type { ExtractedImage } from './telegram-simple/types';
 
 export interface ExtractedContent {
   title: string;
@@ -22,6 +24,8 @@ export interface ExtractedContent {
     label: string;
     url: string;
   }>;
+  /** All images extracted from the source page */
+  sourceImages?: ExtractedImage[];
 }
 
 export interface ParsingOptions {
@@ -58,6 +62,7 @@ class UrlParserService {
       const $ = cheerio.load(html);
       
       // 4. Извлекаем все необходимые данные
+      const sourceImages = extractSourceImages($, url);
       const extractedContent: ExtractedContent = {
         title: this.extractTitle($),
         content: this.extractMainContent($, opts),
@@ -70,6 +75,7 @@ class UrlParserService {
         source: new URL(url).hostname,
         siteName: this.extractSiteName($),
         sourceAttributions: this.extractSourceAttributions($, url),
+        sourceImages: sourceImages.length > 0 ? sourceImages : undefined,
       };
 
       // 5. Валидация результата

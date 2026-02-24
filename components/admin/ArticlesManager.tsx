@@ -392,12 +392,21 @@ export default function ArticlesManager() {
     }
   };
 
-  // Edit article: load into editor and switch tab
+  // Edit article: open in PublishedArticleEditor for dynamic, or old editor for admin
   const handleEditArticle = async (article: ArticleItem) => {
-    const { selectArticle, setActiveTab } = useAdminStore.getState();
+    const { selectArticle, setActiveTab, setEditingPublishedArticle } = useAdminStore.getState();
+
+    if (article.status === 'dynamic') {
+      // Open in new PublishedArticleEditor — extract the raw Supabase ID
+      const match = article.id.match(/^supabase_(\d+)_/);
+      if (match) {
+        setEditingPublishedArticle(parseInt(match[1], 10));
+        return;
+      }
+    }
 
     if (article.status === 'admin') {
-      // Load from localStorage
+      // Load from localStorage into old editor
       const stored = localArticleStorage.getArticle(article.id);
       if (stored) {
         selectArticle({
@@ -412,37 +421,6 @@ export default function ArticlesManager() {
         });
         setActiveTab('editor');
         return;
-      }
-    }
-
-    if (article.status === 'dynamic') {
-      // Load from Supabase — extract the raw Supabase ID from the composite id (supabase_{id}_{lang})
-      const match = article.id.match(/^supabase_(\d+)_/);
-      if (match) {
-        try {
-          const res = await fetch(`/api/supabase-articles?action=get-by-id&id=${match[1]}`);
-          const result = await res.json();
-          if (result.success && result.article) {
-            const a = result.article;
-            selectArticle({
-              id: `supabase_${a.id}`,
-              title: a.title_en || a.title || article.title,
-              content: a.content_en || '',
-              excerpt: a.excerpt_en || a.excerpt || '',
-              category: a.category || 'tech',
-              author: a.author || 'icoffio Editorial Team',
-              image: a.image_url,
-              translations: {
-                en: a.content_en ? { title: a.title_en || a.title, content: a.content_en, excerpt: a.excerpt_en || '' } : undefined,
-                pl: a.content_pl ? { title: a.title_pl || '', content: a.content_pl, excerpt: a.excerpt_pl || '' } : undefined,
-              },
-            });
-            setActiveTab('editor');
-            return;
-          }
-        } catch (err) {
-          console.error('Failed to load article for editing:', err);
-        }
       }
     }
 

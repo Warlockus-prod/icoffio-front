@@ -278,19 +278,23 @@ export async function POST(request: NextRequest) {
 
       case 'publish-article':
         return await handleArticlePublication(body, request);
-        
+
+      case 'update-article':
+        return await handleUpdateArticle(body, request);
+
       default:
         return NextResponse.json(
-          { 
-            error: 'Неизвестное действие', 
+          {
+            error: 'Неизвестное действие',
             supportedActions: [
               'create-from-telegram',
-              'create-from-url', 
+              'create-from-url',
               'create-from-text',
               'health-check',
               'get-categories',
               'wordpress-health',
-              'publish-article'
+              'publish-article',
+              'update-article'
             ]
           },
           { status: 400 }
@@ -1058,6 +1062,79 @@ function appendSourceAttribution(
 
 // ✅ v7.30.0: formatContentToHtml and escapeHtml moved to lib/utils/content-formatter.ts
 // This eliminates code duplication - now imported at the top of this file
+
+// ========== ОБНОВЛЕНИЕ СТАТЕЙ ==========
+
+async function handleUpdateArticle(body: any, request: NextRequest) {
+  // Require editor role
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
+  try {
+    const { articleId, fields } = body;
+
+    if (!articleId) {
+      return NextResponse.json({ error: 'articleId is required' }, { status: 400 });
+    }
+    if (!fields || typeof fields !== 'object') {
+      return NextResponse.json({ error: 'fields object is required' }, { status: 400 });
+    }
+
+    console.log(`✏️ Updating article ${articleId}:`, Object.keys(fields).join(', '));
+
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient();
+
+    // Build update object from allowed fields
+    const allowedFields: Record<string, string> = {
+      title: 'title',
+      content_en: 'content_en',
+      content_pl: 'content_pl',
+      excerpt_en: 'excerpt_en',
+      excerpt_pl: 'excerpt_pl',
+      image_url: 'image_url',
+      category: 'category',
+      author: 'author',
+      meta_description: 'meta_description',
+      tags: 'tags',
+    };
+
+    const updateData: Record<string, any> = {};
+    for (const [inputKey, dbColumn] of Object.entries(allowedFields)) {
+      if (fields[inputKey] !== undefined) {
+        updateData[dbColumn] = fields[inputKey];
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('published_articles')
+      .update(updateData)
+      .eq('id', articleId);
+
+    if (error) {
+      console.error(`❌ Failed to update article ${articleId}:`, error);
+      return NextResponse.json({ error: `Database error: ${error.message}` }, { status: 500 });
+    }
+
+    console.log(`✅ Article ${articleId} updated successfully`);
+    await appendServerLog('info', 'api', 'article_updated', `Article ${articleId} updated`, {
+      articleId,
+      fields: Object.keys(updateData),
+    });
+
+    return NextResponse.json({ success: true, articleId });
+  } catch (error: any) {
+    console.error('❌ Update article error:', error);
+    return NextResponse.json({ error: error.message || 'Unknown error' }, { status: 500 });
+  }
+}
 
 // ========== ПУБЛИКАЦИЯ СТАТЕЙ ==========
 

@@ -24,6 +24,10 @@ export interface ImageGenerationOptions {
   title: string;
   excerpt: string;
   category: string;
+  /** GPT-optimized Unsplash search phrase (from content-processor) */
+  imageSearchQuery?: string;
+  /** GPT-optimized DALL-E prompt (from content-processor) */
+  imagePrompt?: string;
 }
 
 const IMAGE_REQUEST_RETRIES = 2;
@@ -36,9 +40,11 @@ export async function insertImages(
   content: string,
   options: ImageGenerationOptions
 ): Promise<string> {
-  const { imagesCount, imagesSource, title, excerpt, category } = options;
+  const { imagesCount, imagesSource, title, excerpt, category, imageSearchQuery, imagePrompt } = options;
 
   console.log(`[TelegramImages] Inserting ${imagesCount} images from ${imagesSource}...`);
+  if (imageSearchQuery) console.log(`[TelegramImages] 🧠 GPT search query: ${imageSearchQuery}`);
+  if (imagePrompt) console.log(`[TelegramImages] 🧠 GPT DALL-E prompt: ${imagePrompt?.substring(0, 80)}...`);
 
   // No images requested
   if (imagesCount === 0 || imagesSource === 'none') {
@@ -48,7 +54,7 @@ export async function insertImages(
 
   try {
     // Generate images in parallel
-    const imageUrls = await generateImages(imagesCount, imagesSource, title, excerpt, category);
+    const imageUrls = await generateImages(imagesCount, imagesSource, title, excerpt, category, imageSearchQuery, imagePrompt);
 
     if (imageUrls.length === 0) {
       console.warn('[TelegramImages] No images generated, returning original content');
@@ -74,16 +80,18 @@ async function generateImages(
   source: 'unsplash' | 'ai',
   title: string,
   excerpt: string,
-  category: string
+  category: string,
+  gptSearchQuery?: string,
+  gptImagePrompt?: string
 ): Promise<string[]> {
   const sourcePlan = buildImageSourcePlan(count, source);
-  const keywordPhrase = buildImageKeywordPhrase({ title, excerpt, category }, 6);
+  const keywordPhrase = gptSearchQuery || buildImageKeywordPhrase({ title, excerpt, category }, 6);
   const keywords = extractImageKeywords({ title, excerpt, category }, 8);
 
   console.log(
     `[TelegramImages] Generating ${count} images (requested source: ${source}, plan: ${sourcePlan.join(' + ')})...`
   );
-  console.log(`[TelegramImages] Title keywords: ${keywordPhrase}`);
+  console.log(`[TelegramImages] Search phrase: ${keywordPhrase}${gptSearchQuery ? ' (GPT)' : ' (title)'}`);
 
   const generated = await Promise.all(
     sourcePlan.map(async (apiSource, index) => {
@@ -96,6 +104,7 @@ async function generateImages(
         excerpt,
         category,
         imageIndex: index,
+        gptImagePrompt: index === 0 ? gptImagePrompt : undefined,
       });
 
       const url = await requestImageWithRetries(payload, IMAGE_REQUEST_RETRIES);
@@ -176,20 +185,21 @@ function buildImageRequestPayload(input: {
   excerpt: string;
   category: string;
   imageIndex: number;
+  gptImagePrompt?: string;
 }): ImageRequestPayload {
-  const { apiSource, title, keywordPhrase, keywordVariant, excerpt, category, imageIndex } = input;
+  const { apiSource, title, keywordPhrase, keywordVariant, excerpt, category, imageIndex, gptImagePrompt } = input;
 
   if (apiSource === 'dalle') {
-    // DALL-E path: pass meaningful context; prompt construction happens server-side in image service.
+    // DALL-E path: prefer GPT-optimized prompt, fallback to title + keywords.
     return {
       source: 'dalle',
-      title: `${title} ${keywordVariant}`.trim(),
+      title: gptImagePrompt || `${title} ${keywordVariant}`.trim(),
       excerpt: excerpt || keywordPhrase,
       category,
     };
   }
 
-  // Unsplash path: compact search query from title keywords.
+  // Unsplash path: compact search query from keywords (keywordPhrase already uses GPT query if available).
   const query = [keywordPhrase, keywordVariant, category].filter(Boolean).join(' ').trim();
   return {
     source: 'unsplash',

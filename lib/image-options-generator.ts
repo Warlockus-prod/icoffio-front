@@ -210,6 +210,10 @@ export async function generateImageOptions(article: {
   title: string;
   category: string;
   excerpt?: string;
+  /** GPT-optimized Unsplash search phrase (from content-processor) */
+  imageSearchQuery?: string;
+  /** GPT-optimized DALL-E prompt (from content-processor) */
+  imagePrompt?: string;
 }, config?: {
   unsplashCount?: number;
   aiCount?: number;
@@ -220,19 +224,29 @@ export async function generateImageOptions(article: {
   aiGenerated: ImageOption[];
 }> {
   console.log('🎨 Generating image options for article:', article.title);
-  
+  if (article.imageSearchQuery) console.log('🧠 GPT search query:', article.imageSearchQuery);
+  if (article.imagePrompt) console.log('🧠 GPT image prompt:', article.imagePrompt?.substring(0, 80) + '...');
+
   // 1. Определяем количество изображений
   const unsplashCount = config?.unsplashCount ?? 3;
   const aiCount = config?.aiCount ?? 2;
-  
+
   // 2. Генерируем или используем кастомные запросы/промпты
+  // Priority: custom > GPT-optimized > title-based fallback
+  const titleQueries = generateSearchQueries(article.title, article.category, article.excerpt);
+  const titlePrompts = generateImagePrompts(article.title, article.category, article.excerpt);
+
   const searchQueries = config?.customQueries && config.customQueries.length > 0
     ? config.customQueries.slice(0, unsplashCount)
-    : generateSearchQueries(article.title, article.category, article.excerpt).slice(0, unsplashCount);
-    
+    : article.imageSearchQuery
+      ? [article.imageSearchQuery, ...titleQueries].slice(0, unsplashCount)
+      : titleQueries.slice(0, unsplashCount);
+
   const imagePrompts = config?.customPrompts && config.customPrompts.length > 0
     ? config.customPrompts.slice(0, aiCount)
-    : generateImagePrompts(article.title, article.category, article.excerpt).slice(0, aiCount);
+    : article.imagePrompt
+      ? [article.imagePrompt, ...titlePrompts].slice(0, aiCount)
+      : titlePrompts.slice(0, aiCount);
   
   console.log(`📝 Generating ${unsplashCount} Unsplash + ${aiCount} AI images`);
   console.log('📝 Search queries:', searchQueries);

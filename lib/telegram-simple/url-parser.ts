@@ -6,6 +6,7 @@
 
 import * as cheerio from 'cheerio';
 import type { ParsedUrl } from './types';
+import { extractSourceImages } from '@/lib/utils/extract-source-images';
 
 /**
  * Parse URL and extract title + content
@@ -93,11 +94,14 @@ export async function parseUrl(url: string): Promise<ParsedUrl> {
 
     const content = paragraphs.join('\n\n');
 
-    console.log(`[TelegramSimple] ✅ Parsed: "${title}" (${content.length} chars)`);
+    // Extract images from source page
+    const images = extractSourceImages($, url);
+    console.log(`[TelegramSimple] ✅ Parsed: "${title}" (${content.length} chars, ${images.length} images)`);
 
     return {
       title: title || 'Untitled Article',
       content,
+      images: images.length > 0 ? images : undefined,
     };
 
   } catch (error: any) {

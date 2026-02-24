@@ -12,6 +12,7 @@ import PublishingQueue from '@/components/admin/PublishingQueue';
 import LogsViewer from '@/components/admin/LogsViewer';
 import CleanupTool from '@/components/admin/CleanupTool';
 import ArticlesManager from '@/components/admin/ArticlesManager';
+import PublishedArticleEditor from '@/components/admin/PublishedArticleEditor';
 import AdvertisingManager from '@/components/admin/AdvertisingManager';
 import packageJson from '@/package.json';
 import ContentPromptManager from '@/components/admin/ContentPromptManager';
@@ -21,15 +22,17 @@ import TeamAccessManager from '@/components/admin/TeamAccessManager';
 
 export default function AdminPage() {
   const pathname = usePathname();
-  const { 
-    isAuthenticated, 
-    isLoading, 
-    activeTab, 
+  const {
+    isAuthenticated,
+    isLoading,
+    activeTab,
     currentUser,
+    editingPublishedArticleId,
     authenticate,
     checkSession,
     hasRole,
     setActiveTab,
+    setEditingPublishedArticle,
   } = useAdminStore();
   
   const [password, setPassword] = useState('');
@@ -44,7 +47,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const currentTabRequiresAdmin = ['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(activeTab);
-    const currentTabRequiresEditor = ['parser', 'editor', 'images', 'queue'].includes(activeTab);
+    const currentTabRequiresEditor = ['parser', 'editor', 'images', 'queue', 'published-editor'].includes(activeTab);
 
     if (!isAuthenticated) return;
 
@@ -188,7 +191,7 @@ export default function AdminPage() {
     if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(tab)) {
       return hasRole('admin');
     }
-    if (['parser', 'editor', 'images', 'queue'].includes(tab)) {
+    if (['parser', 'editor', 'images', 'queue', 'published-editor'].includes(tab)) {
       return hasRole('editor');
     }
     return hasRole('viewer');
@@ -213,6 +216,18 @@ export default function AdminPage() {
         return <URLParser />;
       case 'articles':
         return <ArticlesManager />;
+      case 'published-editor':
+        return editingPublishedArticleId ? (
+          <PublishedArticleEditor
+            articleId={editingPublishedArticleId}
+            onClose={() => setEditingPublishedArticle(null)}
+            onSaved={() => {
+              // Will refresh articles list when user goes back
+            }}
+          />
+        ) : (
+          <ArticlesManager />
+        );
       case 'editor':
         return <ArticleEditor />;
       case 'images':

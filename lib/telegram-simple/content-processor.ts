@@ -77,7 +77,9 @@ OUTPUT FORMAT (JSON):
   "title": "Article title IN ENGLISH (55-95 characters)",
   "content": "Full article content in Markdown with ## headings IN ENGLISH",
   "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH",
-  "category": "One of: ai, tech, gadgets, software, hardware, internet, security"
+  "category": "One of: ai, tech, gadgets, software, hardware, internet, security",
+  "imageSearchQuery": "3-5 word visual search phrase for stock photo (describe what the image should SHOW, not article keywords — e.g. 'laptop on wooden desk' not 'apple macbook announcement')",
+  "imagePrompt": "Detailed DALL-E image prompt: describe a specific scene with style, lighting, composition. 2-3 sentences. Based on article's main visual concept."
 }
 
 IMPORTANT: If source text is in Russian, Chinese, or any other language - TRANSLATE EVERYTHING to English!
@@ -155,6 +157,8 @@ Return ONLY valid JSON, no other text.
       excerpt: result.excerpt || result.content?.substring(0, 200) || 'No excerpt',
       category: validateCategory(result.category),
       wordCount: countWords(result.content || text),
+      imageSearchQuery: result.imageSearchQuery || undefined,
+      imagePrompt: result.imagePrompt || undefined,
     };
 
     console.log(`[TelegramSimple] ✅ Article processed: "${article.title}" (${article.wordCount} words, ${article.category})`);

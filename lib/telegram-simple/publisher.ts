@@ -132,6 +132,8 @@ export async function publishArticle(
         title: article.title,
         excerpt: article.excerpt,
         category: article.category,
+        imageSearchQuery: article.imageSearchQuery,
+        imagePrompt: article.imagePrompt,
       };
 
       // Insert images into both EN and PL content in parallel

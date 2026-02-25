@@ -40,7 +40,7 @@ class UrlParserService {
     timeout: 15000, // 15 секунд (увеличено с 10)
     maxContentLength: 50000, // 50KB текста
     includeImages: true,
-    userAgent: 'Mozilla/5.0 (compatible; IcoffioBot/1.0; +https://web.icoffio.com)'
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
   };
 
   /**
@@ -111,47 +111,70 @@ class UrlParserService {
   }
 
   /**
-   * Загрузка HTML контента
+   * Загрузка HTML контента с retry логикой
    */
   private async fetchHtml(url: string, options: ParsingOptions): Promise<string> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 2000;
+    let lastError: Error | null = null;
 
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': options.userAgent!,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ru,en-US;q=0.7,en;q=0.3',
-          'Accept-Encoding': 'gzip, deflate',
-          'Connection': 'keep-alive',
-          'Cache-Control': 'max-age=0',
-        },
-        redirect: 'follow'
-      });
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), options.timeout);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      try {
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': options.userAgent!,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ru,en-US;q=0.7,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
+          redirect: 'follow'
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('text/html') && !contentType.includes('text/xml') && !contentType.includes('application/xhtml')) {
+            throw new Error(`Неподдерживаемый тип контента: ${contentType}`);
+          }
+          return await response.text();
+        }
+
+        lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const retryable = response.status >= 500 || response.status === 429 || response.status === 403 || response.status === 404;
+
+        if (!retryable || attempt >= MAX_RETRIES) {
+          throw lastError;
+        }
+
+        console.log(`[URLParserService] ⚠️ Attempt ${attempt + 1} failed (${response.status}), retrying...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (error instanceof Error && error.name === 'AbortError') {
+          lastError = new Error(`Таймаут загрузки URL после ${options.timeout}ms`);
+        } else if (error instanceof Error) {
+          lastError = error;
+        } else {
+          lastError = new Error(String(error));
+        }
+
+        if (attempt >= MAX_RETRIES) {
+          throw lastError;
+        }
+
+        console.log(`[URLParserService] ⚠️ Attempt ${attempt + 1} error: ${lastError.message}, retrying...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('text/html')) {
-        throw new Error(`Неподдерживаемый тип контента: ${contentType}`);
-      }
-
-      return await response.text();
-      
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Таймаут загрузки URL после ${options.timeout}ms`);
-      } else if (error instanceof Error && error.message.includes('fetch')) {
-        throw new Error(`Ошибка загрузки URL: ${error.message}`);
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
     }
+
+    throw lastError || new Error('Failed to fetch URL');
   }
 
   /**

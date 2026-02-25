@@ -482,7 +482,7 @@ const getLocalCategories = (locale: string): Category[] => {
         { name: "Technology", slug: "tech" },
         { name: "Games", slug: "games" },
         { name: "Digital", slug: "digital" },
-        { name: "News", slug: "news-2" }
+        { name: "News", slug: "news" }
       ];
     case 'pl':
       return [
@@ -491,7 +491,7 @@ const getLocalCategories = (locale: string): Category[] => {
         { name: "Technologie", slug: "tech" },
         { name: "Gry", slug: "games" },
         { name: "Digital", slug: "digital" },
-        { name: "Wiadomości", slug: "news-2" }
+        { name: "Wiadomości", slug: "news" }
       ];
     default:
       console.warn(`Unsupported locale: ${locale}. Returning English categories.`);
@@ -501,7 +501,7 @@ const getLocalCategories = (locale: string): Category[] => {
         { name: "Technology", slug: "tech" },
         { name: "Games", slug: "games" },
         { name: "Digital", slug: "digital" },
-        { name: "News", slug: "news-2" }
+        { name: "News", slug: "news" }
       ];
   }
 };

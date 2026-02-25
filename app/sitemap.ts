@@ -8,7 +8,7 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getSiteBaseUrl();
   const locales = ['en', 'pl'];
-  const categories = ['ai', 'apple', 'digital', 'tech', 'games', 'news-2'];
+  const categories = ['ai', 'apple', 'digital', 'tech', 'games', 'news'];
   const localeHome = Object.fromEntries(locales.map((locale) => [locale, `${base}/${locale}`]));
 
   const routes: MetadataRoute.Sitemap = [];

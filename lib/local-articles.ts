@@ -1000,7 +1000,7 @@ The companies that thrive in the digital age are those that view transformation 
     excerpt: "The most important technology news and announcements from the past week in the world of high technology.",
     publishedAt: "2024-01-01T08:00:00Z",
     image: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop",
-    category: { name: "News", slug: "news-2" },
+    category: { name: "News", slug: "news" },
     content: `
 # Tech News Weekly: January 2024
 
@@ -1252,7 +1252,7 @@ Usługi w chmurze, automatyzacja procesów i analiza danych - podstawa udanej tr
     excerpt: "Najważniejsze wiadomości technologiczne i ogłoszenia z minionego tygodnia w świecie wysokich technologii.",
     publishedAt: "2024-01-01T08:00:00Z",
     image: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop",
-    category: { name: "Wiadomości", slug: "news-2" },
+    category: { name: "Wiadomości", slug: "news" },
     content: `
 # Wiadomości technologiczne tygodnia
 

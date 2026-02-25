@@ -19,6 +19,7 @@ import ContentPromptManager from '@/components/admin/ContentPromptManager';
 import ActivityLog from '@/components/admin/ActivityLog';
 import { TelegramSettings } from '@/components/admin/TelegramSettings';
 import TeamAccessManager from '@/components/admin/TeamAccessManager';
+import FeedbackManager from '@/components/admin/FeedbackManager';
 
 export default function AdminPage() {
   const pathname = usePathname();
@@ -46,7 +47,7 @@ export default function AdminPage() {
   }, [checkSession]);
 
   useEffect(() => {
-    const currentTabRequiresAdmin = ['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(activeTab);
+    const currentTabRequiresAdmin = ['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback'].includes(activeTab);
     const currentTabRequiresEditor = ['parser', 'editor', 'images', 'queue', 'published-editor'].includes(activeTab);
 
     if (!isAuthenticated) return;
@@ -188,7 +189,7 @@ export default function AdminPage() {
 
   // Main admin panel after authentication
   const canAccessTab = (tab: typeof activeTab): boolean => {
-    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings'].includes(tab)) {
+    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback'].includes(tab)) {
       return hasRole('admin');
     }
     if (['parser', 'editor', 'images', 'queue', 'published-editor'].includes(tab)) {
@@ -244,6 +245,8 @@ export default function AdminPage() {
         return <ActivityLog />;
       case 'telegram':
         return <TelegramSettings />;
+      case 'feedback':
+        return <FeedbackManager />;
       case 'settings':
         return (
           <div className="space-y-6">

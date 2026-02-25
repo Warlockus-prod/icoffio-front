@@ -1,7 +1,7 @@
 {
   "name": "icoffio-front",
   "private": true,
-  "version": "10.3.3",
+  "version": "10.4.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -26,6 +26,7 @@
     "cheerio": "^1.0.0-rc.12",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
     "jsdom": "^24.1.0",
     "marked": "^16.4.1",
     "next": "^14.2.35",

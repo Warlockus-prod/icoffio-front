@@ -54,6 +54,13 @@ export const API_RATE_LIMITS = {
     maxRequests: 20,      // 20 translations
     windowMs: 60 * 60 * 1000, // per hour
     message: 'Translation limit reached. Please wait.'
+  },
+
+  // Feedback submission (public)
+  FEEDBACK_SUBMIT: {
+    maxRequests: 5,       // 5 submissions
+    windowMs: 15 * 60 * 1000, // per 15 minutes
+    message: 'Too many feedback submissions. Please try again in 15 minutes.'
   }
 };
 

@@ -176,7 +176,7 @@ interface AdminStore {
   currentUser: AdminUser | null;
   
   // Current View
-  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity' | 'telegram' | 'published-editor';
+  activeTab: 'dashboard' | 'parser' | 'articles' | 'editor' | 'images' | 'queue' | 'settings' | 'logs' | 'advertising' | 'content-prompts' | 'activity' | 'telegram' | 'published-editor' | 'feedback';
 
   // Published article editing
   editingPublishedArticleId: number | null;

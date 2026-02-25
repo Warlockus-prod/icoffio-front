@@ -15,6 +15,7 @@ import { SearchModalWrapper } from "@/components/SearchModalWrapper";
 import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 import { AdManager } from "@/components/AdManager";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 
 import { getTranslation } from "@/lib/i18n";
 import { getSiteBaseUrl } from "@/lib/site-url";
@@ -197,6 +198,7 @@ export default function LocaleLayout({
               <main className="pb-10">{children}</main>
               <Footer locale={params.locale} />
               <BackToTop />
+              <FeedbackWidget locale={params.locale} />
               <SearchModalWrapper posts={[]} locale={params.locale} />
               <TestPanel locale={params.locale} />
               <CookieConsent locale={params.locale} />

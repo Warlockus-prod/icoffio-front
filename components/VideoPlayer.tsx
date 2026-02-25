@@ -1,19 +1,37 @@
 'use client';
 
 /**
- * VIDEO PLAYER WITH DSP PREROLL v10.1.2
+ * VIDEO PLAYER WITH DSP PREROLL v10.3.1
  *
  * Instream video ad player:
- * - Resolves VAST tags via /api/video/preroll → MP4
+ * - Resolves VAST tags via /api/video/preroll → MP4 + tracking URLs
  * - Plays preroll ad with skip button
+ * - Fires all VAST tracking pixels (impression, start, quartiles, complete, skip)
  * - Loops ad playlist when no content video
  * - Zero MutationObservers — no Chrome freeze risk
  *
- * @version 10.1.2
+ * @version 10.3.1
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { VideoPlayerPosition, VideoPlayerType } from '@/lib/config/video-players';
+
+interface VastTracking {
+  impression: string[];
+  start: string[];
+  firstQuartile: string[];
+  midpoint: string[];
+  thirdQuartile: string[];
+  complete: string[];
+  skip: string[];
+  mute: string[];
+  unmute: string[];
+  pause: string[];
+  resume: string[];
+  error: string[];
+  clickThrough: string | null;
+  clickTracking: string[];
+}
 
 interface VideoPlayerProps {
   type: VideoPlayerType;
@@ -31,12 +49,45 @@ const PREROLL_RESOLVE_TIMEOUT_MS = 15000;
 
 /** Stable empty array — avoids new reference on every render */
 const EMPTY_PLAYLIST: string[] = [];
+const EMPTY_TRACKING: VastTracking = {
+  impression: [],
+  start: [],
+  firstQuartile: [],
+  midpoint: [],
+  thirdQuartile: [],
+  complete: [],
+  skip: [],
+  mute: [],
+  unmute: [],
+  pause: [],
+  resume: [],
+  error: [],
+  clickThrough: null,
+  clickTracking: [],
+};
 
 type PlayerState = 'loading' | 'ready' | 'playing' | 'ended' | 'failed';
 
 interface ResolvedAd {
   mediaUrl: string;
   durationSeconds: number | null;
+  tracking: VastTracking;
+}
+
+/**
+ * Fire tracking pixel URLs (non-blocking, best-effort).
+ * Uses Image beacons for maximum compatibility — works cross-origin without CORS.
+ */
+function firePixels(urls: string[]) {
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      const img = new Image();
+      img.src = url;
+    } catch {
+      // best-effort — ignore failures
+    }
+  }
 }
 
 export default function VideoPlayer({
@@ -60,6 +111,11 @@ export default function VideoPlayer({
   const [needsInteraction, setNeedsInteraction] = useState(false);
   const skipTimerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
+
+  // Track which quartile pixels have been fired for current ad
+  const firedQuartilesRef = useRef<Set<string>>(new Set());
+  // Track if impression was fired for current ad
+  const impressionFiredRef = useRef(false);
 
   // Serialize ad tag URLs for stable dependency
   const adTagUrlsKey = useMemo(
@@ -108,7 +164,7 @@ export default function VideoPlayer({
           adTagUrls.map(async (tagUrl): Promise<ResolvedAd> => {
             // Direct MP4 URLs don't need resolution
             if (/\.(mp4|webm|ogg)(\?|$)/i.test(tagUrl)) {
-              return { mediaUrl: tagUrl, durationSeconds: null };
+              return { mediaUrl: tagUrl, durationSeconds: null, tracking: EMPTY_TRACKING };
             }
 
             const res = await fetch(
@@ -124,6 +180,7 @@ export default function VideoPlayer({
             return {
               mediaUrl: data.mediaUrl,
               durationSeconds: typeof data.durationSeconds === 'number' ? data.durationSeconds : null,
+              tracking: data.tracking || EMPTY_TRACKING,
             };
           })
         );
@@ -171,8 +228,19 @@ export default function VideoPlayer({
   useEffect(() => {
     if (state !== 'ready' || !currentAd) return;
 
+    // Reset tracking state for new ad
+    firedQuartilesRef.current.clear();
+    impressionFiredRef.current = false;
+
     const video = videoRef.current;
     if (!video) return;
+
+    // Fire impression pixels when ad is ready to play
+    if (currentAd.tracking.impression.length > 0) {
+      firePixels(currentAd.tracking.impression);
+      impressionFiredRef.current = true;
+      console.log('[VideoAd] Fired impression pixels:', currentAd.tracking.impression.length);
+    }
 
     // Small delay for React to render the video element
     const id = window.setTimeout(() => {
@@ -219,10 +287,52 @@ export default function VideoPlayer({
     setNeedsInteraction(false);
     setState('playing');
     startSkipCountdown();
-  }, [startSkipCountdown]);
+
+    // Fire start tracking
+    if (currentAd?.tracking.start.length) {
+      firePixels(currentAd.tracking.start);
+      console.log('[VideoAd] Fired start pixels:', currentAd.tracking.start.length);
+    }
+  }, [startSkipCountdown, currentAd]);
+
+  /** Fire quartile tracking based on video progress */
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !currentAd) return;
+
+    const duration = video.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+
+    const progress = video.currentTime / duration;
+    const t = currentAd.tracking;
+    const fired = firedQuartilesRef.current;
+
+    if (progress >= 0.25 && !fired.has('firstQuartile') && t.firstQuartile.length > 0) {
+      fired.add('firstQuartile');
+      firePixels(t.firstQuartile);
+      console.log('[VideoAd] Fired firstQuartile pixels');
+    }
+    if (progress >= 0.50 && !fired.has('midpoint') && t.midpoint.length > 0) {
+      fired.add('midpoint');
+      firePixels(t.midpoint);
+      console.log('[VideoAd] Fired midpoint pixels');
+    }
+    if (progress >= 0.75 && !fired.has('thirdQuartile') && t.thirdQuartile.length > 0) {
+      fired.add('thirdQuartile');
+      firePixels(t.thirdQuartile);
+      console.log('[VideoAd] Fired thirdQuartile pixels');
+    }
+  }, [currentAd]);
 
   const handleEnded = useCallback(() => {
     clearTimers();
+
+    // Fire complete tracking
+    if (currentAd?.tracking.complete.length) {
+      firePixels(currentAd.tracking.complete);
+      console.log('[VideoAd] Fired complete pixels:', currentAd.tracking.complete.length);
+    }
+
     // Loop through ad queue
     if (adQueue.length > 1) {
       const next = (queueIndex + 1) % adQueue.length;
@@ -238,10 +348,16 @@ export default function VideoPlayer({
     } else {
       setState('ended');
     }
-  }, [adQueue.length, clearTimers, queueIndex]);
+  }, [adQueue.length, clearTimers, queueIndex, currentAd]);
 
   const handleError = useCallback(() => {
     clearTimers();
+
+    // Fire error tracking
+    if (currentAd?.tracking.error.length) {
+      firePixels(currentAd.tracking.error);
+    }
+
     // Try next ad in queue
     if (adQueue.length > 1) {
       const next = (queueIndex + 1) % adQueue.length;
@@ -250,18 +366,49 @@ export default function VideoPlayer({
     } else {
       setState('failed');
     }
-  }, [adQueue.length, clearTimers, queueIndex]);
+  }, [adQueue.length, clearTimers, queueIndex, currentAd]);
 
   const handleSkip = useCallback(() => {
     clearTimers();
     if (videoRef.current) videoRef.current.pause();
+
+    // Fire skip tracking
+    if (currentAd?.tracking.skip.length) {
+      firePixels(currentAd.tracking.skip);
+      console.log('[VideoAd] Fired skip pixels:', currentAd.tracking.skip.length);
+    }
+
     // Advance to next or loop
     handleEnded();
-  }, [clearTimers, handleEnded]);
+  }, [clearTimers, handleEnded, currentAd]);
 
   const handleManualPlay = useCallback(() => {
     videoRef.current?.play().catch(() => undefined);
   }, []);
+
+  /** Handle click on the video — open clickThrough + fire clickTracking */
+  const handleVideoClick = useCallback(() => {
+    if (!currentAd) return;
+    const t = currentAd.tracking;
+
+    // Fire click tracking pixels
+    if (t.clickTracking.length > 0) {
+      firePixels(t.clickTracking);
+      console.log('[VideoAd] Fired clickTracking pixels:', t.clickTracking.length);
+    }
+
+    // Open clickThrough URL in new tab
+    if (t.clickThrough) {
+      window.open(t.clickThrough, '_blank', 'noopener,noreferrer');
+    }
+  }, [currentAd]);
+
+  const handlePause = useCallback(() => {
+    // Only fire pause if we're in playing state (not when skip/ended triggers pause)
+    if (state === 'playing' && currentAd?.tracking.pause.length) {
+      firePixels(currentAd.tracking.pause);
+    }
+  }, [state, currentAd]);
 
   // --- Don't render if unsupported, no ads, failed, or ended ---
   if (isUnsupported || noAds || state === 'failed' || state === 'ended') return null;
@@ -306,13 +453,16 @@ export default function VideoPlayer({
               key={`${currentAd.mediaUrl}-${queueIndex}`}
               ref={videoRef}
               className="w-full object-cover"
-              style={{ maxHeight: '450px' }}
+              style={{ maxHeight: '450px', cursor: currentAd.tracking.clickThrough ? 'pointer' : undefined }}
               playsInline
               muted={muted}
               controls={false}
               onPlay={handlePlay}
               onEnded={handleEnded}
               onError={handleError}
+              onTimeUpdate={handleTimeUpdate}
+              onPause={handlePause}
+              onClick={handleVideoClick}
               onLoadedMetadata={(e) => {
                 if (currentAd.durationSeconds) return;
                 const d = e.currentTarget.duration;

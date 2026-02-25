@@ -11,6 +11,24 @@ interface VastMediaCandidate {
   bitrate: number;
 }
 
+/** VAST tracking events we extract and forward to the client */
+export interface VastTrackingEvents {
+  impression: string[];
+  start: string[];
+  firstQuartile: string[];
+  midpoint: string[];
+  thirdQuartile: string[];
+  complete: string[];
+  skip: string[];
+  mute: string[];
+  unmute: string[];
+  pause: string[];
+  resume: string[];
+  error: string[];
+  clickThrough: string | null;
+  clickTracking: string[];
+}
+
 function parseDurationToSeconds(rawDuration: string): number | null {
   const value = (rawDuration || '').trim();
   if (!value) return null;
@@ -70,6 +88,73 @@ function pickBestMediaUrl(candidates: VastMediaCandidate[]): string | null {
   return sorted[0]?.url || null;
 }
 
+/**
+ * Extract all VAST tracking URLs from XML.
+ * Covers: Impression, TrackingEvents, VideoClicks, Error.
+ */
+function extractTrackingEvents(xml: string): VastTrackingEvents {
+  const tracking: VastTrackingEvents = {
+    impression: [],
+    start: [],
+    firstQuartile: [],
+    midpoint: [],
+    thirdQuartile: [],
+    complete: [],
+    skip: [],
+    mute: [],
+    unmute: [],
+    pause: [],
+    resume: [],
+    error: [],
+    clickThrough: null,
+    clickTracking: [],
+  };
+
+  // <Impression> URLs (can appear multiple times)
+  const impressionRegex = /<Impression\b[^>]*>([\s\S]*?)<\/Impression>/gi;
+  let m: RegExpExecArray | null = null;
+  while ((m = impressionRegex.exec(xml)) !== null) {
+    const url = decodeXmlText(m[1]).trim();
+    if (/^https?:\/\//i.test(url)) tracking.impression.push(url);
+  }
+
+  // <Tracking event="..."> URLs
+  const trackingRegex = /<Tracking\s+event\s*=\s*["'](\w+)["'][^>]*>([\s\S]*?)<\/Tracking>/gi;
+  while ((m = trackingRegex.exec(xml)) !== null) {
+    const event = m[1].toLowerCase();
+    const url = decodeXmlText(m[2]).trim();
+    if (!/^https?:\/\//i.test(url)) continue;
+
+    const key = event as keyof VastTrackingEvents;
+    if (key in tracking && Array.isArray(tracking[key])) {
+      (tracking[key] as string[]).push(url);
+    }
+  }
+
+  // <ClickThrough> URL
+  const clickThroughMatch = xml.match(/<ClickThrough\b[^>]*>([\s\S]*?)<\/ClickThrough>/i);
+  if (clickThroughMatch) {
+    const url = decodeXmlText(clickThroughMatch[1]).trim();
+    if (/^https?:\/\//i.test(url)) tracking.clickThrough = url;
+  }
+
+  // <ClickTracking> URLs
+  const clickTrackingRegex = /<ClickTracking\b[^>]*>([\s\S]*?)<\/ClickTracking>/gi;
+  while ((m = clickTrackingRegex.exec(xml)) !== null) {
+    const url = decodeXmlText(m[1]).trim();
+    if (/^https?:\/\//i.test(url)) tracking.clickTracking.push(url);
+  }
+
+  // <Error> URLs
+  const errorRegex = /<Error\b[^>]*>([\s\S]*?)<\/Error>/gi;
+  while ((m = errorRegex.exec(xml)) !== null) {
+    const url = decodeXmlText(m[1]).trim();
+    if (/^https?:\/\//i.test(url)) tracking.error.push(url);
+  }
+
+  return tracking;
+}
+
 function validateTagUrl(raw: string): URL | null {
   try {
     const parsed = new URL(raw);
@@ -79,6 +164,21 @@ function validateTagUrl(raw: string): URL | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Extract the real client IP from request headers.
+ * Checks X-Forwarded-For, X-Real-IP, then falls back to connection info.
+ */
+function getClientIp(request: NextRequest): string {
+  const xff = request.headers.get('x-forwarded-for');
+  if (xff) {
+    const first = xff.split(',')[0].trim();
+    if (first) return first;
+  }
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp;
+  return request.headers.get('cf-connecting-ip') || '127.0.0.1';
 }
 
 export async function GET(request: NextRequest) {
@@ -95,12 +195,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Forward real client headers to DSP for proper ad targeting & tracking
+  const clientIp = getClientIp(request);
+  const clientUa = request.headers.get('user-agent') || '';
+  const clientReferer = request.headers.get('referer') || '';
+
   try {
     const response = await fetch(validatedUrl.toString(), {
       method: 'GET',
       headers: {
         Accept: 'application/xml,text/xml,*/*',
-        'User-Agent': 'icoffio-preroll-resolver/1.0',
+        'User-Agent': clientUa || 'icoffio-preroll-resolver/1.0',
+        'X-Forwarded-For': clientIp,
+        'X-Real-IP': clientIp,
+        ...(clientReferer ? { Referer: clientReferer } : {}),
       },
       cache: 'no-store',
       redirect: 'follow',
@@ -121,10 +229,15 @@ export async function GET(request: NextRequest) {
     const mediaUrl = pickBestMediaUrl(candidates);
 
     if (!mediaUrl) {
+      // Check if it's an empty VAST (no ad available) vs error
+      const hasAd = /<Ad\b/i.test(xml);
       return NextResponse.json(
         {
           success: false,
-          error: 'No media file found in VAST response',
+          error: hasAd
+            ? 'No media file found in VAST response'
+            : 'No ad available (empty VAST)',
+          vastEmpty: !hasAd,
         },
         { status: 422 }
       );
@@ -132,11 +245,13 @@ export async function GET(request: NextRequest) {
 
     const durationMatch = xml.match(/<Duration>([\s\S]*?)<\/Duration>/i);
     const durationSeconds = parseDurationToSeconds(durationMatch?.[1] || '');
+    const tracking = extractTrackingEvents(xml);
 
     return NextResponse.json({
       success: true,
       mediaUrl,
       durationSeconds,
+      tracking,
       sourceHost: validatedUrl.hostname,
       candidateCount: candidates.length,
     });
@@ -150,4 +265,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

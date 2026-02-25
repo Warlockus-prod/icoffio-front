@@ -367,16 +367,17 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
             <p className="text-xs text-neutral-400 mt-1">{description.length}/5000</p>
           </div>
 
-          {/* Email */}
+          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-              {isPl ? 'Email (opcjonalnie)' : 'Email (optional)'}
+              {isPl ? 'Twoje imię' : 'Your name'}
             </label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={isPl ? 'Twój email do kontaktu' : 'Your email for follow-up'}
+              placeholder={isPl ? 'Jak się nazywasz?' : 'Who are you?'}
+              maxLength={100}
               className="w-full px-3 py-2 border border-neutral-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-sm placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

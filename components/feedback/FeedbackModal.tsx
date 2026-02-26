@@ -33,7 +33,7 @@ interface FeedbackModalProps {
 
 export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalProps) {
   const { showToast } = useToast();
-  const [step, setStep] = useState<'form' | 'capturing'>('form');
+  const [step, setStep] = useState<'form' | 'capturing' | 'success'>('form');
   const [screenshot, setScreenshot] = useState<HTMLImageElement | null>(null);
   const [screenshotBlob, setScreenshotBlob] = useState<Blob | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -230,12 +230,7 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
 
       const data = await res.json();
       if (data.success) {
-        showToast(
-          isPl ? 'Dziękujemy za zgłoszenie! 🎉' : 'Thank you for your feedback! 🎉',
-          'success',
-          4000
-        );
-        onClose();
+        setStep('success');
       } else {
         throw new Error(data.error || 'Failed to submit');
       }
@@ -250,10 +245,59 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
     }
   };
 
+  // Reset form for "report another"
+  const resetForm = () => {
+    setScreenshot(null);
+    setScreenshotBlob(null);
+    setDescription('');
+    setCategory('bug');
+    setStep('form');
+  };
+
   if (!isOpen && !isCapturing) return null;
 
   // During capture — hide the modal completely
   if (isCapturing) return null;
+
+  // Success screen
+  if (step === 'success') {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-sm text-center px-6 py-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
+            {isPl ? 'Wysłano!' : 'Sent!'}
+          </h3>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+            {isPl
+              ? 'Dziękujemy za zgłoszenie. Zajmiemy się tym.'
+              : 'Thank you for your report. We\'ll look into it.'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+            >
+              {isPl ? 'Zamknij' : 'Close'}
+            </button>
+            <button
+              onClick={resetForm}
+              className="px-5 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              {isPl ? 'Nowe zgłoszenie' : 'Report another'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

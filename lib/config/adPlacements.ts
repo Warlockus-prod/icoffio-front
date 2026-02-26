@@ -141,22 +141,21 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
   //   status: 'new'
   // },
 
-  // ОТКЛЮЧЕНО: 320x480 interstitial - слишком навязчивый
-  // {
-  //   id: 'display-1',
-  //   placeId: '68f63437810d98e1a08f26de',
-  //   format: '320x480',
-  //   placement: 'display',
-  //   name: 'Mobile Interstitial',
-  //   description: '320x480 fullscreen banner (Display) - ОТКЛЮЧЕН - плохой UX',
-  //   location: 'article',
-  //   position: 'content-middle',
-  //   enabled: false,
-  //   priority: 7,
-  //   device: 'mobile',
-  //   addedDate: '2025-10-28',
-  //   status: 'new'
-  // },
+  {
+    id: 'mobile-3-large',
+    placeId: '68f63437810d98e1a08f26de',
+    format: '320x480',
+    placement: 'mobile',
+    name: 'Mobile Large Banner Mid-Content',
+    description: '320x480 large banner in middle of article content (Mobile)',
+    location: 'article',
+    position: 'content-middle',
+    enabled: true,
+    priority: 7,
+    device: 'mobile',
+    addedDate: '2026-02-26',
+    status: 'new'
+  },
 
   // ==================== VIDEO ADVERTISING ====================
   // ОТКЛЮЧЕНЫ - требуют отдельной интеграции VOX Video

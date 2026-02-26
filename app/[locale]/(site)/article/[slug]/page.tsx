@@ -227,7 +227,7 @@ export default async function Article({ params }: { params: { locale: string; sl
 
       {/* Mobile Interstitial Ad (once per session, after 15s) */}
       {interstitialAd && (
-        <InterstitialAd placeId={interstitialAd.placeId} delaySeconds={5} />
+        <InterstitialAd placeId={interstitialAd.placeId} delaySeconds={3} />
       )}
 
       <Container>

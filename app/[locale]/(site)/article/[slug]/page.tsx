@@ -14,6 +14,7 @@ import { BackButton } from "@/components/BackButton";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { ArticleSchema, BreadcrumbSchema } from "@/components/StructuredData";
 import { UniversalAd } from "@/components/UniversalAd";
+import { InterstitialAd } from "@/components/InterstitialAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -190,8 +191,10 @@ export default async function Article({ params }: { params: { locale: string; sl
   const adsFooterDesktop = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'desktop');
   
   // Mobile banners
+  const adsHeaderMobile = articleAds.filter(ad => ad.position === 'header' && ad.device === 'mobile');
   const adsContentTopMobile = articleAds.filter(ad => ad.position === 'content-top' && ad.device === 'mobile');
-  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile');
+  const adsContentMiddleMobile = articleAds.filter(ad => ad.position === 'content-middle' && ad.device === 'mobile' && ad.placement !== 'display');
+  const interstitialAd = articleAds.find(ad => ad.placement === 'display' && ad.format === '320x480' && ad.device === 'mobile');
   const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
   const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
   
@@ -221,7 +224,12 @@ export default async function Article({ params }: { params: { locale: string; sl
       
       {/* Track article view for analytics */}
       <ArticleViewTracker articleSlug={post.slug} />
-      
+
+      {/* Mobile Interstitial Ad (once per session, after 15s) */}
+      {interstitialAd && (
+        <InterstitialAd placeId={interstitialAd.placeId} delaySeconds={15} />
+      )}
+
       <Container>
         <div className="flex items-center justify-between mb-4">
           <BackButton locale={params.locale} />
@@ -261,6 +269,18 @@ export default async function Article({ params }: { params: { locale: string; sl
                 </p>
               )}
             </header>
+
+            {/* Mobile Header Ads (above hero) */}
+            {adsHeaderMobile.map((ad) => (
+              <div key={ad.id} className="xl:hidden mb-4">
+                <UniversalAd
+                  placeId={ad.placeId}
+                  format={ad.format}
+                  placement={ad.placement}
+                  enabled={ad.enabled}
+                />
+              </div>
+            ))}
 
             {/* Hero Image */}
             <div className="mb-8">

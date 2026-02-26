@@ -111,7 +111,7 @@ export function FeedbackWidget({ locale = 'en' }: FeedbackWidgetProps) {
           onClick={handleOpen}
           aria-label={isPl ? 'Zgłoś problem' : 'Report an issue'}
           title={isPl ? 'Zgłoś problem' : 'Report an issue'}
-          className="fixed bottom-5 right-5 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group hover:scale-110"
+          className="fixed bottom-20 right-5 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group hover:scale-110"
         >
           <svg
             className="w-6 h-6 transition-transform group-hover:rotate-12"
@@ -129,7 +129,7 @@ export function FeedbackWidget({ locale = 'en' }: FeedbackWidgetProps) {
         </button>
       ) : (
         /* ── Not authenticated: small key icon ── */
-        <div className="fixed bottom-5 right-5 z-40" ref={loginRef}>
+        <div className="fixed bottom-20 right-5 z-40" ref={loginRef}>
           <button
             onClick={() => setShowLogin(prev => !prev)}
             aria-label={isPl ? 'Zaloguj się jako tester' : 'Sign in as tester'}

@@ -142,12 +142,12 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
   // },
 
   {
-    id: 'mobile-3-large',
+    id: 'mobile-interstitial',
     placeId: '68f63437810d98e1a08f26de',
     format: '320x480',
-    placement: 'mobile',
-    name: 'Mobile Large Banner Mid-Content',
-    description: '320x480 large banner in middle of article content (Mobile)',
+    placement: 'display',
+    name: 'Mobile Interstitial',
+    description: '320x480 fullscreen interstitial ad (Mobile, once per session)',
     location: 'article',
     position: 'content-middle',
     enabled: true,

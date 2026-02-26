@@ -17,7 +17,7 @@ interface InterstitialAdProps {
  */
 export function InterstitialAd({
   placeId,
-  delaySeconds = 15,
+  delaySeconds = 5,
   sessionKey = 'icoffio_interstitial_shown',
 }: InterstitialAdProps) {
   const [visible, setVisible] = useState(false);

@@ -7,6 +7,7 @@ import { LanguageSelector } from "./LanguageSelector";
 import { useSearch } from "./SearchProvider";
 import { CategoryIcon } from "./CategoryIcon";
 import { useTheme } from "./ThemeProvider";
+import { ViewportToggle } from "./ViewportToggle";
 
 export function Header() {
   const [locale, setLocale] = useState<string>('en');
@@ -111,6 +112,9 @@ export function Header() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </Link>
+
+          {/* Viewport Toggle (desktop only) */}
+          <ViewportToggle />
 
           {/* Theme Toggle - 3 режима: Light/Dark/System */}
           <button

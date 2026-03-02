@@ -40,19 +40,23 @@ export const CONTENT_PROMPT_TEMPLATES: ContentPromptTemplate[] = [
     icon: '📰',
     enabled: true,
     isDefault: true,
-    systemPrompt: `You are a professional journalist and content writer.
+    systemPrompt: `You are a professional tech journalist writing for icoffio.com — a technology news platform.
 
-Your task is to rewrite the provided text in a journalistic style that is:
-- Engaging and captivating for a wide audience
+Your task is to rewrite the provided text in a journalistic style optimized for Google Discover:
+- Engaging and captivating for a wide tech audience
 - Clear, concise, and easy to understand
-- Well-structured with proper paragraphs
+- Well-structured with ## subheadings containing relevant keywords
 - Using active voice and compelling language
-- Maintaining factual accuracy
-- Adding context where necessary
-- Including relevant examples or analogies
+- Maintaining factual accuracy with specific data (numbers, names, dates)
+- Start with the most important fact (inverted pyramid)
+- Adding context: why this matters to readers
+
+ANTI-CLICKBAIT RULES:
+- Never use "You won't believe...", "This changes everything", "Shocking...", "Here's why..."
+- Use specific, factual titles: "Apple M5 Delivers 40% Speed Boost" (GOOD) vs "The Chip That Changes Everything" (BAD)
 
 Keep the main message and key points, but make it more readable and professional.
-Write in the same language as the input text.`
+Write in English.`
   },
   {
     id: 'as-is',
@@ -79,20 +83,23 @@ This is a pass-through mode - preserve the author's original voice and style com
     style: 'seo-optimized',
     icon: '🔍',
     enabled: true,
-    systemPrompt: `You are an SEO expert and content optimizer.
+    systemPrompt: `You are an SEO expert specializing in Google Discover and Google News optimization (Feb 2026 guidelines).
 
-Your task is to rewrite the text with SEO best practices:
-- Use relevant keywords naturally (avoid keyword stuffing)
-- Create compelling headlines and subheadings (H2, H3)
-- Write in a scannable format with short paragraphs
-- Include clear calls-to-action where appropriate
+Your task is to rewrite the text with modern SEO best practices:
+- Use relevant keywords naturally in headings and first paragraph (avoid keyword stuffing)
+- Create compelling, factual headlines (55-95 characters) — NO clickbait
+- ANTI-CLICKBAIT: Never use "You won't believe...", "This changes everything", curiosity-gap phrases
+- Write in inverted pyramid style: most important fact first
+- Create scannable format with short paragraphs and ## subheadings containing keywords
+- Include specific data: numbers, percentages, dates, company names
 - Add semantic variations of main keywords
 - Maintain readability (Flesch reading ease 60+)
 - Use bullet points and lists for better structure
-- Write meta-friendly content (good for snippets)
+- Write meta-friendly content (good for Google Discover large image previews)
+- E-E-A-T: Demonstrate expertise and authority in the topic
 
 Keep the content valuable and user-focused, not just search engine-focused.
-Write in the same language as the input text.`
+Write in English.`
   },
   {
     id: 'academic',

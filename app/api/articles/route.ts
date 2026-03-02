@@ -1464,7 +1464,12 @@ async function handleArticlePublication(body: any, request: NextRequest) {
     );
     const persistentHeroImage = heroImage && !isPlaceholderImage(heroImage) ? heroImage : null;
     
-    // Подготовка данных для Supabase
+    // Подготовка данных для Supabase (v10.5.0: SEO-enhanced fields)
+    const seoMetaDescription = article.metaDescription || cleanExcerptEn.substring(0, 160);
+    const seoTags = Array.isArray(article.tags) && article.tags.length > 0
+      ? article.tags
+      : ['ai-processed', 'imported'];
+
     const supabaseData = {
       chat_id: 0, // Admin panel
       title: article.title,
@@ -1476,14 +1481,14 @@ async function handleArticlePublication(body: any, request: NextRequest) {
       excerpt_pl: cleanExcerptPl,
       image_url: persistentHeroImage,
       category: article.category || 'tech',
-      author: article.author || 'AI Editorial Team',
-      tags: Array.isArray(article.tags) ? article.tags : ['ai-processed', 'imported'],
+      author: article.author || 'icoffio Editorial Team',
+      tags: seoTags,
       word_count: Math.round((article.content?.split(/\s+/).length || 0)),
       languages: article.translations?.pl ? ['en', 'pl'] : ['en'],
       source: 'admin-panel',
       source_url: sourceUrls.length > 0 ? sourceUrls[0] : null,
       original_input: article.title,
-      meta_description: cleanExcerptEn.substring(0, 160),
+      meta_description: seoMetaDescription,
       published: article.publishImmediately !== false,
       featured: false,
       url_en: buildSiteUrl(`/en/article/${enSlug}`),

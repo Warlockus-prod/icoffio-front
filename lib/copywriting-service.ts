@@ -243,33 +243,44 @@ ${platformSpecs[platform]}
     return `
 ${styleInstructions}
 
-ИСХОДНЫЕ ДАННЫЕ:
-Заголовок: ${title}
-Категория: ${category || 'технологии'}
-Контент: ${content}
-Тональность: ${tone || 'professional'}
-Целевая аудитория: ${targetAudience || 'general'}
-Язык: ${language || 'ru'}
+SOURCE DATA:
+Title: ${title}
+Category: ${category || 'tech'}
+Content: ${content}
+Tone: ${tone || 'professional'}
+Target audience: ${targetAudience || 'general'}
+Language: ${language || 'en'}
 
-ТРЕБОВАНИЯ К ВЫХОДНЫМ ДАННЫМ:
-1. Улучши заголовок (SEO-оптимизированный, 50-60 символов)
-2. Структурируй текст с подзаголовками и списками
-2.1 Используй чистые заголовки (##, ###), НЕ оформляй заголовки через **жирный**
-3. Создай краткое описание (excerpt) до 200 символов
-4. Определи категорию: ai, apple, games, tech
-5. Добавь 5-8 релевантных тегов
-6. Создай мета-описание (150-160 символов)
+OUTPUT REQUIREMENTS:
+1. Improve the title (SEO-optimized, 55-95 characters)
+2. Structure the text with subheadings and lists
+2.1 Use clean headings (##, ###), DO NOT format headings as **bold**
+3. Create a short description (excerpt) up to 200 characters
+4. Determine category: ai, apple, games, tech
+5. Add 3-5 relevant SEO tags (lowercase, specific identifiers like "apple", "m5-chip", "processor")
+6. Create a meta description (120-160 characters) optimized for search snippets
 
-ВАЖНО: Пиши на том же языке, что и исходный контент!
+ANTI-CLICKBAIT RULES (Google Discover Feb 2026):
+- NEVER use: "You won't believe...", "This changes everything", "Shocking..."
+- NEVER use curiosity-gap: "Here's why...", "The reason why..."
+- Use specific, factual titles with numbers, names, dates
+- Start with the most important fact (inverted pyramid)
 
-Верни результат в формате JSON:
+SEO RULES (E-E-A-T compliance):
+- Include specific data: numbers, percentages, dates, company names
+- ## subheadings should contain relevant keywords naturally
+- Every sentence must add value — no generic filler
+
+IMPORTANT: Write in English! Output ALL content in English regardless of source language.
+
+Return result as JSON:
 {
-  "title": "улучшенный заголовок",
-  "content": "улучшенное содержание с разметкой",
-  "excerpt": "краткое описание",
+  "title": "improved title (55-95 chars, factual, no clickbait)",
+  "content": "improved content with markdown formatting",
+  "excerpt": "short description (max 200 chars)",
   "category": "ai|apple|games|tech",
-  "tags": ["тег1", "тег2", "тег3"],
-  "metaDescription": "мета описание"
+  "tags": ["tag1", "tag2", "tag3"],
+  "metaDescription": "SEO meta description (120-160 chars)"
 }
 `;
   }

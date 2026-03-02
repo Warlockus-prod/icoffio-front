@@ -27,6 +27,10 @@ interface PublishRequest {
   jobId?: string;
   wordCount?: number;
   processingTime?: number;
+  /** SEO meta description (120-160 chars) */
+  metaDescription?: string;
+  /** Descriptive alt text for the hero image */
+  imageAlt?: string;
 }
 
 // Initialize Supabase client
@@ -98,18 +102,18 @@ export async function POST(request: NextRequest) {
 
     const frontendUrl = getSiteBaseUrl();
 
-    // Prepare article data
+    // Prepare article data (v10.5.0: SEO-enhanced)
     const articleData: any = {
       title,
       category: category || 'general',
       image_url: image || null,
-      author: author || 'icoffio Bot',
-      tags: tags || [],
+      author: author || 'icoffio Editorial Team',
+      tags: tags && tags.length > 0 ? tags : [category || 'tech'],
       word_count: wordCount || Math.round(content.split(/\s+/).length),
       languages: [language],
       source: source || 'api',
       original_input: body.title,
-      meta_description: excerpt.substring(0, 160),
+      meta_description: body.metaDescription || excerpt.substring(0, 160),
       published: true,
       featured: false,
       chat_id: chatId || 0,

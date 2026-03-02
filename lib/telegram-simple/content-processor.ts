@@ -43,9 +43,9 @@ export async function processText(
       inputText = text.substring(0, MAX_INPUT_CHARS) + '\n\n[Content truncated for processing]';
     }
 
-    // Create prompt
+    // Create prompt (SEO-optimized for Google Discover Feb 2026)
     const prompt = `
-You are a professional tech article writer. Transform the following text into a well-structured article.
+You are a professional tech article writer specializing in SEO-optimized content for Google Discover and Google News.
 
 SOURCE TEXT:
 ${inputText}
@@ -58,11 +58,24 @@ CRITICAL REQUIREMENTS:
 - Focus on key points and insights
 ${userTitle ? `- Translate and use this title: "${userTitle}"` : '- Create an engaging English title'}
 
-TITLE RULES:
+TITLE RULES (Google Discover optimized):
 - Title MUST be between 55 and 95 characters long
 - If the original title is too long, REPHRASE it shorter while preserving the key meaning
 - Do NOT simply truncate — the title must be a complete, meaningful sentence
 - Preserve important numbers, names, and facts in the title
+- NEVER use clickbait: no "You won't believe...", "This changes everything", "Shocking..."
+- NEVER use curiosity-gap phrases: "Here's why...", "The reason why..."
+- Use specific, factual titles: "Apple M5 Chip Delivers 40% Performance Boost in Benchmarks" (GOOD) vs "The New Apple Chip That Changes Everything" (BAD)
+- Include key entities: company names, product names, numbers, dates when relevant
+
+SEO CONTENT RULES (Google E-E-A-T compliance):
+- Start with the most important fact/news in the first paragraph (inverted pyramid)
+- Use ## subheadings that contain relevant keywords naturally
+- Include specific data: numbers, percentages, dates, company names
+- Add context and analysis — not just rephrasing, but WHY this matters
+- Write with authority: demonstrate expertise in the topic
+- Avoid generic filler sentences — every sentence must add value
+- Include at least ONE direct quote or specific data point if available in source
 
 CONTENT CLEANING (mandatory):
 - Remove ALL promotional text: newsletter signups, subscription prompts, "follow us", social media links
@@ -74,13 +87,22 @@ CONTENT CLEANING (mandatory):
 
 OUTPUT FORMAT (JSON):
 {
-  "title": "Article title IN ENGLISH (55-95 characters)",
+  "title": "Article title IN ENGLISH (55-95 characters, factual, no clickbait)",
   "content": "Full article content in Markdown with ## headings IN ENGLISH",
-  "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH",
+  "excerpt": "Brief 1-2 sentence summary (max 200 chars) IN ENGLISH — should work as meta description for search results",
+  "metaDescription": "SEO meta description (120-160 chars): concise summary with primary keyword, compelling but factual",
   "category": "One of: ai, tech, gadgets, software, hardware, internet, security",
+  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "imageSearchQuery": "3-5 word visual search phrase for stock photo (describe what the image should SHOW, not article keywords — e.g. 'laptop on wooden desk' not 'apple macbook announcement')",
-  "imagePrompt": "Detailed DALL-E image prompt: describe a specific scene with style, lighting, composition. 2-3 sentences. Based on article's main visual concept."
+  "imagePrompt": "Detailed DALL-E image prompt: describe a specific scene with style, lighting, composition. 2-3 sentences. Based on article's main visual concept.",
+  "imageAlt": "Descriptive alt text for the hero image (5-15 words, describes what the image shows)"
 }
+
+TAGS RULES:
+- Generate 3-5 relevant tags for the article
+- Tags should be lowercase, specific topic identifiers
+- Include: main technology/company, specific product, broader category
+- Example for Apple M5 article: ["apple", "m5-chip", "processor", "mac", "performance"]
 
 IMPORTANT: If source text is in Russian, Chinese, or any other language - TRANSLATE EVERYTHING to English!
 
@@ -150,7 +172,7 @@ Return ONLY valid JSON, no other text.
       }
     }
 
-    // Validate and prepare article
+    // Validate and prepare article (with SEO-enhanced fields)
     const article: ProcessedArticle = {
       title: finalTitle,
       content: result.content || text,
@@ -159,6 +181,10 @@ Return ONLY valid JSON, no other text.
       wordCount: countWords(result.content || text),
       imageSearchQuery: result.imageSearchQuery || undefined,
       imagePrompt: result.imagePrompt || undefined,
+      // SEO-enhanced fields (v10.5.0)
+      metaDescription: result.metaDescription || result.excerpt?.substring(0, 160) || undefined,
+      tags: Array.isArray(result.tags) ? result.tags.slice(0, 5) : undefined,
+      imageAlt: result.imageAlt || undefined,
     };
 
     console.log(`[TelegramSimple] ✅ Article processed: "${article.title}" (${article.wordCount} words, ${article.category})`);

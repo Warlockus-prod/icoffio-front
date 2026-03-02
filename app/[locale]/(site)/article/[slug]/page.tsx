@@ -110,14 +110,22 @@ export async function generateMetadata({ params }: { params: { locale: string; s
   }
   languageAlternates['x-default'] = languageAlternates.en || url;
 
+  // Build SEO-optimized description (prefer meta_description if available, then excerpt)
+  const seoDescription = (post as any).metaDescription || post.excerpt || `${post.title} - detailed article on icoffio`;
+
+  // Build comprehensive tags for OG and SEO
+  const articleTags = post.tags && post.tags.length > 0
+    ? post.tags.map(t => typeof t === 'string' ? t : t.name)
+    : [post.category.name, "technology"];
+
   return {
     title: post.title,
-    description: post.excerpt || `${post.title} - detailed article on icoffio`,
-    keywords: `${post.category.name}, technology, ${post.title}`,
-    authors: [{ name: "icoffio Team" }],
+    description: seoDescription,
+    keywords: articleTags.join(", "),
+    authors: [{ name: "icoffio Editorial Team", url: buildSiteUrl("/") }],
     openGraph: {
       title: post.title,
-      description: post.excerpt || `${post.title} - detailed article on icoffio`,
+      description: seoDescription,
       url,
       siteName: "icoffio",
       images: [
@@ -133,12 +141,13 @@ export async function generateMetadata({ params }: { params: { locale: string; s
       type: "article",
       publishedTime,
       section: post.category.name,
-      tags: [post.category.name, "technology"],
+      tags: articleTags,
+      authors: ["icoffio Editorial Team"],
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
-      description: post.excerpt || `${post.title} - detailed article on icoffio`,
+      description: seoDescription,
       images: [metadataImage],
     },
     robots: {
@@ -147,6 +156,9 @@ export async function generateMetadata({ params }: { params: { locale: string; s
       googleBot: {
         index: true,
         follow: true,
+        "max-image-preview": "large" as any,
+        "max-snippet": -1 as any,
+        "max-video-preview": -1 as any,
       },
     },
     alternates: {

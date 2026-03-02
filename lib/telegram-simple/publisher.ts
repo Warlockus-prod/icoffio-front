@@ -176,12 +176,18 @@ export async function publishArticle(
       url_pl: buildArticleUrl('pl', `${slug}-pl`, siteBaseUrl),
       image_url: heroImageUrl || null,
       
-      // Store Polish title in tags for easier retrieval
-      tags: [polish.title],
-      
+      // Tags: merge AI-generated SEO tags with Polish title
+      tags: [
+        ...(article.tags || []),
+        polish.title,
+      ],
+
+      // SEO metadata (v10.5.0)
+      meta_description: article.metaDescription || article.excerpt?.substring(0, 160) || null,
+
       // Metadata
       category: article.category,
-      author: 'Telegram Bot Simple',
+      author: 'icoffio Editorial Team',
       word_count: article.wordCount,
       languages: ['en', 'pl'],
       

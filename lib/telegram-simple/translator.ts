@@ -30,6 +30,7 @@ export async function translateToPolish(
   title: string;
   content: string;
   excerpt: string;
+  metaDescription?: string;
 }> {
   console.log(`[TelegramSimple] 🇵🇱 Translating to Polish: "${article.title}"`);
 
@@ -49,16 +50,23 @@ ${article.excerpt}
 REQUIREMENTS:
 - Translate to natural, professional Polish
 - Keep all Markdown formatting (##, **, lists, etc.)
-- Maintain technical terms appropriately
+- Maintain technical terms appropriately (keep English terms where commonly used in Polish tech press: AI, hardware, software, etc.)
 - Keep the same structure and tone
 - Preserve all links and technical accuracy
 - Polish title MUST be between 55 and 95 characters. If translation is too long, rephrase shorter while keeping the meaning. Do NOT truncate mid-word or mid-number
 
+SEO REQUIREMENTS (Google Discover optimization):
+- Title must be factual, no clickbait — same anti-clickbait rules as English version
+- Meta description should be compelling but accurate, 120-160 characters
+- Use Polish keywords naturally in the title and subheadings
+- Subheadings (##) should contain relevant Polish search terms
+
 OUTPUT FORMAT (JSON):
 {
-  "title": "Tytuł artykułu po polsku",
+  "title": "Tytuł artykułu po polsku (55-95 znaków, bez clickbaitu)",
   "content": "Pełna treść artykułu po polsku w Markdown",
-  "excerpt": "Krótkie podsumowanie po polsku (max 200 znaków)"
+  "excerpt": "Krótkie podsumowanie po polsku (max 200 znaków)",
+  "metaDescription": "SEO meta opis po polsku (120-160 znaków)"
 }
 
 Return ONLY valid JSON, no other text.
@@ -98,11 +106,12 @@ Return ONLY valid JSON, no other text.
       title: result.title || article.title,
       content: result.content || article.content,
       excerpt: result.excerpt || article.excerpt,
+      metaDescription: result.metaDescription || undefined,
     };
 
   } catch (error: any) {
     console.error('[TelegramSimple] ❌ Translation error:', error.message);
-    
+
     // Fallback: return original English version
     console.log('[TelegramSimple] 📝 Using English fallback for Polish version');
     return {

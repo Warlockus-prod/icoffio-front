@@ -65,13 +65,17 @@ export function ArticleSchema({ post, locale }: ArticleSchemaProps) {
   const description = stripText(post.excerpt || post.title || "");
   const plainContent = stripText(post.contentHtml || post.content || "");
   const wordCount = plainContent ? plainContent.split(" ").filter(Boolean).length : undefined;
+  const siteUrl = getSiteBaseUrl();
+
+  // Build multiple image variants for better Google Discover coverage
+  const images = [imageUrl];
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: post.title,
     description,
-    image: [imageUrl],
+    image: images,
     datePublished: publishedDate,
     dateModified: publishedDate,
     inLanguage: localeToLanguage(locale),
@@ -82,25 +86,39 @@ export function ArticleSchema({ post, locale }: ArticleSchemaProps) {
     url: articleUrl,
     isAccessibleForFree: true,
     articleSection: post.category.name,
+    // E-E-A-T: explicit author with organization type
     author: [
       {
         "@type": "Organization",
         name: "icoffio Editorial Team",
-        url: getSiteBaseUrl(),
+        url: siteUrl,
+        logo: {
+          "@type": "ImageObject",
+          url: buildSiteUrl("/logo.svg"),
+        },
       },
     ],
     publisher: {
-      "@type": "Organization",
+      "@type": "NewsMediaOrganization",
       name: "icoffio",
-      url: getSiteBaseUrl(),
+      url: siteUrl,
       logo: {
         "@type": "ImageObject",
         url: buildSiteUrl("/logo.svg"),
         width: 512,
         height: 512,
       },
+      publishingPrinciples: buildSiteUrl(`/${locale}/editorial`),
     },
+    // Additional SEO fields for Google Discover
     ...(wordCount ? { wordCount } : {}),
+    ...(post.tags && post.tags.length > 0 ? { keywords: post.tags.map(t => typeof t === 'string' ? t : t.name).join(", ") } : {}),
+    ...(post.sourceUrl ? { citation: post.sourceUrl } : {}),
+    copyrightHolder: {
+      "@type": "Organization",
+      name: "icoffio",
+    },
+    copyrightYear: new Date(publishedDate).getFullYear(),
   };
 
   return (
@@ -171,6 +189,21 @@ export function OrganizationSchema({ locale }: OrganizationSchemaProps) {
     },
     publishingPrinciples: buildSiteUrl(`/${locale}/editorial`),
     inLanguage: localeToLanguage(locale),
+    // E-E-A-T signals
+    foundingDate: "2024",
+    knowsAbout: [
+      "Technology News",
+      "Artificial Intelligence",
+      "Consumer Electronics",
+      "Software Development",
+      "Cybersecurity",
+      "Hardware Reviews",
+    ],
+    // Geographical presence for Google Discover local content signal
+    areaServed: [
+      { "@type": "Country", name: "Poland" },
+      { "@type": "Country", name: "United States" },
+    ],
   };
 
   return (

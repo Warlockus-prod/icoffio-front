@@ -14,6 +14,12 @@ export interface ProcessedArticle {
   imageSearchQuery?: string;
   /** GPT-optimized DALL-E prompt based on article content */
   imagePrompt?: string;
+  /** SEO meta description (120-160 chars) — optimized for search snippets */
+  metaDescription?: string;
+  /** Article tags for SEO and categorization (3-5 tags) */
+  tags?: string[];
+  /** Descriptive alt text for the hero image */
+  imageAlt?: string;
 }
 
 export interface PublishResult {

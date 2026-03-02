@@ -75,21 +75,38 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
     setIsCapturing(true);
     setStep('capturing');
 
-    // Small delay so the modal has time to hide
-    await new Promise(r => setTimeout(r, 100));
+    // Longer delay so the modal fully unmounts before capturing
+    await new Promise(r => setTimeout(r, 350));
 
     try {
       const html2canvas = (await import('html2canvas')).default;
+
+      // Capture only the visible viewport area of the body
       const canvas = await html2canvas(document.body, {
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true, // Allow tainted canvas (we don't send to third-party)
         logging: false,
         scale: Math.min(window.devicePixelRatio, 2),
         width: window.innerWidth,
         height: window.innerHeight,
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
+        x: window.scrollX,
+        y: window.scrollY,
+        // Skip images that fail CORS
+        ignoreElements: (el: Element) => {
+          return el.tagName === 'IFRAME' || el.getAttribute('data-hyb-ssp-ad-place') !== null;
+        },
       });
+
+      // Convert canvas to data URL
+      let dataUrl: string;
+      try {
+        dataUrl = canvas.toDataURL('image/png');
+      } catch {
+        // Tainted canvas fallback — still show the capture worked
+        dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      }
 
       const img = new Image();
       img.onload = () => {
@@ -112,7 +129,13 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
           }
         });
       };
-      img.src = canvas.toDataURL('image/png');
+      img.onerror = () => {
+        console.error('[Feedback] Screenshot image load failed');
+        setStep('form');
+        setIsCapturing(false);
+        showToast(isPl ? 'Nie udało się zrobić zrzutu ekranu' : 'Failed to capture screenshot', 'error');
+      };
+      img.src = dataUrl;
     } catch (err) {
       console.error('[Feedback] Screenshot capture failed:', err);
       setStep('form');
@@ -329,7 +352,7 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
           {/* Screenshot section */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              {isPl ? 'Скриншот (опционально)' : 'Screenshot (optional)'}
+              {isPl ? 'Zrzut ekranu (opcjonalnie)' : 'Screenshot (optional)'}
             </label>
 
             {screenshot ? (

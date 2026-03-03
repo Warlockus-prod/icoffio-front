@@ -75,38 +75,40 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
     setIsCapturing(true);
     setStep('capturing');
 
-    // Longer delay so the modal fully unmounts before capturing
-    await new Promise(r => setTimeout(r, 350));
+    // Wait for modal to fully unmount from DOM
+    await new Promise(r => setTimeout(r, 500));
 
     try {
       const html2canvas = (await import('html2canvas')).default;
 
-      // Capture only the visible viewport area of the body
-      const canvas = await html2canvas(document.body, {
+      // Capture the visible viewport — skip all cross-origin elements
+      const canvas = await html2canvas(document.documentElement, {
         useCORS: true,
-        allowTaint: true, // Allow tainted canvas (we don't send to third-party)
+        allowTaint: false,
         logging: false,
-        scale: Math.min(window.devicePixelRatio, 2),
+        scale: 1, // Fixed scale=1 to avoid memory issues on mobile
         width: window.innerWidth,
         height: window.innerHeight,
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
         x: window.scrollX,
         y: window.scrollY,
-        // Skip images that fail CORS
+        // Skip problematic elements: iframes, ads, cross-origin images
         ignoreElements: (el: Element) => {
-          return el.tagName === 'IFRAME' || el.getAttribute('data-hyb-ssp-ad-place') !== null;
+          if (el.tagName === 'IFRAME' || el.tagName === 'VIDEO') return true;
+          if (el.getAttribute('data-hyb-ssp-ad-place') !== null) return true;
+          // Skip cross-origin images that would taint the canvas
+          if (el.tagName === 'IMG') {
+            const src = (el as HTMLImageElement).src || '';
+            if (src && !src.startsWith(window.location.origin) && !src.startsWith('data:')) {
+              return true;
+            }
+          }
+          return false;
         },
       });
 
-      // Convert canvas to data URL
-      let dataUrl: string;
-      try {
-        dataUrl = canvas.toDataURL('image/png');
-      } catch {
-        // Tainted canvas fallback — still show the capture worked
-        dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      }
+      const dataUrl = canvas.toDataURL('image/png');
 
       const img = new Image();
       img.onload = () => {
@@ -119,7 +121,6 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
           if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) {
-              // Scale canvas to fit within modal
               const maxW = Math.min(640, window.innerWidth - 64);
               const scale = maxW / img.width;
               canvasRef.current.width = img.width * scale;

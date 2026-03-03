@@ -47,17 +47,22 @@ export function FeedbackWidget({ locale = 'en' }: FeedbackWidgetProps) {
     })();
   }, []);
 
-  // Close login popup on outside click
+  // Close login popup on outside click/touch
   useEffect(() => {
     if (!showLogin) return;
-    const handler = (e: MouseEvent) => {
-      if (loginRef.current && !loginRef.current.contains(e.target as Node)) {
+    const handler = (e: MouseEvent | TouchEvent) => {
+      const target = (e as TouchEvent).touches?.[0]?.target || e.target;
+      if (loginRef.current && !loginRef.current.contains(target as Node)) {
         setShowLogin(false);
         setLoginError('');
       }
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
   }, [showLogin]);
 
   // Focus input when login popup opens
@@ -111,7 +116,7 @@ export function FeedbackWidget({ locale = 'en' }: FeedbackWidgetProps) {
           onClick={handleOpen}
           aria-label={isPl ? 'Zgłoś problem' : 'Report an issue'}
           title={isPl ? 'Zgłoś problem' : 'Report an issue'}
-          className="fixed bottom-20 right-5 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group hover:scale-110"
+          className="fixed bottom-20 right-3 sm:right-5 z-40 w-14 h-14 sm:w-12 sm:h-12 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group hover:scale-110"
         >
           <svg
             className="w-6 h-6 transition-transform group-hover:rotate-12"
@@ -129,12 +134,12 @@ export function FeedbackWidget({ locale = 'en' }: FeedbackWidgetProps) {
         </button>
       ) : (
         /* ── Not authenticated: small key icon ── */
-        <div className="fixed bottom-20 right-5 z-40" ref={loginRef}>
+        <div className="fixed bottom-20 right-3 sm:right-5 z-40" ref={loginRef}>
           <button
             onClick={() => setShowLogin(prev => !prev)}
             aria-label={isPl ? 'Zaloguj się jako tester' : 'Sign in as tester'}
             title={isPl ? 'Zaloguj się jako tester' : 'Sign in as tester'}
-            className="w-9 h-9 bg-neutral-200/80 dark:bg-neutral-700/80 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400 rounded-full shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center backdrop-blur-sm hover:scale-110"
+            className="w-11 h-11 sm:w-9 sm:h-9 bg-neutral-200/80 dark:bg-neutral-700/80 hover:bg-neutral-300 dark:hover:bg-neutral-600 active:bg-neutral-400 dark:active:bg-neutral-500 text-neutral-500 dark:text-neutral-400 rounded-full shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center backdrop-blur-sm hover:scale-110"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -146,9 +151,9 @@ export function FeedbackWidget({ locale = 'en' }: FeedbackWidgetProps) {
             </svg>
           </button>
 
-          {/* Login popup */}
+          {/* Login popup — responsive positioning */}
           {showLogin && (
-            <div className="absolute bottom-12 right-0 w-64 bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-700 p-4 animate-in fade-in slide-in-from-bottom-2">
+            <div className="fixed bottom-32 right-3 sm:absolute sm:bottom-12 sm:right-0 w-[calc(100vw-24px)] max-w-64 bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-700 p-4 z-50 animate-in fade-in slide-in-from-bottom-2">
               <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-3">
                 {isPl ? '🔑 Zaloguj się do testowania' : '🔑 Sign in to report bugs'}
               </p>

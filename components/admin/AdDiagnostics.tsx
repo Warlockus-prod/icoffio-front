@@ -201,6 +201,7 @@ export default function AdDiagnostics() {
     { id: 'issues', label: 'Policy Issues' },
     { id: 'performance', label: 'Performance' },
     { id: 'history', label: `Scan History (${scanLogs.length})` },
+    { id: 'live', label: 'Live Scanner' },
   ];
 
   return (
@@ -699,7 +700,115 @@ export default function AdDiagnostics() {
               }}
             />
           )}
+
+          {/* Live Scanner */}
+          {activeSection === 'live' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 space-y-5">
+              <h4 className="font-semibold text-gray-900 dark:text-white text-lg">Live Browser Scanner</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Scan any website in your real browser. The bookmarklet scrolls the page, detects InImage overlays,
+                measures coverage %, captures GAM slot status, console errors, and sends results to this dashboard.
+              </p>
+
+              {/* Bookmarklet */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <h5 className="font-medium text-blue-900 dark:text-blue-200 mb-2">Bookmarklet (drag to bookmarks bar)</h5>
+                <div className="flex items-center gap-3">
+                  {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+                  <a
+                    href={`javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'https://web.icoffio.com/ad-scanner.js?t='+Date.now()})))`}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm cursor-grab hover:bg-blue-700 inline-block"
+                    onClick={(e) => { e.preventDefault(); alert('Drag this button to your bookmarks bar!'); }}
+                  >
+                    Ad Scanner
+                  </a>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Drag to bookmarks bar, then click on any website
+                  </span>
+                </div>
+              </div>
+
+              {/* Console snippet */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-2">Console Snippet (alternative)</h5>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Open DevTools (F12) → Console → paste and press Enter:
+                </p>
+                <div className="relative">
+                  <pre className="text-xs bg-gray-900 text-green-400 p-3 rounded-lg overflow-x-auto">
+{`(function(){var s=document.createElement('script');
+s.src='https://web.icoffio.com/ad-scanner.js?t='+Date.now();
+document.head.appendChild(s);})();`}
+                  </pre>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `(function(){var s=document.createElement('script');s.src='https://web.icoffio.com/ad-scanner.js?t='+Date.now();document.head.appendChild(s);})();`
+                      );
+                    }}
+                    className="absolute top-2 right-2 px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs hover:bg-gray-600"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* How it works */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-3">How it works</h5>
+                <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
+                  <li><b>Opens floating panel</b> in bottom-right corner</li>
+                  <li><b>Scans page structure</b> — ad scripts, GAM slots, article images</li>
+                  <li><b>Intercepts console errors</b> — captures ad-related errors in real-time</li>
+                  <li><b>Scrolls the page</b> — triggers lazy-loaded InImage ads (like real user)</li>
+                  <li><b>Measures overlay size</b> — calculates % of image covered by ad overlay</li>
+                  <li><b>Detects violations</b> — overlay &gt;30%, unfilled GAM slots, ad density</li>
+                  <li><b>Click &quot;Send to API&quot;</b> — saves results to Scan History tab here</li>
+                </ol>
+              </div>
+
+              {/* What it detects */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <div className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">Critical Checks</div>
+                  <ul className="text-xs text-red-600 dark:text-red-400 space-y-0.5">
+                    <li>InImage overlay &gt; 30% image area</li>
+                    <li>GAM slots unfilled (display:none)</li>
+                    <li>Multiple ads in single viewport</li>
+                    <li>Fixed positioning (popup detection)</li>
+                  </ul>
+                </div>
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                  <div className="text-xs font-medium text-yellow-700 dark:text-yellow-300 mb-1">Warning Checks</div>
+                  <ul className="text-xs text-yellow-600 dark:text-yellow-400 space-y-0.5">
+                    <li>Ad-related console errors</li>
+                    <li>Very high z-index values</li>
+                    <li>5+ ads visible simultaneously</li>
+                    <li>Network errors on ad domains</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </>
+      )}
+
+      {/* Live Scanner (standalone when no result) */}
+      {!result && !loading && activeSection !== 'live' && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-purple-900 dark:text-purple-200">Live Browser Scanner</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Scan any website from your browser</span>
+            </div>
+            <button
+              onClick={() => setActiveSection('live')}
+              className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700"
+            >
+              Open Scanner
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Scan History (standalone when no result) */}

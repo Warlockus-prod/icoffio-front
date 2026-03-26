@@ -20,6 +20,7 @@ import ActivityLog from '@/components/admin/ActivityLog';
 import { TelegramSettings } from '@/components/admin/TelegramSettings';
 import TeamAccessManager from '@/components/admin/TeamAccessManager';
 import FeedbackManager from '@/components/admin/FeedbackManager';
+import AdDiagnostics from '@/components/admin/AdDiagnostics';
 
 export default function AdminPage() {
   const pathname = usePathname();
@@ -189,7 +190,7 @@ export default function AdminPage() {
 
   // Main admin panel after authentication
   const canAccessTab = (tab: typeof activeTab): boolean => {
-    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback'].includes(tab)) {
+    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback', 'ad-diagnostics'].includes(tab)) {
       return hasRole('admin');
     }
     if (['parser', 'editor', 'images', 'queue', 'published-editor'].includes(tab)) {
@@ -247,6 +248,8 @@ export default function AdminPage() {
         return <TelegramSettings />;
       case 'feedback':
         return <FeedbackManager />;
+      case 'ad-diagnostics':
+        return <AdDiagnostics />;
       case 'settings':
         return (
           <div className="space-y-6">

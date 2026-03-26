@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface AdScript {
   src: string;
@@ -69,6 +69,31 @@ interface AnalysisResult {
   };
 }
 
+interface ScanLogEntry {
+  id: string;
+  timestamp: string;
+  url: string;
+  hostname: string;
+  pageSize: number;
+  fetchTime: number;
+  inImageDetected: boolean;
+  inImageProvider: string | null;
+  inImageMethod: string;
+  gamDetected: boolean;
+  gamNetworkId: string | null;
+  adScriptCount: number;
+  adContainerCount: number;
+  mutationObserverCount: number;
+  thirdPartyDomainCount: number;
+  policyErrors: number;
+  policyWarnings: number;
+  policyIssues: Array<{ severity: string; category: string; message: string; detail: string }>;
+}
+
+interface FullScanLog extends ScanLogEntry {
+  result: AnalysisResult;
+}
+
 interface ComparisonEntry {
   url: string;
   result: AnalysisResult;
@@ -113,6 +138,27 @@ export default function AdDiagnostics() {
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [showComparison, setShowComparison] = useState(false);
   const [lang, setLang] = useState<'en' | 'ru' | 'pl'>('ru');
+  const [scanLogs, setScanLogs] = useState<ScanLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<FullScanLog | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const fetchLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch('/api/ad-diagnostics/logs');
+      if (res.ok) {
+        const data = await res.json();
+        setScanLogs(data.logs || []);
+      }
+    } catch { /* ignore */ } finally {
+      setLogsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const analyze = useCallback(async () => {
     if (!url.trim()) return;
@@ -137,6 +183,8 @@ export default function AdDiagnostics() {
         const updated = [{ url: data.url, result: data, timestamp: Date.now() }, ...prev];
         return updated.slice(0, 10);
       });
+      // Refresh logs list
+      fetchLogs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
@@ -152,6 +200,7 @@ export default function AdDiagnostics() {
     { id: 'gam', label: 'GAM' },
     { id: 'issues', label: 'Policy Issues' },
     { id: 'performance', label: 'Performance' },
+    { id: 'history', label: `Scan History (${scanLogs.length})` },
   ];
 
   return (
@@ -608,7 +657,87 @@ export default function AdDiagnostics() {
               )}
             </div>
           )}
+
+          {/* Scan History */}
+          {activeSection === 'history' && (
+            <ScanHistory
+              logs={scanLogs}
+              loading={logsLoading}
+              onRefresh={fetchLogs}
+              onViewLog={async (id) => {
+                try {
+                  const res = await fetch(`/api/ad-diagnostics/logs?id=${id}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    setSelectedLog(data);
+                  }
+                } catch { /* ignore */ }
+              }}
+              selectedLog={selectedLog}
+              onCloseLog={() => setSelectedLog(null)}
+              onLoadResult={(log) => {
+                if (log.result) {
+                  setResult(log.result);
+                  setUrl(log.url);
+                  setActiveSection('overview');
+                }
+              }}
+              onDeleteLog={async (id) => {
+                try {
+                  await fetch(`/api/ad-diagnostics/logs?id=${id}`, { method: 'DELETE' });
+                  fetchLogs();
+                  if (selectedLog?.id === id) setSelectedLog(null);
+                } catch { /* ignore */ }
+              }}
+              onDeleteAll={async () => {
+                if (!confirm('Delete all scan logs?')) return;
+                try {
+                  await fetch('/api/ad-diagnostics/logs?id=all', { method: 'DELETE' });
+                  setScanLogs([]);
+                  setSelectedLog(null);
+                } catch { /* ignore */ }
+              }}
+            />
+          )}
         </>
+      )}
+
+      {/* Scan History (standalone when no result) */}
+      {!result && !loading && scanLogs.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-semibold text-gray-900 dark:text-white">
+              Recent Scans ({scanLogs.length})
+            </h4>
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {showHistory ? 'Hide' : 'Show all'}
+            </button>
+          </div>
+          <div className="space-y-2">
+            {scanLogs.slice(0, showHistory ? 50 : 5).map((log) => (
+              <div key={log.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                    {new Date(log.timestamp).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white truncate">{log.hostname}</span>
+                  {log.inImageDetected && <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded text-xs">InImage</span>}
+                  {log.gamDetected && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-xs">GAM</span>}
+                  {log.policyErrors > 0 && <span className="text-xs text-red-600 dark:text-red-400">{log.policyErrors} err</span>}
+                </div>
+                <button
+                  onClick={() => { setUrl(log.url); analyze(); }}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap ml-2"
+                >
+                  Re-scan
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Knowledge Base */}
@@ -822,6 +951,260 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
       <div className={`text-sm font-medium text-gray-900 dark:text-white mt-0.5 ${mono ? 'font-mono text-xs break-all' : ''}`}>
         {value}
       </div>
+    </div>
+  );
+}
+
+function ScanHistory({
+  logs, loading, onRefresh, onViewLog, selectedLog, onCloseLog, onLoadResult, onDeleteLog, onDeleteAll,
+}: {
+  logs: ScanLogEntry[];
+  loading: boolean;
+  onRefresh: () => void;
+  onViewLog: (id: string) => void;
+  selectedLog: FullScanLog | null;
+  onCloseLog: () => void;
+  onLoadResult: (log: FullScanLog) => void;
+  onDeleteLog: (id: string) => void;
+  onDeleteAll: () => void;
+}) {
+  const [filter, setFilter] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'inimage' | 'gam' | 'errors'>('all');
+
+  const filtered = logs.filter(log => {
+    if (filter && !log.hostname.includes(filter) && !log.url.includes(filter)) return false;
+    if (filterType === 'inimage' && !log.inImageDetected) return false;
+    if (filterType === 'gam' && !log.gamDetected) return false;
+    if (filterType === 'errors' && log.policyErrors === 0) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="font-semibold text-gray-900 dark:text-white">
+            Scan History ({logs.length} total, {filtered.length} shown)
+          </h4>
+          <div className="flex gap-2">
+            <button onClick={onRefresh} disabled={loading} className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+            <a
+              href="/api/ad-diagnostics/logs?format=download-all"
+              download
+              className="px-3 py-1.5 text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800"
+            >
+              Download All (JSON)
+            </a>
+            <button onClick={onDeleteAll} className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800">
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-3 mb-4">
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter by hostname..."
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+          <div className="flex gap-1">
+            {([['all', 'All'], ['inimage', 'InImage'], ['gam', 'GAM'], ['errors', 'Errors']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setFilterType(key)}
+                className={`px-2.5 py-1.5 text-xs rounded-lg font-medium ${
+                  filterType === key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Table */}
+        {filtered.length === 0 ? (
+          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 text-center">
+            {logs.length === 0 ? 'No scans yet. Analyze a URL to start logging.' : 'No scans match the current filter.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b border-gray-200 dark:border-gray-700">
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">Site</th>
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">Size</th>
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">InImage</th>
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">GAM</th>
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">Scripts</th>
+                  <th className="pb-2 pr-2 font-medium text-gray-500 dark:text-gray-400">Issues</th>
+                  <th className="pb-2 font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {filtered.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="py-2 pr-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="py-2 pr-2">
+                      <div className="font-medium text-gray-900 dark:text-white text-xs">{log.hostname}</div>
+                      <div className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[200px]" title={log.url}>{log.url}</div>
+                    </td>
+                    <td className="py-2 pr-2 text-xs text-gray-600 dark:text-gray-400">{(log.pageSize / 1024).toFixed(0)}KB</td>
+                    <td className="py-2 pr-2">
+                      {log.inImageDetected ? (
+                        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded text-xs">{log.inImageProvider || 'Yes'}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-2">
+                      {log.gamDetected ? (
+                        <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-xs">
+                          {log.gamNetworkId || 'Yes'}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-2 text-xs text-gray-600 dark:text-gray-400">{log.adScriptCount}</td>
+                    <td className="py-2 pr-2">
+                      {log.policyErrors > 0 && <span className="text-xs text-red-600 dark:text-red-400 mr-1">{log.policyErrors}E</span>}
+                      {log.policyWarnings > 0 && <span className="text-xs text-yellow-600 dark:text-yellow-400">{log.policyWarnings}W</span>}
+                      {log.policyErrors === 0 && log.policyWarnings === 0 && <span className="text-xs text-green-600 dark:text-green-400">OK</span>}
+                    </td>
+                    <td className="py-2">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => onViewLog(log.id)}
+                          className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                          title="View full details"
+                        >
+                          View
+                        </button>
+                        <a
+                          href={`/api/ad-diagnostics/logs?id=${log.id}&format=download`}
+                          download
+                          className="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-800"
+                          title="Download JSON"
+                        >
+                          JSON
+                        </a>
+                        <button
+                          onClick={() => onDeleteLog(log.id)}
+                          className="px-2 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-800"
+                          title="Delete this log"
+                        >
+                          Del
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Selected Log Detail Modal */}
+      {selectedLog && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-semibold text-gray-900 dark:text-white">
+              Scan Detail: {selectedLog.hostname}
+            </h4>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onLoadResult(selectedLog)}
+                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Load in Analyzer
+              </button>
+              <a
+                href={`/api/ad-diagnostics/logs?id=${selectedLog.id}&format=download`}
+                download
+                className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200"
+              >
+                Download JSON
+              </a>
+              <button onClick={onCloseLog} className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200">
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">URL</div>
+              <div className="font-mono text-gray-900 dark:text-white break-all">{selectedLog.url}</div>
+            </div>
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">Scanned</div>
+              <div className="text-gray-900 dark:text-white">{new Date(selectedLog.timestamp).toLocaleString('ru-RU')}</div>
+            </div>
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">Page / Fetch</div>
+              <div className="text-gray-900 dark:text-white">{(selectedLog.pageSize / 1024).toFixed(0)}KB / {selectedLog.fetchTime}ms</div>
+            </div>
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">Ad Scripts / Containers</div>
+              <div className="text-gray-900 dark:text-white">{selectedLog.adScriptCount} / {selectedLog.adContainerCount}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">InImage</div>
+              <div className="text-gray-900 dark:text-white">{selectedLog.inImageDetected ? `${selectedLog.inImageProvider} (${selectedLog.inImageMethod})` : 'Not detected'}</div>
+            </div>
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">GAM</div>
+              <div className="text-gray-900 dark:text-white">{selectedLog.gamDetected ? `Yes (${selectedLog.gamNetworkId || 'no network ID'})` : 'No'}</div>
+            </div>
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">MutationObservers</div>
+              <div className={`font-medium ${selectedLog.mutationObserverCount > 3 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-900 dark:text-white'}`}>{selectedLog.mutationObserverCount}</div>
+            </div>
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <div className="text-gray-500 dark:text-gray-400">3rd Party Domains</div>
+              <div className="text-gray-900 dark:text-white">{selectedLog.thirdPartyDomainCount}</div>
+            </div>
+          </div>
+
+          {/* Policy Issues */}
+          {selectedLog.policyIssues.length > 0 && (
+            <div className="space-y-2">
+              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">Policy Issues</h5>
+              {selectedLog.policyIssues
+                .sort((a, b) => {
+                  const order: Record<string, number> = { error: 0, warning: 1, info: 2 };
+                  return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
+                })
+                .map((issue, i) => (
+                  <div key={i} className={`p-3 rounded-lg border text-xs ${
+                    issue.severity === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' :
+                    issue.severity === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300' :
+                    'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                  }`}>
+                    <div className="font-medium">[{issue.category}] {issue.message}</div>
+                    <div className="opacity-80 mt-0.5">{issue.detail}</div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

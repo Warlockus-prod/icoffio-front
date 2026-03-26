@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { saveScanLog } from '@/lib/ad-diagnostics-logs';
 
 interface AdScript {
   src: string;
@@ -513,6 +514,13 @@ export async function POST(request: NextRequest) {
       rawMetrics,
       googleAdManager,
     };
+
+    // Save scan log
+    try {
+      await saveScanLog(result);
+    } catch (logError) {
+      console.error('[AdDiagnostics] Failed to save scan log:', logError);
+    }
 
     return NextResponse.json(result);
   } catch (error) {

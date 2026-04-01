@@ -35,6 +35,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'telegram', label: 'Telegram', icon: '🤖', description: 'Telegram bot settings', hidden: false },
     { id: 'feedback', label: 'Feedback', icon: '🐛', description: 'Bug reports & feedback', hidden: false },
     { id: 'ad-diagnostics', label: 'Ad Diagnostics', icon: '🔍', description: 'Analyze ads on any site', hidden: false },
+    { id: 'info-portal', label: 'Info Portal', icon: '📡', description: 'Feed aggregator management', hidden: false },
     { id: 'logs', label: 'System Logs', icon: '📋', description: 'Logs and diagnostics', hidden: false },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings', hidden: false },
     // Hidden tab — only shown when editing a published article (not in sidebar)
@@ -44,7 +45,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const visibleMenuItems = menuItems.filter((item) => {
     // Never show hidden tabs in sidebar
     if (item.hidden) return false;
-    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback', 'ad-diagnostics'].includes(item.id)) {
+    if (['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback', 'ad-diagnostics', 'info-portal'].includes(item.id)) {
       return hasRole('admin');
     }
     if (['parser', 'editor', 'images', 'queue'].includes(item.id)) {

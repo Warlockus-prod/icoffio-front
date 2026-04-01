@@ -21,6 +21,7 @@ import { TelegramSettings } from '@/components/admin/TelegramSettings';
 import TeamAccessManager from '@/components/admin/TeamAccessManager';
 import FeedbackManager from '@/components/admin/FeedbackManager';
 import AdDiagnostics from '@/components/admin/AdDiagnostics';
+import { InfoAdminPanel } from '@/components/info/InfoAdminPanel';
 
 export default function AdminPage() {
   const pathname = usePathname();
@@ -250,6 +251,8 @@ export default function AdminPage() {
         return <FeedbackManager />;
       case 'ad-diagnostics':
         return <AdDiagnostics />;
+      case 'info-portal':
+        return <InfoAdminPanel />;
       case 'settings':
         return (
           <div className="space-y-6">

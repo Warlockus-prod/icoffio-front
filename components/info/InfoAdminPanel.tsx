@@ -12,6 +12,10 @@ export function InfoAdminPanel() {
   const [loading, setLoading] = useState(true);
   const [fetchingFeeds, setFetchingFeeds] = useState(false);
   const [fetchResult, setFetchResult] = useState('');
+  const [retentionDays, setRetentionDays] = useState('30');
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [stats, setStats] = useState<{ total_items: number; oldest: string } | null>(null);
 
   // Forms
   const [boardForm, setBoardForm] = useState({ title: '', slug: '', subtitle: '' });
@@ -37,7 +41,23 @@ export function InfoAdminPanel() {
     setFeeds(data.feeds || []);
   }, []);
 
-  useEffect(() => { loadBoards(); }, [loadBoards]);
+  const loadSettings = useCallback(async () => {
+    const res = await fetch('/api/info/settings');
+    const data = await res.json();
+    if (data.settings?.retention_days) {
+      setRetentionDays(data.settings.retention_days);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/info/feed-items?stats=1');
+      const data = await res.json();
+      setStats(data.stats || null);
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadBoards(); loadSettings(); loadStats(); }, [loadBoards, loadSettings, loadStats]);
 
   useEffect(() => {
     if (selectedBoard) {
@@ -123,6 +143,30 @@ export function InfoAdminPanel() {
       setFetchResult(`Error: ${err.message}`);
     }
     setFetchingFeeds(false);
+  };
+
+  const saveRetention = async () => {
+    setSavingSettings(true);
+    await fetch('/api/info/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ retention_days: retentionDays }),
+    });
+    setSavingSettings(false);
+    setFetchResult(`Retention set to ${retentionDays} days`);
+  };
+
+  const runCleanup = async () => {
+    setCleaningUp(true);
+    try {
+      const res = await fetch('/api/info/cleanup', { method: 'POST' });
+      const data = await res.json();
+      setFetchResult(`Cleanup: deleted ${data.deleted} items older than ${data.retention_days} days`);
+      loadStats();
+    } catch (err: any) {
+      setFetchResult(`Cleanup error: ${err.message}`);
+    }
+    setCleaningUp(false);
   };
 
   const fetchSingleFeed = async (feedId: number) => {
@@ -384,6 +428,50 @@ export function InfoAdminPanel() {
             </>
           ) : (
             <p className="text-gray-400 text-sm italic">Select a block first</p>
+          )}
+        </div>
+      </div>
+
+      {/* Settings */}
+      <div className="mt-6 border dark:border-gray-700 rounded-lg p-4">
+        <h2 className="text-lg font-semibold mb-3">Settings</h2>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Retention (days)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(e.target.value)}
+                className="w-20 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+              />
+              <button
+                onClick={saveRetention}
+                disabled={savingSettings}
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingSettings ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+          <div>
+            <button
+              onClick={runCleanup}
+              disabled={cleaningUp}
+              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              {cleaningUp ? 'Cleaning...' : 'Run Cleanup Now'}
+            </button>
+          </div>
+          {stats && (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Total items: <span className="font-medium text-gray-700 dark:text-gray-300">{stats.total_items}</span>
+              {stats.oldest && (
+                <> &middot; Oldest: <span className="font-medium text-gray-700 dark:text-gray-300">{new Date(stats.oldest).toLocaleDateString()}</span></>
+              )}
+            </div>
           )}
         </div>
       </div>

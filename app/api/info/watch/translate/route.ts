@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-5.4-mini',
         messages: [
           { role: 'system', content: `Translate the following text to ${targetName}. Return only the translated text, nothing else.` },
           { role: 'user', content: text },

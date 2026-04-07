@@ -320,9 +320,16 @@ export function InfoWatchPage() {
         body: JSON.stringify({ all: true, lang: reportLang }),
       });
       const data = await res.json();
-      const ok = (data.results || []).filter((r: any) => r.ok).length;
-      const fail = (data.results || []).filter((r: any) => !r.ok).length;
-      flash(`Generated ${ok} reports${fail ? `, ${fail} failed` : ''}`);
+      const results = data.results || [];
+      const ok = results.filter((r: any) => r.ok).length;
+      const fail = results.filter((r: any) => !r.ok).length;
+      const errors = results.filter((r: any) => !r.ok).map((r: any) => r.error).join('; ');
+      flash(`Generated ${ok} reports${fail ? `, ${fail} failed: ${errors}` : ''}`);
+      // Auto-open the first successful topic's report
+      const firstOk = results.find((r: any) => r.ok);
+      if (firstOk) {
+        await viewReport(firstOk.topic_id);
+      }
     } catch (err: any) {
       flash(`Error: ${err.message}`);
     } finally {

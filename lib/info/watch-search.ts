@@ -363,9 +363,9 @@ Write the ENTIRE report in ${reportLang === 'ru' ? 'Russian' : reportLang === 'p
         { role: 'user', content: prompt },
       ],
       temperature: 0.4,
-      max_tokens: 4000,
+      max_completion_tokens: 4000,
     }),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(90000),
   });
 
   if (!aiResponse.ok) {
@@ -452,9 +452,9 @@ export async function analyzeSentiment(batchSize: number = 30): Promise<number> 
           { role: 'user', content: titles },
         ],
         temperature: 0.2,
-        max_tokens: 2000,
+        max_completion_tokens: 2000,
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(45000),
     });
 
     if (!res.ok) return 0;

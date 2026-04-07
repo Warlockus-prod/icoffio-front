@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
           { role: 'user', content: text },
         ],
         temperature: 0.3,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       }),
       signal: AbortSignal.timeout(15000),
     });

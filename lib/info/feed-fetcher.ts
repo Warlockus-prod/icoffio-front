@@ -21,6 +21,30 @@ function extractAttr(xml: string, tag: string, attr: string): string {
   return match ? match[1] : '';
 }
 
+/**
+ * Decode HTML entities (&lt; &gt; &amp; &quot; &#xxx;) then strip all HTML tags.
+ * Handles double-encoded content from CDATA sections (Telegram RSSHub, etc.)
+ */
+function cleanHtml(raw: string): string {
+  let s = raw;
+  // Decode HTML entities (may be double-encoded, so run twice)
+  for (let i = 0; i < 2; i++) {
+    s = s
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  }
+  // Strip all HTML/XML tags
+  s = s.replace(/<[^>]+>/g, '');
+  // Collapse whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
 function parseRss(xml: string): ParsedItem[] {
   const items: ParsedItem[] = [];
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
@@ -38,9 +62,9 @@ function parseRss(xml: string): ParsedItem[] {
 
     if (title && link) {
       items.push({
-        title: title.replace(/<[^>]+>/g, '').trim(),
+        title: cleanHtml(title),
         url: link.trim(),
-        description: desc ? desc.replace(/<[^>]+>/g, '').substring(0, 500) : null,
+        description: desc ? cleanHtml(desc).substring(0, 500) : null,
         image_url: enclosureUrl || mediaUrl || null,
         published_at: pubDate ? new Date(pubDate).toISOString() : null,
         guid: guid || link,
@@ -66,9 +90,9 @@ function parseAtom(xml: string): ParsedItem[] {
 
     if (title && link) {
       items.push({
-        title: title.replace(/<[^>]+>/g, '').trim(),
+        title: cleanHtml(title),
         url: link.trim(),
-        description: summary ? summary.replace(/<[^>]+>/g, '').substring(0, 500) : null,
+        description: summary ? cleanHtml(summary).substring(0, 500) : null,
         image_url: null,
         published_at: updated ? new Date(updated).toISOString() : null,
         guid: id || link,

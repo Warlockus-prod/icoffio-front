@@ -94,6 +94,12 @@ export function InfoWatchPage() {
   useEffect(() => { loadTopics(); }, [loadTopics]);
 
   useEffect(() => {
+    // Check admin via API (cookie-based auth)
+    fetch('/api/admin/auth', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.authenticated) setIsAdmin(true); })
+      .catch(() => {});
+    // Fallback: localStorage check
     try {
       const session = localStorage.getItem('admin_session');
       if (session) {

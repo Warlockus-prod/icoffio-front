@@ -71,6 +71,7 @@ const ADMIN_COOKIE_BASE_OPTIONS = {
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   path: '/',
+  domain: process.env.NODE_ENV === 'production' ? '.icoffio.com' : undefined,
 };
 
 // Database credentials are now handled by pg-pool via DATABASE_URL

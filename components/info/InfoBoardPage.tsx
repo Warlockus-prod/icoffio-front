@@ -35,8 +35,12 @@ export function InfoBoardPage({ slug }: { slug: string }) {
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
 
-  // Check admin session
+  // Check admin session via API (cookie-based) + localStorage fallback
   useEffect(() => {
+    fetch('/api/admin/auth', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.authenticated) setIsAdmin(true); })
+      .catch(() => {});
     try {
       const session = localStorage.getItem('admin_session');
       if (session) {

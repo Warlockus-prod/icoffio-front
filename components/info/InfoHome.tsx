@@ -41,6 +41,10 @@ export function InfoHome() {
   useEffect(() => { loadBoards(); }, [loadBoards]);
 
   useEffect(() => {
+    fetch('/api/admin/auth', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.authenticated) setIsAdmin(true); })
+      .catch(() => {});
     try {
       const session = localStorage.getItem('admin_session');
       if (session) {

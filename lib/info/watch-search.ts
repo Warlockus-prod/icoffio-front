@@ -235,7 +235,7 @@ Write in English. Be specific, data-driven, and cite sources. If articles are in
   if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
   const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
-  const model = 'gpt-4o';
+  const model = 'gpt-4.1';
 
   const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',

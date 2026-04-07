@@ -37,16 +37,15 @@ export function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
 
-  // info.icoffio.com → redirect root to /en/info
+  // info.icoffio.com → redirect root to /en/info, allow /admin
   if (hostname.startsWith('info.')) {
-    // Already on /en/info or /pl/info — pass through
-    if (pathname.match(/^\/(en|pl)\/info(\/|$)/)) {
+    // Allow /admin and /info paths through
+    if (pathname.match(/^\/(en|pl)\/(info|admin)(\/|$)/)) {
       return NextResponse.next()
     }
-    // Root or non-info path → redirect to info portal
+    // Root or non-info/admin path → redirect to info portal
     const locale = getLocale(request)
-    const infoPath = pathname.match(/^\/(en|pl)$/) ? `/${locale}/info` : `/${locale}/info`
-    return NextResponse.redirect(new URL(infoPath, request.url))
+    return NextResponse.redirect(new URL(`/${locale}/info`, request.url))
   }
 
   const pathnameHasLocale = locales.some(

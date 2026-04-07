@@ -397,3 +397,112 @@ export async function cleanupWatchItems(days: number = 60): Promise<number> {
   );
   return rowCount || 0;
 }
+
+/**
+ * Mark duplicate articles across topics (same title, different sources)
+ */
+export async function deduplicateItems(): Promise<number> {
+  const pool = getPool();
+  // Mark items as duplicates if there's an older item with very similar title (>80% overlap)
+  // Simple approach: exact title match across topics
+  const { rowCount } = await pool.query(`
+    UPDATE info_watch_items SET is_duplicate = true
+    WHERE id IN (
+      SELECT wi2.id
+      FROM info_watch_items wi1
+      JOIN info_watch_items wi2 ON LOWER(wi1.title) = LOWER(wi2.title) AND wi1.id < wi2.id
+      WHERE wi2.is_duplicate = false
+    )
+  `);
+  return rowCount || 0;
+}
+
+/**
+ * Analyze sentiment for items without it (batch)
+ */
+export async function analyzeSentiment(batchSize: number = 30): Promise<number> {
+  const pool = getPool();
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return 0;
+
+  const { rows: items } = await pool.query(
+    `SELECT id, title, description FROM info_watch_items
+     WHERE sentiment IS NULL AND is_duplicate = false
+     ORDER BY published_at DESC NULLS LAST LIMIT $1`,
+    [batchSize]
+  );
+
+  if (items.length === 0) return 0;
+
+  const titles = items.map((it: any, i: number) => `${i + 1}. ${it.title}`).join('\n');
+
+  const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+  try {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-5.4-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: 'Analyze the sentiment of each headline. Return JSON: {"results": [{"n": 1, "s": "positive|negative|neutral", "t": ["tag1","tag2"]}]}. Tags should be from: product_launch, partnership, earnings, hiring, acquisition, regulation, award, controversy, market_trend, research.' },
+          { role: 'user', content: titles },
+        ],
+        temperature: 0.2,
+        max_tokens: 2000,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return 0;
+
+    const parsed = JSON.parse(content);
+    let updated = 0;
+
+    for (const result of (parsed.results || [])) {
+      const idx = (result.n || 0) - 1;
+      if (idx < 0 || idx >= items.length) continue;
+      const item = items[idx];
+      const sentiment = ['positive', 'negative', 'neutral'].includes(result.s) ? result.s : 'neutral';
+      const tags = Array.isArray(result.t) ? result.t : [];
+
+      await pool.query(
+        'UPDATE info_watch_items SET sentiment = $1, tags = $2 WHERE id = $3',
+        [sentiment, tags, item.id]
+      );
+      updated++;
+    }
+    return updated;
+  } catch (err: any) {
+    console.error('[Watch Sentiment]', err.message);
+    return 0;
+  }
+}
+
+/**
+ * Calculate quality score for each topic based on article freshness & volume
+ */
+export async function updateQualityScores(): Promise<void> {
+  const pool = getPool();
+  await pool.query(`
+    UPDATE info_watch_topics wt SET quality_score = sub.score
+    FROM (
+      SELECT topic_id,
+        LEAST(100, (
+          COUNT(*) * 2 +
+          COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '7 days') * 5 +
+          COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '1 day') * 10
+        )) as score
+      FROM info_watch_items
+      WHERE is_duplicate = false
+      GROUP BY topic_id
+    ) sub
+    WHERE wt.id = sub.topic_id
+  `);
+}

@@ -25,6 +25,26 @@ const LANG_NAMES: Record<string, string> = {
   ru: 'Русский', pl: 'Polski', en: 'English',
 };
 
+const SENTIMENT_ICONS: Record<string, string> = {
+  positive: '🟢', negative: '🔴', neutral: '🟡',
+};
+
+// Simple SVG sparkline
+function Sparkline({ data, width = 120, height = 24 }: { data: number[]; width?: number; height?: number }) {
+  if (!data.length) return null;
+  const max = Math.max(...data, 1);
+  const points = data.map((v, i) => {
+    const x = (i / Math.max(data.length - 1, 1)) * width;
+    const y = height - (v / max) * (height - 2) - 1;
+    return `${x},${y}`;
+  }).join(' ');
+  return (
+    <svg width={width} height={height} className="inline-block">
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.5" className="text-blue-400" />
+    </svg>
+  );
+}
+
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -77,7 +97,83 @@ export function InfoWatchPage() {
   const [editingSources, setEditingSources] = useState<number | null>(null);
   const [sourcesInput, setSourcesInput] = useState('');
 
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Sparklines
+  const [sparklines, setSparklines] = useState<Record<number, number[]>>({});
+
+  // Comparison view
+  const [showCompare, setShowCompare] = useState(false);
+  const [compareData, setCompareData] = useState<any[]>([]);
+  const [compareType, setCompareType] = useState('competitor');
+
+  // Analyze state
+  const [analyzing, setAnalyzing] = useState(false);
+
   const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 4000); };
+
+  // Search
+  const doSearch = async () => {
+    if (!searchQuery || searchQuery.length < 2) { setSearchResults(null); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/info/watch/items?q=${encodeURIComponent(searchQuery)}&limit=50`);
+      const data = await res.json();
+      setSearchResults(data.items || []);
+    } catch { setSearchResults([]); }
+    finally { setSearching(false); }
+  };
+
+  // Load sparklines for all topics
+  const loadSparklines = async (topicIds: number[]) => {
+    const map: Record<number, number[]> = {};
+    await Promise.all(topicIds.map(async (id) => {
+      try {
+        const res = await fetch(`/api/info/watch/stats?topic_id=${id}&days=30`);
+        const data = await res.json();
+        // Fill 30 days with counts
+        const days: Record<string, number> = {};
+        for (const row of (data.sparkline || [])) {
+          days[row.day] = parseInt(row.cnt);
+        }
+        const arr: number[] = [];
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+          arr.push(days[d] || 0);
+        }
+        map[id] = arr;
+      } catch { map[id] = []; }
+    }));
+    setSparklines(map);
+  };
+
+  // Comparison
+  const loadComparison = async (type: string) => {
+    try {
+      const res = await fetch(`/api/info/watch/compare?type=${type}&days=7`);
+      const data = await res.json();
+      setCompareData(data.comparison || []);
+    } catch {}
+  };
+
+  // Run analysis (dedup + sentiment + quality)
+  const runAnalysis = async () => {
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/info/watch/analyze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      flash(`Analysis: ${data.deduplicated || 0} deduped, ${data.sentiment_analyzed || 0} sentiment analyzed`);
+      loadAllItems(topics.map(t => t.id));
+    } catch (err: any) {
+      flash(`Error: ${err.message}`);
+    } finally { setAnalyzing(false); }
+  };
 
   const loadTopics = useCallback(async () => {
     try {
@@ -113,6 +209,7 @@ export function InfoWatchPage() {
   useEffect(() => {
     if (topics.length > 0) {
       loadAllItems(topics.map(t => t.id));
+      loadSparklines(topics.map(t => t.id));
     }
   }, [topics, loadAllItems]);
 
@@ -343,8 +440,16 @@ export function InfoWatchPage() {
           >
             {generatingReport === 'all' ? '🤖 Generating All...' : '🤖 All Reports'}
           </button>
+          <button onClick={() => { setShowCompare(!showCompare); if (!showCompare) loadComparison(compareType); }}
+            className={`px-3 py-1.5 text-sm rounded transition-colors ${showCompare ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+            📋 Compare
+          </button>
           {isAdmin && (
             <>
+              <button onClick={runAnalysis} disabled={analyzing}
+                className="px-3 py-1.5 text-sm rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                {analyzing ? '⏳...' : '🧠 Analyze'}
+              </button>
               <button onClick={fetchAllTopics} disabled={fetchingAll}
                 className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors">
                 {fetchingAll ? '⏳...' : '🔄 Fetch All'}
@@ -360,6 +465,21 @@ export function InfoWatchPage() {
           <InfoThemeToggle />
         </div>
       </header>
+
+      {/* Search Bar */}
+      <div className="max-w-7xl mx-auto px-6 pb-2">
+        <div className="flex gap-2">
+          <input type="text" value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); if (!e.target.value) setSearchResults(null); }}
+            onKeyDown={e => e.key === 'Enter' && doSearch()}
+            placeholder="🔍 Search across all articles..."
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-sm text-[#333] dark:text-[#e0e0e0] focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          {searchQuery && (
+            <button onClick={() => { setSearchQuery(''); setSearchResults(null); }}
+              className="px-3 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-500">✕</button>
+          )}
+        </div>
+      </div>
 
       {/* Toast */}
       {message && (
@@ -377,6 +497,91 @@ export function InfoWatchPage() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Search Results */}
+            {searchResults !== null && (
+              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+                <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0] mb-3">
+                  🔍 Search: &quot;{searchQuery}&quot; — {searchResults.length} results
+                </h3>
+                {searchResults.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">No articles found.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
+                    {searchResults.map((item: any, i: number) => (
+                      <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
+                        className="p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/30 group block">
+                        <p className="text-xs text-[#333] dark:text-[#e0e0e0] group-hover:text-blue-600 line-clamp-2">
+                          {item.sentiment && <span className="mr-1">{SENTIMENT_ICONS[item.sentiment]}</span>}
+                          {item.title}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-400">
+                          {item.language && <span>{LANG_FLAGS[item.language] || '🌐'}</span>}
+                          <span className="text-blue-500">{item.topic_name}</span>
+                          {item.source_name && <span>{item.source_name}</span>}
+                          {item.published_at && <span>{timeAgo(item.published_at)}</span>}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Competitor Comparison */}
+            {showCompare && (
+              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0]">📋 Comparison (last 7 days)</h3>
+                  <div className="flex gap-1">
+                    {['competitor', 'trend', 'industry'].map(t => (
+                      <button key={t} onClick={() => { setCompareType(t); loadComparison(t); }}
+                        className={`px-2 py-1 text-xs rounded ${compareType === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                        {TYPE_ICONS[t]} {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-2 px-2 text-gray-500">Name</th>
+                        <th className="text-center py-2 px-1 text-gray-500">Mentions</th>
+                        <th className="text-center py-2 px-1 text-gray-500">🟢</th>
+                        <th className="text-center py-2 px-1 text-gray-500">🟡</th>
+                        <th className="text-center py-2 px-1 text-gray-500">🔴</th>
+                        <th className="text-center py-2 px-1 text-gray-500">Score</th>
+                        <th className="text-left py-2 px-2 text-gray-500">Tags</th>
+                        <th className="text-right py-2 px-2 text-gray-500">Latest</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compareData.map((row: any) => (
+                        <tr key={row.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                          <td className="py-1.5 px-2 font-medium text-[#333] dark:text-[#e0e0e0]">{row.name}</td>
+                          <td className="text-center py-1.5 px-1 font-bold">{row.total_mentions}</td>
+                          <td className="text-center py-1.5 px-1 text-green-600">{row.positive || 0}</td>
+                          <td className="text-center py-1.5 px-1 text-yellow-600">{row.neutral || 0}</td>
+                          <td className="text-center py-1.5 px-1 text-red-600">{row.negative || 0}</td>
+                          <td className="text-center py-1.5 px-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              (row.quality_score || 0) > 50 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            }`}>{Math.round(row.quality_score || 0)}</span>
+                          </td>
+                          <td className="py-1.5 px-2">
+                            {(row.top_tags || []).slice(0, 3).map((tag: string) => (
+                              <span key={tag} className="inline-block mr-1 px-1 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded text-[9px]">{tag}</span>
+                            ))}
+                          </td>
+                          <td className="text-right py-1.5 px-2 text-gray-400">{row.latest_article ? timeAgo(row.latest_article) : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Topic Blocks — like news feed */}
             {topics.map((topic, idx) => {
               const items = topicItems[topic.id] || [];
@@ -400,6 +605,12 @@ export function InfoWatchPage() {
                           {topic.updated_at && <span>Updated {timeAgo(topic.updated_at)}</span>}
                         </div>
                       </div>
+                      {/* Sparkline */}
+                      {sparklines[topic.id] && sparklines[topic.id].some(v => v > 0) && (
+                        <div className="ml-auto shrink-0" title="Articles per day (30 days)">
+                          <Sparkline data={sparklines[topic.id]} />
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => searchTopic(topic.id)} disabled={searchingTopic === topic.id}
@@ -472,6 +683,7 @@ export function InfoWatchPage() {
                               <div className="flex-1 min-w-0">
                                 <a href={item.url} target="_blank" rel="noopener noreferrer"
                                   className="text-xs text-[#333] dark:text-[#e0e0e0] group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2 block leading-snug">
+                                  {item.sentiment && <span className="mr-0.5" title={item.sentiment}>{SENTIMENT_ICONS[item.sentiment]}</span>}
                                   {translations[item.id]?.title || item.title}
                                 </a>
                                 {translations[item.id] && (

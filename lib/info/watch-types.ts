@@ -5,6 +5,7 @@ export interface WatchTopic {
   topic_type: 'competitor' | 'trend' | 'industry';
   search_langs: string[];
   extra_sources: string[];
+  quality_score: number;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -19,6 +20,9 @@ export interface WatchItem {
   source_name: string | null;
   description: string | null;
   language: string | null;
+  sentiment: 'positive' | 'negative' | 'neutral' | null;
+  tags: string[];
+  is_duplicate: boolean;
   published_at: string | null;
   fetched_at: string;
 }

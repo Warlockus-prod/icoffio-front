@@ -117,10 +117,20 @@ export function InfoAdminPanel() {
 
   const addFeed = async () => {
     if (!feedForm.title || !selectedBlock) return;
+    const payload = { ...feedForm, block_id: selectedBlock.id };
+
+    // Auto-fill URLs for Telegram channels
+    if (feedForm.feed_type === 'telegram' && feedForm.telegram_channel) {
+      const handle = feedForm.telegram_channel.replace(/^@/, '').replace(/^https?:\/\/t\.me\//, '').trim();
+      payload.feed_url = `http://172.17.0.1:1200/telegram/channel/${handle}`;
+      payload.site_url = `https://t.me/${handle}`;
+      payload.telegram_channel = handle;
+    }
+
     await fetch('/api/info/feeds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...feedForm, block_id: selectedBlock.id }),
+      body: JSON.stringify(payload),
     });
     setFeedForm({ title: '', feed_url: '', site_url: '', telegram_channel: '', feed_type: 'rss' });
     loadFeeds(selectedBlock.id);
@@ -345,6 +355,17 @@ export function InfoAdminPanel() {
           {selectedBlock ? (
             <>
               <div className="space-y-2 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                {/* Feed type selector — first, so form adapts */}
+                <select
+                  value={feedForm.feed_type}
+                  onChange={(e) => setFeedForm({ ...feedForm, feed_type: e.target.value, feed_url: '', site_url: '', telegram_channel: '' })}
+                  className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                >
+                  <option value="rss">RSS</option>
+                  <option value="atom">Atom</option>
+                  <option value="telegram">Telegram Channel</option>
+                </select>
+
                 <input
                   type="text"
                   placeholder="Feed title"
@@ -352,41 +373,49 @@ export function InfoAdminPanel() {
                   onChange={(e) => setFeedForm({ ...feedForm, title: e.target.value })}
                   className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
                 />
-                <input
-                  type="text"
-                  placeholder="RSS/Atom URL"
-                  value={feedForm.feed_url}
-                  onChange={(e) => setFeedForm({ ...feedForm, feed_url: e.target.value })}
-                  className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
-                />
-                <input
-                  type="text"
-                  placeholder="Site URL"
-                  value={feedForm.site_url}
-                  onChange={(e) => setFeedForm({ ...feedForm, site_url: e.target.value })}
-                  className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
-                />
-                <input
-                  type="text"
-                  placeholder="Telegram channel (optional)"
-                  value={feedForm.telegram_channel}
-                  onChange={(e) => setFeedForm({ ...feedForm, telegram_channel: e.target.value })}
-                  className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
-                />
-                <select
-                  value={feedForm.feed_type}
-                  onChange={(e) => setFeedForm({ ...feedForm, feed_type: e.target.value })}
-                  className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
-                >
-                  <option value="rss">RSS</option>
-                  <option value="atom">Atom</option>
-                  <option value="telegram">Telegram</option>
-                </select>
+
+                {feedForm.feed_type === 'telegram' ? (
+                  <>
+                    {/* Telegram — only handle field */}
+                    <div>
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Channel handle (without @)</label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-gray-400">t.me/</span>
+                        <input
+                          type="text"
+                          placeholder="channel_name"
+                          value={feedForm.telegram_channel}
+                          onChange={(e) => setFeedForm({ ...feedForm, telegram_channel: e.target.value.replace(/^@/, '') })}
+                          className="flex-1 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* RSS/Atom — URL fields */}
+                    <input
+                      type="text"
+                      placeholder="RSS/Atom URL"
+                      value={feedForm.feed_url}
+                      onChange={(e) => setFeedForm({ ...feedForm, feed_url: e.target.value })}
+                      className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Site URL (optional)"
+                      value={feedForm.site_url}
+                      onChange={(e) => setFeedForm({ ...feedForm, site_url: e.target.value })}
+                      className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                    />
+                  </>
+                )}
+
                 <button
                   onClick={addFeed}
                   className="w-full px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                 >
-                  Add Feed
+                  {feedForm.feed_type === 'telegram' ? 'Add Telegram Channel' : 'Add Feed'}
                 </button>
               </div>
 

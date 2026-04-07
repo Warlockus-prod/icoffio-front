@@ -4,7 +4,26 @@ import { getPool } from '@/lib/pg-pool';
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic_id, lang } = await req.json();
+    const { topic_id, lang, all } = await req.json();
+
+    // Generate reports for ALL topics
+    if (all) {
+      const pool = getPool();
+      const { rows: topics } = await pool.query(
+        'SELECT id FROM info_watch_topics WHERE is_active = true ORDER BY sort_order'
+      );
+      const results: { topic_id: number; ok: boolean; error?: string }[] = [];
+      for (const t of topics) {
+        try {
+          await generateWatchReport(t.id, lang || 'ru');
+          results.push({ topic_id: t.id, ok: true });
+        } catch (err: any) {
+          results.push({ topic_id: t.id, ok: false, error: err.message });
+        }
+      }
+      return NextResponse.json({ ok: true, results });
+    }
+
     if (!topic_id) return NextResponse.json({ error: 'topic_id required' }, { status: 400 });
 
     const content = await generateWatchReport(topic_id, lang || 'en');

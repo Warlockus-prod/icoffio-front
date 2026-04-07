@@ -4,6 +4,7 @@ export interface WatchTopic {
   keywords: string[];
   topic_type: 'competitor' | 'trend' | 'industry';
   search_langs: string[];
+  extra_sources: string[];
   is_active: boolean;
   sort_order: number;
   created_at: string;

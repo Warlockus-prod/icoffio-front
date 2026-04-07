@@ -68,6 +68,66 @@ function parseGoogleNewsRss(xml: string, lang: string): GoogleNewsItem[] {
 }
 
 /**
+ * Parse HTML website to extract article links
+ */
+function parseWebsiteLinks(html: string, baseUrl: string): GoogleNewsItem[] {
+  const items: GoogleNewsItem[] = [];
+  const seen = new Set<string>();
+  const base = new URL(baseUrl);
+
+  // Extract links from common article patterns: <a href="..."><h2>Title</h2></a>, <article>, etc.
+  // Pattern 1: <a href="...">text with enough words</a> inside headings or article tags
+  const linkRegex = /<a\s[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+
+  while ((match = linkRegex.exec(html)) !== null) {
+    let href = match[1];
+    const inner = match[2];
+
+    // Clean HTML from inner text
+    const title = cleanHtml(inner);
+    if (!title || title.length < 15 || title.length > 300) continue;
+
+    // Resolve relative URLs
+    try {
+      if (href.startsWith('/')) {
+        href = `${base.protocol}//${base.host}${href}`;
+      } else if (!href.startsWith('http')) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
+    // Skip common non-article links
+    if (href.includes('/tag/') || href.includes('/category/') || href.includes('/author/') ||
+        href.includes('/login') || href.includes('/register') || href.includes('#') ||
+        href.includes('javascript:') || href.match(/\.(css|js|png|jpg|svg|ico)$/i)) {
+      continue;
+    }
+
+    // Skip duplicates
+    if (seen.has(href)) continue;
+    seen.add(href);
+
+    // Detect language
+    const hasRussian = title.match(/[а-яА-ЯёЁ]{5,}/);
+    const hasPolish = title.match(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/);
+
+    items.push({
+      title,
+      url: href,
+      source_name: base.hostname.replace('www.', ''),
+      description: null,
+      published_at: null,
+      language: hasRussian ? 'ru' : hasPolish ? 'pl' : 'en',
+    });
+  }
+
+  return items;
+}
+
+/**
  * Build Google News RSS URL for a keyword + language
  */
 function buildGoogleNewsUrl(keyword: string, lang: string): string {
@@ -130,6 +190,59 @@ export async function fetchWatchTopicNews(topicId: number): Promise<number> {
       } catch (err: any) {
         console.error(`[Watch] Fetch error for "${keyword}" (${lang}): ${err.message}`);
       }
+    }
+  }
+
+  // Fetch from extra_sources (RSS feeds or website URLs)
+  const extraSources: string[] = topic.extra_sources || [];
+  for (const sourceUrl of extraSources) {
+    try {
+      const response = await fetch(sourceUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; InfoWatch/1.0)' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) {
+        console.error(`[Watch] Extra source fetch failed: ${response.status} for ${sourceUrl}`);
+        continue;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const body = await response.text();
+      let parsedItems: GoogleNewsItem[] = [];
+
+      if (contentType.includes('xml') || contentType.includes('rss') || body.trimStart().startsWith('<?xml') || body.includes('<rss') || body.includes('<feed')) {
+        // Parse as RSS/Atom
+        parsedItems = parseGoogleNewsRss(body, 'en');
+        // Try to detect lang from content
+        if (body.match(/[а-яА-ЯёЁ]{10,}/)) {
+          parsedItems = parsedItems.map(it => ({ ...it, language: 'ru' }));
+        }
+      } else {
+        // Parse as HTML website — extract links and titles
+        parsedItems = parseWebsiteLinks(body, sourceUrl);
+      }
+
+      const hostname = new URL(sourceUrl).hostname.replace('www.', '');
+      for (const item of parsedItems.slice(0, 20)) {
+        try {
+          await pool.query(
+            `INSERT INTO info_watch_items (topic_id, title, url, source_name, description, language, published_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (topic_id, url) DO UPDATE SET
+               title = EXCLUDED.title,
+               description = COALESCE(EXCLUDED.description, info_watch_items.description),
+               source_name = COALESCE(EXCLUDED.source_name, info_watch_items.source_name)`,
+            [topicId, item.title, item.url, item.source_name || hostname, item.description, item.language, item.published_at]
+          );
+          totalInserted++;
+        } catch (err: any) {
+          if (!err.message?.includes('duplicate')) {
+            console.error(`[Watch] Extra insert error: ${err.message}`);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error(`[Watch] Extra source error for ${sourceUrl}: ${err.message}`);
     }
   }
 

@@ -17,20 +17,21 @@ export async function POST(req: NextRequest) {
   const pool = getPool();
   try {
     const body = await req.json();
-    const { name, keywords, topic_type, search_langs, sort_order } = body;
+    const { name, keywords, topic_type, search_langs, sort_order, extra_sources } = body;
 
     if (!name || !keywords?.length) {
       return NextResponse.json({ error: 'name and keywords required' }, { status: 400 });
     }
 
     const { rows: [topic] } = await pool.query(
-      `INSERT INTO info_watch_topics (name, keywords, topic_type, search_langs, sort_order)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      `INSERT INTO info_watch_topics (name, keywords, topic_type, search_langs, extra_sources, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [
         name,
         keywords,
         topic_type || 'trend',
         search_langs || ['en'],
+        extra_sources || [],
         sort_order || 0,
       ]
     );
@@ -53,7 +54,7 @@ export async function PUT(req: NextRequest) {
     let paramIdx = 1;
 
     for (const [key, val] of Object.entries(updates)) {
-      if (['name', 'keywords', 'topic_type', 'search_langs', 'is_active', 'sort_order'].includes(key)) {
+      if (['name', 'keywords', 'topic_type', 'search_langs', 'extra_sources', 'is_active', 'sort_order'].includes(key)) {
         fields.push(`${key} = $${paramIdx++}`);
         values.push(val);
       }

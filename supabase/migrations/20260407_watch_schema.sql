@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS info_watch_topics (
   topic_type VARCHAR(50) NOT NULL DEFAULT 'trend',  -- 'competitor', 'trend', 'industry'
   search_langs TEXT[] NOT NULL DEFAULT '{en}',       -- ['en'], ['ru'], ['en','ru']
   is_active BOOLEAN NOT NULL DEFAULT true,
+  extra_sources TEXT[] NOT NULL DEFAULT '{}',            -- RSS URLs or website URLs to scrape
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

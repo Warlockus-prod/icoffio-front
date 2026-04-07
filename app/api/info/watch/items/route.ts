@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg-pool';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const pool = getPool();
   try {

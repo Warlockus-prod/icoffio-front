@@ -143,6 +143,24 @@ export function InfoHome() {
             <p className="text-xl text-gray-500 dark:text-gray-400">No boards configured yet.</p>
           </div>
         ) : (
+          <>
+          {/* Market Watch Featured Card */}
+          <Link
+            href="/en/info/watch"
+            className="group mb-6 block bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20
+                       rounded-2xl p-5 hover:shadow-lg transition-all duration-200
+                       border border-purple-200/50 dark:border-purple-700/30 hover:border-purple-300 dark:hover:border-purple-600"
+          >
+            <div className="flex items-center gap-4">
+              <span className="text-4xl group-hover:scale-110 transition-transform">🔭</span>
+              <div>
+                <h2 className="text-lg font-bold text-[#333] dark:text-[#e0e0e0]">Market Watch</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Competitor monitoring, industry trends & AI-powered analysis</p>
+              </div>
+              <span className="ml-auto text-gray-300 dark:text-gray-600 group-hover:text-purple-400 transition-colors text-2xl">&rarr;</span>
+            </div>
+          </Link>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {boards.map((board, idx) => (
               <Link
@@ -211,6 +229,7 @@ export function InfoHome() {
               )
             )}
           </div>
+          </>
         )}
       </main>
 

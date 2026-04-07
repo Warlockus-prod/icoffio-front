@@ -17,6 +17,21 @@ const TYPE_LABELS: Record<string, string> = {
   industry: 'Industry',
 };
 
+const LANG_FLAGS: Record<string, string> = {
+  ru: '🇷🇺',
+  pl: '🇵🇱',
+  en: '🇬🇧',
+  de: '🇩🇪',
+  fr: '🇫🇷',
+  es: '🇪🇸',
+};
+
+const LANG_NAMES: Record<string, string> = {
+  ru: 'Русский',
+  pl: 'Polski',
+  en: 'English',
+};
+
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -68,6 +83,9 @@ export function InfoWatchPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [searchingTopic, setSearchingTopic] = useState<number | null>(null);
   const [fetchingAll, setFetchingAll] = useState(false);
+  const [reportLang, setReportLang] = useState<string>('ru');
+  const [translatingItem, setTranslatingItem] = useState<number | null>(null);
+  const [translations, setTranslations] = useState<Record<number, { title: string; description?: string }>>({});
 
   const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 4000); };
 
@@ -193,13 +211,32 @@ export function InfoWatchPage() {
     }
   };
 
+  const translateItem = async (itemId: number, text: string, targetLang: string) => {
+    setTranslatingItem(itemId);
+    try {
+      const res = await fetch('/api/info/watch/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, target_lang: targetLang }),
+      });
+      const data = await res.json();
+      if (data.translated) {
+        setTranslations(prev => ({ ...prev, [itemId]: { title: data.translated } }));
+      }
+    } catch (err: any) {
+      flash(`Translation error: ${err.message}`);
+    } finally {
+      setTranslatingItem(null);
+    }
+  };
+
   const generateReport = async (topicId: number) => {
     setGeneratingReport(true);
     try {
       const res = await fetch('/api/info/watch/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic_id: topicId }),
+        body: JSON.stringify({ topic_id: topicId, lang: reportLang }),
       });
       const data = await res.json();
       if (data.report) {
@@ -476,38 +513,59 @@ export function InfoWatchPage() {
                         </p>
                       ) : (
                         expandedItems.map((item: any, i: number) => (
-                          <a
+                          <div
                             key={item.id || i}
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
+                            className="p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
                           >
                             <div className="flex items-start gap-2">
                               <span className="text-xs text-gray-300 dark:text-gray-600 mt-0.5 font-mono">[{i + 1}]</span>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-[#333] dark:text-[#e0e0e0] group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2">
-                                  {item.title}
-                                </p>
+                                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                  className="text-sm text-[#333] dark:text-[#e0e0e0] group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2 block">
+                                  {translations[item.id]?.title || item.title}
+                                </a>
+                                {translations[item.id] && (
+                                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 italic">
+                                    Original: {item.title}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-2 mt-1">
+                                  {item.language && (
+                                    <span className="text-xs" title={item.language}>
+                                      {LANG_FLAGS[item.language] || '🌐'} {item.language.toUpperCase()}
+                                    </span>
+                                  )}
                                   {item.source_name && (
                                     <span className="text-xs text-blue-500 dark:text-blue-400">{item.source_name}</span>
                                   )}
                                   {item.published_at && (
                                     <span className="text-xs text-gray-400">{timeAgo(item.published_at)}</span>
                                   )}
-                                  {item.language && (
-                                    <span className="text-xs text-gray-300 dark:text-gray-600 uppercase">{item.language}</span>
+                                  {/* Translate buttons */}
+                                  {!translations[item.id] && (
+                                    <span className="flex items-center gap-1 ml-auto">
+                                      {['ru', 'pl'].map(lang => (
+                                        <button
+                                          key={lang}
+                                          onClick={() => translateItem(item.id, item.title + (item.description ? '. ' + item.description : ''), lang)}
+                                          disabled={translatingItem === item.id}
+                                          className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
+                                          title={`Translate to ${LANG_NAMES[lang]}`}
+                                        >
+                                          {translatingItem === item.id ? '...' : `${LANG_FLAGS[lang]}`}
+                                        </button>
+                                      ))}
+                                    </span>
                                   )}
                                 </div>
-                                {item.description && (
+                                {item.description && !translations[item.id] && (
                                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 line-clamp-2">
                                     {item.description}
                                   </p>
                                 )}
                               </div>
                             </div>
-                          </a>
+                          </div>
                         ))
                       )}
                     </div>
@@ -515,17 +573,35 @@ export function InfoWatchPage() {
 
                   {/* Right: AI Report */}
                   <div>
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                       <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         AI Analysis
                       </h3>
-                      <button
-                        onClick={() => generateReport(expandedId)}
-                        disabled={generatingReport}
-                        className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                      >
-                        {generatingReport ? '🤖 Generating...' : '🤖 Generate New Report'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {/* Report language selector */}
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                          {['ru', 'pl', 'en'].map(lang => (
+                            <button
+                              key={lang}
+                              onClick={() => setReportLang(lang)}
+                              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                                reportLang === lang
+                                  ? 'bg-white dark:bg-gray-600 text-[#333] dark:text-white shadow-sm font-medium'
+                                  : 'text-gray-500 dark:text-gray-400 hover:text-[#333] dark:hover:text-white'
+                              }`}
+                            >
+                              {LANG_FLAGS[lang]} {lang.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => generateReport(expandedId)}
+                          disabled={generatingReport}
+                          className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                        >
+                          {generatingReport ? '🤖 Generating...' : '🤖 Generate Report'}
+                        </button>
+                      </div>
                     </div>
 
                     {generatingReport && !activeReport && (

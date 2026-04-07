@@ -4,10 +4,10 @@ import { getPool } from '@/lib/pg-pool';
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic_id } = await req.json();
+    const { topic_id, lang } = await req.json();
     if (!topic_id) return NextResponse.json({ error: 'topic_id required' }, { status: 400 });
 
-    const content = await generateWatchReport(topic_id);
+    const content = await generateWatchReport(topic_id, lang || 'en');
     return NextResponse.json({ ok: true, report: content });
   } catch (err: any) {
     console.error('[Watch Report]', err);

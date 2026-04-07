@@ -162,9 +162,9 @@ export async function fetchAllWatchTopics(): Promise<{ total: number; topics: nu
 }
 
 /**
- * Generate AI report for a topic using GPT-4o
+ * Generate AI report for a topic using GPT-5.4
  */
-export async function generateWatchReport(topicId: number): Promise<string> {
+export async function generateWatchReport(topicId: number, reportLang: string = 'en'): Promise<string> {
   const pool = getPool();
 
   // Get topic info
@@ -228,7 +228,7 @@ What this means going forward, potential impacts.
 ## Sources
 List the most important sources referenced.
 
-Write in English. Be specific, data-driven, and cite sources. If articles are in Russian, translate key points.`;
+Write the ENTIRE report in ${reportLang === 'ru' ? 'Russian' : reportLang === 'pl' ? 'Polish' : 'English'}. Be specific, data-driven, and cite sources. Translate all article titles and key points into the report language.`;
 
   // Call OpenAI
   const apiKey = process.env.OPENAI_API_KEY;

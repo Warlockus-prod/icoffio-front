@@ -121,7 +121,160 @@ export function InfoWatchPage() {
   const [correlationData, setCorrelationData] = useState<any[]>([]);
   const [reportDiffData, setReportDiffData] = useState<Record<number, any>>({});
 
+  // Topic filter
+  const [filterGroup, setFilterGroup] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
+  const [filterName, setFilterName] = useState('');
+
+  // Collapsed groups
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  // Bulk actions
+  const [selectedTopics, setSelectedTopics] = useState<Set<number>>(new Set());
+  const [showBulkBar, setShowBulkBar] = useState(false);
+
+  // Article pagination per topic
+  const [topicLimits, setTopicLimits] = useState<Record<number, number>>({});
+
+  // Drag state
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+
+  // Mobile menu
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 4000); };
+
+  // Computed: filtered topics
+  const filteredTopics = topics.filter(t => {
+    if (filterGroup && (t.topic_group || '') !== filterGroup) return false;
+    if (filterType && t.topic_type !== filterType) return false;
+    if (filterName && !t.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+    return true;
+  });
+
+  // All unique groups
+  const allGroups = [...new Set(topics.map(t => t.topic_group).filter(Boolean))] as string[];
+
+  // Toggle collapsed group
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      next.has(group) ? next.delete(group) : next.add(group);
+      return next;
+    });
+  };
+
+  // Bulk select
+  const toggleSelect = (id: number) => {
+    setSelectedTopics(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const selectAll = () => {
+    if (selectedTopics.size === filteredTopics.length) {
+      setSelectedTopics(new Set());
+    } else {
+      setSelectedTopics(new Set(filteredTopics.map(t => t.id)));
+    }
+  };
+  const bulkUpdateField = async (field: string, value: any) => {
+    const ids = Array.from(selectedTopics);
+    if (ids.length === 0) return;
+    try {
+      await Promise.all(ids.map(id =>
+        fetch('/api/info/watch/topics', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, [field]: value }),
+        })
+      ));
+      flash(`Updated ${ids.length} topics`);
+      setSelectedTopics(new Set());
+      loadTopics();
+    } catch (err: any) { flash(`Error: ${err.message}`); }
+  };
+
+  // Drag & drop
+  const handleDragStart = (id: number) => { setDragId(id); };
+  const handleDragOver = (e: React.DragEvent, id: number) => { e.preventDefault(); setDragOverId(id); };
+  const handleDragEnd = async () => {
+    if (dragId !== null && dragOverId !== null && dragId !== dragOverId) {
+      const fromIdx = topics.findIndex(t => t.id === dragId);
+      const toIdx = topics.findIndex(t => t.id === dragOverId);
+      if (fromIdx >= 0 && toIdx >= 0) {
+        await Promise.all([
+          fetch('/api/info/watch/topics', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: dragId, sort_order: topics[toIdx].sort_order }),
+          }),
+          fetch('/api/info/watch/topics', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: dragOverId, sort_order: topics[fromIdx].sort_order }),
+          }),
+        ]);
+        loadTopics();
+      }
+    }
+    setDragId(null);
+    setDragOverId(null);
+  };
+
+  // Load more articles for a topic
+  const loadMoreItems = async (topicId: number) => {
+    const currentLimit = topicLimits[topicId] || 15;
+    const newLimit = currentLimit + 15;
+    try {
+      const res = await fetch(`/api/info/watch/items?topic_id=${topicId}&limit=${newLimit}`);
+      const data = await res.json();
+      setTopicItems(prev => ({ ...prev, [topicId]: data.items || [] }));
+      setTopicLimits(prev => ({ ...prev, [topicId]: newLimit }));
+    } catch {}
+  };
+
+  // Export comparison to CSV
+  const exportCSV = () => {
+    if (compareData.length === 0) return;
+    const headers = ['Name', 'Mentions', 'SoV%', 'Trend%', 'Positive', 'Neutral', 'Negative', 'Sentiment Score', 'Quality', 'Tags', 'Latest'];
+    const rows = compareData.map((r: any) => [
+      r.name, r.total_mentions, r.share_of_voice || 0, r.trend_pct || 0,
+      r.positive || 0, r.neutral || 0, r.negative || 0,
+      r.sentiment_score || 0, Math.round(r.quality_score || 0),
+      (r.top_tags || []).join('; '),
+      r.latest_article ? new Date(r.latest_article).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map((c: any) => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `watch-compare-${compareType}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  // Export report as PDF (uses print dialog)
+  const exportReportPDF = (topicName: string, content: string) => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>Report: ${topicName}</title>
+      <style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#333;line-height:1.6}
+      h2,h3{margin-top:1.5em}ul{padding-left:1.5em}li{margin-bottom:0.5em}
+      .citation{color:#2563eb;font-size:0.85em;font-weight:500}
+      @media print{body{margin:0;padding:15px}}</style></head><body>
+      <h1>Report: ${topicName}</h1><p style="color:#888">${new Date().toLocaleDateString()}</p><hr>
+      ${content.replace(/\[(\d+)\]/g, '<span class="citation">[$1]</span>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
+        .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>')}
+      <hr><p style="color:#888;font-size:0.8em">Generated by icoffio Market Watch</p>
+      </body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
+  };
 
   // Search
   const doSearch = async () => {
@@ -469,35 +622,43 @@ export function InfoWatchPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f0] dark:bg-[#1a1a2e] transition-colors">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <Link href="/en/info" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-            &larr; infomate
-          </Link>
-          <h1 className="text-2xl font-bold text-[#333] dark:text-[#e0e0e0]">Market Watch</h1>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Report language */}
-          <div className="flex items-center gap-0.5 bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5">
-            {['en', 'pl', 'ru'].map(lang => (
-              <button key={lang} onClick={() => setReportLang(lang)}
-                className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                  reportLang === lang
-                    ? 'bg-white dark:bg-gray-500 text-[#333] dark:text-white shadow-sm font-medium'
-                    : 'text-gray-500 dark:text-gray-400'
-                }`}>
-                {LANG_FLAGS[lang]}
-              </button>
-            ))}
+      {/* Header — mobile responsive */}
+      <header className="px-4 sm:px-6 py-4 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <Link href="/en/info" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              &larr; <span className="hidden sm:inline">infomate</span>
+            </Link>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#333] dark:text-[#e0e0e0]">Market Watch</h1>
           </div>
-          {/* Generate All Reports */}
-          <button
-            onClick={generateAllReports}
-            disabled={generatingReport !== null}
-            className="px-3 py-1.5 text-sm rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-          >
-            {generatingReport === 'all' ? '🤖 Generating All...' : '🤖 All Reports'}
+          <div className="flex items-center gap-2">
+            {/* Language selector - always visible */}
+            <div className="flex items-center gap-0.5 bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5">
+              {['en', 'pl', 'ru'].map(lang => (
+                <button key={lang} onClick={() => setReportLang(lang)}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    reportLang === lang
+                      ? 'bg-white dark:bg-gray-500 text-[#333] dark:text-white shadow-sm font-medium'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}>
+                  {LANG_FLAGS[lang]}
+                </button>
+              ))}
+            </div>
+            <InfoThemeToggle />
+            {/* Mobile hamburger */}
+            <button onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="sm:hidden px-2 py-1.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+              {showMobileMenu ? '✕' : '☰'}
+            </button>
+          </div>
+        </div>
+
+        {/* Action buttons — desktop: inline row, mobile: dropdown */}
+        <div className={`${showMobileMenu ? 'flex' : 'hidden'} sm:flex flex-wrap items-center gap-2 mt-3`}>
+          <button onClick={generateAllReports} disabled={generatingReport !== null}
+            className="px-3 py-1.5 text-sm rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors">
+            {generatingReport === 'all' ? '🤖 ...' : '🤖 All Reports'}
           </button>
           <button onClick={() => { setShowCompare(!showCompare); if (!showCompare) loadComparison(compareType); }}
             className={`px-3 py-1.5 text-sm rounded transition-colors ${showCompare ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
@@ -529,12 +690,11 @@ export function InfoWatchPage() {
               </button>
             </>
           )}
-          <InfoThemeToggle />
         </div>
       </header>
 
-      {/* Search Bar */}
-      <div className="max-w-7xl mx-auto px-6 pb-2">
+      {/* Search + Filter Bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-2 space-y-2">
         <div className="flex gap-2">
           <input type="text" value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); if (!e.target.value) setSearchResults(null); }}
@@ -546,6 +706,62 @@ export function InfoWatchPage() {
               className="px-3 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-500">✕</button>
           )}
         </div>
+        {/* Topic Filters */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-gray-400">Filter:</span>
+          <input type="text" value={filterName} onChange={e => setFilterName(e.target.value)}
+            placeholder="Topic name..."
+            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-[#333] dark:text-[#e0e0e0] w-32" />
+          <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
+            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-[#333] dark:text-[#e0e0e0]">
+            <option value="">All Groups</option>
+            {allGroups.map(g => <option key={g} value={g}>{g}</option>)}
+            <option value="">Ungrouped</option>
+          </select>
+          <select value={filterType} onChange={e => setFilterType(e.target.value)}
+            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-[#333] dark:text-[#e0e0e0]">
+            <option value="">All Types</option>
+            <option value="competitor">🏢 Competitor</option>
+            <option value="trend">📈 Trend</option>
+            <option value="industry">🏭 Industry</option>
+          </select>
+          {(filterName || filterGroup || filterType) && (
+            <button onClick={() => { setFilterName(''); setFilterGroup(''); setFilterType(''); }}
+              className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">Clear</button>
+          )}
+          <span className="text-gray-400 ml-auto">{filteredTopics.length} / {topics.length} topics</span>
+        </div>
+
+        {/* Bulk Actions Bar */}
+        {editMode && selectedTopics.size > 0 && (
+          <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
+            <span className="text-xs font-medium text-blue-700 dark:text-blue-400">{selectedTopics.size} selected</span>
+            <select onChange={e => { if (e.target.value) bulkUpdateField('topic_group', e.target.value === '__none__' ? null : e.target.value); e.target.value = ''; }}
+              className="px-2 py-1 text-xs rounded border bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              <option value="">Set Group...</option>
+              {allGroups.map(g => <option key={g} value={g}>{g}</option>)}
+              <option value="__none__">Remove Group</option>
+            </select>
+            <select onChange={e => { if (e.target.value) bulkUpdateField('topic_type', e.target.value); e.target.value = ''; }}
+              className="px-2 py-1 text-xs rounded border bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              <option value="">Set Type...</option>
+              <option value="competitor">Competitor</option>
+              <option value="trend">Trend</option>
+              <option value="industry">Industry</option>
+            </select>
+            <select onChange={e => { if (e.target.value) bulkUpdateField('report_days', parseInt(e.target.value)); e.target.value = ''; }}
+              className="px-2 py-1 text-xs rounded border bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              <option value="">Set Period...</option>
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+            </select>
+            <button onClick={() => setSelectedTopics(new Set())}
+              className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 ml-auto">Deselect</button>
+          </div>
+        )}
       </div>
 
       {/* Toast */}
@@ -555,7 +771,7 @@ export function InfoWatchPage() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-6 py-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
         {loading ? (
           <div className="space-y-6">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -597,15 +813,21 @@ export function InfoWatchPage() {
             {/* Competitor Comparison */}
             {showCompare && (
               <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0]">📋 Comparison (last 7 days)</h3>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
                     {['competitor', 'trend', 'industry'].map(t => (
                       <button key={t} onClick={() => { setCompareType(t); loadComparison(t); }}
                         className={`px-2 py-1 text-xs rounded ${compareType === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
                         {TYPE_ICONS[t]} {t}
                       </button>
                     ))}
+                    {compareData.length > 0 && (
+                      <button onClick={exportCSV}
+                        className="px-2 py-1 text-xs rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200" title="Export CSV">
+                        📥 CSV
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -754,26 +976,50 @@ export function InfoWatchPage() {
             )}
 
             {/* Topic Blocks with group dividers */}
-            {topics.flatMap((topic, idx) => {
+            {filteredTopics.flatMap((topic, idx) => {
               const items = topicItems[topic.id] || [];
-              const prevGroup = idx > 0 ? topics[idx - 1].topic_group : undefined;
+              const prevGroup = idx > 0 ? filteredTopics[idx - 1].topic_group : undefined;
               const elements: React.ReactNode[] = [];
               // Insert group divider when group changes
               if (topic.topic_group && topic.topic_group !== prevGroup) {
+                const groupName = topic.topic_group;
+                const isCollapsed = collapsedGroups.has(groupName);
                 elements.push(
-                  <div key={`group-${topic.topic_group}`} className="flex items-center gap-2 px-1">
+                  <div key={`group-${groupName}`} className="flex items-center gap-2 px-1 cursor-pointer select-none" onClick={() => toggleGroup(groupName)}>
                     <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{topic.topic_group}</span>
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <span className="text-[10px]">{isCollapsed ? '▶' : '▼'}</span> {groupName}
+                      <span className="font-normal text-gray-400">({filteredTopics.filter(t => t.topic_group === groupName).length})</span>
+                    </span>
                     <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
                   </div>
                 );
               }
+              // Skip rendering if group is collapsed
+              if (topic.topic_group && collapsedGroups.has(topic.topic_group)) {
+                return elements;
+              }
               elements.push(
-                <div key={topic.id} className="bg-white dark:bg-[#16213e] rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
+                <div key={topic.id}
+                  draggable={editMode}
+                  onDragStart={() => handleDragStart(topic.id)}
+                  onDragOver={(e) => handleDragOver(e, topic.id)}
+                  onDragEnd={handleDragEnd}
+                  className={`bg-white dark:bg-[#16213e] rounded-xl overflow-hidden border transition-all ${
+                    dragOverId === topic.id ? 'border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800' :
+                    dragId === topic.id ? 'opacity-50 border-gray-300 dark:border-gray-600' :
+                    'border-gray-200/50 dark:border-gray-700/50'
+                  } ${editMode ? 'cursor-grab active:cursor-grabbing' : ''}`}>
                   {/* Topic Header */}
-                  <div className="flex items-center justify-between px-5 py-3 bg-gray-50 dark:bg-[#1a1a3e] border-b border-gray-200/50 dark:border-gray-700/50">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{TYPE_ICONS[topic.topic_type] || '📊'}</span>
+                  <div className="flex items-center justify-between px-3 sm:px-5 py-3 bg-gray-50 dark:bg-[#1a1a3e] border-b border-gray-200/50 dark:border-gray-700/50">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      {editMode && (
+                        <input type="checkbox" checked={selectedTopics.has(topic.id)}
+                          onChange={() => toggleSelect(topic.id)}
+                          className="w-4 h-4 rounded border-gray-300 shrink-0" />
+                      )}
+                      {editMode && <span className="text-gray-300 dark:text-gray-600 cursor-grab shrink-0">⠿</span>}
+                      <span className="text-xl sm:text-2xl shrink-0">{TYPE_ICONS[topic.topic_type] || '📊'}</span>
                       <div>
                         <h2 className="font-bold text-[#333] dark:text-[#e0e0e0]">{topic.name}</h2>
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
@@ -872,12 +1118,13 @@ export function InfoWatchPage() {
                   )}
 
                   {/* Articles Grid */}
-                  <div className="p-4">
+                  <div className="p-3 sm:p-4">
                     {items.length === 0 ? (
                       <p className="text-sm text-gray-400 dark:text-gray-500 italic text-center py-4">
                         No articles yet. Click 🔍 Search to fetch news.
                       </p>
                     ) : (
+                      <>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                         {items.map((item: any, i: number) => (
                           <div key={item.id || i}
@@ -924,6 +1171,16 @@ export function InfoWatchPage() {
                           </div>
                         ))}
                       </div>
+                      {/* Load More */}
+                      {items.length >= (topicLimits[topic.id] || 15) && (
+                        <div className="text-center pt-2">
+                          <button onClick={() => loadMoreItems(topic.id)}
+                            className="px-4 py-1.5 text-xs rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            Load More ({items.length} shown)
+                          </button>
+                        </div>
+                      )}
+                      </>
                     )}
                   </div>
 
@@ -934,10 +1191,18 @@ export function InfoWatchPage() {
                         <h3 className="text-sm font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wider">
                           🤖 AI Analysis — {topic.name}
                         </h3>
-                        <button onClick={() => generateReport(topic.id)} disabled={generatingReport !== null}
-                          className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">
-                          {generatingReport === topic.id ? '⏳ Generating...' : '🔄 New Report'}
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => generateReport(topic.id)} disabled={generatingReport !== null}
+                            className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">
+                            {generatingReport === topic.id ? '⏳ Generating...' : '🔄 New Report'}
+                          </button>
+                          {activeReport && (
+                            <button onClick={() => exportReportPDF(topic.name, activeReport)}
+                              className="px-3 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300" title="Export PDF">
+                              📄 PDF
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {generatingReport === topic.id && !activeReport && (

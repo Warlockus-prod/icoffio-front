@@ -418,25 +418,38 @@ export function InfoWatchPage() {
 
   const deleteTopic = async (id: number) => {
     if (!confirm('Delete this topic and all its data?')) return;
-    await fetch(`/api/info/watch/topics?id=${id}`, { method: 'DELETE' });
-    flash('Topic deleted');
-    loadTopics();
+    try {
+      await fetch(`/api/info/watch/topics?id=${id}`, { method: 'DELETE' });
+      flash('Topic deleted');
+      loadTopics();
+    } catch (err: any) {
+      flash(`Delete error: ${err.message}`);
+    }
   };
 
   const moveTopic = async (id: number, direction: 'up' | 'down') => {
     const idx = topics.findIndex(t => t.id === id);
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= topics.length) return;
+
+    // Swap sort_orders; if equal, force different values
+    let newSortA = topics[swapIdx].sort_order;
+    let newSortB = topics[idx].sort_order;
+    if (newSortA === newSortB) {
+      newSortA = direction === 'up' ? newSortB - 1 : newSortB + 1;
+    }
+
     await Promise.all([
       fetch('/api/info/watch/topics', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: topics[idx].id, sort_order: topics[swapIdx].sort_order }),
+        body: JSON.stringify({ id: topics[idx].id, sort_order: newSortA }),
       }),
       fetch('/api/info/watch/topics', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: topics[swapIdx].id, sort_order: topics[idx].sort_order }),
+        body: JSON.stringify({ id: topics[swapIdx].id, sort_order: newSortB }),
       }),
     ]);
+    flash(`Moved "${topics[idx].name}" ${direction}`);
     loadTopics();
   };
 
@@ -715,10 +728,10 @@ export function InfoWatchPage() {
                 ) : (
                   <div className="space-y-2">
                     {correlationData.map((corr: any, i: number) => {
-                      const maxShared = correlationData[0]?.shared_sources || 1;
-                      const barWidth = Math.max(5, Math.round((parseInt(corr.shared_sources) / parseInt(maxShared)) * 100));
+                      const maxShared = Number(correlationData[0]?.shared_sources) || 1;
+                      const barWidth = Math.max(5, Math.round((Number(corr.shared_sources) / maxShared) * 100));
                       return (
-                        <div key={i} className="flex items-center gap-3">
+                        <div key={`${corr.topic1_id}-${corr.topic2_id}`} className="flex items-center gap-3">
                           <div className="w-32 text-xs text-right font-medium text-[#333] dark:text-[#e0e0e0] truncate" title={corr.topic1_name}>
                             {corr.topic1_name}
                           </div>
@@ -808,12 +821,13 @@ export function InfoWatchPage() {
                             className="px-2.5 py-1 text-xs rounded bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
                             📡 Sources
                           </button>
+                          <span className="text-[10px] text-gray-400 font-mono">#{idx + 1}</span>
                           <button onClick={() => moveTopic(topic.id, 'up')} disabled={idx === 0}
-                            className="w-6 h-6 flex items-center justify-center text-[10px] bg-gray-700 text-white rounded-full disabled:opacity-30">▲</button>
+                            className="w-7 h-7 flex items-center justify-center text-xs bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors" title="Move up">▲</button>
                           <button onClick={() => moveTopic(topic.id, 'down')} disabled={idx === topics.length - 1}
-                            className="w-6 h-6 flex items-center justify-center text-[10px] bg-gray-700 text-white rounded-full disabled:opacity-30">▼</button>
+                            className="w-7 h-7 flex items-center justify-center text-xs bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors" title="Move down">▼</button>
                           <button onClick={() => deleteTopic(topic.id)}
-                            className="w-6 h-6 flex items-center justify-center text-[10px] bg-red-600 text-white rounded-full hover:bg-red-700">✕</button>
+                            className="w-7 h-7 flex items-center justify-center text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors" title="Delete">✕</button>
                         </>
                       )}
                     </div>

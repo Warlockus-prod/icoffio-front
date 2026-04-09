@@ -7,6 +7,7 @@ export interface WatchTopic {
   extra_sources: string[];
   quality_score: number;
   report_days: number;
+  topic_group: string | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;

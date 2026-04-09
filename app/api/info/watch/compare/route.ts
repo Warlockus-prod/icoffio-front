@@ -50,7 +50,10 @@ export async function GET(req: NextRequest) {
       prevMap[r.id] = parseInt(r.prev_mentions);
     }
 
-    // Enrich with trend data
+    // Calculate total mentions for Share of Voice
+    const totalAllMentions = rows.reduce((sum, r) => sum + parseInt(r.total_mentions), 0);
+
+    // Enrich with trend data + Share of Voice
     const enriched = rows.map(r => {
       const total = parseInt(r.total_mentions);
       const pos = parseInt(r.positive);
@@ -59,15 +62,17 @@ export async function GET(req: NextRequest) {
       const trend = prev > 0 ? Math.round(((total - prev) / prev) * 100) : (total > 0 ? 100 : 0);
       const analyzed = pos + neg + parseInt(r.neutral);
       const sentimentScore = analyzed > 0 ? Math.round(((pos - neg) / analyzed) * 100) : 0;
+      const sov = totalAllMentions > 0 ? Math.round((total / totalAllMentions) * 1000) / 10 : 0;
       return {
         ...r,
         prev_mentions: prev,
         trend_pct: trend,
         sentiment_score: sentimentScore,
+        share_of_voice: sov,
       };
     });
 
-    return NextResponse.json({ comparison: enriched, days, type });
+    return NextResponse.json({ comparison: enriched, days, type, total_mentions: totalAllMentions });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

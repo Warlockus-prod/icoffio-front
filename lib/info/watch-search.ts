@@ -1,5 +1,35 @@
 import { getPool } from '@/lib/pg-pool';
 
+// Source reliability weights: higher = more trustworthy (0-10 scale)
+const SOURCE_WEIGHTS: Record<string, number> = {
+  // Tier 1: Major industry publications
+  'reuters.com': 10, 'bloomberg.com': 10, 'wsj.com': 10, 'ft.com': 10,
+  'adweek.com': 9, 'adage.com': 9, 'digiday.com': 9, 'exchangewire.com': 9,
+  'adexchanger.com': 9, 'mediapost.com': 8, 'thedrum.com': 8, 'campaignlive.co.uk': 8,
+  // Tier 2: Tech/business press
+  'techcrunch.com': 8, 'venturebeat.com': 8, 'wired.com': 8, 'theverge.com': 7,
+  'businessinsider.com': 7, 'forbes.com': 7, 'cnbc.com': 8,
+  // Tier 3: Industry-specific
+  'martechseries.com': 7, 'martech.org': 7, 'emarketer.com': 8, 'iab.com': 9,
+  'iab.net': 9, 'iabeurope.eu': 9, 'iab.org.pl': 8,
+  'wirtualnemedia.pl': 7, 'press.pl': 6, 'brief.pl': 6,
+  // Tier 4: Company blogs, PR
+  'prnewswire.com': 5, 'businesswire.com': 5, 'globenewswire.com': 5,
+  'medium.com': 4, 'linkedin.com': 4,
+};
+
+function getSourceWeight(sourceName: string | null): number {
+  if (!sourceName) return 5;
+  const name = sourceName.toLowerCase().replace('www.', '');
+  // Exact match
+  if (SOURCE_WEIGHTS[name]) return SOURCE_WEIGHTS[name];
+  // Partial match (e.g., "Digiday" matches "digiday.com")
+  for (const [domain, weight] of Object.entries(SOURCE_WEIGHTS)) {
+    if (domain.startsWith(name) || name.includes(domain.split('.')[0])) return weight;
+  }
+  return 5; // Default weight
+}
+
 interface GoogleNewsItem {
   title: string;
   url: string;
@@ -493,19 +523,34 @@ export async function analyzeSentiment(batchSize: number = 30): Promise<number> 
  */
 export async function updateQualityScores(): Promise<void> {
   const pool = getPool();
-  await pool.query(`
-    UPDATE info_watch_topics wt SET quality_score = sub.score
-    FROM (
-      SELECT topic_id,
-        LEAST(100, (
-          COUNT(*) * 2 +
-          COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '7 days') * 5 +
-          COUNT(*) FILTER (WHERE published_at > NOW() - INTERVAL '1 day') * 10
-        )) as score
-      FROM info_watch_items
-      WHERE is_duplicate = false
-      GROUP BY topic_id
-    ) sub
-    WHERE wt.id = sub.topic_id
+  // Get items with source names for weighting
+  const { rows: items } = await pool.query(`
+    SELECT topic_id, source_name, published_at
+    FROM info_watch_items WHERE is_duplicate = false
   `);
+
+  // Calculate weighted scores per topic
+  const topicScores: Record<number, number> = {};
+  for (const item of items) {
+    const weight = getSourceWeight(item.source_name);
+    const pubDate = item.published_at ? new Date(item.published_at).getTime() : 0;
+    const now = Date.now();
+    const daysSince = pubDate ? (now - pubDate) / 86400000 : 30;
+
+    let freshness = 1;
+    if (daysSince < 1) freshness = 10;
+    else if (daysSince < 7) freshness = 5;
+    else if (daysSince < 14) freshness = 2;
+
+    const score = (weight / 10) * freshness;
+    topicScores[item.topic_id] = (topicScores[item.topic_id] || 0) + score;
+  }
+
+  for (const [topicId, rawScore] of Object.entries(topicScores)) {
+    const normalized = Math.min(100, Math.round(rawScore));
+    await pool.query('UPDATE info_watch_topics SET quality_score = $1 WHERE id = $2', [normalized, topicId]);
+  }
 }
+
+/** Get source weight for external use */
+export { getSourceWeight };

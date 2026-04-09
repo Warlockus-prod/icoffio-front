@@ -113,6 +113,14 @@ export function InfoWatchPage() {
   // Analyze state
   const [analyzing, setAnalyzing] = useState(false);
 
+  // Analytics panels
+  const [showKeywords, setShowKeywords] = useState(false);
+  const [keywordsData, setKeywordsData] = useState<{ word: string; count: number }[]>([]);
+  const [keywordsTopicId, setKeywordsTopicId] = useState<number | null>(null);
+  const [showCorrelation, setShowCorrelation] = useState(false);
+  const [correlationData, setCorrelationData] = useState<any[]>([]);
+  const [reportDiffData, setReportDiffData] = useState<Record<number, any>>({});
+
   const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 4000); };
 
   // Search
@@ -173,6 +181,34 @@ export function InfoWatchPage() {
     } catch (err: any) {
       flash(`Error: ${err.message}`);
     } finally { setAnalyzing(false); }
+  };
+
+  const loadKeywords = async (topicId?: number) => {
+    try {
+      const url = topicId
+        ? `/api/info/watch/analytics?type=keywords&topic_id=${topicId}&days=14`
+        : `/api/info/watch/analytics?type=keywords&days=14`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setKeywordsData(data.keywords || []);
+      setKeywordsTopicId(topicId || null);
+    } catch {}
+  };
+
+  const loadCorrelation = async () => {
+    try {
+      const res = await fetch('/api/info/watch/analytics?type=correlation&days=14');
+      const data = await res.json();
+      setCorrelationData(data.correlations || []);
+    } catch {}
+  };
+
+  const loadReportDiff = async (topicId: number) => {
+    try {
+      const res = await fetch(`/api/info/watch/analytics?type=report_diff&topic_id=${topicId}`);
+      const data = await res.json();
+      setReportDiffData(prev => ({ ...prev, [topicId]: data.diff }));
+    } catch {}
   };
 
   const loadTopics = useCallback(async () => {
@@ -404,10 +440,11 @@ export function InfoWatchPage() {
     loadTopics();
   };
 
-  const saveSources = async (topicId: number, reportDays?: number) => {
+  const saveSources = async (topicId: number, reportDays?: number, topicGroup?: string) => {
     const sources = sourcesInput.split('\n').map(s => s.trim()).filter(Boolean);
     const payload: any = { id: topicId, extra_sources: sources };
     if (reportDays && reportDays > 0) payload.report_days = reportDays;
+    if (topicGroup !== undefined) payload.topic_group = topicGroup || null;
     await fetch('/api/info/watch/topics', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -452,6 +489,14 @@ export function InfoWatchPage() {
           <button onClick={() => { setShowCompare(!showCompare); if (!showCompare) loadComparison(compareType); }}
             className={`px-3 py-1.5 text-sm rounded transition-colors ${showCompare ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
             📋 Compare
+          </button>
+          <button onClick={() => { setShowKeywords(!showKeywords); if (!showKeywords) loadKeywords(); }}
+            className={`px-3 py-1.5 text-sm rounded transition-colors ${showKeywords ? 'bg-cyan-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+            ☁️ Keywords
+          </button>
+          <button onClick={() => { setShowCorrelation(!showCorrelation); if (!showCorrelation) loadCorrelation(); }}
+            className={`px-3 py-1.5 text-sm rounded transition-colors ${showCorrelation ? 'bg-amber-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+            🔗 Correlation
           </button>
           {isAdmin && (
             <>
@@ -556,6 +601,7 @@ export function InfoWatchPage() {
                       <tr className="border-b border-gray-200 dark:border-gray-700">
                         <th className="text-left py-2 px-2 text-gray-500">Name</th>
                         <th className="text-center py-2 px-1 text-gray-500">Mentions</th>
+                        <th className="text-center py-2 px-1 text-gray-500">SoV</th>
                         <th className="text-center py-2 px-1 text-gray-500">Trend</th>
                         <th className="text-center py-2 px-1 text-gray-500">🟢</th>
                         <th className="text-center py-2 px-1 text-gray-500">🟡</th>
@@ -574,6 +620,14 @@ export function InfoWatchPage() {
                         <tr key={row.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30">
                           <td className="py-1.5 px-2 font-medium text-[#333] dark:text-[#e0e0e0]">{row.name}</td>
                           <td className="text-center py-1.5 px-1 font-bold">{row.total_mentions}</td>
+                          <td className="text-center py-1.5 px-1">
+                            <div className="flex items-center gap-1">
+                              <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(row.share_of_voice || 0, 100)}%` }} />
+                              </div>
+                              <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400">{row.share_of_voice || 0}%</span>
+                            </div>
+                          </td>
                           <td className="text-center py-1.5 px-1">
                             <span className={`text-[10px] font-bold ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-400'}`}>
                               {trend > 0 ? `↑${trend}%` : trend < 0 ? `↓${Math.abs(trend)}%` : '—'}
@@ -609,10 +663,99 @@ export function InfoWatchPage() {
               </div>
             )}
 
-            {/* Topic Blocks — like news feed */}
-            {topics.map((topic, idx) => {
+            {/* Keyword Cloud */}
+            {showKeywords && (
+              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0]">☁️ Keyword Cloud (14 days)</h3>
+                  <div className="flex gap-1">
+                    <button onClick={() => loadKeywords()}
+                      className={`px-2 py-1 text-xs rounded ${!keywordsTopicId ? 'bg-cyan-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                      All Topics
+                    </button>
+                    {topics.slice(0, 8).map(t => (
+                      <button key={t.id} onClick={() => loadKeywords(t.id)}
+                        className={`px-2 py-1 text-xs rounded truncate max-w-[80px] ${keywordsTopicId === t.id ? 'bg-cyan-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-center py-4">
+                  {keywordsData.map((kw, i) => {
+                    const maxCount = keywordsData[0]?.count || 1;
+                    const ratio = kw.count / maxCount;
+                    const size = Math.max(11, Math.round(10 + ratio * 24));
+                    const opacity = Math.max(0.4, ratio);
+                    return (
+                      <span key={kw.word} style={{ fontSize: `${size}px`, opacity }}
+                        className={`px-1.5 py-0.5 rounded cursor-default transition-colors hover:bg-cyan-100 dark:hover:bg-cyan-900/30 ${
+                          i < 5 ? 'text-cyan-700 dark:text-cyan-400 font-bold' :
+                          i < 15 ? 'text-blue-600 dark:text-blue-400 font-medium' :
+                          'text-gray-500 dark:text-gray-400'
+                        }`}
+                        title={`${kw.count} mentions`}>
+                        {kw.word}
+                      </span>
+                    );
+                  })}
+                  {keywordsData.length === 0 && (
+                    <p className="text-sm text-gray-400 italic">No keyword data available.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Cross-topic Correlation */}
+            {showCorrelation && (
+              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+                <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0] mb-3">🔗 Cross-topic Correlation (shared sources, 14 days)</h3>
+                {correlationData.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic text-center py-4">No significant correlations found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {correlationData.map((corr: any, i: number) => {
+                      const maxShared = correlationData[0]?.shared_sources || 1;
+                      const barWidth = Math.max(5, Math.round((parseInt(corr.shared_sources) / parseInt(maxShared)) * 100));
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-32 text-xs text-right font-medium text-[#333] dark:text-[#e0e0e0] truncate" title={corr.topic1_name}>
+                            {corr.topic1_name}
+                          </div>
+                          <div className="flex-1 flex items-center gap-2">
+                            <div className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-500 dark:bg-amber-600 rounded-full transition-all"
+                                style={{ width: `${barWidth}%` }} />
+                            </div>
+                            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 w-8 text-center">{corr.shared_sources}</span>
+                          </div>
+                          <div className="w-32 text-xs font-medium text-[#333] dark:text-[#e0e0e0] truncate" title={corr.topic2_name}>
+                            {corr.topic2_name}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Topic Blocks with group dividers */}
+            {topics.flatMap((topic, idx) => {
               const items = topicItems[topic.id] || [];
-              return (
+              const prevGroup = idx > 0 ? topics[idx - 1].topic_group : undefined;
+              const elements: React.ReactNode[] = [];
+              // Insert group divider when group changes
+              if (topic.topic_group && topic.topic_group !== prevGroup) {
+                elements.push(
+                  <div key={`group-${topic.topic_group}`} className="flex items-center gap-2 px-1">
+                    <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{topic.topic_group}</span>
+                    <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
+                  </div>
+                );
+              }
+              elements.push(
                 <div key={topic.id} className="bg-white dark:bg-[#16213e] rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
                   {/* Topic Header */}
                   <div className="flex items-center justify-between px-5 py-3 bg-gray-50 dark:bg-[#1a1a3e] border-b border-gray-200/50 dark:border-gray-700/50">
@@ -685,7 +828,7 @@ export function InfoWatchPage() {
                       <textarea value={sourcesInput} onChange={e => setSourcesInput(e.target.value)}
                         placeholder="https://competitor.com/blog/rss&#10;https://competitor.com/news&#10;https://industry-blog.com/feed"
                         rows={4} className="w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono" />
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <label className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-400">
                           Report period:
                           <input type="number" min={1} max={365} defaultValue={topic.report_days || 30}
@@ -693,10 +836,19 @@ export function InfoWatchPage() {
                             className="w-16 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                           /> days
                         </label>
+                        <label className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-400">
+                          Group:
+                          <input type="text" defaultValue={topic.topic_group || ''}
+                            id={`topic-group-${topic.id}`}
+                            placeholder="DSP, SSP, Agency..."
+                            className="w-28 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          />
+                        </label>
                         <button onClick={() => {
                           const daysEl = document.getElementById(`report-days-${topic.id}`) as HTMLInputElement;
+                          const groupEl = document.getElementById(`topic-group-${topic.id}`) as HTMLInputElement;
                           const d = parseInt(daysEl?.value || '30', 10);
-                          saveSources(topic.id, d);
+                          saveSources(topic.id, d, groupEl?.value);
                         }}
                           className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700">Save</button>
                         <button onClick={() => setEditingSources(null)}
@@ -777,7 +929,7 @@ export function InfoWatchPage() {
                       {generatingReport === topic.id && !activeReport && (
                         <div className="text-center py-8">
                           <div className="animate-spin text-3xl mb-2">🤖</div>
-                          <p className="text-sm text-gray-500">Analyzing with GPT-5.4... (15-30 sec)</p>
+                          <p className="text-sm text-gray-500">Analyzing... (15-30 sec)</p>
                         </div>
                       )}
 
@@ -796,7 +948,13 @@ export function InfoWatchPage() {
 
                       {reportHistory.length > 1 && (
                         <div className="mt-3 pt-3 border-t border-purple-200/30 dark:border-purple-800/30">
-                          <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase">History</h4>
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-xs font-semibold text-gray-400 uppercase">History</h4>
+                            <button onClick={() => loadReportDiff(topic.id)}
+                              className="px-2 py-0.5 text-[10px] rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-200">
+                              📊 Diff
+                            </button>
+                          </div>
                           <div className="flex gap-1 flex-wrap">
                             {reportHistory.map((r, i) => (
                               <button key={r.id} onClick={() => setActiveReport(r.content)}
@@ -809,12 +967,34 @@ export function InfoWatchPage() {
                               </button>
                             ))}
                           </div>
+                          {/* Report Diff */}
+                          {reportDiffData[topic.id] && (
+                            <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg text-xs">
+                              <p className="text-orange-700 dark:text-orange-400 font-medium mb-1">
+                                Changes: {new Date(reportDiffData[topic.id].previous_date).toLocaleDateString()} → {new Date(reportDiffData[topic.id].current_date).toLocaleDateString()}
+                              </p>
+                              {reportDiffData[topic.id].changes.map((ch: any, ci: number) => (
+                                <div key={ci} className="flex items-start gap-2 py-1 border-t border-orange-200/30 dark:border-orange-800/30">
+                                  <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${
+                                    ch.status === 'new' ? 'bg-green-200 text-green-800' :
+                                    ch.status === 'removed' ? 'bg-red-200 text-red-800' :
+                                    'bg-yellow-200 text-yellow-800'
+                                  }`}>{ch.status.toUpperCase()}</span>
+                                  <span className="text-gray-600 dark:text-gray-400">{ch.section}</span>
+                                </div>
+                              ))}
+                              {reportDiffData[topic.id].changes.length === 0 && (
+                                <p className="text-gray-400 italic">No structural changes between reports.</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   )}
                 </div>
               );
+              return elements;
             })}
 
             {/* Add Topic */}
@@ -872,7 +1052,7 @@ export function InfoWatchPage() {
       </main>
 
       <footer className="text-center py-8 text-sm text-gray-400 dark:text-gray-500">
-        <p>Powered by <a href="https://web.icoffio.com" className="underline hover:text-gray-600">icoffio</a> & GPT-5.4</p>
+        <p>Powered by <a href="https://web.icoffio.com" className="underline hover:text-gray-600">icoffio</a></p>
       </footer>
     </div>
   );

@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const days = parseInt(searchParams.get('days') || '7', 10);
     const type = searchParams.get('type') || 'competitor';
 
+    // Current period stats
     const { rows } = await pool.query(`
       SELECT
         wt.id, wt.name, wt.topic_type, wt.quality_score,
@@ -30,7 +31,43 @@ export async function GET(req: NextRequest) {
       ORDER BY total_mentions DESC
     `, [days, type]);
 
-    return NextResponse.json({ comparison: rows, days, type });
+    // Previous period for trend calculation
+    const { rows: prevRows } = await pool.query(`
+      SELECT
+        wt.id,
+        COUNT(wi.id) as prev_mentions
+      FROM info_watch_topics wt
+      LEFT JOIN info_watch_items wi ON wi.topic_id = wt.id
+        AND wi.is_duplicate = false
+        AND wi.published_at > NOW() - INTERVAL '1 day' * $1
+        AND wi.published_at <= NOW() - INTERVAL '1 day' * $2
+      WHERE wt.is_active = true AND wt.topic_type = $3
+      GROUP BY wt.id
+    `, [days * 2, days, type]);
+
+    const prevMap: Record<number, number> = {};
+    for (const r of prevRows) {
+      prevMap[r.id] = parseInt(r.prev_mentions);
+    }
+
+    // Enrich with trend data
+    const enriched = rows.map(r => {
+      const total = parseInt(r.total_mentions);
+      const pos = parseInt(r.positive);
+      const neg = parseInt(r.negative);
+      const prev = prevMap[r.id] || 0;
+      const trend = prev > 0 ? Math.round(((total - prev) / prev) * 100) : (total > 0 ? 100 : 0);
+      const analyzed = pos + neg + parseInt(r.neutral);
+      const sentimentScore = analyzed > 0 ? Math.round(((pos - neg) / analyzed) * 100) : 0;
+      return {
+        ...r,
+        prev_mentions: prev,
+        trend_pct: trend,
+        sentiment_score: sentimentScore,
+      };
+    });
+
+    return NextResponse.json({ comparison: enriched, days, type });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

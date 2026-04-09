@@ -277,7 +277,7 @@ export async function fetchAllWatchTopics(): Promise<{ total: number; topics: nu
 /**
  * Generate AI report for a topic using GPT-5.4
  */
-export async function generateWatchReport(topicId: number, reportLang: string = 'en'): Promise<string> {
+export async function generateWatchReport(topicId: number, reportLang: string = 'en', days?: number): Promise<string> {
   const pool = getPool();
 
   // Get topic info
@@ -286,13 +286,16 @@ export async function generateWatchReport(topicId: number, reportLang: string = 
   );
   if (!topic) throw new Error('Topic not found');
 
-  // Get recent articles (last 30 days)
+  // Use explicit days param > topic setting > default 30
+  const reportDays = days || topic.report_days || 30;
+
+  // Get recent articles
   const { rows: items } = await pool.query(
     `SELECT title, url, source_name, description, language, published_at
      FROM info_watch_items WHERE topic_id = $1
-     AND (published_at > NOW() - INTERVAL '30 days' OR published_at IS NULL)
+     AND (published_at > NOW() - INTERVAL '1 day' * $2 OR published_at IS NULL)
      ORDER BY published_at DESC NULLS LAST LIMIT 50`,
-    [topicId]
+    [topicId, reportDays]
   );
 
   if (items.length === 0) {

@@ -54,7 +54,7 @@ export async function PUT(req: NextRequest) {
     let paramIdx = 1;
 
     for (const [key, val] of Object.entries(updates)) {
-      if (['name', 'keywords', 'topic_type', 'search_langs', 'extra_sources', 'is_active', 'sort_order'].includes(key)) {
+      if (['name', 'keywords', 'topic_type', 'search_langs', 'extra_sources', 'is_active', 'sort_order', 'report_days'].includes(key)) {
         fields.push(`${key} = $${paramIdx++}`);
         values.push(val);
       }

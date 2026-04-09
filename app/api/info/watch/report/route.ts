@@ -4,7 +4,7 @@ import { getPool } from '@/lib/pg-pool';
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic_id, lang, all } = await req.json();
+    const { topic_id, lang, all, days } = await req.json();
 
     // Generate reports for ALL topics
     if (all) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       const results: { topic_id: number; ok: boolean; error?: string }[] = [];
       for (const t of topics) {
         try {
-          await generateWatchReport(t.id, lang || 'ru');
+          await generateWatchReport(t.id, lang || 'ru', days);
           results.push({ topic_id: t.id, ok: true });
         } catch (err: any) {
           results.push({ topic_id: t.id, ok: false, error: err.message });
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     if (!topic_id) return NextResponse.json({ error: 'topic_id required' }, { status: 400 });
 
-    const content = await generateWatchReport(topic_id, lang || 'en');
+    const content = await generateWatchReport(topic_id, lang || 'en', days);
     return NextResponse.json({ ok: true, report: content });
   } catch (err: any) {
     console.error('[Watch Report]', err);

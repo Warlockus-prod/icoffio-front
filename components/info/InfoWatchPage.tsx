@@ -89,7 +89,7 @@ export function InfoWatchPage() {
   const [generatingReport, setGeneratingReport] = useState<number | 'all' | null>(null);
   const [searchingTopic, setSearchingTopic] = useState<number | null>(null);
   const [fetchingAll, setFetchingAll] = useState(false);
-  const [reportLang, setReportLang] = useState<string>('ru');
+  const [reportLang, setReportLang] = useState<string>('en');
   const [translatingItem, setTranslatingItem] = useState<number | null>(null);
   const [translations, setTranslations] = useState<Record<number, { title: string }>>({});
 
@@ -404,14 +404,16 @@ export function InfoWatchPage() {
     loadTopics();
   };
 
-  const saveSources = async (topicId: number) => {
+  const saveSources = async (topicId: number, reportDays?: number) => {
     const sources = sourcesInput.split('\n').map(s => s.trim()).filter(Boolean);
+    const payload: any = { id: topicId, extra_sources: sources };
+    if (reportDays && reportDays > 0) payload.report_days = reportDays;
     await fetch('/api/info/watch/topics', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: topicId, extra_sources: sources }),
+      body: JSON.stringify(payload),
     });
     setEditingSources(null);
-    flash('Sources saved!');
+    flash('Sources & settings saved!');
     loadTopics();
   };
 
@@ -428,7 +430,7 @@ export function InfoWatchPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Report language */}
           <div className="flex items-center gap-0.5 bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5">
-            {['ru', 'pl', 'en'].map(lang => (
+            {['en', 'pl', 'ru'].map(lang => (
               <button key={lang} onClick={() => setReportLang(lang)}
                 className={`px-2 py-1 text-xs rounded-md transition-colors ${
                   reportLang === lang
@@ -554,22 +556,39 @@ export function InfoWatchPage() {
                       <tr className="border-b border-gray-200 dark:border-gray-700">
                         <th className="text-left py-2 px-2 text-gray-500">Name</th>
                         <th className="text-center py-2 px-1 text-gray-500">Mentions</th>
+                        <th className="text-center py-2 px-1 text-gray-500">Trend</th>
                         <th className="text-center py-2 px-1 text-gray-500">🟢</th>
                         <th className="text-center py-2 px-1 text-gray-500">🟡</th>
                         <th className="text-center py-2 px-1 text-gray-500">🔴</th>
-                        <th className="text-center py-2 px-1 text-gray-500">Score</th>
+                        <th className="text-center py-2 px-1 text-gray-500">Sentiment</th>
+                        <th className="text-center py-2 px-1 text-gray-500">Quality</th>
                         <th className="text-left py-2 px-2 text-gray-500">Tags</th>
                         <th className="text-right py-2 px-2 text-gray-500">Latest</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {compareData.map((row: any) => (
+                      {compareData.map((row: any) => {
+                        const trend = row.trend_pct || 0;
+                        const sentScore = row.sentiment_score || 0;
+                        return (
                         <tr key={row.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30">
                           <td className="py-1.5 px-2 font-medium text-[#333] dark:text-[#e0e0e0]">{row.name}</td>
                           <td className="text-center py-1.5 px-1 font-bold">{row.total_mentions}</td>
+                          <td className="text-center py-1.5 px-1">
+                            <span className={`text-[10px] font-bold ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                              {trend > 0 ? `↑${trend}%` : trend < 0 ? `↓${Math.abs(trend)}%` : '—'}
+                            </span>
+                          </td>
                           <td className="text-center py-1.5 px-1 text-green-600">{row.positive || 0}</td>
                           <td className="text-center py-1.5 px-1 text-yellow-600">{row.neutral || 0}</td>
                           <td className="text-center py-1.5 px-1 text-red-600">{row.negative || 0}</td>
+                          <td className="text-center py-1.5 px-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              sentScore > 20 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                              : sentScore < -20 ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                            }`}>{sentScore > 0 ? '+' : ''}{sentScore}</span>
+                          </td>
                           <td className="text-center py-1.5 px-1">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                               (row.quality_score || 0) > 50 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -582,7 +601,8 @@ export function InfoWatchPage() {
                           </td>
                           <td className="text-right py-1.5 px-2 text-gray-400">{row.latest_article ? timeAgo(row.latest_article) : '—'}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -665,9 +685,20 @@ export function InfoWatchPage() {
                       <textarea value={sourcesInput} onChange={e => setSourcesInput(e.target.value)}
                         placeholder="https://competitor.com/blog/rss&#10;https://competitor.com/news&#10;https://industry-blog.com/feed"
                         rows={4} className="w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono" />
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => saveSources(topic.id)}
-                          className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700">Save Sources</button>
+                      <div className="flex items-center gap-3 mt-2">
+                        <label className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-400">
+                          Report period:
+                          <input type="number" min={1} max={365} defaultValue={topic.report_days || 30}
+                            id={`report-days-${topic.id}`}
+                            className="w-16 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          /> days
+                        </label>
+                        <button onClick={() => {
+                          const daysEl = document.getElementById(`report-days-${topic.id}`) as HTMLInputElement;
+                          const d = parseInt(daysEl?.value || '30', 10);
+                          saveSources(topic.id, d);
+                        }}
+                          className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700">Save</button>
                         <button onClick={() => setEditingSources(null)}
                           className="px-3 py-1 text-xs bg-gray-300 dark:bg-gray-600 rounded">Cancel</button>
                       </div>

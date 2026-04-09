@@ -49,4 +49,5 @@ ALTER TABLE info_watch_items ADD COLUMN IF NOT EXISTS sentiment VARCHAR(10);
 ALTER TABLE info_watch_items ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 ALTER TABLE info_watch_items ADD COLUMN IF NOT EXISTS is_duplicate BOOLEAN DEFAULT false;
 ALTER TABLE info_watch_topics ADD COLUMN IF NOT EXISTS quality_score REAL DEFAULT 0;
+ALTER TABLE info_watch_topics ADD COLUMN IF NOT EXISTS report_days INTEGER DEFAULT 30;
 CREATE INDEX IF NOT EXISTS idx_watch_items_title_search ON info_watch_items USING gin(to_tsvector('english', title));

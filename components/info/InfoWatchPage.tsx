@@ -1083,10 +1083,10 @@ export function InfoWatchPage() {
                   {editingSources === topic.id && (
                     <div className="px-5 py-3 bg-yellow-50 dark:bg-yellow-900/10 border-b border-yellow-200 dark:border-yellow-800/30">
                       <p className="text-xs text-yellow-700 dark:text-yellow-400 mb-2">
-                        RSS feeds or website URLs (one per line). Websites without RSS will be scraped for article links.
+                        Sources (one per line): RSS, website URLs, X/Twitter (<code className="bg-yellow-200/50 dark:bg-yellow-800/30 px-1 rounded">@username</code> or <code className="bg-yellow-200/50 dark:bg-yellow-800/30 px-1 rounded">x.com/username</code>), Telegram (<code className="bg-yellow-200/50 dark:bg-yellow-800/30 px-1 rounded">t.me/channel</code>)
                       </p>
                       <textarea value={sourcesInput} onChange={e => setSourcesInput(e.target.value)}
-                        placeholder="https://competitor.com/blog/rss&#10;https://competitor.com/news&#10;https://industry-blog.com/feed"
+                        placeholder="https://competitor.com/blog/rss&#10;@TheTradeDesk&#10;x.com/Adform&#10;t.me/adtech_news&#10;https://competitor.com/news"
                         rows={4} className="w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono" />
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <label className="flex items-center gap-1.5 text-xs text-yellow-700 dark:text-yellow-400">

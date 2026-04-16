@@ -223,8 +223,25 @@ export async function fetchWatchTopicNews(topicId: number): Promise<number> {
     }
   }
 
-  // Fetch from extra_sources (RSS feeds or website URLs)
-  const extraSources: string[] = topic.extra_sources || [];
+  // Fetch from extra_sources (RSS feeds, website URLs, X/Twitter, Telegram)
+  const RSSHUB_BASE = process.env.RSSHUB_URL || 'http://172.17.0.1:1200';
+  const extraSources: string[] = (topic.extra_sources || []).map((src: string) => {
+    const s = src.trim();
+    // X/Twitter: @username, x.com/username, twitter.com/username → RSSHub
+    if (s.startsWith('@') && !s.includes('/') && !s.includes('.')) {
+      return `${RSSHUB_BASE}/twitter/user/${s.slice(1)}`;
+    }
+    const xMatch = s.match(/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/?$/);
+    if (xMatch) {
+      return `${RSSHUB_BASE}/twitter/user/${xMatch[1]}`;
+    }
+    // Telegram: t.me/channel → RSSHub
+    const tgMatch = s.match(/t\.me\/([a-zA-Z0-9_]+)\/?$/);
+    if (tgMatch) {
+      return `${RSSHUB_BASE}/telegram/channel/${tgMatch[1]}`;
+    }
+    return s;
+  });
   for (const sourceUrl of extraSources) {
     try {
       const response = await fetch(sourceUrl, {

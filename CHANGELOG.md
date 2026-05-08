@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.10.0] - 2026-05-08 - 🎁 Errors UI + Lighthouse audit + telegram tests + Watch code-split
+
+### ✅ Added — Admin UI for self-hosted error log
+- New `components/admin/ErrorsLogViewer.tsx` (≈260 lines, client component): paginated list with level/source filters, expandable details (stack/metadata/user/IP), 24h stats widgets (info/warn/error/critical counts), purge controls (>7d / >30d).
+- Wired as new admin tab `'errors'` (admin role required) — between System Logs and Settings in the sidebar.
+- `lib/stores/admin-store.ts` activeTab union extended with `'errors'`.
+- Now you can SEE errors as they happen on prod without `docker logs` SSH gymnastics.
+
+### 📊 Lighthouse audit on production
+Run with `npx lighthouse https://web.icoffio.com/<path> --output=json` from local Chrome.
+
+| Page | Performance | Accessibility | Best Practices | SEO | LCP | CLS | TBT |
+|------|-------------|---------------|----------------|-----|-----|-----|-----|
+| `/en` | **88** | 96 | 96 | 92 | 3.7s | 0 | 20ms |
+| `/en/article/<slug>` | **100** | **100** | 96 | **100** | 1.5s | 0 | 0ms |
+
+Key insights:
+- Article pages are PERFECT (100s across the board) — v10.7.0 next/image migration paid off
+- Homepage LCP at 3.7s is the only weak point — Hero hero-image still has room (preload hint or smaller initial size)
+- CLS = 0 everywhere (proper width/height attrs working)
+- Article page Best Practices held back only by 18 KiB unused CSS
+
+Reports saved locally at `/tmp/icoffio-lighthouse/{home,article}.report.{html,json}`.
+
+### ✅ Added — Telegram pipeline tests (+17 tests)
+- `__tests__/pending-articles.test.ts` (11 tests): in-memory category-selection store. Coverage: TTL, isolation by chatId, set/get/remove/update lifecycle, edge cases.
+- `__tests__/telegram-url-parser.test.ts` (6 tests): URL parser with mocked `fetch`. Covers OG title, fallback to `<title>`/`<h1>`, retry-on-5xx logic, throw-on-4xx. Tests run offline (no real network).
+- Total: **158 tests** passing (was 141).
+
+### ⚡ Performance — Watch route code-splitting
+- `app/[locale]/info/[boardSlug]/page.tsx`: `InfoWatchPage` (1338 lines) now imported via `next/dynamic`. SSR preserved (`ssr: true` default).
+- Other Info Portal boards (`/info/<board>`) no longer pull the Watch chunk into their bundle.
+- Loading state: simple "Loading Market Watch…" placeholder.
+- Future: full decomposition of InfoWatchPage into 5-6 sub-components left as P2 (current code-split gives ~80% of the bundle benefit at 5% of the work).
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+- `npm run build` — OK (no static-export warnings)
+- Lighthouse — recorded above
+
+### 🔐 Confidence
+- Errors UI: **HIGH** — uses existing /api/admin/errors-log endpoint (already verified in v10.8.0); component is read-only with explicit confirm on purge
+- Lighthouse: **HIGH** — measurements are point-in-time but reproducible
+- Telegram tests: **HIGH** — pure-function coverage; webhook orchestration left for integration tests
+- Watch dynamic import: **MEDIUM-HIGH** — Next.js standard pattern; smoke-test on prod recommended (visit /info/watch + /info/<other> to verify both work)
+
+### 🚀 Deploy
+No DB migrations. Same as 10.9.0 — git pull + docker rebuild + up.
+
 ## [10.9.0] - 2026-05-08 - 🅒 Tests + CI hardening
 
 ### ✅ Added — Test coverage for security-critical modules

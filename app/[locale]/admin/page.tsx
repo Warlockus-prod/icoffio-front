@@ -10,6 +10,7 @@ import ArticleEditor from '@/components/admin/ArticleEditor';
 import ImageSystem from '@/components/admin/ImageSystem';
 import PublishingQueue from '@/components/admin/PublishingQueue';
 import LogsViewer from '@/components/admin/LogsViewer';
+import ErrorsLogViewer from '@/components/admin/ErrorsLogViewer';
 import CleanupTool from '@/components/admin/CleanupTool';
 import ArticlesManager from '@/components/admin/ArticlesManager';
 import PublishedArticleEditor from '@/components/admin/PublishedArticleEditor';
@@ -49,7 +50,7 @@ export default function AdminPage() {
   }, [checkSession]);
 
   useEffect(() => {
-    const currentTabRequiresAdmin = ['logs', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback'].includes(activeTab);
+    const currentTabRequiresAdmin = ['logs', 'errors', 'advertising', 'content-prompts', 'activity', 'telegram', 'settings', 'feedback'].includes(activeTab);
     const currentTabRequiresEditor = ['parser', 'editor', 'images', 'queue', 'published-editor'].includes(activeTab);
 
     if (!isAuthenticated) return;
@@ -239,6 +240,8 @@ export default function AdminPage() {
         return <PublishingQueue />;
       case 'logs':
         return <LogsViewer />;
+      case 'errors':
+        return <ErrorsLogViewer />;
       case 'advertising':
         return <AdvertisingManager />;
       case 'content-prompts':

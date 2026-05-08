@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Post } from "@/lib/types";
 
 export function ArticleHero({ post, locale }: { post: Post; locale: string }) {
@@ -16,8 +17,14 @@ export function ArticleHero({ post, locale }: { post: Post; locale: string }) {
           year: 'numeric'
         })}</div>
       </div>
-      <div className="order-1 md:order-2 rounded-2xl overflow-hidden">
-        <img src={post.image} alt={post.imageAlt || post.title} className="w-full h-full object-cover" />
+      <div className="order-1 md:order-2 rounded-2xl overflow-hidden relative aspect-[16/9]">
+        <Image
+          src={post.image}
+          alt={post.imageAlt || post.title}
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-cover"
+        />
       </div>
     </Link>
   );

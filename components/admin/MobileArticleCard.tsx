@@ -114,6 +114,8 @@ export default function MobileArticleCard({
 
           {/* Image */}
           {hasCustomImage ? (
+            // Admin-only thumbnail (16×16) — next/image not worth the setup here.
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={article.image || FALLBACK_IMAGE_URL}
               alt={article.title}

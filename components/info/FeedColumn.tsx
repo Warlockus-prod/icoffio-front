@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import type { InfoFeed, InfoFeedItem } from '@/lib/info/types';
 
 function timeAgo(dateStr: string | null): string {
@@ -25,7 +26,16 @@ export function FeedColumn({ feed }: { feed: InfoFeed & { items: InfoFeedItem[] 
       {/* Feed Header */}
       <div className="flex items-center gap-2 mb-3">
         {feed.icon_url ? (
-          <img src={feed.icon_url} alt="" className="w-5 h-5 rounded" />
+          // RSS feed icons come from arbitrary external domains — `unoptimized` skips
+          // Next.js image proxy. We trust admin-curated URLs in info_feeds.icon_url.
+          <Image
+            src={feed.icon_url}
+            alt=""
+            width={20}
+            height={20}
+            unoptimized
+            className="w-5 h-5 rounded"
+          />
         ) : (
           <div className="w-5 h-5 rounded bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-bold text-white">
             {feed.title[0]}
@@ -70,9 +80,13 @@ export function FeedColumn({ feed }: { feed: InfoFeed & { items: InfoFeedItem[] 
                 <div className="absolute left-full top-0 ml-2 z-50 w-72 bg-white dark:bg-[#0f3460] rounded-lg shadow-xl
                                 border border-gray-200 dark:border-gray-600 p-3 pointer-events-none">
                   {item.image_url && (
-                    <img
+                    // RSS item thumbnails — arbitrary domains, unoptimized to avoid wildcard remotePatterns.
+                    <Image
                       src={item.image_url}
                       alt=""
+                      width={400}
+                      height={128}
+                      unoptimized
                       className="w-full h-32 object-cover rounded mb-2"
                     />
                   )}

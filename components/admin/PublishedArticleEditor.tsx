@@ -434,6 +434,8 @@ export default function PublishedArticleEditor({
             onClick={handleHeroImageReplace}
           >
             {article.image_url ? (
+              // Admin-only hero preview — next/image needs known dimensions; <img> is fine here.
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={article.image_url}
                 alt="Hero"

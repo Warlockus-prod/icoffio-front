@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Post } from '@/lib/types';
 
 interface SearchModalProps {
@@ -94,9 +95,11 @@ export function SearchModal({ isOpen, onClose, posts, locale }: SearchModalProps
                         onClick={onClose}
                         className="flex gap-4 p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 rounded-xl transition-colors group"
                       >
-                        <img
+                        <Image
                           src={post.image}
                           alt={post.imageAlt || post.title}
+                          width={64}
+                          height={64}
                           className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">

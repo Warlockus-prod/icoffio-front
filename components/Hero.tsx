@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Container } from "./Container";
 import { getTranslation } from "@/lib/i18n";
 import type { Post } from "@/lib/types";
@@ -42,11 +43,14 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
       <section className="py-8 grid md:grid-cols-3 gap-6">
         {/* Main Article - 2 columns */}
         <Link href={`/${locale}/article/${main.slug}`} className="group col-span-2 block">
-          <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100">
-            <img 
-              src={getImage(main)} 
-              alt={main.imageAlt || main.title} 
-              className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
+          <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100 relative">
+            <Image
+              src={getImage(main)}
+              alt={main.imageAlt || main.title}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 66vw"
+              className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
             />
           </div>
           <div className="mt-3">
@@ -67,12 +71,14 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
           {rest.map((post) => {
             return (
               <Link key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
-                <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
-                <img 
-                  src={getImage(post)} 
-                  alt={post.imageAlt || post.title} 
-                  className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" 
-                />
+                <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100 relative">
+                  <Image
+                    src={getImage(post)}
+                    alt={post.imageAlt || post.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                  />
                 </div>
                 <div className="mt-2">
                   <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">

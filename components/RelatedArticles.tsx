@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Post } from '@/lib/types';
 import { getTranslation } from '@/lib/i18n';
 
@@ -74,12 +75,13 @@ export function RelatedArticles({ posts, locale, currentPostSlug, currentPost }:
               href={`/${locale}/article/${post.slug}`}
               className="block rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-sm transition-shadow"
             >
-              <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-                <img
+              <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden relative">
+                <Image
                   src={post.image || `https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&h=800&auto=format&fit=crop&category=${post.category.slug}`}
                   alt={post.imageAlt || post.title}
-                  className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                  loading="lazy"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                  className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
                 />
               </div>
               

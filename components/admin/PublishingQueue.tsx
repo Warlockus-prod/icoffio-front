@@ -577,6 +577,8 @@ export default function PublishingQueue() {
                 {/* Featured Image */}
                 {previewArticle.image && (
                   <div className="mb-6">
+                    {/* Admin-only article preview — next/image not worth the setup. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={previewArticle.image}
                       alt={previewArticle.title}

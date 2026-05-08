@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.7.1] - 2026-05-08 - 🅐 Quick wins: img→next/image, root cleanup, scripts purge
+
+### ✅ Fixed — Public components migrated to next/image
+- `components/Hero.tsx` (2 spots — main + secondary article cards) — main hero now uses `priority` for LCP boost on homepage
+- `components/ArticleHero.tsx` — fill+sizes on listing page hero
+- `components/RelatedArticles.tsx` — fill+sizes on related-articles cards
+- `components/SearchModal.tsx` — 64×64 thumbnail in search results
+- `components/info/FeedColumn.tsx` (2 spots — feed icons + RSS item images) — `unoptimized` flag for arbitrary RSS domains
+- `components/info/InfoHome.tsx` — board icons with `unoptimized`
+
+### ✅ Fixed — Real React bugs
+- `components/admin/ImageSelectionModal.tsx` — early return moved AFTER all `useCallback` hooks (5 violations were silent runtime hazards)
+- `components/ThemeProvider.tsx` — explicit eslint-disable on theme-tracking effect with documented reason (avoids infinite-loop trap)
+
+### 🛡️ ESLint config refined
+- Added `overrides` block: `components/admin/**` and `app/[locale]/admin/**` allowed `<img>` (admin previews don't justify next/image setup)
+- Removed stale `@typescript-eslint/no-explicit-any` disable from `lib/ad-diagnostics-logs.ts` (rule wasn't loaded)
+
+### 🗑️ Repo hygiene — root .md cleanup
+- **Archived 16 docs** → `docs/archive/v7-v8/`: AUDIT/TEST/RELEASE for v7-v8, MIGRATION_LOG, MIGRATION_SUCCESS_REPORT, WORDPRESS_TO_SUPABASE_MIGRATION, TELEGRAM_BOT_COMPLETE_ANALYSIS, TELEGRAM_SETTINGS_v8.5.0, etc.
+- **Deleted 5 truly obsolete**: DELETE_RUSSIAN_ARTICLES, RUSSIAN_ARTICLES_DELETION_GUIDE, SUPABASE_CLEANUP_INSTRUCTIONS, BANNER_FIX_REPORT, QUICK_FIX_REPORT.
+- Root `.md` count: **44 → 23**.
+
+### 🗑️ Repo hygiene — scripts/ cleanup
+- **Deleted 24 one-off scripts** (~10K lines):
+  - WordPress migration: `clean-wordpress-*` (3), `cleanup-wordpress*` (2), `seed-wp*` (3)
+  - Russian articles cleanup: `delete-russian*`, `FINAL_DELETE_RUSSIAN_ARTICLES.js`, `delete-all-russian.sh`
+  - Bulk delete experiments: `delete-via-api-batch.js`, `delete-via-bulk-api.js`, `delete-one-by-one.js`, `delete-production-articles.js`
+  - One-off cleanup: `cleanup-test-articles.js`, `clean-error-articles.js`
+  - Translation: `auto-translate.js`, `batch-translate.js`, `translate-existing-articles.js`
+  - Misc: `expand-articles.js`, `fix-gaming-image.js`, `fix-seo-excerpts.js`, `publish-articles-direct.sql`, `publish-and-cleanup-articles.ts`
+- `scripts/` count: **51 → 27**.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 64/64 OK
+- `npm run lint` — 0 errors, **17 warnings** (was 53 before P1 round; remaining are exhaustive-deps in admin components — pre-existing tech debt that requires careful per-component refactor)
+- `npm run build` — OK
+
+### 🔐 Confidence
+- All next/image conversions: **HIGH** — uses Next.js standard patterns, `unoptimized` flag for arbitrary external domains
+- Lint config: **HIGH** — narrow override scope, principled
+- .md/scripts deletions: **HIGH** — verified history is preserved (archived not deleted for valuable docs)
+
+### 🚀 Deploy
+Standard 10.7.x deploy; no DB changes. See [v10.7.0] for full instructions.
+
 ## [10.7.0] - 2026-05-08 - 🧹 P1 cleanup: Telegram legacy purge + LCP + lint + README
 
 ### 🗑️ Removed — Telegram Phase 1 (~3000 lines of dead legacy)

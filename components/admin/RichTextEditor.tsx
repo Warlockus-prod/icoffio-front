@@ -378,6 +378,8 @@ export default function RichTextEditor({
           ref={imagePopoverRef}
           className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 flex items-center gap-2"
         >
+          {/* Admin TipTap toolbar thumbnail (16×16). Source can be blob: URL or arbitrary host. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={selectedImage.src}
             alt=""

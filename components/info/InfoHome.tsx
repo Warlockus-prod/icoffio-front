@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { InfoBoard } from '@/lib/info/types';
 import { InfoThemeToggle } from './InfoThemeToggle';
 
@@ -187,7 +188,16 @@ export function InfoHome() {
                 )}
                 <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">
                   {board.icon_url ? (
-                    <img src={board.icon_url} alt="" className="w-16 h-16 rounded-full object-cover" />
+                    // Board icons are admin-uploaded URLs — likely on our hosts (covered by remotePatterns).
+                    // unoptimized as defense in depth for legacy uploads from arbitrary domains.
+                    <Image
+                      src={board.icon_url}
+                      alt=""
+                      width={64}
+                      height={64}
+                      unoptimized
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
                   ) : (
                     BOARD_ICONS[board.slug] || BOARD_ICONS.default
                   )}

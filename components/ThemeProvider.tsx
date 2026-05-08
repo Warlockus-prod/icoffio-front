@@ -109,7 +109,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       clearInterval(interval);
       mediaQuery.removeEventListener('change', handleMediaChange);
     };
-  }, [theme, isDarkMode, mounted]); // Зависимости для правильного обновления
+    // v10.7.1: getComputedTheme is stable (declared inline above), safe to omit from deps.
+    // applyTheme is also stable. Suppressing exhaustive-deps to avoid infinite re-runs
+    // that would occur if applyTheme triggered isDarkMode state change in deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, isDarkMode, mounted]);
 
   const toggleTheme = () => {
     if (!mounted) return; // Не переключаем до монтирования

@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: { typedRoutes: false },
+  experimental: {
+    typedRoutes: false,
+    // v10.6.1: keep `isomorphic-dompurify` (and its transitive deps `dompurify`, `jsdom`)
+    // as external CommonJS modules at runtime. Next.js bundler does not pick up jsdom's
+    // default-stylesheet.css asset, which causes "ENOENT default-stylesheet.css" during
+    // page-data collection for routes that import the sanitizer (e.g. /[locale]/article/[slug]).
+    serverComponentsExternalPackages: ['isomorphic-dompurify', 'dompurify', 'jsdom'],
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'admin.icoffio.com' },

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.6.2] - 2026-05-08 - 🐛 Build fix: externalize jsdom for isomorphic-dompurify
+
+### ✅ Fixed
+- Next.js production build was failing during page-data collection for `/[locale]/article/[slug]` with `ENOENT: no such file or directory, open '/app/.next/server/app/[locale]/browser/default-stylesheet.css'`. The bundler was trying to bundle `jsdom`'s runtime asset which it cannot resolve.
+- Fix: added `serverComponentsExternalPackages: ['isomorphic-dompurify', 'dompurify', 'jsdom']` to `next.config.mjs`. These packages now load at runtime via Node `require` instead of going through the webpack pipeline.
+
+### 🧪 Validation
+- `npm run build` — OK locally
+- `npx vitest run` — 64/64 OK
+
+### 🔐 Confidence
+- **HIGH** — `serverComponentsExternalPackages` is the documented Next.js 14 way to handle native/CJS deps with runtime asset loading; no behavior change for sanitizer itself.
+
 ## [10.6.1] - 2026-05-08 - 🛡️ P0 Security Pass (Audit Step 3)
 
 Closes critical attack surfaces flagged in the May 2026 audit. Auth flow remains password-only —

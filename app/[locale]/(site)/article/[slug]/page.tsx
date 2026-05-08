@@ -7,6 +7,7 @@
 
 import { getPostBySlug, getRelated } from "@/lib/data";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { Container } from "@/components/Container";
 import { ArticleContentWithAd } from "@/components/ArticleContentWithAd";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -294,11 +295,15 @@ export default async function Article({ params }: { params: { locale: string; sl
               </div>
             ))}
 
-            {/* Hero Image */}
+            {/* Hero Image — v10.7.0: next/image with priority for LCP optimization */}
             <div className="mb-8">
-              <img
+              <Image
                 src={heroImage}
                 alt={post.imageAlt || post.title}
+                width={1200}
+                height={675}
+                priority
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
                 className="w-full rounded-xl aspect-[16/9] object-cover"
               />
             </div>

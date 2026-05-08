@@ -48,7 +48,9 @@ function extractHostname(url: string): string {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Free-form scan payload from the live ad scanner — exact shape varies between scanner versions.
+// Typed as `any` because we rely on optional-chaining over arbitrary nested fields;
+// switching to `unknown` would require a giant runtime validator.
 export async function saveScanLog(result: any): Promise<string> {
   await ensureDir();
 

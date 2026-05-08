@@ -14,4 +14,13 @@ __tests__
 *.tar.gz
 .env*
 !.env.example
+# v10.7.0: large audit/diagnostic dirs (excluded to shrink build context)
+banners
+screens
+reports
+inimage-diagnostics
+.cursor
+.firecrawl
+coverage
+*.tsbuildinfo
 

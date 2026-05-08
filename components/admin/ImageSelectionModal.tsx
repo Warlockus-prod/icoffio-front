@@ -72,7 +72,7 @@ export default function ImageSelectionModal({
 
   const totalSelected = selectedIds.size + uploadedImages.length;
 
-  if (!isOpen) return null;
+  // v10.7.0: hooks must run on every render — early return moved AFTER all hooks below.
 
   // ✅ Toggle выбора картинки
   const toggleImageSelection = (optionId: string) => {
@@ -214,12 +214,15 @@ export default function ImageSelectionModal({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       handleFileUpload(files);
     }
   }, [handleFileUpload]);
+
+  // v10.7.0: early-return placed AFTER all hooks above to satisfy rules-of-hooks.
+  if (!isOpen) return null;
 
   // ✅ Удаление загруженного изображения
   const removeUploadedImage = (id: string) => {

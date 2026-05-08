@@ -1,415 +1,203 @@
-# 🚀 icoffio - Multi-Language Tech News Platform
+# 🚀 icoffio — Multi-Language Tech News Platform
 
-**Версия:** v7.14.0  
-**Статус:** ✅ PRODUCTION READY  
-**Последнее обновление:** 2025-11-02
+**Version:** v10.7.0
+**Status:** ✅ Production
+**Domain:** [web.icoffio.com](https://web.icoffio.com)
+**Branch:** `feature/info-portal`
 
----
+Bilingual (EN + PL) tech news aggregator. Content arrives from three pipelines:
+- **Telegram bot** — user sends URL or text → AI rewrite → translate → image gen → publish
+- **Admin panel** — same pipeline, manual control via `/admin`
+- **Market Watch** — passive RSS/Atom/Telegram crawler + AI analysis (`/info`)
 
-## 📖 БЫСТРАЯ НАВИГАЦИЯ
-
-### 🎯 Для начала работы:
-- **[Быстрый старт v7.14.0](./QUICK_START_v7.14.0.md)** ← Начните отсюда!
-- **[Инструкции deployment](./V7.14.0_DEPLOYMENT_INSTRUCTIONS.md)**
-
-### 📚 Документация:
-- **[📘 ГЛАВНАЯ ДОКУМЕНТАЦИЯ](./PROJECT_MASTER_DOCUMENTATION.md)** ← Полное описание проекта
-- **[📝 История изменений](./CHANGELOG.md)** ← Все версии и изменения
-- **[🏗️ Анализ архитектуры](./ARCHITECTURE_ANALYSIS.md)**
-- **[🔧 Правила разработки](./DEVELOPMENT_RULES.md)**
+Public reads via Next.js SSR + ISR. Monetized through VOX SSP.
 
 ---
 
-## 🎯 О ПРОЕКТЕ
+## 📚 Documentation
 
-**icoffio** - автоматизированная платформа технических новостей с:
-- ✅ Dual-language publishing (EN + PL)
-- ✅ AI content generation (GPT-4)
-- ✅ Telegram bot interface
-- ✅ Next.js admin panel
-- ✅ Supabase storage (fast & scalable)
-
-### Ключевая особенность v7.14.0:
-
-**Прямая публикация в Supabase** (без WordPress)
-- 🚀 12x быстрее (< 5 сек vs 60+ сек)
-- ✅ 100% надежность
-- ✅ Поддержка 100,000+ статей
+| Document | What's inside |
+|----------|---------------|
+| [docs/ARCHITECTURE_BLUEPRINT.md](./docs/ARCHITECTURE_BLUEPRINT.md) | **Full architecture** — recreate-from-scratch guide |
+| [CLAUDE.md](./CLAUDE.md) | Working instructions for AI assistants + key paths + pitfalls |
+| [SERVER_ACCESS.md](./SERVER_ACCESS.md) | VPS access, SSH keys, hosted projects topology |
+| [CHANGELOG.md](./CHANGELOG.md) | Version history with deploy notes |
+| [DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md) | Project conventions |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute |
+| [PRE_DEPLOY_CHECKLIST.md](./PRE_DEPLOY_CHECKLIST.md) | Mandatory checks before each deploy |
 
 ---
 
-## 🏗️ АРХИТЕКТУРА
+## 🛠 Tech Stack
 
-```
-Telegram Bot → Queue Service → AI Publisher → Supabase → Next.js Frontend
-```
-
-**Stack:**
-- **Frontend:** Next.js 14 + React 18 + TypeScript + Tailwind
-- **Backend:** Next.js API Routes + Serverless Functions
-- **Database:** Supabase (PostgreSQL)
-- **AI:** OpenAI GPT-4
-- **Images:** Unsplash API
-- **Hosting:** Vercel Pro
-- **Bot:** Telegram Bot API
-
----
-
-## 🚀 DEPLOYMENT (v7.14.0)
-
-### ✅ УЖЕ СДЕЛАНО:
-- Код переписан для Supabase
-- Git push выполнен (commit b11c5fd)
-- Vercel начал deploy
-
-### 📋 ВАМ НУЖНО:
-
-#### 1. Применить SQL в Supabase (2 минуты)
-
-**Откройте:**
-```
-https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz/editor
-```
-
-**Нажмите "+ New query"**
-
-**Вставьте SQL из файла:**
-```
-supabase/migrations/00_BASE_SCHEMA.sql
-```
-
-**Или скопируйте:**
-```sql
--- Создаем базовую таблицу
-CREATE TABLE IF NOT EXISTS published_articles (
-  id SERIAL PRIMARY KEY,
-  chat_id BIGINT NOT NULL DEFAULT 0,
-  job_id VARCHAR(255) UNIQUE,
-  title VARCHAR(500) NOT NULL,
-  url_en TEXT,
-  url_pl TEXT,
-  category VARCHAR(100),
-  word_count INTEGER,
-  languages TEXT[] DEFAULT '{}',
-  source VARCHAR(50),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Добавляем колонки для v7.14.0
-ALTER TABLE published_articles 
-  ADD COLUMN IF NOT EXISTS slug_en TEXT,
-  ADD COLUMN IF NOT EXISTS slug_pl TEXT,
-  ADD COLUMN IF NOT EXISTS content_en TEXT,
-  ADD COLUMN IF NOT EXISTS content_pl TEXT,
-  ADD COLUMN IF NOT EXISTS excerpt_en TEXT,
-  ADD COLUMN IF NOT EXISTS excerpt_pl TEXT,
-  ADD COLUMN IF NOT EXISTS image_url TEXT,
-  ADD COLUMN IF NOT EXISTS author TEXT DEFAULT 'icoffio Bot',
-  ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}',
-  ADD COLUMN IF NOT EXISTS meta_description TEXT,
-  ADD COLUMN IF NOT EXISTS published BOOLEAN DEFAULT true,
-  ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false;
-
--- Индексы
-CREATE INDEX IF NOT EXISTS idx_articles_slug_en ON published_articles(slug_en);
-CREATE INDEX IF NOT EXISTS idx_articles_slug_pl ON published_articles(slug_pl);
-CREATE INDEX IF NOT EXISTS idx_articles_published ON published_articles(published);
-```
-
-**Нажмите "Run"** → Должно: `Success` ✅
+| Layer | Choice |
+|-------|--------|
+| Framework | **Next.js 14** (App Router) + **React 18** + **TypeScript 5.5** (strict) |
+| Styles | **Tailwind 3.4** + `@tailwindcss/typography` |
+| Database | **Self-hosted PostgreSQL 16** (`icoffio-postgres`, port 5433→5432) |
+| DB adapter | Custom Supabase-compatible (`lib/pg-pool.ts` + `pg-query-builder.ts` + `pg-client.ts`) |
+| AI | **OpenAI GPT-4.1-mini** (rewrite/translate) + **DALL·E 3** (images) + **Unsplash** (stock) |
+| Editor | **TipTap 3** (admin article editor) |
+| Sanitizer | **isomorphic-dompurify** (XSS protection) |
+| Monetization | **VOX SSP** (in-image, banners, video preroll, interstitial) |
+| Deploy | Docker Compose on VPS#2 (`178.104.223.93`, Hetzner Falkenstein) |
 
 ---
 
-#### 2. Проверить Vercel Deploy (3 минуты)
-
-**Откройте:**
-```
-https://vercel.com/dashboard
-```
-
-**Дождитесь:** ✅ Ready
-
-**Проверьте версию:**
-```
-https://app.icoffio.com/api/admin/publish-article
-```
-
-**Должно:** `"version": "7.14.0"` ✅
-
----
-
-#### 3. Тест в Telegram (1 минута)
-
-**В боте:**
-```
-/clear_queue
-
-AI revolutionizes modern education. Machine learning helps students.
-```
-
-**Ожидание:** < 10 секунд → Статья опубликована! ✅
-
-**URL должен открываться:**
-```
-https://app.icoffio.com/en/article/...
-```
-
----
-
-## 🛠️ ЛОКАЛЬНАЯ РАЗРАБОТКА
-
-### Требования:
-- Node.js 18+
-- npm или yarn
-
-### Установка:
+## 🚀 Quick Start (local dev)
 
 ```bash
-# Clone
+# Clone + install
 git clone https://github.com/Warlockus-prod/icoffio-front.git
 cd icoffio-front
-
-# Install
 npm install
 
-# Environment
+# Run local PostgreSQL via Docker (port 5433)
+docker run -d --name icoffio-pg-dev \
+  -e POSTGRES_PASSWORD=dev \
+  -e POSTGRES_DB=icoffio \
+  -e POSTGRES_USER=icoffio \
+  -p 5433:5432 \
+  postgres:16-alpine
+
+# Apply schema
+PGPASSWORD=dev psql -h 127.0.0.1 -p 5433 -U icoffio -d icoffio \
+  -f supabase/init/001_schema.sql
+
+# Configure local env (NEVER commit .env or .env.production)
 cp .env.example .env.local
-# Заполните переменные
+# edit .env.local — add OPENAI_API_KEY, ADMIN_PASSWORD, etc.
 
-# Run
-npm run dev
+# Dev server
+npm run dev   # http://localhost:3000
 ```
-
-**Откройте:** http://localhost:3000
 
 ---
 
-## 🔐 ENVIRONMENT VARIABLES
+## 📦 Project Layout
+
+```
+app/
+├── [locale]/              # i18n root (en, pl)
+│   ├── (site)/            # public pages (home, article, category, …)
+│   ├── admin/             # /admin panel (password auth)
+│   └── info/              # Info Portal + Market Watch
+├── api/                   # Route Handlers
+│   ├── admin/             # admin CRUD (rate-limited, auth-gated)
+│   ├── telegram-simple/   # ACTIVE Telegram bot (webhook + worker)
+│   ├── telegram/          # legacy shim — keep for BotFather URL compat
+│   ├── info/              # Info Portal API (write-gated since v10.6.1)
+│   └── analytics/         # view tracking + popular-articles
+components/
+├── admin/                 # admin UI (~30 components)
+├── info/                  # info portal + market watch UI
+├── feedback/              # bug-reporting widget
+└── …                      # public site components (Header, Hero, Ad*, …)
+lib/
+├── pg-*.ts                # PostgreSQL adapter (the supabase-compat layer)
+├── data.ts                # frontend data loader
+├── admin-auth.ts          # password auth + RBAC
+├── api-rate-limiter.ts    # in-memory rate limit
+├── markdown.ts            # marked + DOMPurify pipeline
+├── telegram-simple/       # active bot lib
+├── info/                  # info-portal lib (data, feed-fetcher, watch-search)
+└── utils/                 # html-sanitizer, url-guard, content-formatter, …
+supabase/
+├── init/001_schema.sql    # consolidated schema for fresh installs
+└── migrations/            # incremental DB migrations
+```
+
+---
+
+## 🔁 npm Scripts
 
 ```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://....supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-
-# OpenAI
-OPENAI_API_KEY=sk-proj-...
-
-# Unsplash
-UNSPLASH_ACCESS_KEY=...
-
-# Telegram
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_SECRET_TOKEN=...
-```
-
-**Полный список:** См. `PROJECT_MASTER_DOCUMENTATION.md`
-
----
-
-## 📁 СТРУКТУРА ПРОЕКТА
-
-```
-icoffio-front/
-├── app/                    # Next.js App Router
-│   ├── [locale]/          # Multi-language pages
-│   ├── api/               # API Routes
-│   └── globals.css
-├── components/            # React components
-├── lib/                   # Utilities & services
-├── supabase/             # Database migrations
-├── public/               # Static files
-├── docs/                 # Documentation
-│
-├── PROJECT_MASTER_DOCUMENTATION.md  ← 📘 ГЛАВНЫЙ ДОКУМЕНТ
-├── CHANGELOG.md          ← История версий
-├── README.md             ← Этот файл
-└── package.json
+npm run dev               # Next.js dev server
+npm run build             # production build (validates types + bundles)
+npm run start             # production server
+npm run type-check        # TypeScript only (fast)
+npm run lint              # ESLint (next/core-web-vitals)
+npm test                  # Vitest run-once (64 unit tests)
+npm run test:watch        # Vitest watch mode
+npm run ad:live-debug     # live ad scanner against prod
+npm run sanitize-published:dry  # dry-run cleanup of stale articles
+npm run clean-problematic:dry   # dry-run problematic-article scan
 ```
 
 ---
 
-## 📚 ДОКУМЕНТАЦИЯ
+## 🚢 Deployment
 
-### Основные документы:
-
-| Файл | Что там |
-|------|---------|
-| **PROJECT_MASTER_DOCUMENTATION.md** | 📘 Полное описание проекта, архитектура, все компоненты |
-| **CHANGELOG.md** | 📝 История всех версий и изменений |
-| **QUICK_START_v7.14.0.md** | 🚀 Быстрый старт для v7.14.0 |
-| **V7.14.0_DEPLOYMENT_INSTRUCTIONS.md** | 📋 Детальные инструкции deployment |
-| **ARCHITECTURE_ANALYSIS.md** | 🏗️ Анализ архитектуры проекта |
-| **DEVELOPMENT_RULES.md** | 🔧 Правила разработки |
-
-### Когда что читать:
-
-- **Новый разработчик?** → Читай `PROJECT_MASTER_DOCUMENTATION.md`
-- **Deploy новой версии?** → Читай `V7.14.0_DEPLOYMENT_INSTRUCTIONS.md`
-- **Хочешь понять что изменилось?** → Читай `CHANGELOG.md`
-- **Нужно быстро запустить?** → Читай `QUICK_START_v7.14.0.md`
-
----
-
-## 🎯 ОСНОВНЫЕ КОМПОНЕНТЫ
-
-### 1. Telegram Bot
-**Entry point для пользователей**
-- Отправка текста → генерация статьи
-- Команды: `/start`, `/queue`, `/style`, `/help`
-
-### 2. Queue Service
-**Управление очередью задач**
-- Retry механизм
-- Timeout protection
-- Supabase storage
-
-### 3. Dual-Language Publisher
-**Core business logic**
-- AI генерация EN
-- Перевод на PL
-- Вставка изображений
-- Публикация обеих версий
-
-### 4. Supabase Storage (v7.14.0)
-**Fast & scalable database**
-- Прямое хранение статей
-- Full-text search
-- Supports 100,000+ articles
-
-### 5. Next.js Admin Panel
-**Content management**
-- Articles manager
-- Editor
-- Queue monitoring
-
----
-
-## 📊 ПРОИЗВОДИТЕЛЬНОСТЬ
-
-| Метрика | До v7.14.0 | После v7.14.0 |
-|---------|------------|---------------|
-| Публикация | 60+ сек timeout | < 5 сек ✅ |
-| Надежность | 20% успех | 100% успех ✅ |
-| Чтение статьи | 500 мс | < 100 мс ✅ |
-| Масштаб | ~1,000 | 100,000+ ✅ |
-
----
-
-## 🔧 SCRIPTS
+**Active VPS:** `178.104.223.93` (`ubuntu-16gb-fsn1-1`, Hetzner Falkenstein) — migrated from VPS#1 (`46.225.11.249`) on 2026-04-22. VPS#1 is no longer running icoffio.
 
 ```bash
-# Development
-npm run dev              # Запуск dev server
-
-# Build
-npm run build           # Production build
-npm run start           # Production server
-
-# Automation
-./scripts/new-feature.sh        # Создать feature branch
-./scripts/pre-deploy.sh         # Pre-deploy checklist
-./scripts/create-backup.sh      # Backup перед deploy
+ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 \
+  "cd /root/projects/icoffio-front && \
+   git fetch origin feature/info-portal && \
+   git reset --hard origin/feature/info-portal && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
 ```
 
----
+⚠️ **Always pass `--env-file .env.production`** — `POSTGRES_PASSWORD` uses `${VAR:?msg}` syntax and the stack will refuse to start without it (intentional, since v10.6.1).
 
-## 🤝 CONTRIBUTING
+⚠️ **`.env.production` is gitignored** as of v10.6.3. Real prod secrets live on the VPS only. After a fresh `git clone` on the VPS, restore `.env.production` from a backup like `/root/projects/icoffio-front.predeploy-*` or rebuild from `.env.example`.
 
-### Workflow:
-
-1. **Feature Branch:**
-   ```bash
-   ./scripts/new-feature.sh название
-   ```
-
-2. **Development:**
-   - Пишешь код
-   - Обновляешь документацию
-   - Тестируешь
-
-3. **Pre-Deploy Check:**
-   ```bash
-   ./scripts/pre-deploy.sh
-   ```
-
-4. **Commit:**
-   ```bash
-   git commit -m "✨ Add: описание"
-   ```
-
-5. **Merge to main:**
-   ```bash
-   git merge feature/название --no-ff
-   ```
-
-6. **Update version:**
-   - `package.json` → версия
-   - `CHANGELOG.md` → описание
-   - `PROJECT_MASTER_DOCUMENTATION.md` → обновить если нужно
-
-7. **Push:**
-   ```bash
-   git push origin main --tags
-   ```
-
-**Vercel автоматически задеплоит!**
-
----
-
-## 🚨 TROUBLESHOOTING
-
-### Проблема: Telegram timeout
-
-**Решение:**
-```
-/clear_queue
-# Попробуйте еще раз
-```
-
-### Проблема: Статья не отображается
-
-**Проверьте Supabase:**
-```sql
-SELECT * FROM published_articles WHERE published = true ORDER BY created_at DESC LIMIT 5;
-```
-
-### Проблема: Build error
-
-**Проверьте:**
+### Apply DB migrations
 ```bash
-npx tsc --noEmit
-npm run build
+docker exec -i icoffio-postgres psql -U icoffio -d icoffio -v ON_ERROR_STOP=1 \
+  < supabase/migrations/<NEW-MIGRATION>.sql
 ```
 
-**Полный troubleshooting:** См. `QUICK_START_v7.14.0.md`
+---
+
+## ✅ Post-deploy smoke tests
+
+```bash
+# Public health
+curl -sI https://web.icoffio.com/en           # → HTTP/2 200
+curl -sI https://web.icoffio.com/api/health   # → HTTP/2 200
+
+# Auth gate on info-portal writes
+curl -sw '%{http_code}\n' -o /dev/null -X POST \
+  -H 'Content-Type: application/json' -d '{}' \
+  https://web.icoffio.com/api/info/cleanup    # → 401
+
+# Brute-force protection (6th attempt should be 429)
+for i in 1 2 3 4 5 6; do
+  curl -sw "attempt $i: %{http_code}\n" -o /dev/null -X POST \
+    -H 'Content-Type: application/json' \
+    -d '{"action":"password_login","password":"wrong"}' \
+    https://web.icoffio.com/api/admin/auth
+done
+```
 
 ---
 
-## 📞 РЕСУРСЫ
+## 🛡 Security baseline (v10.7.0)
 
-- **Production:** https://app.icoffio.com
-- **Admin:** https://app.icoffio.com/en/admin
-- **GitHub:** https://github.com/Warlockus-prod/icoffio-front
-- **Supabase:** https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz
-- **Vercel:** https://vercel.com/dashboard
-
----
-
-## 📈 СТАТУС ПРОЕКТА
-
-**Версия:** v7.14.0 (2025-11-02)  
-**Production:** ✅ Ready  
-**Tests:** ✅ Passed  
-**Documentation:** ✅ Complete  
+- Rate-limit on `/api/admin/auth` → 5 attempts / 15 min per IP
+- All `/api/info/**` mutating endpoints require `editor` role
+- HTML sanitization via `isomorphic-dompurify` before render
+- SSRF guard (`lib/utils/url-guard.ts`) on user-supplied URLs (parse-url, fetch-feeds)
+- AI-burning endpoints (`watch/{analyze,report,translate}`) admin-only
+- Cookie consent gate on Analytics + Article view tracker (GDPR)
+- ⚠️ Deferred (per project decision): CSRF strict, server-side session validation, magic-bytes upload check
 
 ---
 
-## 🎉 READY TO USE!
+## 🤝 Contributing
 
-**Для deployment:** См. `QUICK_START_v7.14.0.md`  
-**Для понимания проекта:** См. `PROJECT_MASTER_DOCUMENTATION.md`  
-**Для разработки:** См. `DEVELOPMENT_RULES.md`
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md).
+
+Core conventions:
+- Bump `version` in `package.json` before deploy
+- Add CHANGELOG entry following the existing format (`### ✅ Fixed`, `### 🧪 Validation`, etc.)
+- Run `npm run type-check && npm test && npm run lint` before push
+- No commits with `--no-verify`; no pushes that bypass CI
 
 ---
 
-**Made with ❤️ for icoffio**
+## 📝 License
+
+Private project. All rights reserved.

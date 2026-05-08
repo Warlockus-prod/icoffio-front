@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.7.0] - 2026-05-08 - 🧹 P1 cleanup: Telegram legacy purge + LCP + lint + README
+
+### 🗑️ Removed — Telegram Phase 1 (~3000 lines of dead legacy)
+- `lib/queue-service.ts` (732 lines) — old queue, replaced by `lib/telegram-simple/job-queue.ts`
+- `lib/dual-language-publisher.ts` (321) — old publish path, replaced by `lib/telegram-simple/publisher.ts`
+- `lib/telegram-i18n.ts` (590) — only consumer was `process-queue` route (also deleted)
+- `lib/telegram-database-service.ts` (~300) — only consumers were stats/user-stats routes (also deleted)
+- `lib/telegram-user-preferences.ts` (172) — only consumer was `dual-language-publisher` (deleted)
+- `app/api/telegram/process-queue/route.ts` (267) — no fetch callers
+- `app/api/telegram/errors/route.ts` (108) — no fetch callers; was in-memory error log no one read
+- `app/api/telegram/user-stats/route.ts` (78) — no fetch callers
+- `app/api/telegram/stats/route.ts` (~134) — no fetch callers (only doc references)
+- `app/api/telegram/force-process/` (empty dir)
+
+KEPT for Admin UI compatibility:
+- `app/api/telegram/webhook/route.ts` — legacy shim (BotFather may still point here; delegates to `/api/telegram-simple/webhook`)
+- `app/api/telegram/{settings,submissions}/route.ts` — actively used by `components/admin/Telegram{Settings,Stats}.tsx`
+
+### ✅ Fixed — LCP (hero image)
+- `app/[locale]/(site)/article/[slug]/page.tsx:299` — replaced raw `<img>` with `next/image` (`priority`, `sizes`, explicit `width`/`height`). Previously caused unnecessary CLS and missed Next.js image optimization on the LCP element.
+- `next.config.mjs` — extended `images.remotePatterns` for `web.icoffio.com`, Vercel Blob (`*.public.blob.vercel-storage.com`), and DALL·E direct (`oaidalleapiprodscus.blob.core.windows.net`).
+
+### ✅ Fixed — React rules-of-hooks bug
+- `components/admin/ImageSelectionModal.tsx` — moved `if (!isOpen) return null` early-return to AFTER all `useCallback` hooks (5 violations). Hooks must be called in the same order on every render.
+
+### ✅ Added — Code-quality configs
+- `.eslintrc.json` — `next/core-web-vitals` extended, with sensible warn/error split for our codebase
+- `.prettierrc.json` — consistent formatting (2-space, single-quote, trailing comma `es5`)
+- `.editorconfig` — cross-IDE line endings + indent
+- `.dockerignore` — extended (banners/, screens/, reports/, inimage-diagnostics/, coverage/, .cursor/, .firecrawl/) — shrinks build context
+
+### ✅ Updated — README.md
+- Was at v7.14.0 (3 majors stale). Now reflects v10.7.0 reality: stack, deploy command for VPS#2, DB adapter, smoke-test checks, security baseline, link to `docs/ARCHITECTURE_BLUEPRINT.md`.
+
+### 📦 Deps added
+- `eslint@^8.57.1` (devDep — pinned to v8 because Next.js 14 still uses ESLint v8 API in `next lint`)
+- `eslint-config-next@^14.2.35` (devDep)
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 64/64 OK
+- `npx next lint` — 0 errors, 53 warnings (all `<img>` recommendations + 4 exhaustive-deps; pre-existing tech debt, will address one-by-one)
+- `npm run build` — OK
+
+### 🔐 Confidence
+- Telegram Phase 1: **HIGH** — every chain verified by grep before delete; tests + build green
+- next/image hero: **HIGH** — Next.js standard pattern; image config covers all known hostnames
+- ESLint setup: **HIGH** — pinned versions, lint passes
+- Hooks rule fix: **HIGH** — actual React bug fixed correctly
+
+### 🚀 Deploy notes
+Same as 10.6.3:
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 \
+  "cd /root/projects/icoffio-front && \
+   git fetch origin feature/info-portal && git reset --hard origin/feature/info-portal && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
+```
+**No DB migration changes** in 10.7.0 — only application-layer cleanup. If `.env.production` is missing on VPS, restore from `/root/projects/icoffio-front.predeploy-*` backup.
+
 ## [10.6.3] - 2026-05-08 - 🛡️ GDPR + ops hygiene (post-deploy fixes)
 
 Post-deploy issues found while shipping 10.6.0/10.6.1/10.6.2 to VPS#2.

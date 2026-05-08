@@ -13,9 +13,13 @@ const nextConfig = {
       { protocol: 'https', hostname: 'admin.icoffio.com' },
       { protocol: 'http', hostname: 'admin.icoffio.com' },
       { protocol: 'https', hostname: 'icoffio.com' },
+      { protocol: 'https', hostname: 'web.icoffio.com' },
       { protocol: 'https', hostname: '185.41.68.62' },
       { protocol: 'http', hostname: '185.41.68.62' },
-      { protocol: 'https', hostname: 'images.unsplash.com' }
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      // v10.7.0: Vercel Blob (DALL-E persisted images), DALL-E direct, common AI image hosts
+      { protocol: 'https', hostname: '**.public.blob.vercel-storage.com' },
+      { protocol: 'https', hostname: 'oaidalleapiprodscus.blob.core.windows.net' },
     ],
   },
   async rewrites() {

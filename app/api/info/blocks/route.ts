@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg-pool';
 import { getBlocksForBoard } from '@/lib/info/data';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { board_id, title, layout, sort_order } = body;
@@ -37,6 +40,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { id, title, layout, sort_order, is_active } = body;
@@ -61,6 +66,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const id = request.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

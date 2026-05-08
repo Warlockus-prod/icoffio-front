@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllFeeds, fetchAndStoreFeed } from '@/lib/info/feed-fetcher';
 import { getPool } from '@/lib/pg-pool';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function POST(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json().catch(() => ({}));
     const feedId = body.feed_id;

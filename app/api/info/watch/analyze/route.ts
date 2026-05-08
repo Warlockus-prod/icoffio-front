@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deduplicateItems, analyzeSentiment, updateQualityScores } from '@/lib/info/watch-search';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   try {
     const body = await req.json().catch(() => ({}));
     const { action } = body;

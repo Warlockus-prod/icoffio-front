@@ -46,10 +46,23 @@ export interface RequireRoleFailure {
 
 export type RequireRoleResult = RequireRoleSuccess | RequireRoleFailure;
 
-const DEFAULT_OWNER_EMAILS = (process.env.ADMIN_OWNER_EMAILS || 'ag@voxexchange.io,andrzej.goleta@hybrid.ai')
+// Owner emails come from ADMIN_OWNER_EMAILS env var (comma-separated).
+// Fallback is a generic placeholder — actual owner accounts must be either
+// (a) seeded in admin_user_roles via init/001_schema.sql, or
+// (b) configured via ADMIN_OWNER_EMAILS env var in .env.production.
+// Personal emails were removed in v10.6.1 to avoid leaking identity through the public repo.
+const DEFAULT_OWNER_EMAILS = (process.env.ADMIN_OWNER_EMAILS || 'admin@icoffio.com')
   .split(',')
   .map(e => e.trim())
   .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_OWNER_EMAILS) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[admin-auth] ADMIN_OWNER_EMAILS is not set in production. Using placeholder. ' +
+      'Set this env var to the real owner email(s) to ensure correct privilege assignment.',
+  );
+}
 const PERSISTED_ROLES: AssignableAdminRole[] = ['admin', 'editor', 'viewer'];
 
 const ROLE_WEIGHT: Record<AdminRole, number> = {

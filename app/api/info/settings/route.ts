@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg-pool';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function GET() {
   try {
@@ -16,6 +17,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const pool = getPool();

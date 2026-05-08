@@ -1,4 +1,5 @@
 import { getPool } from '@/lib/pg-pool';
+import { assertSafeRemoteUrl } from '@/lib/utils/url-guard';
 
 interface ParsedItem {
   title: string;
@@ -105,6 +106,14 @@ function parseAtom(xml: string): ParsedItem[] {
 
 export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedType: string): Promise<number> {
   const pool = getPool();
+
+  // 🛡️ SSRF guard — feed URLs come from admin DB rows that COULD be edited by less-privileged
+  // editor role. Block private IP ranges before any network call.
+  const safe = await assertSafeRemoteUrl(feedUrl, { allowHttp: true });
+  if (!safe.ok) {
+    console.error(`[FeedFetcher] SSRF guard blocked feed ${feedId} (${feedUrl}): ${safe.reason}`);
+    return 0;
+  }
 
   const response = await fetch(feedUrl, {
     headers: { 'User-Agent': 'InfoPortal/1.0' },

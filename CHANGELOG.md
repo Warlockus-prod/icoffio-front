@@ -2,6 +2,88 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.6.1] - 2026-05-08 - 🛡️ P0 Security Pass (Audit Step 3)
+
+Closes critical attack surfaces flagged in the May 2026 audit. Auth flow remains password-only —
+CSRF tokens / server-side session validation deferred to a later step per project decision.
+
+### ✅ Fixed — Authentication & rate-limiting
+- **Brute-force on `/api/admin/auth`**: `password_login` action now wrapped with `checkRateLimit('AUTH', request)` (5 attempts / 15 min per IP). Empty-password and bad-password paths still consume the limit and return `X-RateLimit-*` headers.
+- **Hardcoded owner emails removed** from [`lib/admin-auth.ts:49`](lib/admin-auth.ts:49). Fallback is now generic `admin@icoffio.com`; production warns on startup if `ADMIN_OWNER_EMAILS` env-var is unset. The owner accounts in DB (init/001_schema.sql `INSERT INTO admin_user_roles`) are left untouched — operational protection trigger still references real emails.
+- **Postgres password no-default**: `docker-compose.vps.yml` now uses `${POSTGRES_PASSWORD:?...}` syntax. Stack fails to start if `.env.production` is missing/empty instead of silently booting with `change-me`.
+
+### 🛡️ Fixed — `/api/info/**` was wide-open
+- All 11 mutation endpoints now require `editor` role via new `lib/info/auth-guard.ts` → `requireInfoAdmin(request)`:
+  - `info/blocks` POST/PUT/DELETE
+  - `info/boards` POST/PUT/DELETE + admin-flagged GET (`?admin=1`)
+  - `info/cleanup` POST
+  - `info/feeds` POST/PUT/DELETE
+  - `info/fetch-feeds` POST
+  - `info/settings` PUT
+  - `info/watch/analyze` POST (OpenAI-burning)
+  - `info/watch/report` POST (OpenAI-burning)
+  - `info/watch/search` POST
+  - `info/watch/topics` POST/PUT/DELETE
+  - `info/watch/translate` POST (OpenAI-burning)
+- Public read endpoints (`watch/items`, `watch/stats`, `watch/topics` GET) intentionally remain public for public Market-Watch board rendering.
+
+### 🛡️ Fixed — Stored XSS in article content
+- New `lib/utils/html-sanitizer.ts` wraps **isomorphic-dompurify@3.12** (added dep) with our article whitelist. Final pass added to:
+  - `lib/markdown.ts::parseMarkdown` and `::renderContent` — defense in depth on top of existing regex sanitizer
+  - `components/info/InfoWatchPage.tsx::renderReport` (renamed render call to `renderReportSafe`) — AI-generated content from GPT
+- All other `dangerouslySetInnerHTML` callers (`Prose.tsx`, `ArticleContentWithAd.tsx`) inherit protection because they consume HTML produced by `lib/markdown.ts`.
+
+### 🛡️ Fixed — SSRF
+- New `lib/utils/url-guard.ts::assertSafeRemoteUrl` — does protocol whitelist + literal-IP check + DNS resolve + private-range block (loopback, RFC1918, link-local 169.254.x cloud-metadata, IPv6 ULA/loopback, CGNAT). Applied to:
+  - `app/api/admin/parse-url/route.ts` (admin URL parser)
+  - `lib/info/feed-fetcher.ts::fetchAndStoreFeed` (RSS cron + `/api/info/fetch-feeds`)
+- `app/api/check-url/route.ts` already had a local SSRF guard — left intact, will consolidate to central guard in a future cleanup.
+
+### 🩹 Fixed — VOX ad cleanup
+- `components/InterstitialAd.tsx` — pollTimers now cancel-on-success: when the first `checkFill()` succeeds, all 6 remaining setTimeouts are cleared instead of running to completion.
+- `components/AdManager.tsx`, `components/UniversalAd.tsx`, `lib/vox-advertising.ts` — audited; cleanup logic was already correct.
+
+### 🐛 Fixed — Pre-existing TS errors uncovered after dependency install
+- `components/admin/ArticleEditor/ArticlePreview.tsx:192` and `components/admin/PublishingQueue.tsx:597` — `marked()` returns `string | Promise<string>` in `marked@16`. Switched to `marked.parse(text, { async: false }) as string`.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 64/64 OK
+- All write handlers in `/api/info/**` confirmed to call `requireInfoAdmin`
+
+### 📦 Deps added
+- `isomorphic-dompurify@^3.12.0`
+
+### 🔐 Confidence
+- Rate-limit, hardcoded-emails, change-me, sanitize, SSRF, VOX cancel-on-success: **HIGH**
+- info/** auth (11 routes): **MEDIUM-HIGH** — TODO smoke-test admin info-portal CRUD on staging
+
+### 🚀 Deploy notes
+On VPS, ensure `.env.production` has both `POSTGRES_PASSWORD` and `ADMIN_OWNER_EMAILS` set, then:
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@46.225.11.249 \
+  "cd /root/projects/icoffio-front && git pull && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build --no-cache && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
+```
+
+Post-deploy curl checks:
+```bash
+# 1. Health
+curl -sI https://web.icoffio.com/en | head -1                 # → HTTP/2 200
+# 2. Brute-force protection (6th attempt)
+for i in $(seq 1 6); do
+  curl -sw "%{http_code}\n" -o /dev/null -X POST \
+    -H 'Content-Type: application/json' \
+    -d '{"action":"password_login","password":"wrong"}' \
+    https://web.icoffio.com/api/admin/auth
+done                                                          # → 6th = 429
+# 3. info/** write blocked
+curl -sw "%{http_code}\n" -o /dev/null -X POST \
+  -H 'Content-Type: application/json' -d '{}' \
+  https://web.icoffio.com/api/info/cleanup                    # → 401
+```
+
 ## [10.6.0] - 2026-05-08 - 🧹 Schema Actuality + Dead Code Cleanup (Audit Step 1+2)
 
 ### ✅ Fixed — Database schema alignment

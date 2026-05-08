@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg-pool';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function GET() {
   const pool = getPool();
@@ -14,6 +15,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   const pool = getPool();
   try {
     const body = await req.json();
@@ -43,6 +46,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   const pool = getPool();
   try {
     const body = await req.json();
@@ -79,6 +84,8 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   const pool = getPool();
   try {
     const { searchParams } = new URL(req.url);

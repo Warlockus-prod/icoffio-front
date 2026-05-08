@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWatchReport } from '@/lib/info/watch-search';
 import { getPool } from '@/lib/pg-pool';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function POST(req: NextRequest) {
+  // OpenAI-burning endpoint — admin-only
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   try {
     const { topic_id, lang, all, days } = await req.json();
 

@@ -591,11 +591,11 @@ export default function PublishingQueue() {
                   By {previewArticle.author} • {previewArticle.category}
                 </div>
                 
-                <div 
+                <div
                   className="prose-content"
-                  dangerouslySetInnerHTML={{ 
-                    __html: marked(previewArticle.content || '') 
-                  }} 
+                  dangerouslySetInnerHTML={{
+                    __html: marked.parse(previewArticle.content || '', { async: false }) as string
+                  }}
                 />
               </div>
               

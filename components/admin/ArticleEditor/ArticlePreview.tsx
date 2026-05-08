@@ -186,10 +186,10 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
                   CONTENT PREVIEW
                 </label>
                 <div className="max-h-96 overflow-y-auto prose prose-sm dark:prose-invert bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <div 
+                  <div
                     className="text-sm text-gray-700 dark:text-gray-300"
-                    dangerouslySetInnerHTML={{ 
-                      __html: marked(content.content.slice(0, 1000) + (content.content.length > 1000 ? '\n\n...' : '')) 
+                    dangerouslySetInnerHTML={{
+                      __html: marked.parse(content.content.slice(0, 1000) + (content.content.length > 1000 ? '\n\n...' : ''), { async: false }) as string
                     }}
                   />
                 </div>

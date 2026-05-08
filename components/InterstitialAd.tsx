@@ -78,7 +78,19 @@ export function InterstitialAd({
     const container = containerRef.current;
     if (!container) return;
 
+    // v10.6.1: cancel-all-on-success — once any check succeeds, kill remaining timers
+    // so we don't perform 6+ extra DOM scans + setPhase no-ops after fill is detected.
+    const pollTimers: ReturnType<typeof setTimeout>[] = [];
+    let stopped = false;
+    const stopAll = () => {
+      if (stopped) return;
+      stopped = true;
+      observer.disconnect();
+      pollTimers.forEach(clearTimeout);
+    };
+
     const checkFill = (): boolean => {
+      if (stopped) return adFilledRef.current;
       const hasIframe = container.querySelector('iframe') !== null;
       const hasImg = container.querySelector('img') !== null;
       const hasChildren = container.children.length > 0;
@@ -88,40 +100,37 @@ export function InterstitialAd({
         if (delayPassedRef.current) {
           setPhase('visible');
         }
+        stopAll();
         return true;
       }
       return false;
     };
 
     // MutationObserver to detect when VOX injects ad content
-    const observer = new MutationObserver(() => {
-      if (checkFill()) observer.disconnect();
-    });
+    const observer = new MutationObserver(() => { checkFill(); });
     observer.observe(container, { childList: true, subtree: true, attributes: true });
 
-    // Fallback polling (in case MutationObserver misses something)
-    const pollTimers = [1000, 2000, 4000, 6000, 8000, 10000, 12000].map(delay =>
-      setTimeout(() => {
-        if (checkFill()) observer.disconnect();
-      }, delay)
-    );
+    // Fallback polling (in case MutationObserver misses something).
+    // checkFill() calls stopAll() on success → remaining timers are cleared.
+    [1000, 2000, 4000, 6000, 8000, 10000, 12000].forEach(delay => {
+      pollTimers.push(setTimeout(checkFill, delay));
+    });
 
     // Timeout: give up after 20 seconds (no empty overlay shown)
     const giveUpTimer = setTimeout(() => {
-      observer.disconnect();
       if (!adFilledRef.current) {
         // Mark as "shown" so we don't retry endlessly
         try { sessionStorage.setItem(sessionKey, '1'); } catch { /* ok */ }
         setPhase('skip');
       }
+      stopAll();
     }, 20000);
 
     // Initial check
     checkFill();
 
     return () => {
-      observer.disconnect();
-      pollTimers.forEach(clearTimeout);
+      stopAll();
       clearTimeout(giveUpTimer);
     };
   }, [phase, sessionKey]);

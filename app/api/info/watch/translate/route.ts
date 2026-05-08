@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  // OpenAI-burning endpoint — admin-only
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   try {
     const { text, target_lang } = await req.json();
     if (!text || !target_lang) {

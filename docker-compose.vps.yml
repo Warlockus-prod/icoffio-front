@@ -6,7 +6,10 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-icoffio}
       POSTGRES_USER: ${POSTGRES_USER:-icoffio}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      # POSTGRES_PASSWORD has NO default — must be set in .env.production.
+      # Compose stack will fail to start if it's missing; that's intentional
+      # so an empty/forgotten env-file does NOT silently boot with a known weak password.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env.production}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./supabase/init:/docker-entrypoint-initdb.d

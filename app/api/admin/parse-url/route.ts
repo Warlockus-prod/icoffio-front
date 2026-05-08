@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { urlParserService } from '@/lib/url-parser-service';
 import { appendServerLog } from '@/lib/server-log-store';
 import { requireAdminRole } from '@/lib/admin-auth';
+import { assertSafeRemoteUrl } from '@/lib/utils/url-guard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds для парсинга
@@ -22,6 +23,18 @@ export async function POST(request: NextRequest) {
     if (!url) {
       return NextResponse.json(
         { success: false, error: 'URL is required' },
+        { status: 400 }
+      );
+    }
+
+    // 🛡️ SSRF guard — block localhost, RFC1918, cloud metadata 169.254.x, etc.
+    // allowHttp: true because some legacy sources (e.g. WordPress on plain port 80) still serve HTTP.
+    const safe = await assertSafeRemoteUrl(url, { allowHttp: true });
+    if (!safe.ok) {
+      console.warn(`[Parse URL API] Blocked SSRF attempt: ${url} → ${safe.reason}`);
+      await appendServerLog('warn', 'parser', 'parse_url_blocked', 'SSRF guard blocked URL', { url, reason: safe.reason });
+      return NextResponse.json(
+        { success: false, error: `URL not allowed: ${safe.reason}` },
         { status: 400 }
       );
     }

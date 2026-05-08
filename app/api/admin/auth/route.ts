@@ -27,6 +27,11 @@ import {
   upsertAdminRole,
   type AssignableAdminRole,
 } from '@/lib/admin-auth';
+import {
+  checkRateLimit,
+  createRateLimitResponse,
+  addRateLimitHeaders,
+} from '@/lib/api-rate-limiter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,14 +59,31 @@ function validateEmail(input: unknown): string | null {
 
 /* ---------- Handlers ---------- */
 
-async function handlePasswordLogin(body: AuthActionRequest) {
+async function handlePasswordLogin(request: NextRequest, body: AuthActionRequest) {
+  // 🛡️ Brute-force protection: AUTH bucket = 5 attempts / 15 min per IP.
+  // Rate-limit BEFORE password validation so a flood of bad passwords
+  // doesn't slow down legit users.
+  const rl = checkRateLimit(request, 'AUTH');
+  if (!rl.allowed) {
+    console.warn('[admin-auth] AUTH rate-limit hit during password login');
+    return createRateLimitResponse('AUTH', rl);
+  }
+
   const password = typeof body.password === 'string' ? body.password : '';
   if (!password.trim()) {
-    return NextResponse.json({ success: false, error: 'Password is required' }, { status: 400 });
+    return addRateLimitHeaders(
+      NextResponse.json({ success: false, error: 'Password is required' }, { status: 400 }),
+      'AUTH',
+      rl,
+    );
   }
 
   if (!isAdminPasswordValid(password)) {
-    return NextResponse.json({ success: false, error: 'Invalid password' }, { status: 401 });
+    return addRateLimitHeaders(
+      NextResponse.json({ success: false, error: 'Invalid password' }, { status: 401 }),
+      'AUTH',
+      rl,
+    );
   }
 
   const ownerEmail = getOwnerEmails()[0] || 'admin@icoffio.com';
@@ -76,7 +98,7 @@ async function handlePasswordLogin(body: AuthActionRequest) {
   });
 
   setLegacyAdminSessionCookie(response, ownerEmail);
-  return response;
+  return addRateLimitHeaders(response, 'AUTH', rl);
 }
 
 async function handleInvite(request: NextRequest, body: AuthActionRequest) {
@@ -173,7 +195,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'password_login') {
-      return await handlePasswordLogin(body);
+      return await handlePasswordLogin(request, body);
     }
 
     if (action === 'invite') {

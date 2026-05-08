@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg-pool';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const pool = getPool();
 

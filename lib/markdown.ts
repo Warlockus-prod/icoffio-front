@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import { sanitizeHtml } from './utils/content-formatter';
+import { sanitizeArticleHtml } from './utils/html-sanitizer';
 
 // Настройка marked для безопасного рендеринга
 // Используем GitHub Flavored Markdown (GFM) с поддержкой переносов строк
@@ -76,9 +77,13 @@ export function parseMarkdown(markdown: string): string {
   if (!markdown) return '';
   
   try {
-    // Парсим markdown в HTML
+    // 1. Markdown → HTML
     const html = marked.parse(markdown, { async: false }) as string;
-    return sanitizeHtmlImages(sanitizeHtml(html));
+    // 2. Existing legacy regex sanitizer + image cleanup (preserves prior behavior)
+    const cleaned = sanitizeHtmlImages(sanitizeHtml(html));
+    // 3. v10.6.1: Final DOMPurify pass — proven library defense for stored-XSS
+    //    catches edge cases the regex sanitizer misses (svg/onload, malformed nesting, mathml, etc.)
+    return sanitizeArticleHtml(cleaned);
   } catch (error) {
     console.error('Markdown parsing error:', error);
     // Fallback: возвращаем исходный текст в <pre>
@@ -114,15 +119,16 @@ export function renderContent(content: string): string {
   
   // Если контент уже HTML (содержит теги), возвращаем как есть
   if (cleanedInput.includes('<p>') || cleanedInput.includes('<div>') || cleanedInput.includes('<h1>')) {
-    return sanitizeHtmlImages(sanitizeHtml(cleanedInput));
+    // v10.6.1: DOMPurify final pass for stored-XSS protection
+    return sanitizeArticleHtml(sanitizeHtmlImages(sanitizeHtml(cleanedInput)));
   }
-  
-  // Если markdown - парсим
+
+  // Если markdown - парсим (parseMarkdown уже включает sanitizeArticleHtml)
   if (isMarkdown(cleanedInput)) {
     return sanitizeHtmlImages(parseMarkdown(cleanedInput));
   }
-  
-  // Обычный текст - оборачиваем в параграфы
+
+  // Обычный текст - оборачиваем в параграфы (escapeHtml защищает от инъекций)
   return cleanedInput
     .split('\n\n')
     .map(p => `<p>${escapeHtml(p)}</p>`)

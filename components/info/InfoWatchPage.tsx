@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { InfoThemeToggle } from './InfoThemeToggle';
 import type { WatchTopicFull, WatchReport } from '@/lib/info/watch-types';
+import { sanitizeArticleHtml } from '@/lib/utils/html-sanitizer';
 
 const TYPE_ICONS: Record<string, string> = {
   competitor: '🏢',
@@ -66,6 +67,12 @@ function renderReport(content: string): string {
     .replace(/((?:<li[^>]*>.*<\/li>\n?)+)/g, '<ul class="list-disc mb-3">$1</ul>')
     .replace(/\n\n/g, '</p><p class="mb-2">')
     .replace(/\n/g, '<br/>');
+}
+
+// v10.6.1: wrap renderReport output with DOMPurify to block stored-XSS
+// from AI-generated reports (untrusted source — GPT may include arbitrary HTML).
+function renderReportSafe(content: string): string {
+  return sanitizeArticleHtml(renderReport(content));
 }
 
 export function InfoWatchPage() {
@@ -1215,7 +1222,7 @@ export function InfoWatchPage() {
                       {activeReport && (
                         <div className="prose prose-sm dark:prose-invert max-w-none max-h-[500px] overflow-y-auto">
                           <div className="text-sm text-[#333] dark:text-[#d0d0d0] leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: renderReport(activeReport) }} />
+                            dangerouslySetInnerHTML={{ __html: renderReportSafe(activeReport) }} />
                         </div>
                       )}
 

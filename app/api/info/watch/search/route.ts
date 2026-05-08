@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWatchTopicNews, fetchAllWatchTopics } from '@/lib/info/watch-search';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function POST(req: NextRequest) {
+  const denied = await requireInfoAdmin(req);
+  if (denied) return denied;
   try {
     const body = await req.json().catch(() => ({}));
     const { topic_id } = body;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBoards, getBoardBySlug, getAllBoardsAdmin } from '@/lib/info/data';
 import { getPool } from '@/lib/pg-pool';
+import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +13,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ board });
     }
 
-    const boards = admin === '1' ? await getAllBoardsAdmin() : await getBoards();
+    // ?admin=1 returns inactive boards too — gate behind admin auth
+    if (admin === '1') {
+      const denied = await requireInfoAdmin(request);
+      if (denied) return denied;
+      const boards = await getAllBoardsAdmin();
+      return NextResponse.json({ boards });
+    }
+
+    const boards = await getBoards();
     return NextResponse.json({ boards });
   } catch (error: any) {
     console.error('[API info/boards] Error:', error.message);
@@ -21,6 +30,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { title, slug, subtitle, icon_url, sort_order, is_active } = body;
@@ -45,6 +56,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { id, title, slug, subtitle, icon_url, sort_order, is_active } = body;
@@ -75,6 +88,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireInfoAdmin(request);
+  if (denied) return denied;
   try {
     const id = request.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

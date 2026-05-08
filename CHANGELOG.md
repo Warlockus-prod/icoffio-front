@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.9.0] - 2026-05-08 - 🅒 Tests + CI hardening
+
+### ✅ Added — Test coverage for security-critical modules
+- **141 tests passing** (was 64 before this round; +77 new).
+- New `__tests__/url-guard.test.ts` — 46 tests covering `isPrivateIPv4`, `isPrivateIPv6`, and `assertSafeRemoteUrl` end-to-end. Coverage: **84.78% lines, 100% functions, 91.78% branches**.
+- New `__tests__/html-sanitizer.test.ts` — 12 tests on every common XSS vector (script/iframe/onerror/javascript:/svg+onload/data:/style). Coverage: **100% all metrics**.
+- New `__tests__/api-rate-limiter.test.ts` — 7 tests on per-IP brute-force protection, custom keys, header priority. Coverage: **78.84% lines, 84.21% branches**.
+- New `__tests__/error-logger.test.ts` — 9 tests on never-throws contract + DB-failure resilience (mocked pg-pool). Coverage: **67.12% lines, 100% functions**.
+- New `__tests__/info-auth-guard.test.ts` — 3 tests on `requireInfoAdmin` gate. Coverage: **100%**.
+
+### ✅ Added — Test infrastructure
+- `vitest.config.ts` extended with `coverage` block:
+  - Provider: `@vitest/coverage-v8`@^3.2 (pinned to vitest major)
+  - Reporters: `text`, `json-summary`, `html`, `lcov`
+  - Global thresholds: lines 25%, statements 25%, functions 60%, branches 60% (ratchet up over time)
+  - Per-file thresholds for security-critical modules (e.g., `lib/utils/html-sanitizer.ts` must stay 100%)
+- New `npm run test:coverage` script.
+
+### ✅ Added — Pre-commit gate
+- `husky@^9` initialized; `.husky/pre-commit` runs `npx lint-staged && npm run type-check`.
+- `lint-staged@^17` config in `package.json`:
+  - `*.{ts,tsx}` → `next lint --fix --file`
+  - JSON/MD/YML left as-is for now
+
+### ✅ Added — CI improvements
+- `.github/workflows/ci.yml`:
+  - Added **`npm run lint`** step (was missing — lint-checks now block merges)
+  - Replaced `npm test` with `npm run test:coverage` + `codecov/codecov-action@v5` upload
+  - Use `--legacy-peer-deps` (Next 14 + ESLint 8 + lint-staged 17 peer-dep range mismatch)
+  - Branches: added `feature/info-portal` (active branch)
+  - Fixed env var: `NEXT_PUBLIC_SITE_URL` now points to `web.icoffio.com` (was `app.icoffio.com`)
+
+### ✅ Added — Dependabot
+- `.github/dependabot.yml`:
+  - npm: weekly Mondays 06:00 Warsaw, max 5 open PRs, grouped security patches + dev tooling
+  - GitHub Actions: monthly
+  - Pinned majors: `next`, `eslint`, `eslint-config-next` (no auto major bumps)
+
+### 🐛 Fixed — Real bug found via test-writing
+- `lib/utils/url-guard.ts` was NOT stripping `[...]` brackets that Node's WHATWG URL parser keeps around IPv6 hostnames. Result: `https://[::1]/` was being treated as a public hostname → SSRF protection ineffective for IPv6 literals. Fix: strip leading `[` and trailing `]` before private-IP check. Caught by new test, fixed before regression hit prod.
+
+### 🧪 Validation
+- `npx vitest run` — **141/141 OK**
+- `npx vitest run --coverage` — thresholds met
+- `npx next lint --max-warnings 50` — 0 errors, 17 warnings (admin tech debt)
+- `npx tsc --noEmit` — OK
+
+### 🔐 Confidence
+- All test suites: **HIGH** — unit-level, deterministic, no flaky tests
+- Pre-commit hook: **HIGH** — fast (only staged files), can be bypassed only with explicit `--no-verify`
+- Codecov upload: **MEDIUM** — token expected to be set in repo secrets; soft-fail otherwise
+- Dependabot: **HIGH** — config validated by GitHub; first PR will arrive next Monday
+
+### 🚀 Deploy
+No application changes — this release is dev-experience + safety nets only. No prod deploy needed; CI infrastructure activates on next push.
+
 ## [10.8.0] - 2026-05-08 - 🚮 Vercel decommission + 🅓 Production observability
 
 ### 🚮 Vercel removed (project moved to Docker on VPS#2 on 2026-04-22; cleanup completes here)

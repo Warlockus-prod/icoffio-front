@@ -111,7 +111,12 @@ export async function assertSafeRemoteUrl(
     return { ok: false, reason: 'URL must not embed credentials' };
   }
 
-  const hostname = parsed.hostname.toLowerCase();
+  // Node WHATWG URL keeps brackets around IPv6 hostnames (e.g. `[::1]`).
+  // Strip them so our checks see the bare address.
+  let hostname = parsed.hostname.toLowerCase();
+  if (hostname.startsWith('[') && hostname.endsWith(']')) {
+    hostname = hostname.slice(1, -1);
+  }
 
   // Reject named loopback aliases
   if (BLOCKED_HOSTNAMES.has(hostname)) {
@@ -126,7 +131,7 @@ export async function assertSafeRemoteUrl(
     }
     return { ok: true, resolvedIp: hostname };
   }
-  // IPv6 literal pattern (URL.hostname strips brackets)
+  // IPv6 literal pattern (brackets already stripped above)
   if (hostname.includes(':')) {
     if (isPrivateIPv6(hostname)) {
       return { ok: false, reason: `IPv6 ${hostname} is in a private/reserved range`, resolvedIp: hostname };

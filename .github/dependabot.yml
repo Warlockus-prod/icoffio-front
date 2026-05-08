@@ -1,0 +1,49 @@
+# Dependabot v2 — automated security & version updates
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    target-branch: feature/info-portal
+    groups:
+      # Group security patches together so we don't get 10 PRs/week
+      security-patches:
+        applies-to: security-updates
+        update-types:
+          - patch
+      # Group safe minor/patch updates of dev tooling
+      dev-tooling:
+        dependency-type: development
+        update-types:
+          - patch
+          - minor
+    ignore:
+      # Pin: Next 14 must stay (we use App Router + jsdom external pkgs config)
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      # Pin: ESLint 8 (Next 14 lint command incompatible with ESLint 9)
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - github-actions
+    target-branch: feature/info-portal

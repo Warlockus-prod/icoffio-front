@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/info-portal]
   pull_request:
-    branches: [main]
+    branches: [main, feature/info-portal]
 
 jobs:
   check:
-    name: TypeScript & Lint
+    name: Lint, type-check, tests, build
     runs-on: ubuntu-latest
 
     steps:
@@ -21,17 +21,31 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        # `--legacy-peer-deps` because Next 14 + ESLint 8 + lint-staged 17 ranges
+        # don't agree about peer-dep versions. Verified locally; CI mirrors local.
+        run: npm ci --legacy-peer-deps
+
+      - name: ESLint
+        run: npm run lint -- --max-warnings 50
 
       - name: TypeScript type check
         run: npm run type-check
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests + coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        # Soft-fail: do not break CI if Codecov upload itself fails (token, etc.)
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true
 
       - name: Next.js build
         run: npm run build
         env:
           # Minimal env vars to pass build (no real secrets needed)
-          NEXT_PUBLIC_SITE_URL: https://app.icoffio.com
+          NEXT_PUBLIC_SITE_URL: https://web.icoffio.com
           NEXT_PUBLIC_GA_ID: G-PLACEHOLDER

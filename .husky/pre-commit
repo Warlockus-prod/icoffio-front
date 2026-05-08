@@ -1,0 +1,5 @@
+# v10.9.0: pre-commit gate
+# 1) lint-staged runs ESLint + Prettier on staged files only (fast)
+# 2) tsc --noEmit ensures no type regressions across the whole project
+npx lint-staged
+npm run type-check

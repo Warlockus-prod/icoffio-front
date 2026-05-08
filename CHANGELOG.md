@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.6.0] - 2026-05-08 - 🧹 Schema Actuality + Dead Code Cleanup (Audit Step 1+2)
+
+### ✅ Fixed — Database schema alignment
+- **`published_articles.updated_at`** — column was missing but referenced by `lib/data.ts`. Added column, backfill, BEFORE-UPDATE trigger using shared `update_updated_at_column()`, and `idx_articles_updated` index.
+- **`user_preferences.last_active`** — written by `lib/telegram-database-service.ts` but column never existed. Added column + `idx_user_preferences_last_active`. Will be dropped together with legacy bot in Telegram Phase 1.
+- **`telegram_image_library.article_id`** — added FK to `published_articles(id) ON DELETE SET NULL`. Migration cleans orphan refs first to avoid FK violation.
+- Missing `updated_at` triggers added: `telegram_submissions`, `admin_user_roles`, `info_boards`, `info_watch_topics` (info_* wrapped in `DO IF EXISTS` for installs without info-portal migrations).
+- Hot-path composite indexes: `idx_submissions_status_chat`, `idx_info_feed_items_feed_published`, `idx_info_watch_items_topic_published`.
+- `init/001_schema.sql` patched inline — fresh installs now match migrated state.
+
+### 🗑️ Removed — Dead code
+- 5 verified-dead `lib/` modules: `wordpress-service.ts`, `article-generator.ts`, `mock-data.ts`, `telegram-image-service.ts`, `telegram-compose-state.ts` (~1110 lines). Audit-grep missed lib-internal `import './foo'` patterns; `translation-service.ts`, `dual-language-publisher.ts`, `telegram-user-preferences.ts` retained for Telegram Phase 1.
+- 9 root-level audit screenshots (~5.8 MB).
+- 3 stale flag files: `.vercel-force`, `vercel-force-deploy.txt`, `DELETE_INSTRUCTIONS.txt`.
+
+### 🔀 Moved
+- `telegram-reset-webhook.py`, `seed.py`, `clean-vps-project.sh` → `scripts/` (preserving git history).
+
+### 🛡️ Repo hygiene
+- `.gitignore` extended: `/*.png` (whitelisted `/public/**`, `/docs/**`), `/banners/`, `/screens/`, `/reports/`, `/backups/`, `/.firecrawl/`, `/.cursor/`, plus stale flag files.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 64/64 OK
+- Migration SQL — DO/END blocks balanced (5/5), CREATE/DROP TRIGGER pairs symmetric (5/5)
+- ⚠️ Ephemeral PG validation skipped (Docker daemon not running locally) — to be run before VPS deploy via `scripts/apply-postgres-schema.sh` against staging or dry-run psql
+
+### 📂 Migrations added
+- `supabase/migrations/20260508_published_articles_updated_at.sql`
+- `supabase/migrations/20260508_schema_consistency_fixes.sql`
+
+### 🚀 Deploy notes
+- On VPS: pull → rebuild image → `psql` apply both new migrations (idempotent, safe to re-run). Verify post-deploy via:
+  ```bash
+  ssh -o ServerAliveInterval=30 root@46.225.11.249
+  docker exec -i icoffio-postgres psql -U icoffio -d icoffio -tAc "\d published_articles" | grep updated_at
+  curl -s -o /dev/null -w "%{http_code}\n" https://web.icoffio.com/en
+  ```
+
 ## [8.7.18] - 2026-02-18 - 🖼️ Telegram Image Reliability + Internal Auth
 
 ### ✅ Fixed

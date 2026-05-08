@@ -65,3 +65,25 @@ VPS_*.md
 
 # Runtime server log storage (mounted on VPS host)
 runtime-logs/
+
+# InImage diagnostics (separate project)
+inimage-diagnostics/
+
+# Audit/test screenshots (root-level)
+/*.png
+!/public/**/*.png
+!/docs/**/*.png
+
+# Diagnostic asset directories
+/banners/
+/screens/
+/reports/
+/backups/
+/.firecrawl/
+/.cursor/
+
+# Stale deployment flags
+.vercel-force
+vercel-force-deploy.txt
+DELETE_INSTRUCTIONS.txt
+

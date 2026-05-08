@@ -36,12 +36,15 @@ CREATE TABLE IF NOT EXISTS published_articles (
   published BOOLEAN DEFAULT true,
   featured BOOLEAN DEFAULT false,
   -- v8.7.27 source URL
-  source_url TEXT
+  source_url TEXT,
+  -- v10.5.x audit fix: track modification timestamp (lib/data.ts reads article.updated_at)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_articles_chat_id ON published_articles(chat_id);
 CREATE INDEX IF NOT EXISTS idx_articles_category ON published_articles(category);
 CREATE INDEX IF NOT EXISTS idx_articles_created ON published_articles(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_articles_updated ON published_articles(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_articles_source ON published_articles(source);
 CREATE INDEX IF NOT EXISTS idx_articles_slug_en ON published_articles(slug_en);
 CREATE INDEX IF NOT EXISTS idx_articles_slug_pl ON published_articles(slug_pl);
@@ -50,6 +53,9 @@ CREATE INDEX IF NOT EXISTS idx_articles_featured ON published_articles(featured)
 CREATE INDEX IF NOT EXISTS idx_articles_category_published ON published_articles(category, published);
 CREATE INDEX IF NOT EXISTS idx_articles_title_search ON published_articles USING gin(to_tsvector('english', title));
 CREATE INDEX IF NOT EXISTS idx_articles_content_search ON published_articles USING gin(to_tsvector('english', coalesce(content_en, '')));
+
+-- v10.5.x: trigger uses shared update_updated_at_column() defined a few lines below at section 2.
+-- Keep this CREATE TRIGGER call AFTER that function is declared (see line ~76).
 
 -- ============================
 -- 2. telegram_jobs (queue)
@@ -84,6 +90,11 @@ $$ language 'plpgsql';
 DROP TRIGGER IF EXISTS update_telegram_jobs_updated_at ON telegram_jobs;
 CREATE TRIGGER update_telegram_jobs_updated_at BEFORE UPDATE
     ON telegram_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- v10.5.x audit fix: trigger for published_articles.updated_at (declared above in section 1).
+DROP TRIGGER IF EXISTS update_published_articles_updated_at ON published_articles;
+CREATE TRIGGER update_published_articles_updated_at BEFORE UPDATE
+    ON published_articles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================
 -- 3. telegram_user_preferences
@@ -134,7 +145,8 @@ CREATE TABLE IF NOT EXISTS telegram_image_library (
   source_type VARCHAR(20) DEFAULT 'unknown',
   alt_text TEXT,
   author VARCHAR(255),
-  article_id INTEGER,
+  -- v10.5.x audit fix: FK on article_id with ON DELETE SET NULL avoids orphan refs
+  article_id INTEGER REFERENCES published_articles(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -256,6 +268,14 @@ BEGIN
     CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON telegram_submissions(submitted_at DESC);
   END IF;
 END $$;
+
+-- v10.5.x audit fix: hot-path index for admin filter (status + chat_id)
+CREATE INDEX IF NOT EXISTS idx_submissions_status_chat ON telegram_submissions(status, chat_id);
+
+-- v10.5.x audit fix: trigger for telegram_submissions.updated_at
+DROP TRIGGER IF EXISTS update_telegram_submissions_updated_at ON telegram_submissions;
+CREATE TRIGGER update_telegram_submissions_updated_at BEFORE UPDATE
+    ON telegram_submissions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================
 -- 8. activity_logs
@@ -408,6 +428,11 @@ CREATE TRIGGER trg_protect_owner_accounts_delete
 BEFORE DELETE ON admin_user_roles
 FOR EACH ROW EXECUTE FUNCTION protect_owner_accounts_admin_user_roles();
 
+-- v10.5.x audit fix: trigger for admin_user_roles.updated_at
+DROP TRIGGER IF EXISTS update_admin_user_roles_updated_at ON admin_user_roles;
+CREATE TRIGGER update_admin_user_roles_updated_at BEFORE UPDATE
+    ON admin_user_roles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================
 -- 11. banned_users
 -- ============================
@@ -421,6 +446,9 @@ CREATE TABLE IF NOT EXISTS banned_users (
 -- ============================
 -- 12. user_preferences (legacy)
 -- ============================
+-- NOTE: This is the v7-era table. Replaced by telegram_user_preferences (section 3).
+-- Still written by lib/telegram-database-service.ts for /api/telegram/{stats,user-stats}.
+-- Will be dropped together with legacy bot in Telegram Phase 1.
 CREATE TABLE IF NOT EXISTS user_preferences (
   id SERIAL PRIMARY KEY,
   user_id TEXT UNIQUE,
@@ -429,8 +457,12 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   style VARCHAR(50) DEFAULT 'analytical',
   theme VARCHAR(50),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- v10.5.x audit fix: column was being written by code (lib/telegram-database-service.ts) but missing from schema
+  last_active TIMESTAMP WITH TIME ZONE
 );
+
+CREATE INDEX IF NOT EXISTS idx_user_preferences_last_active ON user_preferences(last_active DESC NULLS LAST);
 
 -- ============================
 -- 13. Views & Functions

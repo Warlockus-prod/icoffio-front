@@ -29,6 +29,10 @@ yarn-error.log*
 # local env files
 .env*.local
 .env.vercel-production
+# v10.6.3: production env was previously tracked as a 53-byte placeholder.
+# Real production secrets live on the VPS only — never commit them.
+.env
+.env.production
 
 # vercel
 .vercel

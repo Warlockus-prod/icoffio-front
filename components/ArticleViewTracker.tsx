@@ -2,11 +2,14 @@
 
 /**
  * ARTICLE VIEW TRACKER
- * 
- * Отслеживает просмотры статей и отправляет данные в Supabase
+ *
+ * Отслеживает просмотры статей и отправляет данные в БД.
+ * v10.6.3: добавлена проверка cookie consent для analytics
+ *          (раньше трекер срабатывал без согласия — GDPR нарушение).
  */
 
 import { useEffect, useRef } from 'react';
+import { checkCookieConsent } from '@/lib/useCookieConsent';
 
 interface ArticleViewTrackerProps {
   articleSlug: string;
@@ -19,6 +22,11 @@ export function ArticleViewTracker({ articleSlug }: ArticleViewTrackerProps) {
     // Отслеживаем только один раз за сессию
     if (trackedRef.current) return;
     if (!articleSlug) return;
+
+    // v10.6.3: GDPR — track only if user has consented to analytics
+    if (!checkCookieConsent('analytics')) {
+      return;
+    }
 
     trackedRef.current = true;
 

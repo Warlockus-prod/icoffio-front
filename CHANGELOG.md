@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.6.3] - 2026-05-08 - 🛡️ GDPR + ops hygiene (post-deploy fixes)
+
+Post-deploy issues found while shipping 10.6.0/10.6.1/10.6.2 to VPS#2.
+
+### ✅ Fixed
+- **`ArticleViewTracker` now respects cookie consent**. Before: tracker fired unconditionally on every article view → 362 rows in `article_views` predate user consent. After: `checkCookieConsent('analytics')` gate matches the existing Analytics component pattern. GDPR-compliant.
+- **`.env.production` removed from git tracking**. The file was historically committed as a 53-byte placeholder containing only `NEXT_PUBLIC_WP_ENDPOINT`. Any `git reset --hard` would overwrite the real production env on VPS, breaking docker-compose start. Now in `.gitignore` along with `.env`.
+- **CLAUDE.md updated** to reflect VPS migration on 2026-04-22:
+  - Active VPS: `178.104.223.93` (`ubuntu-16gb-fsn1-1`, Hetzner Falkenstein)
+  - Legacy VPS#1 (`46.225.11.249`) only hosts wine_* / flask_wine now
+  - Deploy command rewritten with new IP + correct git workflow + fresh-checkout recovery note
+
+### 🚀 Production verified (after 10.6.0/10.6.1/10.6.2 deploy)
+Smoke tests on `https://web.icoffio.com`:
+- `GET /en` → 200
+- `GET /api/health` → 200
+- `POST /api/info/cleanup` (no cookie) → 401 ✅ (was 200 before — open dyra)
+- `POST /api/info/watch/analyze` (no cookie) → 401 ✅ (OpenAI-burning endpoint protected)
+- `POST /api/admin/auth` 6× wrong password → 5×401 then 429 with `retryAfter: 900` ✅
+
+### 🛢️ DB migrations applied to live `icoffio-postgres`
+- `20260508_published_articles_updated_at.sql` — column + trigger + index added
+- `20260508_schema_consistency_fixes.sql` — `last_active`, FK on `telegram_image_library.article_id`, 5 missing `updated_at` triggers, 3 hot-path composite indexes
+
+### 🔐 Confidence
+- **HIGH** — verified end-to-end on production: schema changes via psql verify queries; security via curl smoke tests; build via successful docker compose up.
+
+### 🚀 Deploy notes (updated for VPS#2)
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 \
+  "cd /root/projects/icoffio-front && \
+   git fetch origin feature/info-portal && git reset --hard origin/feature/info-portal && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
+```
+
+If `.env.production` is missing on VPS after this commit, recover from
+`/root/projects/icoffio-front.predeploy-*` backup or rebuild from `.env.example`.
+
 ## [10.6.2] - 2026-05-08 - 🐛 Build fix: externalize jsdom for isomorphic-dompurify
 
 ### ✅ Fixed

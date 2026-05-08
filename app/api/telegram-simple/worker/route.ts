@@ -1,8 +1,10 @@
 /**
  * TELEGRAM SIMPLE QUEUE WORKER
  *
- * Processes queued telegram-simple jobs from Supabase `telegram_jobs`.
- * Designed to run from cron (Vercel Cron or external scheduler).
+ * Processes queued telegram-simple jobs from `telegram_jobs` table.
+ * Triggered every minute by VPS systemd-timer / cron (see /etc/cron.d/icoffio-worker).
+ *
+ * Auth: Bearer token (TELEGRAM_WORKER_SECRET env-var) or ?token=... query param.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -30,10 +32,6 @@ function getWorkerSecret(): string {
 }
 
 function isWorkerAuthorized(request: NextRequest): WorkerAuthResult {
-  if (request.headers.get('x-vercel-cron')) {
-    return { ok: true, status: 200 };
-  }
-
   const secret = getWorkerSecret();
   if (!secret) {
     // Worker secret must be configured in all environments

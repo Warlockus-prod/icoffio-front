@@ -2,7 +2,7 @@
 
 **Дата:** 2025-11-02  
 **Причина:** Очередь зависает, нужен полный сброс с нуля  
-**Публикация:** Front (Vercel/Supabase) БЕЗ WordPress  
+**Публикация:** Front (Docker/VPS#2 + PostgreSQL) БЕЗ WordPress  
 **Статус:** ВРЕМЕННЫЙ (удалить после успеха)
 
 ---
@@ -128,9 +128,10 @@ AI revolutionizes education. Machine learning helps students learn faster with p
 
 ## 🔍 ДИАГНОСТИКА (если не работает):
 
-### 1. Проверьте Vercel Logs:
-```
-https://vercel.com/andreys-projects-a55f75b3/icoffio-front/logs
+### 1. Проверьте container logs (VPS#2):
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 root@178.104.223.93 \
+  'docker logs --tail 200 icoffio-front-app 2>&1'
 ```
 
 Ищите:

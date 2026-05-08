@@ -32,6 +32,7 @@ import {
   createRateLimitResponse,
   addRateLimitHeaders,
 } from '@/lib/api-rate-limiter';
+import { logError, logWarn } from '@/lib/error-logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,17 @@ async function handlePasswordLogin(request: NextRequest, body: AuthActionRequest
   }
 
   if (!isAdminPasswordValid(password)) {
+    // v10.8.0: log failed login attempts for audit + brute-force detection
+    void logWarn({
+      source: 'admin-auth',
+      message: 'Invalid password attempt',
+      requestPath: '/api/admin/auth',
+      requestMethod: 'POST',
+      userIp: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || undefined,
+      metadata: { remaining: rl.remaining },
+    });
     return addRateLimitHeaders(
       NextResponse.json({ success: false, error: 'Invalid password' }, { status: 401 }),
       'AUTH',
@@ -212,7 +224,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: false, error: 'Unsupported action' }, { status: 400 });
   } catch (error) {
-    console.error('Admin auth POST error:', error);
+    await logError({
+      level: 'critical',
+      source: 'admin-auth',
+      message: 'Admin auth POST handler crashed',
+      error,
+      requestPath: '/api/admin/auth',
+      requestMethod: 'POST',
+    });
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

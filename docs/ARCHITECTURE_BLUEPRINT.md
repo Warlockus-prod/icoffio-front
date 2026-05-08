@@ -40,7 +40,7 @@
 - **`jsdom@24`** — тяжёлый парсинг (где cheerio не справляется)
 
 ### Хранилище медиа
-- **`@vercel/blob@2`** — для DALL·E картинок (опционально, можно заменить на S3/MinIO/локальный диск)
+- **`@vercel/blob@2`** — Blob-storage SaaS API для DALL·E картинок (работает на любом хосте с `BLOB_READ_WRITE_TOKEN`; не требует Vercel-деплоя). Альтернативы: S3/R2/MinIO/локальный диск.
 
 ### Frontend libs
 - **`swr@2`** — data-fetching в admin
@@ -52,7 +52,7 @@
 ### DevOps
 - **Docker** (multi-stage build)
 - **docker-compose** для VPS
-- **Vercel Cron** — для запуска worker'а очереди (`*/1 * * * *`)
+- **VPS systemd-timer / cron** — для запуска worker'а очереди каждую минуту (`/etc/cron.d/icoffio-worker`)
 - **Vitest 3** — unit тесты
 - **GitHub Actions** — CI (type-check + test + build)
 
@@ -138,7 +138,7 @@ icoffio-front/
 ├── tsconfig.json                     # strict: true, paths: { "@/*": [...] }
 ├── docker-compose.vps.yml
 ├── Dockerfile                        # Multi-stage (deps → builder → runner)
-├── vercel.json                       # cron: */1 * * * * → /api/telegram-simple/worker
+├── # /etc/cron.d/icoffio-worker (on VPS)  # every minute → /api/telegram-simple/worker
 ├── package.json                      # version 10.5.0
 ```
 
@@ -529,7 +529,7 @@ findRecentDuplicate(15 min window) → если дубль, отказ
                                         ↓
                                     INSERT в telegram_jobs (status='pending')
                                         ↓
-                                  Vercel Cron */1 → /api/telegram-simple/worker
+                                  VPS cron */1 → /api/telegram-simple/worker
                                         ↓
                                   claimPendingJobs(limit=5) → SELECT FOR UPDATE
                                         ↓
@@ -553,7 +553,7 @@ findRecentDuplicate(15 min window) → если дубль, отказ
         image-generator.insertImages(article, count=1..3)
         → Unsplash search (по imageSearchQuery)
         → DALL·E 3 generate (1792x1024, hd, natural) [по imagePrompt]
-        → persistRemoteImage() → Vercel Blob или локальный диск
+        → persistRemoteImage() → Blob-storage SaaS (vercel-storage.com domain) или локальный диск
         → возвращает image URL
                      ↓
         publisher.publishArticle()
@@ -1080,11 +1080,12 @@ OPENAI_IMAGE_MODEL=dall-e-3
 # Unsplash
 UNSPLASH_ACCESS_KEY=
 
-# Vercel Blob (если используете)
+# Blob storage SaaS (used by @vercel/blob package; works on any host)
 BLOB_READ_WRITE_TOKEN=
 
-# Vercel Cron auth (если на Vercel)
+# Worker cron auth (used by /etc/cron.d/icoffio-worker on VPS)
 CRON_SECRET=
+TELEGRAM_WORKER_SECRET=
 
 # Advertising (VOX SSP)
 NEXT_PUBLIC_VOX_PLACE_LEADERBOARD=
@@ -1145,7 +1146,7 @@ ENABLE_MARKET_WATCH=true
 1. Создать таблицу `telegram_jobs`.
 2. `lib/telegram-simple/job-queue.ts` (claim/complete/fail/recycle).
 3. `app/api/telegram-simple/worker/route.ts` (cron handler).
-4. Vercel cron `*/1 * * * *` или systemd-timer на VPS.
+4. VPS cron — `/etc/cron.d/icoffio-worker` запускает worker каждую минуту через wrapper-скрипт `/usr/local/bin/icoffio-worker.sh`.
 5. Тест async-flow: отключить auto_publish, отправить URL, проверить что job создалась → worker подхватил → статья опубликовалась.
 
 ### День 6: SEO/i18n/cookie consent
@@ -1222,25 +1223,25 @@ ENABLE_MARKET_WATCH=true
 |----------------------|--------------|
 | Самописный Supabase-adapter | **Drizzle ORM** (типобезопасный, миграции) или **Prisma** |
 | In-memory rate limit | **Upstash Redis** (free tier) |
-| `@vercel/blob` | **S3 / R2 / MinIO** (self-hosted) |
+| `@vercel/blob` (SaaS, current) | **S3 / R2 / MinIO** (self-hosted) — больше контроля, нет vendor lock |
 | VOX SSP | **Google AdSense** (проще запустить) |
 | TipTap editor | **Lexical** (от Meta) или плейн textarea с markdown preview |
 | Самописный sitemap | **`next-sitemap`** package |
 | Telegram bot напрямую через webhook | **Telegraf.js** или **grammY** (выше уровень) |
 | Самописный i18n | **next-intl** или **next-i18next** |
 | Self-hosted PG на VPS | **Neon** / **Supabase managed** (free tier, S3-backups) |
-| Vercel Cron | **Inngest** / **Trigger.dev** (jobs + retries из коробки) |
+| systemd-timer / cron на VPS (current) | **Inngest** / **Trigger.dev** (jobs + retries из коробки) |
 
 ---
 
 ## 19. Минимальный стек для recreating (если бюджет ноль)
 
-- **Hosting:** Vercel (free tier для Next.js) или Railway
+- **Hosting:** Hetzner / DigitalOcean / любой VPS с Docker (~$5-20/мес). Vercel/Railway тоже подойдут, но текущий проект на VPS.
 - **DB:** Neon (free 0.5GB) или Supabase free
 - **OpenAI:** $5 кредит для старта
 - **Unsplash:** бесплатный API
-- **Image storage:** Vercel Blob (free 1GB) или Cloudinary free
-- **Domain:** $10/год (.com) или бесплатно через Vercel `*.vercel.app`
+- **Image storage:** Vercel Blob SaaS (free 1GB через `@vercel/blob` пакет — работает где угодно), Cloudinary free, или self-hosted MinIO
+- **Domain:** $10/год (.com) либо бесплатные subdomain'ы вроде `*.up.railway.app`
 - **GitHub Actions:** free для public repos
 - **Telegram bot:** бесплатно
 

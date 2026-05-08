@@ -159,7 +159,7 @@ Every article has `imageAlt = null/empty`. Bad for SEO and accessibility.
 
 Images link directly to `images.unsplash.com`. These URLs may change, get rate-limited, or violate Unsplash ToS for hotlinking.
 
-**Fix:** Download and re-host images in Vercel Blob Storage or Supabase Storage.
+**Fix:** Download and re-host images via the existing Blob storage flow (`@vercel/blob` SaaS API; works on any host with `BLOB_READ_WRITE_TOKEN`).
 
 ---
 

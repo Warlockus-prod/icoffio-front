@@ -12,7 +12,7 @@
 
 1. ✅ **Создана упрощенная система** (300 строк кода)
 2. ✅ **Все файлы без ошибок** (TypeScript 0 errors)
-3. ✅ **Vercel deploy успешен** (v8.0.0)
+3. ✅ **Docker deploy успешен на VPS#2** (v8.0.0; Vercel hosting deprecated in v10.8.0)
 4. ✅ **Webhook настроен** (`/api/telegram-simple/webhook`)
 5. ✅ **Pending updates: 0** (нет застрявших сообщений)
 
@@ -140,9 +140,10 @@ https://techcrunch.com/2024/01/15/openai-announces-gpt-5/
 
 ## 🔍 МОНИТОРИНГ
 
-### Vercel Logs:
-```
-https://vercel.com/andreys-projects-a55f75b3/icoffio-front/logs
+### Container logs (VPS#2):
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 root@178.104.223.93 \
+  'docker logs --tail 200 icoffio-front-app 2>&1 | grep TelegramSimple'
 ```
 
 **Ищите:**
@@ -178,9 +179,9 @@ curl https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
 - Нет `last_error_message`
 
 ### 2. Ошибка "Processing failed":
-- Проверьте Vercel logs
+- Проверьте container logs (см. выше команду)
 - Проверьте что OpenAI API key настроен
-- Проверьте Supabase credentials
+- Проверьте PostgreSQL credentials в .env.production на VPS#2
 
 ### 3. URL не парсится:
 - Убедитесь что URL доступен

@@ -2,6 +2,71 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.8.0] - 2026-05-08 - 🚮 Vercel decommission + 🅓 Production observability
+
+### 🚮 Vercel removed (project moved to Docker on VPS#2 on 2026-04-22; cleanup completes here)
+- **Deleted `vercel.json`** (Vercel Cron config) and `app/api/vercel-webhook/route.ts` (deploy webhook handler).
+- Removed `x-vercel-cron` short-circuit auth in `app/api/telegram-simple/worker/route.ts`. Auth now strictly requires `TELEGRAM_WORKER_SECRET` Bearer or `?token=` query param.
+- **VPS cron replaces Vercel Cron**: `/etc/cron.d/icoffio-worker` calls `/usr/local/bin/icoffio-worker.sh` every minute (verified auto-running, log appends to `/var/log/icoffio-worker.log`).
+- Updated docs: `CLAUDE.md` (already updated in 10.6.3), `docs/ARCHITECTURE_BLUEPRINT.md` (14 Vercel mentions reworked), `PRE_DEPLOY_CHECKLIST.md` (deploy section rewritten for VPS#2), `ADMIN_PANEL_FINAL_DOCUMENTATION.md`, `ADVERTISING_CODES_GUIDE.md`, `CONTENT-AUDIT-REPORT.md`, `TELEGRAM_SIMPLE_TESTING.md`, `TELEGRAM_FULL_RESET_INSTRUCTIONS.md`.
+- Removed `Bash(vercel:*)` from `.claude/settings.local.json` permissions.
+- Archived to `docs/archive/v7-v8/`: `DEPLOYMENT_SUCCESS_REPORT.md`, `FULL-AUDIT-REPORT.md`, `docs/SUPABASE_QUEUE_MIGRATION_v7.9.2.md`, `docs/TELEGRAM_BOT_SETUP_GUIDE.md`, `docs/ADVERTISING_V7.6.0_RELEASE_NOTES.md`, `docs/CONSOLIDATION_STAGE2_PLAN.md`.
+- `@vercel/blob` package KEPT — it's a SaaS Blob-storage API that works on any Node.js host with `BLOB_READ_WRITE_TOKEN`; not a deploy-platform lock-in. Used by `upload-image`, `upload-feedback-screenshot`, `admin/generate-image`.
+
+### 🅓.1 — Self-hosted error tracking (Sentry alternative)
+- Added `errors_log` table (migration `20260508_errors_log.sql`).
+- Added `lib/error-logger.ts` — `logError({ source, message, error, level, metadata })` writes to console + DB; on `level: 'critical'` also sends Telegram alert to `ADMIN_TELEGRAM_CHAT_ID`.
+- Added `/api/admin/errors-log` (GET filterable + DELETE for purge, admin-only).
+- Wired into `/api/admin/auth`: failed password attempts logged as `warn`, handler crashes as `critical`.
+- Future: incremental wiring into telegram-simple webhook + info/watch endpoints.
+
+### 🅓.2 — Daily PostgreSQL backups
+- VPS-side: `/usr/local/bin/icoffio-db-backup.sh` runs daily at 03:30 UTC via `/etc/cron.d/icoffio-db-backup`.
+- Backups land in `/opt/backups/icoffio/icoffio-<TIMESTAMP>.sql.gz`.
+- 30-day retention (older files purged each run).
+- Smoke-tested: 7.9 MB gzipped dump, gzip integrity verified, valid SQL header.
+
+### 🅓.3 — `article_popularity` refresh
+- Materialized view existed but was never refreshed → always stale/empty for `getPopularArticles()`.
+- VPS-side: `/usr/local/bin/icoffio-refresh-popularity.sh` runs every 15 min via `/etc/cron.d/icoffio-refresh-popularity`.
+- Smoke-tested: 24 rows materialized from 362 `article_views` records.
+
+### 🅓.4 — Web Vitals self-hosted dashboard
+- Added `web_vitals` table (migration `20260508_web_vitals.sql`).
+- Beacon endpoint: `POST /api/analytics/web-vitals` (rate-limited via `PUBLIC_API` bucket; sanity bounds; silent failure).
+- `components/WebVitals.tsx` now sends via `navigator.sendBeacon()` (survives page unload). Metrics: LCP, CLS, INP, FCP, TTFB, FID.
+- Admin dashboard query: `GET /api/analytics/web-vitals` returns 24h p50/p75/p95 + good/poor share per metric (admin-only).
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 64/64 OK
+- `npx next lint` — 0 errors, 17 warnings (admin tech debt unchanged)
+- `npm run build` — to be verified on prod build
+
+### 📂 Migrations to apply on prod (in order)
+1. `supabase/migrations/20260508_errors_log.sql`
+2. `supabase/migrations/20260508_web_vitals.sql`
+
+### 🔐 Confidence
+- Vercel removal: **HIGH** — all active code paths replaced, VPS cron auto-running verified
+- error-logger: **HIGH** — never throws, falls back to console; tested locally
+- DB backups: **HIGH** — smoke-tested OK, valid gzip + SQL
+- popularity refresh: **HIGH** — already produces 24 materialized rows
+- Web Vitals beacon: **MEDIUM** — works locally; production will validate sendBeacon delivery rate
+
+### 🚀 Deploy
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 \
+  "cd /root/projects/icoffio-front && \
+   git fetch origin feature/info-portal && git reset --hard origin/feature/info-portal && \
+   docker exec -i icoffio-postgres psql -U icoffio -d icoffio -v ON_ERROR_STOP=1 \
+     < supabase/migrations/20260508_errors_log.sql && \
+   docker exec -i icoffio-postgres psql -U icoffio -d icoffio -v ON_ERROR_STOP=1 \
+     < supabase/migrations/20260508_web_vitals.sql && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
+```
+
 ## [10.7.1] - 2026-05-08 - 🅐 Quick wins: img→next/image, root cleanup, scripts purge
 
 ### ✅ Fixed — Public components migrated to next/image

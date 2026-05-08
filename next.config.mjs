@@ -17,7 +17,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '185.41.68.62' },
       { protocol: 'http', hostname: '185.41.68.62' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
-      // v10.7.0: Vercel Blob (DALL-E persisted images), DALL-E direct, common AI image hosts
+      // v10.7.0: Blob storage SaaS (DALL-E persisted images via @vercel/blob package — works on any host with BLOB_READ_WRITE_TOKEN), DALL-E direct, common AI image hosts
       { protocol: 'https', hostname: '**.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: 'oaidalleapiprodscus.blob.core.windows.net' },
     ],

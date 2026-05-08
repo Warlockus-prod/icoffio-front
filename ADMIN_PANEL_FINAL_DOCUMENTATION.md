@@ -244,7 +244,7 @@ The icoffio Admin Panel has been completely transformed from a non-functional pr
 - **Cleanup API**: Password-protected administrative operations
 - **Input Validation**: All user inputs validated
 - **Error Boundaries**: Graceful error handling
-- **Rate Limiting**: Built-in through Vercel platform
+- **Rate Limiting**: In-memory token bucket via `lib/api-rate-limiter.ts` (per-IP)
 
 ---
 
@@ -277,11 +277,11 @@ The icoffio Admin Panel has been completely transformed from a non-functional pr
 ## 🚀 DEPLOYMENT & PRODUCTION STATUS
 
 ### **Current Environment**
-- **Platform**: Vercel with automatic deployments
-- **Domain**: app.icoffio.com (production)
-- **SSL**: Full HTTPS with automatic certificate management
+- **Platform**: Docker Compose on self-hosted VPS#2 (`178.104.223.93`, Hetzner Falkenstein, `ubuntu-16gb-fsn1-1`)
+- **Domain**: web.icoffio.com (production); app.icoffio.com (legacy alias)
+- **SSL**: Full HTTPS via nginx + Certbot (auto-renew)
 - **Performance**: Optimized bundle, fast loading times
-- **Monitoring**: Built-in analytics and logging
+- **Monitoring**: `docker logs icoffio-front-app` + nginx access logs (Sentry planned for v10.8.x)
 
 ### **Deployment Pipeline**
 1. **GitHub**: Source code repository with version control

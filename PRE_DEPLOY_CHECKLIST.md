@@ -117,15 +117,19 @@ git push origin main
 
 **Результат:** ✅ / ❌ _________
 
-### 9. Мониторинг Vercel
+### 9. Деплой на VPS#2
 
-**Откройте:**
-https://vercel.com/your-team/icoffio-front
+```bash
+ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 \
+  "cd /root/projects/icoffio-front && \
+   git fetch origin feature/info-portal && git reset --hard origin/feature/info-portal && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
+```
 
 **Дождитесь:**
-- [ ] Building... ➜ Ready
-- [ ] Status: Success
-- [ ] Domain: Production
+- [ ] Build OK
+- [ ] `icoffio-front-app: Up X seconds (healthy)`
 
 **Время ожидания:** ~1-2 минуты
 
@@ -135,13 +139,13 @@ https://vercel.com/your-team/icoffio-front
 
 ```bash
 # HTTP Status
-curl -I https://app.icoffio.com/en
+curl -I https://web.icoffio.com/en
 
 # Должно быть: HTTP/2 200
 ```
 
 **Откройте в браузере:**
-- [ ] https://app.icoffio.com/en - загружается
+- [ ] https://web.icoffio.com/en - загружается
 - [ ] Дизайн правильный
 - [ ] Нет JavaScript ошибок в консоли
 - [ ] Темная тема работает
@@ -155,13 +159,15 @@ curl -I https://app.icoffio.com/en
 ### НЕМЕДЛЕННЫЙ ОТКАТ
 
 ```bash
-# 1. Откат на один коммит назад
+# 1. Откат на один коммит назад на VPS
+ssh -i ~/.ssh/aiw_new_vps_ed25519 root@178.104.223.93 \
+  "cd /root/projects/icoffio-front && git reset --hard HEAD~1 && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production build && \
+   docker compose -f docker-compose.vps.yml --env-file .env.production up -d"
+
+# 2. Откатить и в git origin
 git reset --hard HEAD~1
-
-# 2. Force push (экстренная ситуация)
-git push origin main --force
-
-# 3. Vercel автоматически задеплоит предыдущую версию
+git push origin feature/info-portal --force-with-lease
 ```
 
 ### ОТКАТ К ИЗВЕСТНОЙ СТАБИЛЬНОЙ ВЕРСИИ
@@ -185,7 +191,7 @@ git push origin main --force
 - Backup создан: ✅
 - Commit сделан: ✅
 - Push выполнен: ✅
-- Vercel деплой успешен: ✅
+- Docker деплой на VPS#2 успешен: ✅
 - Production тест пройден: ✅
 
 **Если все ✅ - ПОЗДРАВЛЯЕМ! Деплой успешен! 🎉**

@@ -4,7 +4,7 @@
 
 ## ✅ Актуальный статус (v8.6.6, 2026-02-14)
 
-- **Production root в Vercel:** репозиторий root `icoffio-front` (все рекламные правки делаем здесь)
+- **Production:** Docker Compose на VPS#2 (`178.104.223.93`); репозиторий root `icoffio-front`, ветка `feature/info-portal` (все рекламные правки делаем здесь)
 - **Display реклама:** стабилизирована, EN/PL синхронизированы, неподходящие креативы скрываются
 - **Live debug:** `npm run ad:live-debug` -> отчет `.playwright-mcp/live-ad-debug-report.json`
 - **Видео скрипт/модуль найден и подключен:** `components/VideoPlayer.tsx`
@@ -19,8 +19,8 @@
 
 1. Любое изменение рекламы = новая версия в `package.json`
 2. Обязательно запись в `CHANGELOG.md`
-3. Обязательно `git push origin main`
-4. Обязательно `vercel --prod --yes`
+3. Обязательно `git push origin feature/info-portal`
+4. Обязательно деплой на VPS#2 (см. CLAUDE.md → "Deployment")
 
 ## 📋 Содержание
 

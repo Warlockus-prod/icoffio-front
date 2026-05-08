@@ -49,7 +49,7 @@ export const translations = {
     newsletterSubscribe: "Subscribe to our newsletter to receive the latest technology news",
     socialMediaComingSoon: "Social media coming soon",
     allRightsReserved: "All rights reserved",
-    allRightsReservedFull: "© 2025 icoffio. All rights reserved.",
+    allRightsReservedFull: "© 2026 icoffio. All rights reserved.",
     coveringTechEvents: "Covering the most important events in the world of technology",
     
     // Dates
@@ -100,7 +100,7 @@ export const translations = {
     newsletterSubscribe: "Zapisz się do naszego newslettera, aby otrzymywać najnowsze wiadomości technologiczne",
     socialMediaComingSoon: "Media społecznościowe wkrótce",
     allRightsReserved: "Wszystkie prawa zastrzeżone",
-    allRightsReservedFull: "© 2025 icoffio. Wszystkie prawa zastrzeżone.",
+    allRightsReservedFull: "© 2026 icoffio. Wszystkie prawa zastrzeżone.",
     coveringTechEvents: "Relacjonujemy najważniejsze wydarzenia ze świata technologii",
     
     // Dates

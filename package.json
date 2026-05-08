@@ -15,7 +15,7 @@
     "sanitize-published": "node scripts/sanitize-published-articles.js --confirm",
     "clean-problematic": "node scripts/clean-problematic-articles.js",
     "clean-problematic:dry": "node scripts/clean-problematic-articles.js --dry-run",
-    "prepare": "husky",
+    "prepare": "husky || echo 'husky skipped (no git or production install)'",
     "test:coverage": "vitest run --coverage"
   },
   "lint-staged": {

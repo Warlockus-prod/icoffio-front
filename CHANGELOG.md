@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.10.1] - 2026-05-09 - 🐛 Hotfix: Info Portal feeds stopped updating after Vercel decommission
+
+### 🚨 Root cause
+- v10.6.1 added admin-only `requireInfoAdmin` gate to `/api/info/fetch-feeds`.
+- v10.8.0 killed Vercel Cron and migrated to VPS cron — but only the Telegram worker cron was wired up. `/api/info/fetch-feeds` was forgotten.
+- **Result:** Info Portal RSS feeds have not refreshed since 2026-04-07 — exactly 32 days of stale news, matching the user-reported "newsy są z 40 dni temu".
+
+### ✅ Fixed
+- `app/api/info/fetch-feeds/route.ts` now accepts a Bearer token (`INFO_FETCH_SECRET` or `CRON_SECRET` env-var) as an alternative to admin cookie auth — same pattern as `/api/telegram-simple/worker`.
+- Added VPS cron: `/etc/cron.d/icoffio-fetch-feeds` runs `/usr/local/bin/icoffio-fetch-feeds.sh` every 30 minutes.
+- Triggered immediate fetch on VPS to give users fresh news without waiting for the next cron tick.
+
+### 📝 NOT bugs (clarification for the user's other reports)
+- **"Translation doesn't work for IAB Europe / Google Ads Blog"** — these are **feed *titles* stored in DB** as labels by admin. The UI displays them verbatim. There is no per-locale translation of feed labels by design. To localize, admin would need to add per-feed `title_en` / `title_pl` columns (feature request, not a bug).
+- **"News only in Russian"** — feed *items* are in the source language of each RSS source. The user's configured feeds include Russian (ТАСС, RT, Лента, Коммерсантъ, etc.) AND English (BBC, Bloomberg, Guardian) AND Polish (IAB Polska). Items render in their original language; no auto-translation. Polish locale = UI chrome only, not content. Feature request to add a "filter by language" toggle would be a separate change.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- Cron file installed, smoke-tested manually on VPS
+
+### 🔐 Confidence
+- HIGH on cron + auth bypass — uses same pattern as worker cron (proven in 10.8.0)
+- HIGH on root-cause attribution — `MAX(created_at) = 2026-04-07 14:31:33` matches the gap exactly
+
 ## [10.10.0] - 2026-05-08 - 🎁 Errors UI + Lighthouse audit + telegram tests + Watch code-split
 
 ### ✅ Added — Admin UI for self-hosted error log

@@ -3,9 +3,28 @@ import { fetchAllFeeds, fetchAndStoreFeed } from '@/lib/info/feed-fetcher';
 import { getPool } from '@/lib/pg-pool';
 import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
+/**
+ * Check whether the caller is the VPS cron (presenting INFO_FETCH_SECRET or CRON_SECRET as Bearer).
+ * v10.10.1: needed because we added admin-only auth in 10.6.1, then in 10.8.0 replaced Vercel Cron
+ * with VPS cron — but forgot to wire fetch-feeds. Feeds stopped updating 2026-04-07.
+ */
+function isCronRequest(request: NextRequest): boolean {
+  const secret = (process.env.INFO_FETCH_SECRET || process.env.CRON_SECRET || '').trim();
+  if (!secret) return false;
+  const auth = request.headers.get('authorization') || '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (bearer && bearer === secret) return true;
+  const queryToken = (request.nextUrl.searchParams.get('token') || '').trim();
+  if (queryToken && queryToken === secret) return true;
+  return false;
+}
+
 export async function POST(request: NextRequest) {
-  const denied = await requireInfoAdmin(request);
-  if (denied) return denied;
+  // Allow either: admin-authenticated user OR VPS cron with Bearer token.
+  if (!isCronRequest(request)) {
+    const denied = await requireInfoAdmin(request);
+    if (denied) return denied;
+  }
   try {
     const body = await request.json().catch(() => ({}));
     const feedId = body.feed_id;

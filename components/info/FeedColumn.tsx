@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { InfoFeed, InfoFeedItem } from '@/lib/info/types';
-import { localizedFeedTitle } from '@/lib/info/feed-locale';
+import { localizedFeedTitle, localizedItemTitle } from '@/lib/info/feed-locale';
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -86,7 +86,7 @@ export function FeedColumn({
                 onMouseEnter={() => setHoveredItem(item)}
                 onMouseLeave={() => setHoveredItem(null)}
               >
-                {item.title}
+                {localizedItemTitle(item, locale)}
               </a>
 
               {/* Tooltip */}
@@ -105,7 +105,7 @@ export function FeedColumn({
                     />
                   )}
                   <p className="text-sm font-medium text-[#333] dark:text-[#e0e0e0] mb-1">
-                    {item.title}
+                    {localizedItemTitle(item, locale)}
                   </p>
                   {item.description && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">

@@ -6,7 +6,7 @@
  * (and `subtitle`) when empty. Keeps existing rows working until admin / GPT fills them in.
  */
 
-import type { InfoFeed, InfoBlock, InfoBoard } from './types';
+import type { InfoFeed, InfoBlock, InfoBoard, InfoFeedItem } from './types';
 
 type LocalizableFeed   = Pick<InfoFeed,  'title' | 'title_en' | 'title_pl'>;
 type LocalizableBlock  = Pick<InfoBlock, 'title'> & { title_en?: string | null; title_pl?: string | null };
@@ -16,6 +16,7 @@ type LocalizableBoard  = Pick<InfoBoard, 'title' | 'subtitle'> & {
   subtitle_en?: string | null;
   subtitle_pl?: string | null;
 };
+type LocalizableItem   = Pick<InfoFeedItem, 'title'> & { title_en?: string | null; title_pl?: string | null };
 
 function pickLocalized(canonical: string, en: string | null | undefined, pl: string | null | undefined, locale: string): string {
   if (locale === 'pl' && pl && pl.trim()) return pl;
@@ -39,4 +40,9 @@ export function localizedBoardSubtitle(board: LocalizableBoard, locale: string):
   if (locale === 'pl' && board.subtitle_pl && board.subtitle_pl.trim()) return board.subtitle_pl;
   if (locale === 'en' && board.subtitle_en && board.subtitle_en.trim()) return board.subtitle_en;
   return board.subtitle;
+}
+
+/** v10.14.0: feed-item localized title (NULL → fallback to source). */
+export function localizedItemTitle(item: LocalizableItem, locale: string): string {
+  return pickLocalized(item.title, item.title_en, item.title_pl, locale);
 }

@@ -165,6 +165,36 @@ export function InfoAdminPanel() {
   // v10.12.0: one-shot GPT translation of feed source names → title_pl / title_en
   // v10.13.0: extended with `scope` — feeds | blocks | boards | all
   const [translating, setTranslating] = useState(false);
+  // v10.14.0: item-level translation (RSS news headlines)
+  const [translatingItems, setTranslatingItems] = useState(false);
+  const translateItemsBatch = async (target: 'pl' | 'en') => {
+    if (!confirm(
+      `Translate recent news headlines to ${target.toUpperCase()}?\n` +
+      `Range: last 14 days, max 200 items. ~$0.04 per call.\n` +
+      `Can be re-run to fetch more.`
+    )) return;
+    setTranslatingItems(true);
+    setFetchResult('');
+    try {
+      const res = await fetch('/api/admin/info/translate-items-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, days: 14, limit: 200 }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setFetchResult(
+          `📰 Items → ${target.toUpperCase()}: ${data.updated} translated, ${data.skipped} skipped of ${data.totalScanned}. ` +
+          `Approx cost: $${data.approxCostUsd}. ${data.durationMs}ms.`,
+        );
+      } else {
+        setFetchResult(`❌ ${data.error}`);
+      }
+    } catch (err: any) {
+      setFetchResult(`Error: ${err.message}`);
+    }
+    setTranslatingItems(false);
+  };
   const autoTranslateTitles = async (target: 'pl' | 'en', scope: 'feeds' | 'all' = 'all') => {
     const label = scope === 'all' ? 'feeds + blocks + boards' : scope;
     if (!confirm(`Auto-translate ${label} → ${target.toUpperCase()} via GPT? ~$0.001`)) return;
@@ -255,22 +285,39 @@ export function InfoAdminPanel() {
           >
             {fetchingFeeds ? 'Fetching...' : 'Fetch All Feeds'}
           </button>
-          {/* v10.12.0: one-click GPT translation of source names */}
+          {/* v10.12.0+v10.13.0: one-click GPT translation of feeds + blocks + boards */}
           <button
             onClick={() => autoTranslateTitles('pl')}
             disabled={translating}
             className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50"
-            title="Translate all missing feed names to Polish via GPT (~$0.001)"
+            title="Translate all missing feed/block/board names to Polish via GPT (~$0.003)"
           >
-            {translating ? 'Translating…' : '🤖 → PL'}
+            {translating ? 'Translating…' : '🤖 Names → PL'}
           </button>
           <button
             onClick={() => autoTranslateTitles('en')}
             disabled={translating}
             className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50"
-            title="Translate all missing feed names to English via GPT (~$0.001)"
+            title="Translate all missing feed/block/board names to English via GPT (~$0.003)"
           >
-            {translating ? 'Translating…' : '🤖 → EN'}
+            {translating ? 'Translating…' : '🤖 Names → EN'}
+          </button>
+          {/* v10.14.0: item-level translation buttons */}
+          <button
+            onClick={() => translateItemsBatch('pl')}
+            disabled={translatingItems}
+            className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50"
+            title="Translate recent news headlines to Polish via GPT (~$0.04 per 200 items)"
+          >
+            {translatingItems ? 'Translating items…' : '📰 Items → PL'}
+          </button>
+          <button
+            onClick={() => translateItemsBatch('en')}
+            disabled={translatingItems}
+            className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50"
+            title="Translate recent news headlines to English via GPT (~$0.04 per 200 items)"
+          >
+            {translatingItems ? 'Translating items…' : '📰 Items → EN'}
           </button>
         </div>
       </div>

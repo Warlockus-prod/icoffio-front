@@ -136,6 +136,10 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (feed_id, guid) DO UPDATE SET
            title = EXCLUDED.title,
+           -- v10.14.0: if source title changed, invalidate cached translations so the next
+           -- translate-batch call picks it up. If unchanged, preserve existing translations.
+           title_en = CASE WHEN info_feed_items.title IS DISTINCT FROM EXCLUDED.title THEN NULL ELSE info_feed_items.title_en END,
+           title_pl = CASE WHEN info_feed_items.title IS DISTINCT FROM EXCLUDED.title THEN NULL ELSE info_feed_items.title_pl END,
            description = EXCLUDED.description,
            image_url = COALESCE(EXCLUDED.image_url, info_feed_items.image_url),
            published_at = COALESCE(EXCLUDED.published_at, info_feed_items.published_at)`,

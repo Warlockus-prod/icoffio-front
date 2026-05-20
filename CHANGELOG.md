@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.14.0] - 2026-05-20 - 📰 Item-level news-headline translation (micro)
+
+Completes the per-locale Info Portal: news *items* (RSS headlines) now have GPT-translated columns. Render-side falls back to the source headline so partial translation is graceful.
+
+### ✅ Added — Schema
+- Migration `20260520_info_feed_items_locale.sql`:
+  - `info_feed_items.title_en` — English translation (NULL until batch runs)
+  - `info_feed_items.title_pl` — Polish translation (NULL until batch runs)
+  - Partial indexes `idx_items_missing_pl/en` for fast "find untranslated" queries (used by the batch worker)
+- No backfill — translation is on-demand, admin-controlled.
+
+### ✅ Added — Translation endpoint
+- `POST /api/admin/info/translate-items-batch { target: 'pl'|'en', days: 14, limit: 200, onlyMissing: true }`
+- One GPT-4.1-mini call per batch. ~$0.04 per 200 items.
+- Returns `approxCostUsd` so admin sees the bill in real time.
+- Cost-bound design: hard-capped at 500 items per call; `days` window prevents touching ancient backlog.
+
+### ✅ Added — UPSERT invalidation in feed-fetcher
+- When RSS poll detects a changed headline (`title <> EXCLUDED.title`), `title_en` and `title_pl` reset to NULL.
+- Prevents stale translation drift when news outlets edit headlines post-publication.
+
+### ✅ Added — Render-side helper + admin buttons
+- `localizedItemTitle(item, locale)` in `lib/info/feed-locale.ts` — same fallback semantics as feed/block/board.
+- `FeedColumn` now renders localized item title + uses it in the hover tooltip.
+- Two new indigo buttons in `InfoAdminPanel.tsx`: "📰 Items → PL" / "📰 Items → EN" (with cost-warning confirm).
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+
+### 📂 Migration to apply on prod
+- `supabase/migrations/20260520_info_feed_items_locale.sql`
+
+### 💰 Cost projection
+- One-time backfill ~7400 items × 2 langs ≈ **$3** if admin runs full sweep
+- Ongoing: ~2000 new items/day. If admin runs daily "Items → PL" + "Items → EN" = **~$0.40/day** = **~$12/month**
+- If admin runs less often / only for one locale, proportionally cheaper
+
+### 🔐 Confidence
+- HIGH on schema + helper + render — same proven pattern as v10.11–v10.13
+- HIGH on UPSERT invalidation — minimally-invasive, only triggers on real title change
+- MEDIUM on batch endpoint — first prod run will validate parsing on real headlines (longer/messier than feed titles)
+
 ## [10.13.0] - 2026-05-20 - 🌐 Full per-locale Info Portal + lang audit
 
 Follow-up to v10.11–v10.12: completes per-locale support across feeds, blocks, boards, and adds an audit of the auto-detected `lang` column.

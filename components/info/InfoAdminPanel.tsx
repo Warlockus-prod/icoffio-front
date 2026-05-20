@@ -162,6 +162,31 @@ export function InfoAdminPanel() {
     setFetchingFeeds(false);
   };
 
+  // v10.12.0: one-shot GPT translation of feed source names → title_pl / title_en
+  const [translating, setTranslating] = useState(false);
+  const autoTranslateTitles = async (target: 'pl' | 'en') => {
+    if (!confirm(`Auto-translate all feed titles to ${target.toUpperCase()} via GPT? ~$0.001`)) return;
+    setTranslating(true);
+    setFetchResult('');
+    try {
+      const res = await fetch('/api/admin/info/auto-translate-titles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, onlyMissing: true }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setFetchResult(`✅ Translated ${data.updated} titles to ${target.toUpperCase()}, skipped ${data.skipped}. Model: ${data.modelUsed}. ${data.durationMs}ms.`);
+        if (selectedBlock) loadFeeds(selectedBlock.id);
+      } else {
+        setFetchResult(`❌ ${data.error || 'Translation failed'}`);
+      }
+    } catch (err: any) {
+      setFetchResult(`Error: ${err.message}`);
+    }
+    setTranslating(false);
+  };
+
   const saveRetention = async () => {
     setSavingSettings(true);
     await fetch('/api/info/settings', {
@@ -222,6 +247,23 @@ export function InfoAdminPanel() {
             className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
           >
             {fetchingFeeds ? 'Fetching...' : 'Fetch All Feeds'}
+          </button>
+          {/* v10.12.0: one-click GPT translation of source names */}
+          <button
+            onClick={() => autoTranslateTitles('pl')}
+            disabled={translating}
+            className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50"
+            title="Translate all missing feed names to Polish via GPT (~$0.001)"
+          >
+            {translating ? 'Translating…' : '🤖 → PL'}
+          </button>
+          <button
+            onClick={() => autoTranslateTitles('en')}
+            disabled={translating}
+            className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50"
+            title="Translate all missing feed names to English via GPT (~$0.001)"
+          >
+            {translating ? 'Translating…' : '🤖 → EN'}
           </button>
         </div>
       </div>

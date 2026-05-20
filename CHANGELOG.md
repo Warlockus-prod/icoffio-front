@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.12.0] - 2026-05-20 - 🇵🇱 Polish board + one-click feed-title translation
+
+Follow-up to v10.11.0 user feedback: "OK, ale chcę board tylko z polskim contentem
++ żeby nie wpisywać 121 tytułów ręcznie".
+
+### ✅ Added — Dedicated Polish board (Feature D)
+- Migration `20260520_info_board_polska.sql` creates board `slug='polska'` titled "Polska", with a block "Media polskie", and **copies** (not moves — preserves existing curation) all `lang='pl'` feeds into it.
+- URL: `/pl/info/polska` and `/en/info/polska`.
+- Idempotent: re-running the migration is a no-op.
+- Future PL feeds added by admin to any board with `lang='pl'` will NOT auto-appear here — admin must place them explicitly. This is intentional: avoids surprise duplication.
+
+### ✅ Added — One-click GPT feed-title translation (Feature 2)
+- New endpoint: `POST /api/admin/info/auto-translate-titles { target: 'pl'|'en' }`.
+- One GPT-4.1-mini call covers ALL feeds in the batch (~$0.001 total per locale).
+- Prompt is brand-preserving: BBC, Bloomberg, TechCrunch, ТАСС, RT, etc. stay as-is; descriptive nouns like "News", "Markets", "EU" get translated.
+- Default behaviour: only updates rows where `title_pl` (or `title_en`) is null/empty/== title. Pass `{ overwrite: true }` to force-rewrite all.
+- Admin can correct any individual result via the existing edit form.
+
+### ✅ Added — Admin buttons
+- Two new purple buttons in `InfoAdminPanel.tsx` header next to "Fetch All Feeds":
+  - **🤖 → PL** — translate missing titles to Polish
+  - **🤖 → EN** — same for English
+- Confirm dialog before firing the OpenAI call (avoid accidental clicks).
+- Result line shows count, skipped, duration, model used.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+
+### 📂 Migrations to apply on prod
+- `supabase/migrations/20260520_info_board_polska.sql`
+
+### 🔐 Confidence
+- HIGH on board creation — idempotent SQL with NOT EXISTS guards.
+- HIGH on translate endpoint — batch GPT call, parses numbered output line-by-line, silently skips unparseable lines (admin can re-run).
+- HIGH on cost projection — single ~$0.001 call per language, never recurring unless admin clicks again.
+
+### 🚀 Deploy
+Standard. After deploy, click "🤖 → PL" in admin info-portal panel to fill missing Polish titles.
+
 ## [10.11.0] - 2026-05-20 - 🌍 Info Portal — per-locale feed titles + language filter
 
 User feedback that originated this release:

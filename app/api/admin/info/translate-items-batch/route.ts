@@ -172,16 +172,45 @@ Now produce the numbered ${langName} translations:`;
       }
     }
 
-    // Apply updates. v10.14.0 hotfix: if GPT echoed the source unchanged (lazy
-    // response), skip the row so the next batch run can try again with a tighter prompt.
+    // Apply updates. v10.14.1: detect GPT laziness — but distinguish real laziness
+    // (Russian input echoed back when target=PL) from "correct echo" (English input
+    // echoed back when target=EN — it's already in target language).
+    //
+    // Cheap heuristic: title is "already in target" if its Cyrillic-content matches
+    // expected for that language:
+    //   target=en + Latin-only title  → CORRECT echo, save it (prevents reprocessing)
+    //   target=pl + has Cyrillic      → LAZY, don't save (next batch retries)
+    //   anything else                  → trust GPT, save
+    const hasCyrillic = (s: string) => /[Ѐ-ӿ]/.test(s);
+    const isLatinOnly = (s: string) => !hasCyrillic(s);
+
     let updated = 0;
     let skipped = 0;
     let lazyEchoes = 0;
+    let correctEchoes = 0;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const t = translations.get(i);
       if (!t) { skipped++; continue; }
-      if (t.trim() === it.title.trim()) { lazyEchoes++; skipped++; continue; }
+
+      if (t.trim() === it.title.trim()) {
+        // Echo. Is it correct (input already in target) or lazy GPT?
+        const correctEn = target === 'en' && isLatinOnly(it.title);
+        const correctPl = target === 'pl' && !hasCyrillic(it.title) && !/[A-Za-z]{3,}/.test(it.title);
+        if (correctEn || correctPl) {
+          // Already in target language — save as-is so we don't reprocess
+          await pool.query(
+            `UPDATE info_feed_items SET ${column} = $1 WHERE id = $2`,
+            [t.slice(0, 1000), it.id],
+          );
+          correctEchoes++;
+          updated++;
+          continue;
+        }
+        // Real lazy echo (e.g., Russian unchanged when target=PL)
+        lazyEchoes++; skipped++;
+        continue;
+      }
 
       await pool.query(
         `UPDATE info_feed_items SET ${column} = $1 WHERE id = $2`,
@@ -197,6 +226,7 @@ Now produce the numbered ${langName} translations:`;
       updated,
       skipped,
       lazyEchoes,
+      correctEchoes,
       totalScanned: items.length,
       days,
       limit,

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.14.2] - 2026-05-20 - 🐛 Hotfix #2: smart-echo discrimination (correct vs lazy GPT)
+
+Second issue from prod run: EN batches kept re-processing the same items because they were ALREADY in English. GPT correctly echoed them, the handler marked them as `lazyEchoes` and didn't save, so the next batch saw them again. Wasted GPT calls.
+
+### 🐛 Fixed — Smart echo handling
+- When GPT returns `title == input` (echo), the handler now distinguishes:
+  - **Correct echo**: input is Latin-only and target=EN, or input has no Cyrillic + few Latin words for target=PL → save it (item is genuinely in target language)
+  - **Lazy echo**: input has Cyrillic but target=PL with same output → don't save, retry next batch
+- Adds `correctEchoes` counter in response (separate from `lazyEchoes`)
+
+### Result
+Subsequent EN batches will no longer reprocess already-English items. Cost stays bounded; admin can re-run "📰 Items → EN" safely.
+
+### 🔐 Confidence
+- HIGH — pure handler logic change, no schema/prompt changes
+- The heuristic is conservative (false negatives mean "still processable next time") not destructive
+
 ## [10.14.1] - 2026-05-20 - 🐛 Hotfix: translate-items prompt + batch sizing
 
 First prod run of v10.14.0 batch endpoint exposed two real issues:

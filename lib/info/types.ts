@@ -2,7 +2,12 @@ export interface InfoBoard {
   id: number;
   slug: string;
   title: string;
+  /** v10.13.0: per-locale variants (fallback to title) */
+  title_en: string | null;
+  title_pl: string | null;
   subtitle: string | null;
+  subtitle_en: string | null;
+  subtitle_pl: string | null;
   icon_url: string | null;
   sort_order: number;
   is_active: boolean;
@@ -14,6 +19,9 @@ export interface InfoBlock {
   id: number;
   board_id: number;
   title: string;
+  /** v10.13.0: per-locale variants (fallback to title) */
+  title_en: string | null;
+  title_pl: string | null;
   layout: 'full' | 'half';
   sort_order: number;
   is_active: boolean;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { InfoBoardFull, InfoBlockWithFeeds, InfoFeed, InfoFeedItem } from '@/lib/info/types';
 import { InfoThemeToggle } from './InfoThemeToggle';
 import { FeedColumn } from './FeedColumn';
+import { localizedBlockTitle, localizedBoardTitle, localizedBoardSubtitle } from '@/lib/info/feed-locale';
 
 export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: string }) {
   const [board, setBoard] = useState<InfoBoardFull | null>(null);
@@ -242,10 +243,11 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
             &larr; All boards
           </Link>
         </div>
-        <h1 className="text-3xl font-bold text-[#333] dark:text-[#e0e0e0]">{board.title}</h1>
-        {board.subtitle && (
-          <p className="text-gray-500 dark:text-gray-400 mt-1">{board.subtitle}</p>
-        )}
+        <h1 className="text-3xl font-bold text-[#333] dark:text-[#e0e0e0]">{localizedBoardTitle(board, locale)}</h1>
+        {(() => {
+          const sub = localizedBoardSubtitle(board, locale);
+          return sub ? <p className="text-gray-500 dark:text-gray-400 mt-1">{sub}</p> : null;
+        })()}
 
         {/* v10.11.0: language filter chips — auto-built from feeds in this board */}
         {(() => {
@@ -293,7 +295,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
                 {/* Block Header */}
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
                   <h2 className="text-lg font-semibold text-[#333] dark:text-[#e0e0e0]">
-                    {block.title}
+                    {localizedBlockTitle(block, locale)}
                   </h2>
                   {editMode && (
                     <div className="flex items-center gap-1">

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { InfoBoard } from '@/lib/info/types';
 import { InfoThemeToggle } from './InfoThemeToggle';
+import { localizedBoardTitle, localizedBoardSubtitle } from '@/lib/info/feed-locale';
 
 const BOARD_ICONS: Record<string, string> = {
   news: '📰',
@@ -23,7 +24,8 @@ const BOARD_ICONS: Record<string, string> = {
   default: '📋',
 };
 
-export function InfoHome() {
+// v10.13.0: accept locale to render board title / subtitle in the right language.
+export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
   const [boards, setBoards] = useState<InfoBoard[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -203,13 +205,14 @@ export function InfoHome() {
                   )}
                 </div>
                 <h2 className="text-lg font-semibold text-[#333] dark:text-[#e0e0e0] mb-1">
-                  {board.title}
+                  {localizedBoardTitle(board, locale)}
                 </h2>
-                {board.subtitle && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                    {board.subtitle}
-                  </p>
-                )}
+                {(() => {
+                  const sub = localizedBoardSubtitle(board, locale);
+                  return sub ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{sub}</p>
+                  ) : null;
+                })()}
               </Link>
             ))}
 

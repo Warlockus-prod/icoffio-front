@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
   try {
     const body = await request.json();
-    const { board_id, title, layout, sort_order } = body;
+    // v10.13.0: per-locale titles
+    const { board_id, title, title_en, title_pl, layout, sort_order } = body;
 
     if (!board_id || !title) {
       return NextResponse.json({ error: 'board_id and title required' }, { status: 400 });
@@ -28,9 +29,9 @@ export async function POST(request: NextRequest) {
 
     const pool = getPool();
     const { rows } = await pool.query(
-      `INSERT INTO info_blocks (board_id, title, layout, sort_order)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [board_id, title, layout || 'full', sort_order || 0]
+      `INSERT INTO info_blocks (board_id, title, title_en, title_pl, layout, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [board_id, title, title_en || title, title_pl || title, layout || 'full', sort_order || 0]
     );
 
     return NextResponse.json({ block: rows[0] });
@@ -44,19 +45,21 @@ export async function PUT(request: NextRequest) {
   if (denied) return denied;
   try {
     const body = await request.json();
-    const { id, title, layout, sort_order, is_active } = body;
+    const { id, title, title_en, title_pl, layout, sort_order, is_active } = body;
 
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
     const pool = getPool();
     const { rows } = await pool.query(
       `UPDATE info_blocks SET
-         title = COALESCE($2, title),
-         layout = COALESCE($3, layout),
-         sort_order = COALESCE($4, sort_order),
-         is_active = COALESCE($5, is_active)
+         title      = COALESCE($2, title),
+         title_en   = COALESCE($3, title_en),
+         title_pl   = COALESCE($4, title_pl),
+         layout     = COALESCE($5, layout),
+         sort_order = COALESCE($6, sort_order),
+         is_active  = COALESCE($7, is_active)
        WHERE id = $1 RETURNING *`,
-      [id, title, layout, sort_order, is_active]
+      [id, title, title_en, title_pl, layout, sort_order, is_active]
     );
 
     return NextResponse.json({ block: rows[0] });

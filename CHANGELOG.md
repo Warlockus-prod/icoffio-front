@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.13.0] - 2026-05-20 - 🌐 Full per-locale Info Portal + lang audit
+
+Follow-up to v10.11–v10.12: completes per-locale support across feeds, blocks, boards, and adds an audit of the auto-detected `lang` column.
+
+### ✅ Fixed — Lang detection audit
+Sampled all 124 feeds against title/URL pairs and found 7 incorrectly tagged `en` that are actually Russian:
+- 92 Варламов News (Telegram channel — no URL signal)
+- 97 Хабр (habr.com → matched `.com`, missed RU origin)
+- 110 Новая газета (novayagazeta.eu — EU domain, RU content)
+- 111 RT на русском (russian.rt.com — `.com` masked TLD heuristic)
+- 118 эйай ньюз, 119 Denis Sexy IT, 121 Нейросети | ChatGPT
+
+Fixed manually on prod (7 rows → lang='ru') and codified the heuristic in migration `20260520_info_feeds_lang_audit_fix.sql`:
+- Rule 1: Any title containing Cyrillic letters → lang='ru'
+- Rule 2: Known-Russian outlets on non-`.ru` TLDs (russian.rt.com, novayagazeta.eu, habr.com/ru, meduza.io, zona.media)
+
+Also fixed a GPT typo: ID 121 title_pl "Nейросети" (Latin N) → "Нейросети".
+
+Final distribution: **22 RU, 96 EN, 6 PL** (was 15/103/3 + 7 mislabeled).
+
+### ✅ Added — Per-locale titles for blocks + boards
+- Migration `20260520_info_blocks_boards_locale.sql`:
+  - `info_blocks` gets `title_en`, `title_pl`
+  - `info_boards` gets `title_en`, `title_pl`, `subtitle_en`, `subtitle_pl`
+  - All backfilled from existing canonical columns
+- Extended `lib/info/feed-locale.ts` with `localizedBlockTitle`, `localizedBoardTitle`, `localizedBoardSubtitle` — same fallback semantics as feeds
+- `InfoHome.tsx` now accepts `locale` prop and renders localized board title + subtitle
+- `InfoBoardPage.tsx` uses localized board + block titles
+- `/api/info/boards` POST/PUT accept new fields (backward-compatible — falls back to canonical title)
+- `/api/info/blocks` POST/PUT same
+
+### ✅ Added — `/api/admin/info/auto-translate-titles` scope parameter
+- `{ scope: 'feeds' | 'blocks' | 'boards' | 'all' }` — default is `'feeds'` (backward-compat)
+- `scope: 'all'` runs three GPT batches (~$0.003 total) covering everything
+- Per-scope breakdown in response: `perScope: [{ scope, updated, skipped, totalScanned }, ...]`
+- Admin button updated to call `scope: 'all'` for the "🤖 → PL" / "🤖 → EN" buttons
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+
+### 📂 Migrations to apply
+1. `supabase/migrations/20260520_info_feeds_lang_audit_fix.sql`
+2. `supabase/migrations/20260520_info_blocks_boards_locale.sql`
+
+### 🔐 Confidence
+- HIGH on all schema additions — idempotent, IF NOT EXISTS, no destructive ops
+- HIGH on render-side fallback — every helper preserves `title` as last resort
+- MEDIUM on scope='all' button — first prod run will validate; rollback is trivial (`overwrite=false` by default)
+
 ## [10.12.0] - 2026-05-20 - 🇵🇱 Polish board + one-click feed-title translation
 
 Follow-up to v10.11.0 user feedback: "OK, ale chcę board tylko z polskim contentem

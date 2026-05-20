@@ -163,21 +163,28 @@ export function InfoAdminPanel() {
   };
 
   // v10.12.0: one-shot GPT translation of feed source names → title_pl / title_en
+  // v10.13.0: extended with `scope` — feeds | blocks | boards | all
   const [translating, setTranslating] = useState(false);
-  const autoTranslateTitles = async (target: 'pl' | 'en') => {
-    if (!confirm(`Auto-translate all feed titles to ${target.toUpperCase()} via GPT? ~$0.001`)) return;
+  const autoTranslateTitles = async (target: 'pl' | 'en', scope: 'feeds' | 'all' = 'all') => {
+    const label = scope === 'all' ? 'feeds + blocks + boards' : scope;
+    if (!confirm(`Auto-translate ${label} → ${target.toUpperCase()} via GPT? ~$0.001`)) return;
     setTranslating(true);
     setFetchResult('');
     try {
       const res = await fetch('/api/admin/info/auto-translate-titles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target, onlyMissing: true }),
+        body: JSON.stringify({ target, scope, onlyMissing: true }),
       });
       const data = await res.json();
       if (data.ok) {
-        setFetchResult(`✅ Translated ${data.updated} titles to ${target.toUpperCase()}, skipped ${data.skipped}. Model: ${data.modelUsed}. ${data.durationMs}ms.`);
+        setFetchResult(
+          `✅ ${target.toUpperCase()}: ${data.updated} updated, ${data.skipped} skipped` +
+          (data.perScope ? ` (per-scope: ${data.perScope.map((s: any) => `${s.scope}=${s.updated}/${s.totalScanned}`).join(', ')})` : '') +
+          `. ${data.durationMs}ms.`,
+        );
         if (selectedBlock) loadFeeds(selectedBlock.id);
+        loadBoards();
       } else {
         setFetchResult(`❌ ${data.error || 'Translation failed'}`);
       }

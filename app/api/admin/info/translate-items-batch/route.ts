@@ -56,7 +56,10 @@ export async function POST(request: NextRequest) {
 
   const target = body.target === 'en' ? 'en' : 'pl';
   const days = Math.min(Math.max(body.days ?? 14, 1), 90);
-  const limit = Math.min(Math.max(body.limit ?? 200, 1), 500);
+  // v10.14.0 hotfix: default + cap reduced to 50 to fit inside Next.js 90s maxDuration
+  // when GPT runs slow. Admin can pass `limit` up to 200; over that the cron worker
+  // should be used (future feature).
+  const limit = Math.min(Math.max(body.limit ?? 50, 1), 200);
   const onlyMissing = body.onlyMissing !== false;
   const column = TARGET_COLUMN[target];
 
@@ -95,17 +98,31 @@ export async function POST(request: NextRequest) {
       .join('\n');
     const langName = LANG_NAME[target];
 
-    const prompt = `Translate the following news headlines to ${langName}. Rules:
-- Preserve named entities, product names, technical terms, and quotes.
-- Keep the headline punctuation style (no extra periods, keep "—", ":", quotes).
-- Output one line per input, prefixed with the same number and a period.
-- If a headline is already in ${langName}, return it as-is.
-- Do NOT add commentary, explanations, or any extra text.
+    const prompt = `Translate EVERY news headline below to ${langName}.
+The input can be in English, Russian, Polish, Ukrainian, German, or any other language —
+your output MUST be in ${langName}. Do NOT copy the input verbatim.
 
-Headlines:
+Rules:
+- Translate the meaning into idiomatic ${langName}.
+- Preserve PROPER NOUNS: brand names, product names, place names, person names.
+- Keep punctuation style (no extra periods; keep "—", ":", "?", quotes).
+- Output one line per input, prefixed with the same number and a period.
+- Do NOT add commentary, explanations, source-language preservation notes, or any extra text.
+- If the input is somehow malformed/empty, still emit a numbered line with the best you can do.
+
+Examples (target language: ${langName}):
+  Input:  "Apple launches new iPhone with AI features"
+  Output (PL): "Apple wprowadza nowego iPhone'a z funkcjami AI"
+  Output (EN): "Apple launches new iPhone with AI features"
+
+  Input:  "Россия объявила о санкциях"
+  Output (PL): "Rosja ogłosiła sankcje"
+  Output (EN): "Russia announced sanctions"
+
+Headlines to translate:
 ${numbered}
 
-Output:`;
+Now produce the numbered ${langName} translations:`;
 
     const openaiBase = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     const model = process.env.OPENAI_TRANSLATE_MODEL || 'gpt-4.1-mini';
@@ -155,13 +172,16 @@ Output:`;
       }
     }
 
-    // Apply updates
+    // Apply updates. v10.14.0 hotfix: if GPT echoed the source unchanged (lazy
+    // response), skip the row so the next batch run can try again with a tighter prompt.
     let updated = 0;
     let skipped = 0;
+    let lazyEchoes = 0;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const t = translations.get(i);
       if (!t) { skipped++; continue; }
+      if (t.trim() === it.title.trim()) { lazyEchoes++; skipped++; continue; }
 
       await pool.query(
         `UPDATE info_feed_items SET ${column} = $1 WHERE id = $2`,
@@ -176,6 +196,7 @@ Output:`;
       column,
       updated,
       skipped,
+      lazyEchoes,
       totalScanned: items.length,
       days,
       limit,

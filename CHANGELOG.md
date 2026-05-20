@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.14.1] - 2026-05-20 - 🐛 Hotfix: translate-items prompt + batch sizing
+
+First prod run of v10.14.0 batch endpoint exposed two real issues:
+
+### 🐛 Fixed
+1. **GPT echoed input unchanged.** The original prompt said *"If a headline is already in target language, return it as-is"* — gpt-4.1-mini interpreted that liberally and returned Russian headlines unchanged when target was Polish (Slavic similarity), and even copied English titles verbatim. **138 of 200 first-run translations were lazy echoes** (manually nulled on prod before this commit).
+   Prompt rewritten with:
+   - Explicit *"Translate EVERY headline, do NOT copy input"*
+   - Two worked examples covering English→PL and Russian→PL
+   - Clearer numbered output spec
+2. **200-item batch timed out** (>60s OpenAI signal cap inside 90s Next.js maxDuration). Default `limit` lowered from 200 to **50**, max cap lowered from 500 to **200**. Admin can chain multiple calls.
+3. **Lazy-echo detection in handler.** If GPT still returns `title == input`, we count it as `lazyEchoes` (separate from `skipped`) and DON'T save. Next run gets another shot.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- Verified prompt against worked examples locally before deploy
+
+### 🔐 Confidence
+- HIGH on the prompt rewrite — explicit "do not copy" guidance with examples is the standard GPT-mini fix for this class of laziness
+- HIGH on batch sizing — empirical: 50 items completed in 15s on prod
+
 ## [10.14.0] - 2026-05-20 - 📰 Item-level news-headline translation (micro)
 
 Completes the per-locale Info Portal: news *items* (RSS headlines) now have GPT-translated columns. Render-side falls back to the source headline so partial translation is graceful.

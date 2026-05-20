@@ -16,5 +16,5 @@ export default function BoardPage({ params }: { params: { boardSlug: string; loc
   if (params.boardSlug === 'watch') {
     return <InfoWatchPage />;
   }
-  return <InfoBoardPage slug={params.boardSlug} />;
+  return <InfoBoardPage slug={params.boardSlug} locale={params.locale} />;
 }

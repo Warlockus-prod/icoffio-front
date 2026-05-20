@@ -24,6 +24,9 @@ export interface InfoFeed {
   id: number;
   block_id: number;
   title: string;
+  /** v10.11.0: per-locale titles. UI picks based on current locale; falls back to title. */
+  title_en: string | null;
+  title_pl: string | null;
   feed_url: string | null;
   site_url: string | null;
   telegram_channel: string | null;
@@ -31,6 +34,8 @@ export interface InfoFeed {
   icon_url: string | null;
   sort_order: number;
   is_active: boolean;
+  /** v10.11.0: source language (ISO-639-1). Used for the language filter on board pages. */
+  lang: string | null;
   last_fetched_at: string | null;
   created_at: string;
 }

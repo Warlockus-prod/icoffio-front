@@ -20,7 +20,11 @@ export function InfoAdminPanel() {
   // Forms
   const [boardForm, setBoardForm] = useState({ title: '', slug: '', subtitle: '' });
   const [blockForm, setBlockForm] = useState({ title: '', layout: 'full' });
-  const [feedForm, setFeedForm] = useState({ title: '', feed_url: '', site_url: '', telegram_channel: '', feed_type: 'rss' });
+  // v10.11.0: title_en, title_pl (per-locale) + lang (ISO-639-1 source language)
+  const [feedForm, setFeedForm] = useState({
+    title: '', title_en: '', title_pl: '', lang: '',
+    feed_url: '', site_url: '', telegram_channel: '', feed_type: 'rss',
+  });
 
   const loadBoards = useCallback(async () => {
     const res = await fetch('/api/info/boards?admin=1');
@@ -132,7 +136,10 @@ export function InfoAdminPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    setFeedForm({ title: '', feed_url: '', site_url: '', telegram_channel: '', feed_type: 'rss' });
+    setFeedForm({
+      title: '', title_en: '', title_pl: '', lang: '',
+      feed_url: '', site_url: '', telegram_channel: '', feed_type: 'rss',
+    });
     loadFeeds(selectedBlock.id);
   };
 
@@ -368,11 +375,46 @@ export function InfoAdminPanel() {
 
                 <input
                   type="text"
-                  placeholder="Feed title"
+                  placeholder="Feed title (fallback / canonical)"
                   value={feedForm.title}
                   onChange={(e) => setFeedForm({ ...feedForm, title: e.target.value })}
                   className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
                 />
+
+                {/* v10.11.0: per-locale titles + source language */}
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Title (EN) — leave empty to fall back to canonical"
+                    value={feedForm.title_en}
+                    onChange={(e) => setFeedForm({ ...feedForm, title_en: e.target.value })}
+                    className="px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Title (PL) — leave empty to fall back to canonical"
+                    value={feedForm.title_pl}
+                    onChange={(e) => setFeedForm({ ...feedForm, title_pl: e.target.value })}
+                    className="px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                  />
+                </div>
+
+                <select
+                  value={feedForm.lang}
+                  onChange={(e) => setFeedForm({ ...feedForm, lang: e.target.value })}
+                  className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700"
+                  title="Source language (used by the public-side language filter)"
+                >
+                  <option value="">— Source language (auto-detect from URL) —</option>
+                  <option value="en">EN — English</option>
+                  <option value="pl">PL — Polish</option>
+                  <option value="ru">RU — Russian</option>
+                  <option value="uk">UK — Ukrainian</option>
+                  <option value="de">DE — German</option>
+                  <option value="fr">FR — French</option>
+                  <option value="es">ES — Spanish</option>
+                  <option value="zh">ZH — Chinese</option>
+                </select>
 
                 {feedForm.feed_type === 'telegram' ? (
                   <>

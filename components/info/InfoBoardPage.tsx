@@ -6,13 +6,15 @@ import type { InfoBoardFull, InfoBlockWithFeeds, InfoFeed, InfoFeedItem } from '
 import { InfoThemeToggle } from './InfoThemeToggle';
 import { FeedColumn } from './FeedColumn';
 
-export function InfoBoardPage({ slug }: { slug: string }) {
+export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: string }) {
   const [board, setBoard] = useState<InfoBoardFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [message, setMessage] = useState('');
+  /** v10.11.0: language filter ('all' or ISO-639-1 code like 'en'/'pl'/'ru'). */
+  const [langFilter, setLangFilter] = useState<string>('all');
 
   // Quick-add feed form
   const [addingToBlock, setAddingToBlock] = useState<number | null>(null);
@@ -236,7 +238,7 @@ export function InfoBoardPage({ slug }: { slug: string }) {
       {/* Board Header */}
       <div className="max-w-[1400px] mx-auto px-6 py-4">
         <div className="flex items-center gap-3 mb-2">
-          <Link href="/en/info" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm">
+          <Link href={`/${locale}/info`} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm">
             &larr; All boards
           </Link>
         </div>
@@ -244,6 +246,38 @@ export function InfoBoardPage({ slug }: { slug: string }) {
         {board.subtitle && (
           <p className="text-gray-500 dark:text-gray-400 mt-1">{board.subtitle}</p>
         )}
+
+        {/* v10.11.0: language filter chips — auto-built from feeds in this board */}
+        {(() => {
+          const langs = Array.from(
+            new Set(
+              board.blocks.flatMap((b) => b.feeds.map((f) => f.lang).filter(Boolean) as string[]),
+            ),
+          ).sort();
+          if (langs.length <= 1) return null;
+          const chip = (key: string, label: string) => (
+            <button
+              key={key}
+              onClick={() => setLangFilter(key)}
+              className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                langFilter === key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              {label}
+            </button>
+          );
+          return (
+            <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
+                {locale === 'pl' ? 'Język:' : 'Language:'}
+              </span>
+              {chip('all', locale === 'pl' ? 'Wszystkie' : 'All')}
+              {langs.map((l) => chip(l, l.toUpperCase()))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Blocks */}
@@ -345,7 +379,9 @@ export function InfoBoardPage({ slug }: { slug: string }) {
                         }`
                   }
                 >
-                  {block.feeds.map((feed, feedIdx) => (
+                  {block.feeds
+                    .filter((f) => langFilter === 'all' || (f.lang || '').toLowerCase() === langFilter)
+                    .map((feed, feedIdx, arr) => (
                     <div key={feed.id} className="relative">
                       {editMode && (
                         <div className="absolute -top-2 -right-2 z-10 flex items-center gap-0.5">
@@ -357,7 +393,7 @@ export function InfoBoardPage({ slug }: { slug: string }) {
                           >◀</button>
                           <button
                             onClick={() => moveFeed(feed.id, block.id, 'down')}
-                            disabled={feedIdx === block.feeds.length - 1}
+                            disabled={feedIdx === arr.length - 1}
                             className="w-5 h-5 flex items-center justify-center text-[10px] bg-gray-700 text-white rounded-full hover:bg-gray-600 disabled:opacity-30"
                             title="Move right"
                           >▶</button>
@@ -368,7 +404,7 @@ export function InfoBoardPage({ slug }: { slug: string }) {
                           >✕</button>
                         </div>
                       )}
-                      <FeedColumn feed={feed} />
+                      <FeedColumn feed={feed} locale={locale} />
                     </div>
                   ))}
                 </div>

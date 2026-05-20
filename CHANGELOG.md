@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.11.0] - 2026-05-20 - 🌍 Info Portal — per-locale feed titles + language filter
+
+User feedback that originated this release:
+> "W infomate nie działa tłumaczenie, mimo że mam wybrany język polska to nadal np IAB Europę, Google Ads Blog jest po angielsku" + "newsy są tylko po rosyjsku"
+
+These weren't bugs — they were missing features. This release adds both.
+
+### ✅ Added — Per-locale feed titles (Feature A)
+- New columns `info_feeds.title_en` and `info_feeds.title_pl`. Migration `20260520_info_feeds_locale.sql` backfills both from the existing `title` field so nothing breaks.
+- New helper `lib/info/feed-locale.ts::localizedFeedTitle(feed, locale)` — used by both server and client. Falls back to `title` when the locale-specific column is empty.
+- Admin form (`InfoAdminPanel.tsx`) extended with two new input fields ("Title (EN)" + "Title (PL)") plus a "Source language" dropdown.
+- API `POST/PUT /api/info/feeds` accepts the new fields (still optional — backward-compatible).
+- Public render (`FeedColumn.tsx`) picks the right title based on `locale` prop passed from the board page.
+
+### ✅ Added — Language filter on board pages (Feature B)
+- New column `info_feeds.lang` (ISO-639-1 like `en`/`pl`/`ru`/`uk`/`de`/`fr`).
+- Backfill via SQL heuristic: TLD detection (`.ru` → ru, `.pl` → pl, `.de` → de…) + known-outlet shortlist (meduza.io, zona.media, etc.). Best-effort — admin can correct individual feeds via the new dropdown.
+- `InfoBoardPage.tsx`: language filter chips auto-built from the languages present in the current board's feeds. Shows only if board has ≥2 languages. "All" chip resets to no filter.
+- Each `FeedColumn` now also displays the source-language code as a small badge next to the feed title.
+- Filter state lives in client component; no URL param (UX choice — board switch should reset).
+
+### 🛡️ Hardening kept from 10.10.1
+- `/api/info/fetch-feeds` Bearer-auth bypass for VPS cron — already deployed and proven by ~30K items flowing in.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+- `npx next lint` — 0 errors
+
+### 📂 Migrations to apply on prod
+- `supabase/migrations/20260520_info_feeds_locale.sql`
+
+### 🔐 Confidence
+- HIGH — fully backward-compatible: missing `title_en/title_pl` falls back to `title`; missing `lang` hides the filter; all admin form fields optional.
+- MEDIUM on auto-detect heuristic accuracy — admin should spot-check ~5 feeds after deploy.
+
 ## [10.10.1] - 2026-05-09 - 🐛 Hotfix: Info Portal feeds stopped updating after Vercel decommission
 
 ### 🚨 Root cause

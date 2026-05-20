@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { InfoFeed, InfoFeedItem } from '@/lib/info/types';
+import { localizedFeedTitle } from '@/lib/info/feed-locale';
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -16,10 +17,18 @@ function timeAgo(dateStr: string | null): string {
   return `${days}d ago`;
 }
 
-export function FeedColumn({ feed }: { feed: InfoFeed & { items: InfoFeedItem[] } }) {
+export function FeedColumn({
+  feed,
+  locale = 'en',
+}: {
+  feed: InfoFeed & { items: InfoFeedItem[] };
+  /** v10.11.0: locale of the surrounding page; picks title_en or title_pl. */
+  locale?: string;
+}) {
   const [hoveredItem, setHoveredItem] = useState<InfoFeedItem | null>(null);
 
   const lastPostTime = feed.items[0]?.published_at;
+  const displayTitle = localizedFeedTitle(feed, locale);
 
   return (
     <div className="bg-white dark:bg-[#16213e] rounded-lg p-4 border border-gray-100 dark:border-gray-700/50">
@@ -38,7 +47,7 @@ export function FeedColumn({ feed }: { feed: InfoFeed & { items: InfoFeedItem[] 
           />
         ) : (
           <div className="w-5 h-5 rounded bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-bold text-white">
-            {feed.title[0]}
+            {displayTitle[0]}
           </div>
         )}
         <a
@@ -47,8 +56,13 @@ export function FeedColumn({ feed }: { feed: InfoFeed & { items: InfoFeedItem[] 
           rel="noopener noreferrer"
           className="font-medium text-sm text-[#333] dark:text-[#e0e0e0] hover:underline truncate"
         >
-          {feed.title}
+          {displayTitle}
         </a>
+        {feed.lang && (
+          <span className="text-[10px] uppercase font-mono text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700">
+            {feed.lang}
+          </span>
+        )}
         {lastPostTime && (
           <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap">
             {timeAgo(lastPostTime)}

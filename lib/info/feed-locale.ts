@@ -17,6 +17,7 @@ type LocalizableBoard  = Pick<InfoBoard, 'title' | 'subtitle'> & {
   subtitle_pl?: string | null;
 };
 type LocalizableItem   = Pick<InfoFeedItem, 'title'> & { title_en?: string | null; title_pl?: string | null };
+type LocalizableItemDesc = Pick<InfoFeedItem, 'description'> & { description_en?: string | null; description_pl?: string | null };
 
 function pickLocalized(canonical: string, en: string | null | undefined, pl: string | null | undefined, locale: string): string {
   if (locale === 'pl' && pl && pl.trim()) return pl;
@@ -45,4 +46,11 @@ export function localizedBoardSubtitle(board: LocalizableBoard, locale: string):
 /** v10.14.0: feed-item localized title (NULL → fallback to source). */
 export function localizedItemTitle(item: LocalizableItem, locale: string): string {
   return pickLocalized(item.title, item.title_en, item.title_pl, locale);
+}
+
+/** v10.16.0: feed-item localized description (NULL → fallback to source description). */
+export function localizedItemDescription(item: LocalizableItemDesc, locale: string): string | null {
+  if (locale === 'pl' && item.description_pl && item.description_pl.trim()) return item.description_pl;
+  if (locale === 'en' && item.description_en && item.description_en.trim()) return item.description_en;
+  return item.description;
 }

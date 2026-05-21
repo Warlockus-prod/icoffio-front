@@ -57,6 +57,9 @@ export interface InfoFeedItem {
   title_pl: string | null;
   url: string;
   description: string | null;
+  /** v10.16.0: per-locale descriptions (NULL until translate batch fills them). */
+  description_en: string | null;
+  description_pl: string | null;
   image_url: string | null;
   published_at: string | null;
   guid: string | null;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { InfoFeed, InfoFeedItem } from '@/lib/info/types';
-import { localizedFeedTitle, localizedItemTitle } from '@/lib/info/feed-locale';
+import { localizedFeedTitle, localizedItemTitle, localizedItemDescription } from '@/lib/info/feed-locale';
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -107,11 +107,12 @@ export function FeedColumn({
                   <p className="text-sm font-medium text-[#333] dark:text-[#e0e0e0] mb-1">
                     {localizedItemTitle(item, locale)}
                   </p>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">
-                      {item.description}
-                    </p>
-                  )}
+                  {(() => {
+                    const desc = localizedItemDescription(item, locale);
+                    return desc ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">{desc}</p>
+                    ) : null;
+                  })()}
                   {item.published_at && (
                     <p className="text-xs text-gray-400 mt-1">{timeAgo(item.published_at)}</p>
                   )}

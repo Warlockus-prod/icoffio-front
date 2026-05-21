@@ -49,10 +49,16 @@ interface Body {
   days?: number;
   limit?: number;
   onlyMissing?: boolean;
+  /** v10.16.0: which field to translate. Default 'title'. */
+  field?: 'title' | 'description';
 }
 
-const TARGET_COLUMN = { pl: 'title_pl', en: 'title_en' } as const;
 const LANG_NAME = { pl: 'Polish', en: 'English' } as const;
+// v10.16.0: source + dest columns per field
+const FIELD_CONFIG = {
+  title:       { source: 'title',       pl: 'title_pl',       en: 'title_en' },
+  description: { source: 'description', pl: 'description_pl', en: 'description_en' },
+} as const;
 
 export async function POST(request: NextRequest) {
   if (!isCronRequest(request)) {
@@ -71,24 +77,30 @@ export async function POST(request: NextRequest) {
   } catch { /* empty body ok */ }
 
   const target = body.target === 'en' ? 'en' : 'pl';
+  const field = body.field === 'description' ? 'description' : 'title';
   const days = Math.min(Math.max(body.days ?? 14, 1), 90);
-  // v10.14.0 hotfix: default + cap reduced to 50 to fit inside Next.js 90s maxDuration
-  // when GPT runs slow. Admin can pass `limit` up to 200; over that the cron worker
-  // should be used (future feature).
-  const limit = Math.min(Math.max(body.limit ?? 50, 1), 200);
+  // v10.14.0 hotfix: default + cap reduced to 50 to fit inside Next.js 90s maxDuration.
+  // v10.16.0: descriptions are longer → smaller default batch for that field.
+  const defaultLimit = field === 'description' ? 30 : 50;
+  const limit = Math.min(Math.max(body.limit ?? defaultLimit, 1), 200);
   const onlyMissing = body.onlyMissing !== false;
-  const column = TARGET_COLUMN[target];
+  const fieldCfg = FIELD_CONFIG[field];
+  const sourceCol = fieldCfg.source;
+  const column = fieldCfg[target];
 
   const pool = getPool();
   const startedAt = Date.now();
 
   try {
-    // Find candidates: recent items missing the target translation
-    const whereClause = onlyMissing ? `(${column} IS NULL OR ${column} = '')` : '1=1';
+    // Find candidates: recent items missing the target translation.
+    // For descriptions, also require the source description to be non-empty.
+    const missingClause = onlyMissing ? `(${column} IS NULL OR ${column} = '')` : '1=1';
+    const sourceNotEmpty = `${sourceCol} IS NOT NULL AND ${sourceCol} <> ''`;
     const { rows: items } = await pool.query(
-      `SELECT id, title
+      `SELECT id, ${sourceCol} AS source
          FROM info_feed_items
-        WHERE ${whereClause}
+        WHERE ${missingClause}
+          AND ${sourceNotEmpty}
           AND created_at >= NOW() - ($1 || ' days')::interval
         ORDER BY published_at DESC NULLS LAST
         LIMIT $2`,
@@ -99,6 +111,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: true,
         target,
+        field,
         column,
         updated: 0,
         skipped: 0,
@@ -108,13 +121,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // GPT batch prompt
+    // GPT batch prompt. Titles capped at 300 chars, descriptions at 600.
+    const srcCap = field === 'description' ? 600 : 300;
     const numbered = items
-      .map((it, i) => `${i + 1}. ${it.title.slice(0, 300)}`)
+      .map((it, i) => `${i + 1}. ${(it.source || '').slice(0, srcCap)}`)
       .join('\n');
     const langName = LANG_NAME[target];
 
-    const prompt = `Translate EVERY news headline below to ${langName}.
+    const noun = field === 'description' ? 'news summary' : 'news headline';
+    const prompt = `Translate EVERY ${noun} below to ${langName}.
 The input can be in English, Russian, Polish, Ukrainian, German, or any other language —
 your output MUST be in ${langName}. Do NOT copy the input verbatim.
 
@@ -123,6 +138,7 @@ Rules:
 - Preserve PROPER NOUNS: brand names, product names, place names, person names.
 - Keep punctuation style (no extra periods; keep "—", ":", "?", quotes).
 - Output one line per input, prefixed with the same number and a period.
+- Each translation must stay on ONE line — replace any internal newlines with spaces.
 - Do NOT add commentary, explanations, source-language preservation notes, or any extra text.
 - If the input is somehow malformed/empty, still emit a numbered line with the best you can do.
 
@@ -135,7 +151,7 @@ Examples (target language: ${langName}):
   Output (PL): "Rosja ogłosiła sankcje"
   Output (EN): "Russia announced sanctions"
 
-Headlines to translate:
+Items to translate:
 ${numbered}
 
 Now produce the numbered ${langName} translations:`;
@@ -152,9 +168,9 @@ Now produce the numbered ${langName} translations:`;
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_tokens: Math.min(8000, items.length * 80),
+        max_tokens: Math.min(12000, items.length * (field === 'description' ? 220 : 80)),
         messages: [
-          { role: 'system', content: 'You translate news headlines with editorial precision.' },
+          { role: 'system', content: 'You translate news text with editorial precision.' },
           { role: 'user', content: prompt },
         ],
       }),
@@ -204,20 +220,22 @@ Now produce the numbered ${langName} translations:`;
     let skipped = 0;
     let lazyEchoes = 0;
     let correctEchoes = 0;
+    const maxLen = field === 'description' ? 4000 : 1000;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const t = translations.get(i);
       if (!t) { skipped++; continue; }
+      const src = (it.source || '').trim();
 
-      if (t.trim() === it.title.trim()) {
+      if (t.trim() === src) {
         // Echo. Is it correct (input already in target) or lazy GPT?
-        const correctEn = target === 'en' && isLatinOnly(it.title);
-        const correctPl = target === 'pl' && !hasCyrillic(it.title) && !/[A-Za-z]{3,}/.test(it.title);
+        const correctEn = target === 'en' && isLatinOnly(src);
+        const correctPl = target === 'pl' && !hasCyrillic(src) && !/[A-Za-z]{3,}/.test(src);
         if (correctEn || correctPl) {
           // Already in target language — save as-is so we don't reprocess
           await pool.query(
             `UPDATE info_feed_items SET ${column} = $1 WHERE id = $2`,
-            [t.slice(0, 1000), it.id],
+            [t.slice(0, maxLen), it.id],
           );
           correctEchoes++;
           updated++;
@@ -230,14 +248,17 @@ Now produce the numbered ${langName} translations:`;
 
       await pool.query(
         `UPDATE info_feed_items SET ${column} = $1 WHERE id = $2`,
-        [t.slice(0, 1000), it.id],
+        [t.slice(0, maxLen), it.id],
       );
       updated++;
     }
 
+    // Cost estimate: descriptions are ~3× the tokens of titles
+    const tokFactor = field === 'description' ? 3 : 1;
     return NextResponse.json({
       ok: true,
       target,
+      field,
       column,
       updated,
       skipped,
@@ -248,8 +269,7 @@ Now produce the numbered ${langName} translations:`;
       limit,
       durationMs: Date.now() - startedAt,
       modelUsed: model,
-      // approx token-cost feedback for admin UI
-      approxCostUsd: ((items.length * 600) / 1_000_000 * 0.15 + (items.length * 80) / 1_000_000 * 0.60).toFixed(4),
+      approxCostUsd: ((items.length * 600 * tokFactor) / 1_000_000 * 0.15 + (items.length * 80 * tokFactor) / 1_000_000 * 0.60).toFixed(4),
     });
   } catch (err: any) {
     await logError({

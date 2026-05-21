@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.16.0] - 2026-05-21 - 📝 Item description translation
+
+Extends item-level translation from titles to descriptions (RSS summaries).
+
+### ✅ Added — Schema
+- Migration `20260521_info_feed_items_description_locale.sql`:
+  - `info_feed_items.description_en`, `description_pl`
+  - Partial indexes for "missing description translation" worker query (only where source description is non-empty)
+
+### ✅ Changed — translate-items-batch endpoint
+- New `field: 'title' | 'description'` param (default `'title'`, backward-compatible)
+- Generalized source/dest column mapping via `FIELD_CONFIG`
+- Descriptions: smaller default batch (30 vs 50), higher cap (600 chars source, 4000 dest), larger max_tokens
+- Prompt adapts noun ("news summary" vs "news headline") + enforces single-line output
+- Cost estimate accounts for ~3× token weight of descriptions
+
+### ✅ Changed — Render + UPSERT
+- `localizedItemDescription(item, locale)` helper (fallback to source description)
+- `FeedColumn` hover tooltip now shows localized description
+- feed-fetcher UPSERT invalidates `description_en/pl` when source description changes (same pattern as titles)
+
+### 💰 Cost
+- Descriptions ~3× title cost: ~$0.0006/item. Full backfill of ~7k items × 2 langs ≈ **$8 one-time**.
+- Ongoing if cron does descriptions: +~$0.90/day. **Recommendation**: keep description translation admin-on-demand (button) rather than auto-cron, since titles already give 90% of UX value.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+
+### 📂 Migration to apply
+- `supabase/migrations/20260521_info_feed_items_description_locale.sql`
+
+### 🔐 Confidence
+- HIGH — reuses the proven v10.14.2 batch machinery (smart-echo, lazy detection) with field abstraction; no new failure modes.
+
 ## [10.15.0] - 2026-05-20 - ⏰ Auto-translate items via VPS cron
 
 Completes the item-translation feature: instead of admin clicking "📰 Items → PL/EN" daily, a VPS cron keeps fresh news headlines translated automatically.

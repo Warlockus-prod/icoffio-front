@@ -140,6 +140,9 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
            -- translate-batch call picks it up. If unchanged, preserve existing translations.
            title_en = CASE WHEN info_feed_items.title IS DISTINCT FROM EXCLUDED.title THEN NULL ELSE info_feed_items.title_en END,
            title_pl = CASE WHEN info_feed_items.title IS DISTINCT FROM EXCLUDED.title THEN NULL ELSE info_feed_items.title_pl END,
+           -- v10.16.0: invalidate cached description translations when source description changes
+           description_en = CASE WHEN info_feed_items.description IS DISTINCT FROM EXCLUDED.description THEN NULL ELSE info_feed_items.description_en END,
+           description_pl = CASE WHEN info_feed_items.description IS DISTINCT FROM EXCLUDED.description THEN NULL ELSE info_feed_items.description_pl END,
            description = EXCLUDED.description,
            image_url = COALESCE(EXCLUDED.image_url, info_feed_items.image_url),
            published_at = COALESCE(EXCLUDED.published_at, info_feed_items.published_at)`,

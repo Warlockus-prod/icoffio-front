@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.15.0] - 2026-05-20 - ⏰ Auto-translate items via VPS cron
+
+Completes the item-translation feature: instead of admin clicking "📰 Items → PL/EN" daily, a VPS cron keeps fresh news headlines translated automatically.
+
+### ✅ Added — Cron auth on translate-items endpoint
+- `POST /api/admin/info/translate-items-batch` now accepts a Bearer token (`INFO_FETCH_SECRET` / `CRON_SECRET`) as an alternative to the admin cookie — same pattern as `/api/info/fetch-feeds` and the telegram worker.
+
+### ✅ Added — VPS cron
+- `/usr/local/bin/icoffio-translate-items.sh` — chains a few PL + EN batches (limit 50 each) every run, logging counts.
+- `/etc/cron.d/icoffio-translate-items` — runs every 2 hours (offset from fetch-feeds so they don't collide).
+- Self-throttling: each run does up to 4 PL + 4 EN batches (~400 items, ~$0.06). Bounded by `onlyMissing` so it only touches untranslated rows.
+
+### 💰 Cost
+- Steady state ~2000 new items/day → ~$0.30/day → **~$9/month** for both languages, fully automatic.
+- If feed volume drops, cost drops proportionally (cron only translates what's missing).
+
+### 🔐 Confidence
+- HIGH — reuses the proven Bearer-cron pattern + the v10.14.2 smart-echo handler (0 lazy retries in last prod run).
+
+### 🚀 Deploy
+After deploy, install the cron on VPS (documented in deploy notes). No DB migration.
+
 ## [10.14.2] - 2026-05-20 - 🐛 Hotfix #2: smart-echo discrimination (correct vs lazy GPT)
 
 Second issue from prod run: EN batches kept re-processing the same items because they were ALREADY in English. GPT correctly echoed them, the handler marked them as `lazyEchoes` and didn't save, so the next batch saw them again. Wasted GPT calls.

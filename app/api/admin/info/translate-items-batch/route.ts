@@ -18,7 +18,7 @@
  * Cost guidance:
  *   ~$0.0002 per item via gpt-4.1-mini. limit=200 → ~$0.04 per call.
  *
- * Auth: admin role.
+ * Auth: admin role OR Bearer token (CRON_SECRET / INFO_FETCH_SECRET) for the VPS cron.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -29,6 +29,20 @@ import { logError } from '@/lib/error-logger';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 90;
+
+/**
+ * v10.15.0: allow the VPS cron to call this without an admin cookie,
+ * using the same Bearer-token pattern as /api/info/fetch-feeds.
+ */
+function isCronRequest(request: NextRequest): boolean {
+  const secret = (process.env.INFO_FETCH_SECRET || process.env.CRON_SECRET || '').trim();
+  if (!secret) return false;
+  const auth = request.headers.get('authorization') || '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (bearer && bearer === secret) return true;
+  const queryToken = (request.nextUrl.searchParams.get('token') || '').trim();
+  return queryToken === secret;
+}
 
 interface Body {
   target?: 'pl' | 'en';
@@ -41,8 +55,10 @@ const TARGET_COLUMN = { pl: 'title_pl', en: 'title_en' } as const;
 const LANG_NAME = { pl: 'Polish', en: 'English' } as const;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdminRole(request, 'admin');
-  if (!auth.ok) return auth.response;
+  if (!isCronRequest(request)) {
+    const auth = await requireAdminRole(request, 'admin');
+    if (!auth.ok) return auth.response;
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {

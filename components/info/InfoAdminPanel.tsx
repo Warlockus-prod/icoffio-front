@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import type { InfoBoard, InfoBlock, InfoFeed } from '@/lib/info/types';
+import { TranslationQC } from './TranslationQC';
 
 export function InfoAdminPanel() {
   const [boards, setBoards] = useState<InfoBoard[]>([]);
@@ -642,6 +643,9 @@ export function InfoAdminPanel() {
           )}
         </div>
       </div>
+
+      {/* v10.17.0: Translation quality-control */}
+      <TranslationQC />
     </div>
   );
 }

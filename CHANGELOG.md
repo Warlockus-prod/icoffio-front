@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.17.0] - 2026-05-21 - 🔍 Translation QC loop
+
+Closes the P3 plan: admins can now spot-check GPT translations and reset bad ones for re-translation.
+
+### ✅ Added — QC endpoint
+- `GET /api/admin/info/translation-qc?lang=pl&field=title&limit=50` — recent translated items, source vs translation side by side.
+  - Auto-flags **suspicious** rows: translation identical to source (lazy echo that slipped through), or length ratio < 0.4 / > 2.5 (likely truncated or hallucinated).
+- `POST /api/admin/info/translation-qc { action: 'reset', ids, field, target }` — NULLs the chosen translation column so the next batch/cron re-does it. Capped at 500 ids/call.
+
+### ✅ Added — QC admin UI
+- `components/info/TranslationQC.tsx` — new section at the bottom of the Info Portal admin panel.
+  - Lang (PL/EN) + field (titles/descriptions) selectors
+  - "Load sample" → shows 50 recent translations, suspicious rows highlighted amber
+  - "Select suspicious" one-click + per-row checkboxes
+  - "🔄 Reset selected" → clears translations for re-processing
+- Wired into `InfoAdminPanel`.
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK (unchanged)
+
+### 🔐 Confidence
+- HIGH — read + targeted-NULL operations only; reset is reversible (just re-translate). No destructive data loss (source columns untouched).
+
+### 🏁 P3 complete
+This finishes the Info Portal localization arc (v10.11 → v10.17):
+feeds + blocks + boards + item titles + item descriptions all localizable,
+auto-translated by cron, lang-audited, and now QC-able.
+
 ## [10.16.0] - 2026-05-21 - 📝 Item description translation
 
 Extends item-level translation from titles to descriptions (RSS summaries).

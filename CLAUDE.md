@@ -6,7 +6,7 @@ Next.js 14 + React 18 + TypeScript + Tailwind CSS news aggregation platform with
 
 - **Domain:** https://web.icoffio.com
 - **Branch:** `feature/info-portal` (active)
-- **Version:** check `package.json` (current 10.6.x line)
+- **Version:** check `package.json` (current 10.18.x line)
 
 ## Architecture
 
@@ -58,6 +58,9 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 - Language: Russian in user-facing comments when communicating with user, English in code
 - Bump version in `package.json` before deploying
 - Commit messages in English
+- **Info Portal colors:** use Tailwind tokens (`info.ink`, `info.surface-dark`, `info.panel-dark`, …) defined in `tailwind.config.ts`. Do NOT reintroduce hardcoded `text-[#...]`/`bg-[#...]` (audited out in v10.18.0).
+- **Modals:** wrap in `useFocusTrap` (`lib/hooks/useFocusTrap.ts`) + `role="dialog" aria-modal="true"` for WCAG.
+- **Article titles for frontend:** always via `resolveLocalizedTitle` in `lib/data.ts` — it prefers the requested locale's content before the canonical (source-language) title.
 
 ## Permissions
 

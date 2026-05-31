@@ -21,6 +21,30 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 // Разрешенные типы
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
+/**
+ * v10.18.0: verify the actual file signature (magic bytes), not just the
+ * client-supplied MIME type (which is trivially spoofable). Returns the detected
+ * image type or null if the bytes don't match any allowed image format.
+ */
+function detectImageType(bytes: Uint8Array): 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' | null {
+  if (bytes.length < 12) return null;
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) return 'image/png';
+  // GIF: 47 49 46 38 (GIF8)
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'image/gif';
+  // WebP: RIFF....WEBP
+  if (
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) return 'image/webp';
+  return null;
+}
+
 // Генерация blur placeholder (tiny base64 image)
 async function generateBlurPlaceholder(buffer: ArrayBuffer): Promise<string> {
   // Создаём очень маленькую версию изображения для blur
@@ -64,25 +88,39 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // Генерируем уникальное имя файла
+
+    // v10.18.0: magic-bytes validation — read buffer once, verify real signature
+    const arrayBuffer = await file.arrayBuffer();
+    const detectedType = detectImageType(new Uint8Array(arrayBuffer.slice(0, 16)));
+    if (!detectedType) {
+      return NextResponse.json(
+        { success: false, error: 'File content is not a valid image (signature check failed)' },
+        { status: 400 }
+      );
+    }
+    if (detectedType !== file.type) {
+      console.warn(`[upload-image] MIME mismatch: claimed ${file.type}, actual ${detectedType}`);
+    }
+
+    // Генерируем уникальное имя файла — расширение из ДЕТЕКТИРОВАННОГО типа, не из имени файла
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const extension = file.name.split('.').pop() || 'jpg';
+    const extMap: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+    const extension = extMap[detectedType] || 'jpg';
     const filename = `articles/${timestamp}-${randomSuffix}.${extension}`;
-    
+
     console.log(`📤 Uploading image: ${filename} (${(file.size / 1024).toFixed(1)}KB)`);
-    
+
     // Загружаем в Vercel Blob
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: false, // Мы уже добавили уникальный суффикс
+      contentType: detectedType,
     });
-    
+
     console.log(`✅ Uploaded to Vercel Blob: ${blob.url}`);
-    
-    // Генерируем blur placeholder
-    const arrayBuffer = await file.arrayBuffer();
+
+    // Генерируем blur placeholder (reuse already-read buffer)
     const blurDataUrl = await generateBlurPlaceholder(arrayBuffer);
     
     // Получаем размеры изображения (приблизительно из метаданных)

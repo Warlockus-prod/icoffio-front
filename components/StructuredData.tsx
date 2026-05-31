@@ -135,7 +135,7 @@ interface BreadcrumbSchemaProps {
 }
 
 export function BreadcrumbSchema({ items, locale }: BreadcrumbSchemaProps) {
-  const homeLabel = locale === "pl" ? "Strona glowna" : "Home";
+  const homeLabel = locale === "pl" ? "Strona główna" : "Home";
   const allItems = [{ label: homeLabel, href: `/${locale}` }, ...items];
 
   const schema = {

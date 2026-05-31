@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { getAllPosts } from '@/lib/data';
 import { getSiteBaseUrl } from '@/lib/site-url';
+import { getPool } from '@/lib/pg-pool';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
@@ -74,6 +75,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     });
   });
+
+  // ── Info Portal (v10.18.0) ──
+  // Index the portal home + each active board for both locales with hreflang.
+  routes.push({
+    url: `${base}/en/info`,
+    priority: 0.6,
+    changeFrequency: 'hourly',
+    alternates: {
+      languages: {
+        ...Object.fromEntries(locales.map((l) => [l, `${base}/${l}/info`])),
+        'x-default': `${base}/en/info`,
+      },
+    },
+  });
+  try {
+    const pool = getPool();
+    const { rows: boards } = await pool.query(
+      `SELECT slug FROM info_boards WHERE is_active = true ORDER BY sort_order`,
+    );
+    for (const b of boards) {
+      locales.forEach((locale) => {
+        routes.push({
+          url: `${base}/${locale}/info/${b.slug}`,
+          priority: 0.5,
+          changeFrequency: 'hourly',
+          alternates: {
+            languages: {
+              ...Object.fromEntries(locales.map((l) => [l, `${base}/${l}/info/${b.slug}`])),
+              'x-default': `${base}/en/info/${b.slug}`,
+            },
+          },
+        });
+      });
+    }
+  } catch (error) {
+    console.warn('Sitemap: could not fetch info boards:', error);
+  }
 
   const postsByLocale = new Map<string, Awaited<ReturnType<typeof getAllPosts>>>();
   await Promise.all(

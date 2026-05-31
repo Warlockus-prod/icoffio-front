@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.18.0] - 2026-05-22 - 🩺 Full audit fixes (P0–P2)
+
+Acted on the May 2026 full audit. Each finding was personally verified before fixing
+(several agent-reported "criticals" were false alarms — see notes).
+
+### ✅ Fixed — P0
+- **EN homepage showed Polish hero titles.** `lib/data.ts::resolveLocalizedTitle` checked the canonical (source-language, often Polish) `title` BEFORE the EN content heading. Rewrote to exhaust the requested locale's own sources (content heading → excerpt → lead) first, then canonical, then opposite-locale fallback. EN site now shows English titles.
+
+### ✅ Fixed — P1
+- **Info Portal absent from sitemap.** `app/sitemap.ts` now emits `/info` + every active `/info/[boardSlug]` for both locales with hreflang. SEO can now index the portal.
+- **JSON-LD breadcrumb typo** `"Strona glowna"` → `"Strona główna"` (StructuredData.tsx).
+- **Poland board subtitle stayed Polish on EN locale** — filled `title_en`/`subtitle_en` on prod.
+
+### ✅ Fixed — P2
+- **48 hardcoded hex colors** in `components/info/*` (`text-[#333]`, `bg-[#16213e]`, …) → semantic Tailwind tokens (`info.ink`, `info.surface-dark`, …) in `tailwind.config.ts`. Values identical → zero visual change, single source of truth.
+- **WCAG focus trap** added to SearchModal + CookieConsent via new `lib/hooks/useFocusTrap.ts` (traps Tab, restores focus on close, `aria-modal="true"`).
+- **Upload magic-bytes validation** — `upload-image` now verifies real file signature (JPEG/PNG/GIF/WebP), not just spoofable MIME; extension + blob contentType derived from detected type.
+- **ESLint `no-console` guard** for public client code (allow warn/error/info; off for api/lib/scripts).
+
+### 🔍 Audit false alarms (verified, NOT bugs)
+- "SQL injection in `${column}/${table}`" — values come from typed const-maps / ternaries, no path from request body. Not exploitable.
+- "`local-articles.ts` (1311L) dead / 3 lib files dead" — all alive via relative `./` imports (the `@/lib` grep missed relative paths). Nothing deleted — would have broken the build.
+- "28 empty catch blocks" — all contain comments (`catch { /* ok */ }`), zero truly empty.
+- "zustand/swr/html2canvas unused" — all used (html2canvas via dynamic `import()`).
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 158/158 OK
+- `npx next lint` — 0 errors
+- `npm run build` — OK
+
+### 🔐 Confidence
+- **HIGH** on all shipped fixes — verified by grep + build + tests. Hex→token mapping is value-identical (no visual regression risk). Title fallback covered by existing 158 tests + manual logic review.
+
 ## [10.17.0] - 2026-05-21 - 🔍 Translation QC loop
 
 Closes the P3 plan: admins can now spot-check GPT translations and reset bad ones for re-translation.

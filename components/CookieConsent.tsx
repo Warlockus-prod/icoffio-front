@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCookieConsent } from '@/lib/useCookieConsent';
 import { CookieSettings } from '@/components/CookieSettings';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
 interface CookieConsentProps {
   locale: string;
@@ -68,6 +69,8 @@ const translations: Record<string, {
 export function CookieConsent({ locale = 'en' }: CookieConsentProps) {
   const { showBanner, acceptAll, rejectAll } = useCookieConsent();
   const [showSettings, setShowSettings] = useState(false);
+  // v10.18.0: WCAG focus trap for the consent dialog
+  const dialogRef = useFocusTrap<HTMLDivElement>(showBanner && !showSettings);
 
   const t = translations[locale] || translations.en;
 
@@ -89,7 +92,9 @@ export function CookieConsent({ locale = 'en' }: CookieConsentProps) {
 
       {/* Cookie Banner */}
       <div
+        ref={dialogRef}
         role="dialog"
+        aria-modal="true"
         aria-labelledby="cookie-consent-title"
         aria-describedby="cookie-consent-description"
         className="fixed bottom-0 left-0 right-0 z-[9999] p-4 sm:p-6 animate-in slide-in-from-bottom duration-500"

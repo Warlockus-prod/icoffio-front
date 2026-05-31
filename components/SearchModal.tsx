@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Post } from '@/lib/types';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -16,6 +17,8 @@ export function SearchModal({ isOpen, onClose, posts, locale }: SearchModalProps
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Post[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  // v10.18.0: WCAG focus trap — keeps Tab inside the dialog, restores focus on close
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -47,9 +50,13 @@ export function SearchModal({ isOpen, onClose, posts, locale }: SearchModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true">
       <div className="flex items-start justify-center p-4 pt-20">
-        <div 
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={locale === 'pl' ? 'Wyszukiwanie artykułów' : 'Search articles'}
           className="w-full max-w-2xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800"
           onClick={(e) => e.stopPropagation()}
         >

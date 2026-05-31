@@ -59,8 +59,8 @@ function timeAgo(dateStr: string | null): string {
 
 function renderReport(content: string): string {
   return content
-    .replace(/^## (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-2 text-[#333] dark:text-[#e0e0e0]">$1</h3>')
-    .replace(/^### (.+)$/gm, '<h4 class="text-base font-semibold mt-3 mb-1 text-[#333] dark:text-[#e0e0e0]">$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 class="text-lg font-bold mt-4 mb-2 text-info-ink dark:text-info-ink-dark">$1</h3>')
+    .replace(/^### (.+)$/gm, '<h4 class="text-base font-semibold mt-3 mb-1 text-info-ink dark:text-info-ink-dark">$1</h4>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\[(\d+)\]/g, '<span class="text-blue-600 dark:text-blue-400 text-xs font-medium">[$1]</span>')
     .replace(/^[-•] (.+)$/gm, '<li class="ml-4 mb-1">$1</li>')
@@ -628,7 +628,7 @@ export function InfoWatchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f0] dark:bg-[#1a1a2e] transition-colors">
+    <div className="min-h-screen bg-info-surface dark:bg-info-panel-dark transition-colors">
       {/* Header — mobile responsive */}
       <header className="px-4 sm:px-6 py-4 max-w-7xl mx-auto">
         <div className="flex items-center justify-between gap-2">
@@ -636,7 +636,7 @@ export function InfoWatchPage() {
             <Link href="/en/info" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
               &larr; <span className="hidden sm:inline">infomate</span>
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#333] dark:text-[#e0e0e0]">Market Watch</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-info-ink dark:text-info-ink-dark">Market Watch</h1>
           </div>
           <div className="flex items-center gap-2">
             {/* Language selector - always visible */}
@@ -645,7 +645,7 @@ export function InfoWatchPage() {
                 <button key={lang} onClick={() => setReportLang(lang)}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${
                     reportLang === lang
-                      ? 'bg-white dark:bg-gray-500 text-[#333] dark:text-white shadow-sm font-medium'
+                      ? 'bg-white dark:bg-gray-500 text-info-ink dark:text-white shadow-sm font-medium'
                       : 'text-gray-500 dark:text-gray-400'
                   }`}>
                   {LANG_FLAGS[lang]}
@@ -707,7 +707,7 @@ export function InfoWatchPage() {
             onChange={e => { setSearchQuery(e.target.value); if (!e.target.value) setSearchResults(null); }}
             onKeyDown={e => e.key === 'Enter' && doSearch()}
             placeholder="🔍 Search across all articles..."
-            className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-sm text-[#333] dark:text-[#e0e0e0] focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-info-surface-dark text-sm text-info-ink dark:text-info-ink-dark focus:outline-none focus:ring-2 focus:ring-blue-400" />
           {searchQuery && (
             <button onClick={() => { setSearchQuery(''); setSearchResults(null); }}
               className="px-3 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-500">✕</button>
@@ -718,15 +718,15 @@ export function InfoWatchPage() {
           <span className="text-gray-400">Filter:</span>
           <input type="text" value={filterName} onChange={e => setFilterName(e.target.value)}
             placeholder="Topic name..."
-            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-[#333] dark:text-[#e0e0e0] w-32" />
+            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-info-surface-dark text-info-ink dark:text-info-ink-dark w-32" />
           <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
-            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-[#333] dark:text-[#e0e0e0]">
+            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-info-surface-dark text-info-ink dark:text-info-ink-dark">
             <option value="">All Groups</option>
             {allGroups.map(g => <option key={g} value={g}>{g}</option>)}
             <option value="">Ungrouped</option>
           </select>
           <select value={filterType} onChange={e => setFilterType(e.target.value)}
-            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#16213e] text-[#333] dark:text-[#e0e0e0]">
+            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-info-surface-dark text-info-ink dark:text-info-ink-dark">
             <option value="">All Types</option>
             <option value="competitor">🏢 Competitor</option>
             <option value="trend">📈 Trend</option>
@@ -782,15 +782,15 @@ export function InfoWatchPage() {
         {loading ? (
           <div className="space-y-6">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="animate-pulse bg-white dark:bg-[#16213e] rounded-xl h-48" />
+              <div key={i} className="animate-pulse bg-white dark:bg-info-surface-dark rounded-xl h-48" />
             ))}
           </div>
         ) : (
           <div className="space-y-6">
             {/* Search Results */}
             {searchResults !== null && (
-              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
-                <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0] mb-3">
+              <div className="bg-white dark:bg-info-surface-dark rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+                <h3 className="font-semibold text-info-ink dark:text-info-ink-dark mb-3">
                   🔍 Search: &quot;{searchQuery}&quot; — {searchResults.length} results
                 </h3>
                 {searchResults.length === 0 ? (
@@ -800,7 +800,7 @@ export function InfoWatchPage() {
                     {searchResults.map((item: any, i: number) => (
                       <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
                         className="p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/30 group block">
-                        <p className="text-xs text-[#333] dark:text-[#e0e0e0] group-hover:text-blue-600 line-clamp-2">
+                        <p className="text-xs text-info-ink dark:text-info-ink-dark group-hover:text-blue-600 line-clamp-2">
                           {item.sentiment && <span className="mr-1">{SENTIMENT_ICONS[item.sentiment]}</span>}
                           {item.title}
                         </p>
@@ -819,9 +819,9 @@ export function InfoWatchPage() {
 
             {/* Competitor Comparison */}
             {showCompare && (
-              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+              <div className="bg-white dark:bg-info-surface-dark rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0]">📋 Comparison (last 7 days)</h3>
+                  <h3 className="font-semibold text-info-ink dark:text-info-ink-dark">📋 Comparison (last 7 days)</h3>
                   <div className="flex gap-1 items-center">
                     {['competitor', 'trend', 'industry'].map(t => (
                       <button key={t} onClick={() => { setCompareType(t); loadComparison(t); }}
@@ -860,7 +860,7 @@ export function InfoWatchPage() {
                         const sentScore = row.sentiment_score || 0;
                         return (
                         <tr key={row.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                          <td className="py-1.5 px-2 font-medium text-[#333] dark:text-[#e0e0e0]">{row.name}</td>
+                          <td className="py-1.5 px-2 font-medium text-info-ink dark:text-info-ink-dark">{row.name}</td>
                           <td className="text-center py-1.5 px-1 font-bold">{row.total_mentions}</td>
                           <td className="text-center py-1.5 px-1">
                             <div className="flex items-center gap-1">
@@ -907,9 +907,9 @@ export function InfoWatchPage() {
 
             {/* Keyword Cloud */}
             {showKeywords && (
-              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+              <div className="bg-white dark:bg-info-surface-dark rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0]">☁️ Keyword Cloud (14 days)</h3>
+                  <h3 className="font-semibold text-info-ink dark:text-info-ink-dark">☁️ Keyword Cloud (14 days)</h3>
                   <div className="flex gap-1">
                     <button onClick={() => loadKeywords()}
                       className={`px-2 py-1 text-xs rounded ${!keywordsTopicId ? 'bg-cyan-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
@@ -950,8 +950,8 @@ export function InfoWatchPage() {
 
             {/* Cross-topic Correlation */}
             {showCorrelation && (
-              <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
-                <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0] mb-3">🔗 Cross-topic Correlation (shared sources, 14 days)</h3>
+              <div className="bg-white dark:bg-info-surface-dark rounded-xl p-5 mb-6 border border-gray-200/50 dark:border-gray-700/50">
+                <h3 className="font-semibold text-info-ink dark:text-info-ink-dark mb-3">🔗 Cross-topic Correlation (shared sources, 14 days)</h3>
                 {correlationData.length === 0 ? (
                   <p className="text-sm text-gray-400 italic text-center py-4">No significant correlations found.</p>
                 ) : (
@@ -961,7 +961,7 @@ export function InfoWatchPage() {
                       const barWidth = Math.max(5, Math.round((Number(corr.shared_sources) / maxShared) * 100));
                       return (
                         <div key={`${corr.topic1_id}-${corr.topic2_id}`} className="flex items-center gap-3">
-                          <div className="w-32 text-xs text-right font-medium text-[#333] dark:text-[#e0e0e0] truncate" title={corr.topic1_name}>
+                          <div className="w-32 text-xs text-right font-medium text-info-ink dark:text-info-ink-dark truncate" title={corr.topic1_name}>
                             {corr.topic1_name}
                           </div>
                           <div className="flex-1 flex items-center gap-2">
@@ -971,7 +971,7 @@ export function InfoWatchPage() {
                             </div>
                             <span className="text-xs font-bold text-amber-600 dark:text-amber-400 w-8 text-center">{corr.shared_sources}</span>
                           </div>
-                          <div className="w-32 text-xs font-medium text-[#333] dark:text-[#e0e0e0] truncate" title={corr.topic2_name}>
+                          <div className="w-32 text-xs font-medium text-info-ink dark:text-info-ink-dark truncate" title={corr.topic2_name}>
                             {corr.topic2_name}
                           </div>
                         </div>
@@ -1012,13 +1012,13 @@ export function InfoWatchPage() {
                   onDragStart={() => handleDragStart(topic.id)}
                   onDragOver={(e) => handleDragOver(e, topic.id)}
                   onDragEnd={handleDragEnd}
-                  className={`bg-white dark:bg-[#16213e] rounded-xl overflow-hidden border transition-all ${
+                  className={`bg-white dark:bg-info-surface-dark rounded-xl overflow-hidden border transition-all ${
                     dragOverId === topic.id ? 'border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800' :
                     dragId === topic.id ? 'opacity-50 border-gray-300 dark:border-gray-600' :
                     'border-gray-200/50 dark:border-gray-700/50'
                   } ${editMode ? 'cursor-grab active:cursor-grabbing' : ''}`}>
                   {/* Topic Header */}
-                  <div className="flex items-center justify-between px-3 sm:px-5 py-3 bg-gray-50 dark:bg-[#1a1a3e] border-b border-gray-200/50 dark:border-gray-700/50">
+                  <div className="flex items-center justify-between px-3 sm:px-5 py-3 bg-gray-50 dark:bg-info-panel-dark-2 border-b border-gray-200/50 dark:border-gray-700/50">
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                       {editMode && (
                         <input type="checkbox" checked={selectedTopics.has(topic.id)}
@@ -1028,7 +1028,7 @@ export function InfoWatchPage() {
                       {editMode && <span className="text-gray-300 dark:text-gray-600 cursor-grab shrink-0">⠿</span>}
                       <span className="text-xl sm:text-2xl shrink-0">{TYPE_ICONS[topic.topic_type] || '📊'}</span>
                       <div>
-                        <h2 className="font-bold text-[#333] dark:text-[#e0e0e0]">{topic.name}</h2>
+                        <h2 className="font-bold text-info-ink dark:text-info-ink-dark">{topic.name}</h2>
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                           <span className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
                             {TYPE_LABELS[topic.topic_type] || topic.topic_type}
@@ -1140,7 +1140,7 @@ export function InfoWatchPage() {
                               <span className="text-[10px] text-gray-300 dark:text-gray-600 mt-0.5 font-mono shrink-0">[{i+1}]</span>
                               <div className="flex-1 min-w-0">
                                 <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                  className="text-xs text-[#333] dark:text-[#e0e0e0] group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2 block leading-snug">
+                                  className="text-xs text-info-ink dark:text-info-ink-dark group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-2 block leading-snug">
                                   {item.sentiment && <span className="mr-0.5" title={item.sentiment}>{SENTIMENT_ICONS[item.sentiment]}</span>}
                                   {translations[item.id]?.title || item.title}
                                 </a>
@@ -1221,7 +1221,7 @@ export function InfoWatchPage() {
 
                       {activeReport && (
                         <div className="prose prose-sm dark:prose-invert max-w-none max-h-[500px] overflow-y-auto">
-                          <div className="text-sm text-[#333] dark:text-[#d0d0d0] leading-relaxed"
+                          <div className="text-sm text-info-ink dark:text-info-ink-muted-dark leading-relaxed"
                             dangerouslySetInnerHTML={{ __html: renderReportSafe(activeReport) }} />
                         </div>
                       )}
@@ -1286,8 +1286,8 @@ export function InfoWatchPage() {
             {/* Add Topic */}
             {editMode && (
               showAdd ? (
-                <div className="bg-white dark:bg-[#16213e] rounded-xl p-5 border-2 border-dashed border-blue-300 dark:border-blue-700 space-y-3">
-                  <h3 className="font-semibold text-[#333] dark:text-[#e0e0e0]">Add Topic</h3>
+                <div className="bg-white dark:bg-info-surface-dark rounded-xl p-5 border-2 border-dashed border-blue-300 dark:border-blue-700 space-y-3">
+                  <h3 className="font-semibold text-info-ink dark:text-info-ink-dark">Add Topic</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input type="text" placeholder="Name (e.g. DSP Platforms, The Trade Desk)" value={addForm.name}
                       onChange={e => setAddForm({ ...addForm, name: e.target.value })}
@@ -1318,7 +1318,7 @@ export function InfoWatchPage() {
                 </div>
               ) : (
                 <button onClick={() => setShowAdd(true)}
-                  className="w-full bg-white/50 dark:bg-[#16213e]/50 rounded-xl p-6 flex items-center justify-center gap-2
+                  className="w-full bg-white/50 dark:bg-info-surface-dark/50 rounded-xl p-6 flex items-center justify-center gap-2
                              border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors">
                   <span className="text-3xl text-gray-300 dark:text-gray-600">+</span>
                   <span className="text-sm text-gray-400">Add Topic</span>

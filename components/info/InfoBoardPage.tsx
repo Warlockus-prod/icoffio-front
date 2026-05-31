@@ -176,7 +176,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f0] dark:bg-[#1a1a2e] flex items-center justify-center">
+      <div className="min-h-screen bg-info-surface dark:bg-info-panel-dark flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full" />
       </div>
     );
@@ -184,7 +184,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
 
   if (error || !board) {
     return (
-      <div className="min-h-screen bg-[#f5f5f0] dark:bg-[#1a1a2e] flex items-center justify-center">
+      <div className="min-h-screen bg-info-surface dark:bg-info-panel-dark flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl text-gray-500">{error || 'Not found'}</p>
           <Link href="/en/info" className="text-blue-500 hover:underline mt-4 inline-block">
@@ -196,10 +196,10 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f0] dark:bg-[#1a1a2e] transition-colors">
+    <div className="min-h-screen bg-info-surface dark:bg-info-panel-dark transition-colors">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 max-w-[1400px] mx-auto">
-        <Link href="/en/info" className="text-2xl font-bold text-[#333] dark:text-[#e0e0e0] hover:opacity-80 transition-opacity">
+        <Link href="/en/info" className="text-2xl font-bold text-info-ink dark:text-info-ink-dark hover:opacity-80 transition-opacity">
           infomate
         </Link>
         <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
             &larr; All boards
           </Link>
         </div>
-        <h1 className="text-3xl font-bold text-[#333] dark:text-[#e0e0e0]">{localizedBoardTitle(board, locale)}</h1>
+        <h1 className="text-3xl font-bold text-info-ink dark:text-info-ink-dark">{localizedBoardTitle(board, locale)}</h1>
         {(() => {
           const sub = localizedBoardSubtitle(board, locale);
           return sub ? <p className="text-gray-500 dark:text-gray-400 mt-1">{sub}</p> : null;
@@ -294,7 +294,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
               <section key={block.id} className={editMode ? 'relative border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-xl p-4' : ''}>
                 {/* Block Header */}
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-                  <h2 className="text-lg font-semibold text-[#333] dark:text-[#e0e0e0]">
+                  <h2 className="text-lg font-semibold text-info-ink dark:text-info-ink-dark">
                     {localizedBlockTitle(block, locale)}
                   </h2>
                   {editMode && (

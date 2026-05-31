@@ -151,6 +151,10 @@ function normalizeFrontendTitle(value: string): string {
 function resolveLocalizedTitle(article: any, language: 'en' | 'pl'): string {
   const baseTitle = normalizeFrontendTitle(article?.title || '');
 
+  // v10.18.0: prefer the locale-specific content BEFORE the canonical `title`.
+  // The canonical `title` is the source-language title (often Polish) — on the EN
+  // site it was leaking through because `if (baseTitle) return baseTitle` ran first.
+  // Now we exhaust the requested locale's own sources, then fall back to canonical.
   if (language === 'pl') {
     const heading = normalizeFrontendTitle(extractMarkdownHeading(article?.content_pl || ''));
     if (heading) return heading;
@@ -160,18 +164,24 @@ function resolveLocalizedTitle(article: any, language: 'en' | 'pl'): string {
 
     const leadPl = normalizeFrontendTitle(extractLeadSentence(article?.content_pl || '', 140));
     if (leadPl) return leadPl;
+  } else {
+    const headingEn = normalizeFrontendTitle(extractMarkdownHeading(article?.content_en || ''));
+    if (headingEn) return headingEn;
+
+    const excerptEn = normalizeFrontendTitle(article?.excerpt_en || '');
+    if (excerptEn) return excerptEn;
+
+    const leadEn = normalizeFrontendTitle(extractLeadSentence(article?.content_en || '', 140));
+    if (leadEn) return leadEn;
   }
 
+  // Fall back to the canonical title (may be in the other language, but better than nothing).
   if (baseTitle) return baseTitle;
 
-  const headingEn = normalizeFrontendTitle(extractMarkdownHeading(article?.content_en || ''));
-  if (headingEn) return headingEn;
-
-  const excerptEn = normalizeFrontendTitle(article?.excerpt_en || '');
-  if (excerptEn) return excerptEn;
-
-  const leadEn = normalizeFrontendTitle(extractLeadSentence(article?.content_en || '', 140));
-  if (leadEn) return leadEn;
+  // Last-resort: try the opposite locale's content so we never show "Untitled".
+  const otherContent = language === 'en' ? article?.content_pl : article?.content_en;
+  const otherHeading = normalizeFrontendTitle(extractMarkdownHeading(otherContent || ''));
+  if (otherHeading) return otherHeading;
 
   return 'Untitled';
 }

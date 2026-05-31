@@ -107,10 +107,10 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f0] dark:bg-[#1a1a2e] transition-colors">
+    <div className="min-h-screen bg-info-surface dark:bg-info-panel-dark transition-colors">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto">
-        <Link href="/en/info" className="text-2xl font-bold text-[#333] dark:text-[#e0e0e0] hover:opacity-80 transition-opacity">
+        <Link href="/en/info" className="text-2xl font-bold text-info-ink dark:text-info-ink-dark hover:opacity-80 transition-opacity">
           infomate
         </Link>
         <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="animate-pulse bg-white dark:bg-[#16213e] rounded-2xl p-6 h-40" />
+              <div key={i} className="animate-pulse bg-white dark:bg-info-surface-dark rounded-2xl p-6 h-40" />
             ))}
           </div>
         ) : boards.length === 0 && !editMode ? (
@@ -161,7 +161,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
             <div className="flex items-center gap-4">
               <span className="text-4xl group-hover:scale-110 transition-transform">🔭</span>
               <div>
-                <h2 className="text-lg font-bold text-[#333] dark:text-[#e0e0e0]">Market Watch</h2>
+                <h2 className="text-lg font-bold text-info-ink dark:text-info-ink-dark">Market Watch</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Competitor monitoring, industry trends & AI-powered analysis</p>
               </div>
               <span className="ml-auto text-gray-300 dark:text-gray-600 group-hover:text-purple-400 transition-colors text-2xl">&rarr;</span>
@@ -173,7 +173,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
               <Link
                 key={board.id}
                 href={`/en/info/${board.slug}`}
-                className="group relative bg-white dark:bg-[#16213e] rounded-2xl p-6 flex flex-col items-center text-center
+                className="group relative bg-white dark:bg-info-surface-dark rounded-2xl p-6 flex flex-col items-center text-center
                            hover:shadow-lg hover:-translate-y-1 transition-all duration-200
                            border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
               >
@@ -204,7 +204,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
                     BOARD_ICONS[board.slug] || BOARD_ICONS.default
                   )}
                 </div>
-                <h2 className="text-lg font-semibold text-[#333] dark:text-[#e0e0e0] mb-1">
+                <h2 className="text-lg font-semibold text-info-ink dark:text-info-ink-dark mb-1">
                   {localizedBoardTitle(board, locale)}
                 </h2>
                 {(() => {
@@ -219,7 +219,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
             {/* Add Board card */}
             {editMode && (
               showAddBoard ? (
-                <div className="bg-white dark:bg-[#16213e] rounded-2xl p-4 border-2 border-dashed border-blue-300 dark:border-blue-700 space-y-2">
+                <div className="bg-white dark:bg-info-surface-dark rounded-2xl p-4 border-2 border-dashed border-blue-300 dark:border-blue-700 space-y-2">
                   <input type="text" placeholder="Title" value={boardForm.title}
                     onChange={(e) => setBoardForm({ ...boardForm, title: e.target.value })}
                     className="w-full px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 dark:border-gray-600" />
@@ -237,7 +237,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
               ) : (
                 <button
                   onClick={() => setShowAddBoard(true)}
-                  className="bg-white/50 dark:bg-[#16213e]/50 rounded-2xl p-6 flex flex-col items-center justify-center
+                  className="bg-white/50 dark:bg-info-surface-dark/50 rounded-2xl p-6 flex flex-col items-center justify-center
                              border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
                 >
                   <span className="text-4xl text-gray-300 dark:text-gray-600 mb-2">+</span>

@@ -31,7 +31,7 @@ export function FeedColumn({
   const displayTitle = localizedFeedTitle(feed, locale);
 
   return (
-    <div className="bg-white dark:bg-[#16213e] rounded-lg p-4 border border-gray-100 dark:border-gray-700/50">
+    <div className="bg-white dark:bg-info-surface-dark rounded-lg p-4 border border-gray-100 dark:border-gray-700/50">
       {/* Feed Header */}
       <div className="flex items-center gap-2 mb-3">
         {feed.icon_url ? (
@@ -54,7 +54,7 @@ export function FeedColumn({
           href={feed.site_url || '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-medium text-sm text-[#333] dark:text-[#e0e0e0] hover:underline truncate"
+          className="font-medium text-sm text-info-ink dark:text-info-ink-dark hover:underline truncate"
         >
           {displayTitle}
         </a>
@@ -91,7 +91,7 @@ export function FeedColumn({
 
               {/* Tooltip */}
               {hoveredItem?.id === item.id && (item.description || item.image_url) && (
-                <div className="absolute left-full top-0 ml-2 z-50 w-72 bg-white dark:bg-[#0f3460] rounded-lg shadow-xl
+                <div className="absolute left-full top-0 ml-2 z-50 w-72 bg-white dark:bg-info-accent-dark rounded-lg shadow-xl
                                 border border-gray-200 dark:border-gray-600 p-3 pointer-events-none">
                   {item.image_url && (
                     // RSS item thumbnails — arbitrary domains, unoptimized to avoid wildcard remotePatterns.
@@ -104,7 +104,7 @@ export function FeedColumn({
                       className="w-full h-32 object-cover rounded mb-2"
                     />
                   )}
-                  <p className="text-sm font-medium text-[#333] dark:text-[#e0e0e0] mb-1">
+                  <p className="text-sm font-medium text-info-ink dark:text-info-ink-dark mb-1">
                     {localizedItemTitle(item, locale)}
                   </p>
                   {(() => {

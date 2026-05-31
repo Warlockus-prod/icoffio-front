@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.19.0] - 2026-05-22 - 🧹 P3: webhook decomposition + tests
+
+Finishes the audit backlog (P3 — maintainability).
+
+### ✅ Refactor — Telegram webhook god-file
+- Extracted 17 pure helper functions (escapeHtml, normalize*, URL builders, localize, etc.) from `app/api/telegram-simple/webhook/route.ts` into new `lib/telegram-simple/webhook-helpers.ts`.
+- Route shrank **2787 → 2585 lines** (−202). Logic byte-for-byte identical — pure refactor.
+- These helpers drive the publishing pipeline (input normalization, article URL building) and were previously untestable inline.
+
+### ✅ Tests
+- New `__tests__/webhook-helpers.test.ts` — **36 tests** covering all extracted helpers (HTML escaping, URL normalization/building, content-style/images/lang aliases, context extraction).
+- Total suite: **194 tests** (was 158).
+
+### ⏸️ Deferred with rationale — `:any` mass migration
+- 308 `: any`/`as any` across 65k LOC. Mass migration = weeks + high regression risk for cosmetic typing; a global `no-explicit-any` rule would break CI (308 > max-warnings). `strict: true` already guards the dangerous cases. Left as conscious debt (mostly DB-row shapes + catch clauses).
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 194/194 OK
+- `npx next lint` — 0 errors
+- `npm run build` — OK
+
+### 🔐 Confidence
+- **HIGH** — extraction is mechanical (copied verbatim, re-imported), proven by tsc + 194 tests + build. Publishing pipeline behavior unchanged.
+
 ## [10.18.0] - 2026-05-22 - 🩺 Full audit fixes (P0–P2)
 
 Acted on the May 2026 full audit. Each finding was personally verified before fixing

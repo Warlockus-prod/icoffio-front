@@ -79,8 +79,8 @@ const translations: Record<string, {
           '• Purpose: Ad delivery and tracking',
           '• Privacy Policy: Check VOX/Malware.Expert documentation',
           '',
-          '**Supabase (Data Platform)**',
-          '• Domain: `supabase.co`',
+          '**PostgreSQL (Self-hosted Data Platform)**',
+          '• Domain: server-side only (no browser cookie domain)',
           '• Purpose: Article and metadata storage',
           '',
           'These third-party services may use their own cookies according to their privacy policies.'
@@ -227,8 +227,8 @@ const translations: Record<string, {
           '• Cel: Dostarczanie i śledzenie reklam',
           '• Polityka prywatności: Zobacz dokumentację VOX/Malware.Expert',
           '',
-          '**Supabase (Platforma danych)**',
-          '• Domena: `supabase.co`',
+          '**PostgreSQL (Własna platforma danych)**',
+          '• Domena: tylko po stronie serwera (brak domeny cookie w przeglądarce)',
           '• Cel: Przechowywanie artykułów i metadanych',
           '',
           'Te usługi stron trzecich mogą używać własnych plików cookie zgodnie z ich politykami prywatności.'
@@ -455,7 +455,6 @@ export default function CookiesPage({ params }: CookiesPageProps) {
     </div>
   );
 }
-
 
 
 

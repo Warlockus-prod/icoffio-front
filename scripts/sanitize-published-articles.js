@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-time Supabase content sanitizer for published_articles.
+ * One-time PostgreSQL content sanitizer for published_articles.
  *
  * What it does:
  * - Cleans parser artifacts in content_en/content_pl (ads/read-also/update tickers/raw URLs)
@@ -15,18 +15,17 @@
  *   node scripts/sanitize-published-articles.js --confirm --slug=some-slug-en
  */
 
-const { createClient } = require('@supabase/supabase-js');
+const { Pool } = require('pg');
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌ Supabase credentials not configured.');
-  console.error('Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY).');
+if (!DATABASE_URL) {
+  console.error('❌ DATABASE_URL is not configured.');
+  console.error('Set DATABASE_URL and run again.');
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 function parseArgValue(name) {
   const full = process.argv.find((arg) => arg.startsWith(`${name}=`));
@@ -318,31 +317,26 @@ function shouldFilterRow(row) {
 async function loadArticles() {
   const rows = [];
   const pageSize = 200;
-  let from = 0;
+  let offset = 0;
 
   while (rows.length < maxRows) {
-    const to = Math.min(from + pageSize - 1, from + (maxRows - rows.length) - 1);
+    const nextLimit = Math.min(pageSize, maxRows - rows.length);
+    const whereClause = includeUnpublished ? '' : 'WHERE published = TRUE';
+    const sql = `
+      SELECT id, title, slug_en, slug_pl, published, content_en, content_pl, excerpt_en, excerpt_pl, word_count
+      FROM published_articles
+      ${whereClause}
+      ORDER BY id ASC
+      LIMIT $1 OFFSET $2
+    `;
 
-    let query = supabase
-      .from('published_articles')
-      .select('id,title,slug_en,slug_pl,published,content_en,content_pl,excerpt_en,excerpt_pl,word_count')
-      .order('id', { ascending: true })
-      .range(from, to);
+    const result = await pool.query(sql, [nextLimit, offset]);
+    const batch = result.rows || [];
+    if (batch.length === 0) break;
 
-    if (!includeUnpublished) {
-      query = query.eq('published', true);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      throw new Error(`Failed to load articles: ${error.message}`);
-    }
-
-    if (!data || data.length === 0) break;
-    rows.push(...data);
-
-    if (data.length < pageSize) break;
-    from += pageSize;
+    rows.push(...batch);
+    if (batch.length < nextLimit) break;
+    offset += batch.length;
   }
 
   return rows.filter(shouldFilterRow);
@@ -457,14 +451,20 @@ async function run() {
   let failed = 0;
 
   for (const item of candidates) {
-    const { error } = await supabase
-      .from('published_articles')
-      .update(item.payload)
-      .eq('id', item.id);
+    try {
+      const fields = Object.keys(item.payload);
+      if (fields.length === 0) continue;
+      const setClause = fields.map((field, index) => `"${field}" = $${index + 1}`).join(', ');
+      const values = fields.map((field) => item.payload[field]);
+      values.push(item.id);
 
-    if (error) {
+      await pool.query(
+        `UPDATE published_articles SET ${setClause}, updated_at = NOW() WHERE id = $${fields.length + 1}`,
+        values
+      );
+    } catch (error) {
       failed += 1;
-      console.error(`❌ Update failed id=${item.id}: ${error.message}`);
+      console.error(`❌ Update failed id=${item.id}: ${error.message || error}`);
       continue;
     }
 
@@ -477,7 +477,14 @@ async function run() {
   console.log(`Failed: ${failed}`);
 }
 
-run().catch((error) => {
-  console.error('\n❌ Script failed:', error.message || error);
-  process.exit(1);
-});
+run()
+  .catch((error) => {
+    console.error('\n❌ Script failed:', error.message || error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await pool.end().catch(() => {});
+    if (process.exitCode && process.exitCode !== 0) {
+      process.exit(process.exitCode);
+    }
+  });

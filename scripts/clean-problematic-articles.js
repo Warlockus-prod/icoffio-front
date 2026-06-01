@@ -12,19 +12,18 @@
  *   node scripts/clean-problematic-articles.js --confirm  # Реальное удаление
  */
 
-const { createClient } = require('@supabase/supabase-js');
+const { Pool } = require('pg');
 
 // Конфигурация
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌ Supabase credentials not configured');
-  console.error('Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+if (!DATABASE_URL) {
+  console.error('❌ DATABASE_URL is not configured');
+  console.error('Set DATABASE_URL and run again');
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 // Паттерны для определения проблемных статей
 const RUSSIAN_PATTERNS = [
@@ -106,17 +105,12 @@ function isTooShort(contentEn, contentPl) {
  * Находит все проблемные статьи
  */
 async function findProblematicArticles() {
-  console.log('🔍 Ищем проблемные статьи в Supabase...\n');
+  console.log('🔍 Ищем проблемные статьи в PostgreSQL...\n');
 
   // Получаем ВСЕ статьи (включая неопубликованные) для полной проверки
-  const { data: articles, error } = await supabase
-    .from('published_articles')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to fetch articles: ${error.message}`);
-  }
+  const { rows: articles } = await pool.query(
+    `SELECT * FROM published_articles ORDER BY created_at DESC`
+  );
 
   if (!articles || articles.length === 0) {
     console.log('✅ Статей не найдено');
@@ -200,19 +194,11 @@ async function findProblematicArticles() {
 }
 
 /**
- * Удаляет статью из Supabase
+ * Удаляет статью из PostgreSQL
  */
-async function deleteFromSupabase(articleId) {
+async function deleteFromDatabase(articleId) {
   try {
-    const { error } = await supabase
-      .from('published_articles')
-      .delete()
-      .eq('id', articleId);
-
-    if (error) {
-      console.error(`  ❌ Ошибка удаления из Supabase: ${error.message}`);
-      return false;
-    }
+    await pool.query(`DELETE FROM published_articles WHERE id = $1`, [articleId]);
     return true;
   } catch (error) {
     console.error(`  ❌ Исключение при удалении: ${error.message}`);
@@ -335,22 +321,22 @@ async function cleanProblematicArticles() {
 
     // Реальное удаление
     console.log('\n🗑️  НАЧИНАЕМ УДАЛЕНИЕ...\n');
-    let deletedSupabase = 0;
+    let deletedDatabase = 0;
     let deletedWordPress = 0;
-    let failedSupabase = 0;
+    let failedDatabase = 0;
     let failedWordPress = 0;
 
     for (const article of problematic) {
       const titlePreview = article.title.length > 50 ? article.title.substring(0, 50) + '...' : article.title;
       console.log(`🗑️  Удаляем: "${titlePreview}" (ID: ${article.id})`);
 
-      // Удаляем из Supabase
-      const supabaseDeleted = await deleteFromSupabase(article.id);
-      if (supabaseDeleted) {
-        deletedSupabase++;
-        console.log(`  ✅ Удалено из Supabase`);
+      // Удаляем из PostgreSQL
+      const databaseDeleted = await deleteFromDatabase(article.id);
+      if (databaseDeleted) {
+        deletedDatabase++;
+        console.log(`  ✅ Удалено из PostgreSQL`);
       } else {
-        failedSupabase++;
+        failedDatabase++;
       }
 
       // Удаляем из WordPress
@@ -368,20 +354,20 @@ async function cleanProblematicArticles() {
 
     // Итоговый отчет
     console.log('\n📊 ОТЧЕТ О ОЧИСТКЕ:\n');
-    console.log(`✅ Удалено из Supabase: ${deletedSupabase} статей`);
+    console.log(`✅ Удалено из PostgreSQL: ${deletedDatabase} статей`);
     console.log(`✅ Удалено из WordPress: ${deletedWordPress} статей`);
-    console.log(`❌ Ошибок Supabase: ${failedSupabase}`);
+    console.log(`❌ Ошибок PostgreSQL: ${failedDatabase}`);
     console.log(`❌ Ошибок WordPress: ${failedWordPress}`);
     console.log(`📊 Всего обработано: ${problematic.length} статей\n`);
 
-    if (deletedSupabase > 0) {
+    if (deletedDatabase > 0) {
       console.log('🎉 Очистка завершена! Проблемные статьи удалены.');
       console.log('⏱️  Изменения появятся на сайте в течение 1-2 минут.\n');
     }
 
   } catch (error) {
     console.error('\n❌ Критическая ошибка очистки:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
@@ -390,13 +376,16 @@ if (require.main === module) {
   cleanProblematicArticles()
     .then(() => {
       console.log('✅ Скрипт очистки завершен');
-      process.exit(0);
+      process.exitCode = 0;
     })
     .catch((error) => {
       console.error('❌ Скрипт завершился с ошибкой:', error);
-      process.exit(1);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await pool.end().catch(() => {});
+      process.exit(process.exitCode || 0);
     });
 }
 
 module.exports = { cleanProblematicArticles, findProblematicArticles };
-

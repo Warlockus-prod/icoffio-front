@@ -23,9 +23,8 @@ cp scripts/telegram-config.example.json scripts/telegram-config.json
     "bot_token": "7999999999:AAGRJHxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "secret_token": "любая_случайная_строка_для_безопасности"
   },
-  "supabase": {
-    "url": "https://dlellopouivlmbrmjhoz.supabase.co",
-    "service_role_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "database": {
+    "url": "postgresql://icoffio:password@localhost:5432/icoffio"
   }
 }
 ```
@@ -33,7 +32,7 @@ cp scripts/telegram-config.example.json scripts/telegram-config.json
 **Где взять токены:**
 - `telegram.bot_token` - от @BotFather в Telegram
 - `telegram.secret_token` - любая случайная строка (например: `my_secret_webhook_token_2025`)
-- `supabase.service_role_key` - из Supabase Dashboard → Settings → API
+- `database.url` - строка подключения к PostgreSQL
 
 **Шаг 3:** Запустите скрипт:
 
@@ -50,11 +49,8 @@ python3 scripts/telegram-reset-simple.py
 📋 Step 1/4: Loading configuration...
 ✅ Configuration loaded
 
-📋 Step 2/4: Resetting Supabase telegram tables...
-   Deleting all rows from telegram_jobs...
-   ✅ telegram_jobs cleared
-   Deleting all rows from telegram_submissions...
-   ✅ telegram_submissions cleared
+📋 Step 2/4: Resetting PostgreSQL queue...
+   ✅ Queue is empty (0 jobs)
 
 📋 Step 3/4: Managing Telegram webhook...
    Getting current webhook...
@@ -136,10 +132,10 @@ https://vercel.com/andreys-projects-a55f75b3/icoffio-front/logs
 [TelegramSimple] ✅ Message sent to chat
 ```
 
-### Supabase Dashboard:
+### PostgreSQL:
 
 ```
-https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz
+docker compose -f docker-compose.vps.yml logs -f postgres
 ```
 
 **SQL проверка:**
@@ -169,11 +165,11 @@ cp scripts/telegram-config.example.json scripts/telegram-config.json
 
 ### Ошибка: "Please fill with real tokens"
 
-**Решение:** Замените `YOUR_BOT_TOKEN` и `YOUR_SERVICE_ROLE_KEY` на реальные значения.
+**Решение:** Замените `YOUR_BOT_TOKEN` и `database.url` на реальные значения.
 
 ### Ошибка: "Failed to clear tables"
 
-**Решение:** Проверьте `service_role_key` в конфигурации. Должен быть именно Service Role Key, не Anon Key.
+**Решение:** Проверьте `DATABASE_URL` (или доступ к контейнеру `icoffio-postgres`).
 
 ### Ошибка: "Failed to set webhook"
 
@@ -193,13 +189,11 @@ cp scripts/telegram-config.example.json scripts/telegram-config.json
 
 ## 📝 РУЧНОЙ СБРОС (если скрипты не работают)
 
-### 1. Supabase SQL:
+### 1. PostgreSQL SQL:
 
 ```sql
 DELETE FROM telegram_jobs;
-DELETE FROM telegram_submissions;
 SELECT COUNT(*) FROM telegram_jobs; -- Должно вернуть 0
-SELECT COUNT(*) FROM telegram_submissions; -- Должно вернуть 0
 ```
 
 ### 2. Telegram Webhook (curl):
@@ -240,7 +234,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/getWebhookInfo"
 ## ✅ КРИТЕРИИ УСПЕХА
 
 - [ ] Python скрипт выполнился без ошибок
-- [ ] Supabase queue = 0 jobs
+- [ ] PostgreSQL queue = 0 jobs
 - [ ] Webhook установлен (getWebhookInfo показывает правильный URL)
 - [ ] `/start` в Telegram работает
 - [ ] Текст публикуется < 20 секунд

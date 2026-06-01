@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ============================================
-# TELEGRAM BOT AUTOMATIC RESET v7.14.1
+# TELEGRAM BOT AUTOMATIC RESET (POSTGRESQL)
 # Полностью автоматический сброс и настройка
 # ============================================
 
-set -e # Exit on any error
+set -euo pipefail
 
 echo "🚀 TELEGRAM BOT AUTOMATIC RESET"
 echo "================================"
@@ -18,98 +18,105 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+load_env_file() {
+  local env_file="$1"
+  if [[ -f "$env_file" ]]; then
+    # shellcheck disable=SC1090
+    source "$env_file"
+    echo -e "${GREEN}✅ Loaded ${env_file}${NC}"
+    return 0
+  fi
+  return 1
+}
+
+run_sql() {
+  local sql="$1"
+
+  if [[ -n "${DATABASE_URL:-}" ]] && command -v psql >/dev/null 2>&1; then
+    if psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -tAc "${sql}"; then
+      return
+    fi
+    echo -e "${YELLOW}⚠️ Direct psql call failed, trying Docker fallback...${NC}" >&2
+  fi
+
+  local pg_container="${POSTGRES_CONTAINER:-icoffio-postgres}"
+  local pg_user="${POSTGRES_USER:-icoffio}"
+  local pg_db="${POSTGRES_DB:-icoffio}"
+
+  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx "${pg_container}"; then
+    if [[ -n "${POSTGRES_PASSWORD:-}" ]]; then
+      docker exec -e PGPASSWORD="${POSTGRES_PASSWORD}" -i "${pg_container}" \
+        psql -U "${pg_user}" -d "${pg_db}" -v ON_ERROR_STOP=1 -tAc "${sql}" && return
+    else
+      docker exec -i "${pg_container}" \
+        psql -U "${pg_user}" -d "${pg_db}" -v ON_ERROR_STOP=1 -tAc "${sql}" && return
+    fi
+  fi
+
+  echo -e "${RED}❌ Cannot execute SQL reset.${NC}"
+  echo "Set DATABASE_URL (with local psql installed) or ensure Docker container ${pg_container} is running."
+  exit 1
+}
+
 # ============================================
 # 1. CHECK ENVIRONMENT VARIABLES
 # ============================================
 
 echo "📋 Step 1/4: Checking environment variables..."
 
-if [ -f .env.local ]; then
-    source .env.local
-    echo -e "${GREEN}✅ .env.local found${NC}"
-else
-    echo -e "${RED}❌ .env.local not found${NC}"
-    echo "Creating .env.local template..."
-    cat > .env.local << 'EOF'
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://dlellopouivlmbrmjhoz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-
-# Telegram
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_SECRET_TOKEN=your_secret_token_here
-
-# OpenAI
-OPENAI_API_KEY=your_openai_key_here
-
-# Unsplash
-UNSPLASH_ACCESS_KEY=your_unsplash_key_here
-EOF
-    echo -e "${YELLOW}⚠️  Please fill .env.local with your tokens and run again${NC}"
-    exit 1
+if ! load_env_file ".env.local"; then
+  load_env_file ".env.production" || true
 fi
 
-# Check required variables
 REQUIRED_VARS=(
-    "TELEGRAM_BOT_TOKEN"
-    "TELEGRAM_SECRET_TOKEN"
-    "NEXT_PUBLIC_SUPABASE_URL"
-    "SUPABASE_SERVICE_ROLE_KEY"
+  "TELEGRAM_BOT_TOKEN"
 )
 
 MISSING_VARS=()
 for VAR in "${REQUIRED_VARS[@]}"; do
-    if [ -z "${!VAR}" ]; then
-        MISSING_VARS+=("$VAR")
-    fi
+  if [[ -z "${!VAR:-}" ]]; then
+    MISSING_VARS+=("$VAR")
+  fi
 done
 
-if [ ${#MISSING_VARS[@]} -ne 0 ]; then
-    echo -e "${RED}❌ Missing required environment variables:${NC}"
-    for VAR in "${MISSING_VARS[@]}"; do
-        echo "  - $VAR"
-    done
-    echo ""
-    echo "Please set these in .env.local and run again"
-    exit 1
+if [[ ${#MISSING_VARS[@]} -ne 0 ]]; then
+  echo -e "${RED}❌ Missing required environment variables:${NC}"
+  for VAR in "${MISSING_VARS[@]}"; do
+    echo "  - $VAR"
+  done
+  echo ""
+  echo "Please set these in .env.local or .env.production and run again."
+  exit 1
 fi
 
-echo -e "${GREEN}✅ All required variables present${NC}"
+WEBHOOK_SECRET="${TELEGRAM_SECRET_TOKEN:-${TELEGRAM_BOT_SECRET:-}}"
+if [[ -z "${WEBHOOK_SECRET}" ]]; then
+  echo -e "${RED}❌ Missing webhook secret.${NC}"
+  echo "Set TELEGRAM_SECRET_TOKEN or TELEGRAM_BOT_SECRET in .env.local/.env.production."
+  exit 1
+fi
+
+if [[ -z "${DATABASE_URL:-}" && -z "${POSTGRES_PASSWORD:-}" ]]; then
+  echo -e "${YELLOW}⚠️ DATABASE_URL and POSTGRES_PASSWORD are missing.${NC}"
+  echo "Queue reset will only work if docker exec has trusted local auth."
+fi
+
+echo -e "${GREEN}✅ Environment looks good${NC}"
 echo ""
 
 # ============================================
-# 2. RESET SUPABASE QUEUE
+# 2. RESET POSTGRES QUEUE
 # ============================================
 
-echo "📋 Step 2/4: Resetting Supabase queue..."
+echo "📋 Step 2/4: Resetting PostgreSQL queue..."
 
-# Extract project ID from URL
-SUPABASE_PROJECT_ID=$(echo $NEXT_PUBLIC_SUPABASE_URL | sed 's/https:\/\/\([^.]*\).*/\1/')
-echo "Project ID: $SUPABASE_PROJECT_ID"
+run_sql "DELETE FROM telegram_jobs;"
+QUEUE_COUNT="$(run_sql "SELECT COUNT(*) FROM telegram_jobs;" | tr -d '[:space:]')"
 
-# SQL to reset queue
-SQL_RESET='DELETE FROM telegram_jobs; ALTER SEQUENCE IF EXISTS telegram_jobs_id_seq RESTART WITH 1;'
-
-echo "Executing SQL reset..."
-RESET_RESPONSE=$(curl -s -X POST \
-    "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/exec_sql" \
-    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "{\"query\": \"${SQL_RESET}\"}")
-
-# Verify queue is empty
-echo "Verifying queue is empty..."
-QUEUE_COUNT=$(curl -s -X GET \
-    "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/telegram_jobs?select=count" \
-    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
-
-if [[ $QUEUE_COUNT == *"\"count\":0"* ]] || [[ $QUEUE_COUNT == *"[]"* ]]; then
-    echo -e "${GREEN}✅ Queue reset successful (0 jobs)${NC}"
+if [[ "${QUEUE_COUNT}" == "0" ]]; then
+  echo -e "${GREEN}✅ Queue reset successful (0 jobs)${NC}"
 else
-    echo -e "${YELLOW}⚠️  Queue count: $QUEUE_COUNT${NC}"
+  echo -e "${YELLOW}⚠️ Queue count after reset: ${QUEUE_COUNT}${NC}"
 fi
 
 echo ""
@@ -125,64 +132,60 @@ WEBHOOK_BASE_URL="${TELEGRAM_WEBHOOK_BASE_URL:-${NEXT_PUBLIC_SITE_URL:-https://w
 WEBHOOK_BASE_URL="${WEBHOOK_BASE_URL%/}"
 WEBHOOK_URL="${WEBHOOK_BASE_URL}/api/telegram-simple/webhook"
 
-# Get current webhook info
 echo "Fetching current webhook info..."
-WEBHOOK_INFO=$(curl -s "${TELEGRAM_API}/getWebhookInfo")
-echo "Current webhook: $WEBHOOK_INFO"
+WEBHOOK_INFO="$(curl -s "${TELEGRAM_API}/getWebhookInfo")"
+echo "Current webhook: ${WEBHOOK_INFO}"
 echo ""
 
-# Delete existing webhook
 echo "Deleting existing webhook..."
-DELETE_RESPONSE=$(curl -s -X POST "${TELEGRAM_API}/deleteWebhook")
-echo "Delete response: $DELETE_RESPONSE"
+DELETE_RESPONSE="$(curl -s -X POST "${TELEGRAM_API}/deleteWebhook")"
+echo "Delete response: ${DELETE_RESPONSE}"
 
-if [[ $DELETE_RESPONSE == *"\"ok\":true"* ]]; then
-    echo -e "${GREEN}✅ Webhook deleted${NC}"
+if [[ "${DELETE_RESPONSE}" == *"\"ok\":true"* ]]; then
+  echo -e "${GREEN}✅ Webhook deleted${NC}"
 else
-    echo -e "${YELLOW}⚠️  Webhook delete response: $DELETE_RESPONSE${NC}"
+  echo -e "${YELLOW}⚠️ Webhook delete response: ${DELETE_RESPONSE}${NC}"
 fi
 
 sleep 2
 
-# Set new webhook
 echo "Setting new webhook..."
-WEBHOOK_PAYLOAD=$(cat <<EOF
+WEBHOOK_PAYLOAD="$(cat <<EOF
 {
   "url": "${WEBHOOK_URL}",
-  "secret_token": "${TELEGRAM_SECRET_TOKEN}",
+  "secret_token": "${WEBHOOK_SECRET}",
   "allowed_updates": ["message", "callback_query"],
   "max_connections": 40,
   "drop_pending_updates": true
 }
 EOF
-)
+)"
 
-SET_RESPONSE=$(curl -s -X POST "${TELEGRAM_API}/setWebhook" \
-    -H "Content-Type: application/json" \
-    -d "$WEBHOOK_PAYLOAD")
+SET_RESPONSE="$(curl -s -X POST "${TELEGRAM_API}/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d "${WEBHOOK_PAYLOAD}")"
 
-echo "Set webhook response: $SET_RESPONSE"
+echo "Set webhook response: ${SET_RESPONSE}"
 
-if [[ $SET_RESPONSE == *"\"ok\":true"* ]]; then
-    echo -e "${GREEN}✅ Webhook set successfully${NC}"
+if [[ "${SET_RESPONSE}" == *"\"ok\":true"* ]]; then
+  echo -e "${GREEN}✅ Webhook set successfully${NC}"
 else
-    echo -e "${RED}❌ Failed to set webhook${NC}"
-    echo "$SET_RESPONSE"
-    exit 1
+  echo -e "${RED}❌ Failed to set webhook${NC}"
+  echo "${SET_RESPONSE}"
+  exit 1
 fi
 
 sleep 2
 
-# Verify webhook
 echo "Verifying new webhook..."
-NEW_WEBHOOK_INFO=$(curl -s "${TELEGRAM_API}/getWebhookInfo")
+NEW_WEBHOOK_INFO="$(curl -s "${TELEGRAM_API}/getWebhookInfo")"
 echo "New webhook info:"
-echo "$NEW_WEBHOOK_INFO" | jq '.' 2>/dev/null || echo "$NEW_WEBHOOK_INFO"
+echo "${NEW_WEBHOOK_INFO}" | jq '.' 2>/dev/null || echo "${NEW_WEBHOOK_INFO}"
 
-if [[ $NEW_WEBHOOK_INFO == *"$WEBHOOK_URL"* ]]; then
-    echo -e "${GREEN}✅ Webhook verified${NC}"
+if [[ "${NEW_WEBHOOK_INFO}" == *"${WEBHOOK_URL}"* ]]; then
+  echo -e "${GREEN}✅ Webhook verified${NC}"
 else
-    echo -e "${YELLOW}⚠️  Webhook verification unclear${NC}"
+  echo -e "${YELLOW}⚠️ Webhook verification unclear${NC}"
 fi
 
 echo ""
@@ -200,7 +203,7 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 echo "📊 Summary:"
-echo "  ✅ Supabase queue reset (0 jobs)"
+echo "  ✅ PostgreSQL queue reset (0 jobs)"
 echo "  ✅ Webhook deleted"
 echo "  ✅ Webhook recreated"
 echo "  ✅ Webhook verified"
@@ -216,14 +219,8 @@ echo "5. You should receive article URLs"
 echo ""
 
 echo "📊 Monitor logs:"
-echo "  Vercel: https://vercel.com/andreys-projects-a55f75b3/icoffio-front/logs"
-echo "  Supabase: https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz"
-echo ""
-
-echo "🎯 If issues persist, check:"
-echo "  1. Vercel environment variables"
-echo "  2. Vercel deployment status (must be Ready)"
-echo "  3. Vercel logs for errors"
+echo "  App container: docker compose -f docker-compose.vps.yml logs -f icoffio-front"
+echo "  Postgres:      docker compose -f docker-compose.vps.yml logs -f postgres"
 echo ""
 
 echo -e "${GREEN}Done! 🚀${NC}"

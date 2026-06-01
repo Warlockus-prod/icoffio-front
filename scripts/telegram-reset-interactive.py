@@ -1,274 +1,206 @@
 #!/usr/bin/env python3
 """
-TELEGRAM BOT AUTOMATIC RESET v7.14.1
-Полностью автоматический сброс и настройка
-Интерактивная версия с вводом токенов
+TELEGRAM BOT AUTOMATIC RESET (POSTGRESQL)
+Interactive version with prompts.
 """
 
+import getpass
 import os
+import subprocess
 import sys
 import time
-import json
+
 import requests
 from dotenv import load_dotenv
 
-# Colors
-GREEN = '\033[0;32m'
-RED = '\033[0;31m'
-YELLOW = '\033[1;33m'
-BLUE = '\033[0;34m'
-BOLD = '\033[1m'
-NC = '\033[0m'  # No Color
+GREEN = "\033[0;32m"
+RED = "\033[0;31m"
+YELLOW = "\033[1;33m"
+BLUE = "\033[0;34m"
+BOLD = "\033[1m"
+NC = "\033[0m"
+
 
 def print_header():
     print(f"\n{BLUE}{'=' * 50}{NC}")
-    print(f"{BOLD}🚀 TELEGRAM BOT AUTOMATIC RESET v7.14.1{NC}")
+    print(f"{BOLD}🚀 TELEGRAM BOT AUTOMATIC RESET (POSTGRESQL){NC}")
     print(f"{BLUE}{'=' * 50}{NC}\n")
+
 
 def print_step(step_num, total, message):
     print(f"\n{BLUE}📋 Step {step_num}/{total}: {message}{NC}")
 
-def print_success(message):
-    print(f"{GREEN}✅ {message}{NC}")
 
-def print_error(message):
-    print(f"{RED}❌ {message}{NC}")
-
-def print_warning(message):
-    print(f"{YELLOW}⚠️  {message}{NC}")
-
-def print_info(message):
+def info(message):
     print(f"ℹ️  {message}")
 
-def get_env_or_input(var_name, prompt, secret=False):
-    """Get value from environment or ask user"""
-    value = os.getenv(var_name)
+
+def success(message):
+    print(f"{GREEN}✅ {message}{NC}")
+
+
+def warning(message):
+    print(f"{YELLOW}⚠️  {message}{NC}")
+
+
+def error(message):
+    print(f"{RED}❌ {message}{NC}")
+
+
+def get_env_or_input(var_name, prompt, secret=False, default_value=""):
+    value = (os.getenv(var_name) or "").strip()
     if value:
-        print_success(f"{var_name} found in environment")
+        success(f"{var_name} loaded from environment")
         return value
-    
-    print_info(f"{var_name} not found in environment")
+
+    if default_value:
+        raw = input(f"{prompt} [{default_value}]: ").strip()
+        return raw or default_value
+
     if secret:
-        import getpass
-        return getpass.getpass(f"Enter {prompt}: ")
+        return getpass.getpass(f"{prompt}: ").strip()
+    return input(f"{prompt}: ").strip()
+
+
+def run_sql(sql, database_url="", pg_container="icoffio-postgres", pg_user="icoffio", pg_db="icoffio", pg_password=""):
+    if database_url:
+        cmd = ["psql", database_url, "-v", "ON_ERROR_STOP=1", "-tAc", sql]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "psql command failed")
+        return result.stdout.strip()
+
+    cmd = ["docker", "exec"]
+    if pg_password:
+        cmd.extend(["-e", f"PGPASSWORD={pg_password}"])
+    cmd.extend([
+        "-i",
+        pg_container,
+        "psql",
+        "-U",
+        pg_user,
+        "-d",
+        pg_db,
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-tAc",
+        sql,
+    ])
+
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "docker exec psql command failed")
+    return result.stdout.strip()
+
+
+def reset_postgres_queue(database_url="", pg_container="icoffio-postgres", pg_user="icoffio", pg_db="icoffio", pg_password=""):
+    print_step(2, 4, "Resetting PostgreSQL queue...")
+    run_sql("DELETE FROM telegram_jobs;", database_url, pg_container, pg_user, pg_db, pg_password)
+    count_raw = run_sql("SELECT COUNT(*) FROM telegram_jobs;", database_url, pg_container, pg_user, pg_db, pg_password)
+    count = int((count_raw or "0").strip())
+    if count == 0:
+        success("Queue is empty (0 jobs)")
     else:
-        return input(f"Enter {prompt}: ").strip()
+        warning(f"Queue still contains {count} jobs")
 
-def reset_supabase_queue(supabase_url, service_key):
-    """Reset Telegram queue in Supabase"""
-    print_step(2, 4, "Resetting Supabase queue...")
-    
-    # Extract project ID
-    project_id = supabase_url.split('//')[1].split('.')[0]
-    print_info(f"Project ID: {project_id}")
-    
-    headers = {
-        'apikey': service_key,
-        'Authorization': f'Bearer {service_key}',
-        'Content-Type': 'application/json'
-    }
-    
-    # Delete all jobs
-    print_info("Deleting all jobs from telegram_jobs...")
-    try:
-        response = requests.delete(
-            f"{supabase_url}/rest/v1/telegram_jobs?id=not.is.null",
-            headers=headers
-        )
-        if response.status_code in [200, 204]:
-            print_success("All jobs deleted")
-        else:
-            print_warning(f"Delete response: {response.status_code} - {response.text[:100]}")
-    except Exception as e:
-        print_error(f"Failed to delete jobs: {e}")
-    
-    # Verify queue is empty
-    print_info("Verifying queue is empty...")
-    try:
-        response = requests.get(
-            f"{supabase_url}/rest/v1/telegram_jobs?select=count",
-            headers=headers
-        )
-        data = response.json()
-        if len(data) == 0 or (isinstance(data, list) and len(data) == 0):
-            print_success("Queue is empty (0 jobs)")
-            return True
-        else:
-            print_warning(f"Queue count: {data}")
-            return True
-    except Exception as e:
-        print_error(f"Failed to verify queue: {e}")
-        return False
 
-def manage_webhook(bot_token, secret_token):
-    """Manage Telegram webhook"""
+def manage_webhook(bot_token, secret_token, webhook_base_url):
     print_step(3, 4, "Managing Telegram webhook...")
-    
     api_url = f"https://api.telegram.org/bot{bot_token}"
-    webhook_base_url = (
-        os.getenv('TELEGRAM_WEBHOOK_BASE_URL')
-        or os.getenv('NEXT_PUBLIC_SITE_URL')
-        or "https://web.icoffio.com"
-    ).rstrip('/')
-    webhook_url = f"{webhook_base_url}/api/telegram-simple/webhook"
-    
-    # Get current webhook info
-    print_info("Fetching current webhook info...")
-    try:
-        response = requests.get(f"{api_url}/getWebhookInfo")
-        webhook_info = response.json()
-        print_info(f"Current webhook: {json.dumps(webhook_info, indent=2)}")
-    except Exception as e:
-        print_warning(f"Failed to get webhook info: {e}")
-    
-    # Delete existing webhook
-    print_info("Deleting existing webhook...")
-    try:
-        response = requests.post(f"{api_url}/deleteWebhook")
-        delete_result = response.json()
-        if delete_result.get('ok'):
-            print_success("Webhook deleted")
-        else:
-            print_warning(f"Delete response: {delete_result}")
-    except Exception as e:
-        print_error(f"Failed to delete webhook: {e}")
-    
+    webhook_url = f"{webhook_base_url.rstrip('/')}/api/telegram-simple/webhook"
+
+    response = requests.get(f"{api_url}/getWebhookInfo", timeout=20)
+    info(f"Current webhook: {response.json().get('result', {}).get('url', 'none')}")
+
+    response = requests.post(f"{api_url}/deleteWebhook", timeout=20)
+    if response.json().get("ok"):
+        success("Webhook deleted")
+    else:
+        warning(f"Delete response: {response.json()}")
+
     time.sleep(2)
-    
-    # Set new webhook
-    print_info("Setting new webhook...")
-    webhook_data = {
-        'url': webhook_url,
-        'secret_token': secret_token,
-        'allowed_updates': ['message', 'callback_query'],
-        'max_connections': 40,
-        'drop_pending_updates': True
-    }
-    
-    try:
-        response = requests.post(
-            f"{api_url}/setWebhook",
-            json=webhook_data
-        )
-        set_result = response.json()
-        
-        if set_result.get('ok'):
-            print_success("Webhook set successfully")
-        else:
-            print_error("Failed to set webhook")
-            print_info(f"Response: {set_result}")
-            return False
-    except Exception as e:
-        print_error(f"Failed to set webhook: {e}")
-        return False
-    
+
+    response = requests.post(
+        f"{api_url}/setWebhook",
+        json={
+            "url": webhook_url,
+            "secret_token": secret_token,
+            "allowed_updates": ["message", "callback_query"],
+            "max_connections": 40,
+            "drop_pending_updates": True,
+        },
+        timeout=20,
+    )
+    result = response.json()
+    if not result.get("ok"):
+        raise RuntimeError(f"Failed to set webhook: {result}")
+    success("Webhook set successfully")
+
     time.sleep(2)
-    
-    # Verify webhook
-    print_info("Verifying new webhook...")
-    try:
-        response = requests.get(f"{api_url}/getWebhookInfo")
-        new_webhook_info = response.json()
-        
-        if new_webhook_info.get('result', {}).get('url') == webhook_url:
-            print_success("Webhook verified")
-            print_info(f"Webhook info:\n{json.dumps(new_webhook_info, indent=2)}")
-            return True
-        else:
-            print_warning("Webhook verification unclear")
-            print_info(f"Response: {json.dumps(new_webhook_info, indent=2)}")
-            return True
-    except Exception as e:
-        print_warning(f"Failed to verify webhook: {e}")
-        return True
+
+    response = requests.get(f"{api_url}/getWebhookInfo", timeout=20)
+    current = response.json().get("result", {}).get("url", "")
+    if current == webhook_url:
+        success("Webhook verified")
+    else:
+        warning(f"Webhook mismatch. Expected: {webhook_url}, got: {current}")
+
 
 def main():
     print_header()
-    
-    # Step 1: Load environment
-    print_step(1, 4, "Loading environment...")
-    load_dotenv('.env.local')
-    
-    # Get required variables
-    print_info("Checking required variables...")
-    
-    try:
-        bot_token = get_env_or_input(
-            'TELEGRAM_BOT_TOKEN',
-            'Telegram Bot Token (from @BotFather)',
-            secret=True
-        )
-        
-        secret_token = get_env_or_input(
-            'TELEGRAM_SECRET_TOKEN',
-            'Telegram Secret Token (any random string)',
-            secret=True
-        )
-        
-        supabase_url = get_env_or_input(
-            'NEXT_PUBLIC_SUPABASE_URL',
-            'Supabase URL (https://xxx.supabase.co)',
-            secret=False
-        )
-        
-        service_key = get_env_or_input(
-            'SUPABASE_SERVICE_ROLE_KEY',
-            'Supabase Service Role Key',
-            secret=True
-        )
-    except KeyboardInterrupt:
-        print(f"\n\n{RED}❌ Cancelled by user{NC}")
-        sys.exit(1)
-    
-    print_success("All variables collected")
-    
-    # Step 2: Reset Supabase queue
-    if not reset_supabase_queue(supabase_url, service_key):
-        print_error("Failed to reset queue")
-        sys.exit(1)
-    
-    # Step 3: Manage webhook
-    if not manage_webhook(bot_token, secret_token):
-        print_error("Failed to manage webhook")
-        sys.exit(1)
-    
-    # Step 4: Final status
-    print_step(4, 4, "Final status")
-    print(f"\n{BLUE}{'=' * 50}{NC}")
-    print(f"{GREEN}{BOLD}✅ TELEGRAM BOT RESET COMPLETED!{NC}")
-    print(f"{BLUE}{'=' * 50}{NC}\n")
-    
-    print(f"{BOLD}📊 Summary:{NC}")
-    print("  ✅ Supabase queue reset (0 jobs)")
-    print("  ✅ Webhook deleted")
-    print("  ✅ Webhook recreated")
-    print("  ✅ Webhook verified")
-    print()
-    
-    print(f"{BOLD}🧪 Next: Test in Telegram{NC}")
-    print()
-    print("1. Open your Telegram bot")
-    print("2. Send: /start")
-    print("3. Send text: AI revolutionizes education.")
-    print("4. Wait 5-15 seconds")
-    print("5. You should receive article URLs")
-    print()
-    
-    print(f"{BOLD}📊 Monitor logs:{NC}")
-    print("  Vercel: https://vercel.com/andreys-projects-a55f75b3/icoffio-front/logs")
-    print("  Supabase: https://supabase.com/dashboard/project/dlellopouivlmbrmjhoz")
-    print()
-    
-    print(f"{GREEN}Done! 🚀{NC}\n")
+    load_dotenv(".env.local")
+    load_dotenv(".env.production")
 
-if __name__ == '__main__':
+    print_step(1, 4, "Collecting settings...")
+
+    bot_token = get_env_or_input(
+        "TELEGRAM_BOT_TOKEN",
+        "Telegram Bot Token",
+        secret=True,
+    )
+    secret_token = get_env_or_input(
+        "TELEGRAM_SECRET_TOKEN",
+        "Telegram Secret Token",
+        secret=True,
+    )
+    webhook_base_url = get_env_or_input(
+        "TELEGRAM_WEBHOOK_BASE_URL",
+        "Webhook base URL (e.g. https://web.icoffio.com)",
+        default_value=os.getenv("NEXT_PUBLIC_SITE_URL", "https://web.icoffio.com"),
+    )
+
+    database_url = get_env_or_input("DATABASE_URL", "DATABASE_URL (leave empty to use Docker)", secret=False, default_value="")
+
+    pg_container = "icoffio-postgres"
+    pg_user = "icoffio"
+    pg_db = "icoffio"
+    pg_password = ""
+
+    if not database_url:
+        pg_container = get_env_or_input("POSTGRES_CONTAINER", "Postgres container name", default_value="icoffio-postgres")
+        pg_user = get_env_or_input("POSTGRES_USER", "Postgres user", default_value="icoffio")
+        pg_db = get_env_or_input("POSTGRES_DB", "Postgres database", default_value="icoffio")
+        pg_password = get_env_or_input("POSTGRES_PASSWORD", "Postgres password (optional)", secret=True, default_value="")
+
+    success("Settings collected")
+
+    reset_postgres_queue(database_url, pg_container, pg_user, pg_db, pg_password)
+    manage_webhook(bot_token, secret_token, webhook_base_url)
+
+    print_step(4, 4, "Final status")
+    print(f"\n{GREEN}{BOLD}✅ TELEGRAM BOT RESET COMPLETED!{NC}")
+    print("Summary:")
+    print("  ✅ PostgreSQL queue reset")
+    print("  ✅ Webhook recreated and verified")
+    print("\nDone! 🚀\n")
+
+
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n\n{RED}❌ Cancelled by user{NC}")
+        print(f"\n{RED}❌ Cancelled by user{NC}")
         sys.exit(1)
-    except Exception as e:
-        print(f"\n{RED}❌ Unexpected error: {e}{NC}")
-        import traceback
-        traceback.print_exc()
+    except Exception as exc:
+        print(f"\n{RED}❌ Error: {exc}{NC}")
         sys.exit(1)

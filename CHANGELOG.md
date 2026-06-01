@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.19.1] - 2026-06-02 - 🧽 Supabase → PostgreSQL doc/script cleanup
+
+Patch release — runtime unchanged, ships legally-correct cookies page + finalized dev scripts.
+
+### Fixed
+- **User-facing cookies page (EN + PL)** still mentioned Supabase as a third-party data platform — wrong since the v10.x PostgreSQL migration. Replaced with "PostgreSQL (Self-hosted Data Platform) — server-side only (no browser cookie domain)".
+
+### Docs / DX
+- `.env.example`: documented real `DATABASE_URL` / `POSTGRES_USER` / `POSTGRES_DB` / `POSTGRES_PASSWORD`; Supabase block marked deprecated (kept commented for legacy script compat).
+- `scripts/telegram-config.example.json`: `supabase` block → `database` (postgres URL + container vars).
+- `scripts/vps-docker-deploy.sh`: now hard-fails if `TELEGRAM_BOT_TOKEN` / webhook secret / `DATABASE_URL` are missing (previously silent).
+- `scripts/telegram-reset-{auto,interactive,simple}.{sh,py}`, `clean-problematic-articles.{js,ts}`, `sanitize-published-articles.js`, `README_TELEGRAM_RESET.md`: refactored to `pg` / `DATABASE_URL`; dropped Supabase client deps.
+
+### Net diff
+−456 LOC (−1012 deleted / +556 added).
+
+### Validation
+- tsc OK · vitest 194/194 · lint 0 errors · build OK · prod smoke 8/8 → 200.
+
+### Confidence
+**HIGH** — pure docs/scripts cleanup. No runtime/API surface changes. Cookies page is a static `<p>`-text update (verified diff).
+
 ## [10.19.0] - 2026-05-22 - 🧹 P3: webhook decomposition + tests
 
 Finishes the audit backlog (P3 — maintainability).

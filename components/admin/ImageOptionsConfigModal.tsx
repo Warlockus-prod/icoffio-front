@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
 interface ImageOptionsConfigModalProps {
   isOpen: boolean;
@@ -36,6 +37,9 @@ export default function ImageOptionsConfigModal({
     `Professional editorial image for "${articleTitle}", modern technology style, high quality`,
     `Abstract illustration representing "${articleTitle}", minimalist design, vibrant colors`
   ]);
+
+  // v10.20.0: WCAG focus trap (hook MUST run before early-return)
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   if (!isOpen) return null;
 
@@ -84,7 +88,13 @@ export default function ImageOptionsConfigModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60] overflow-y-auto">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Configure image generation"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60] overflow-y-auto"
+    >
       <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col my-8">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-600">

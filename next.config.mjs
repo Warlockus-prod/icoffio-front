@@ -30,6 +30,36 @@ const nextConfig = {
     ]
   },
   async headers() {
+    // v10.20.0: added Content-Security-Policy.
+    //
+    // Policy must allow the live integrations the site actually uses:
+    //   - VOX SSP advertising — vox-cdn.com, vox.com, doubleclick, googletagservices
+    //   - Google Tag Manager / Analytics — googletagmanager.com, google-analytics.com
+    //   - Unsplash images — images.unsplash.com
+    //   - Vercel Blob (admin uploads) — public.blob.vercel-storage.com
+    //   - YouTube embeds — youtube.com, ytimg.com
+    //   - Self-hosted everything else
+    //
+    // 'unsafe-inline' on script-src is required by Next.js for hydration scripts.
+    // 'unsafe-eval' is required by react-dev-tools in dev — kept narrow to script-src.
+    // Report-Only is NOT used: we ship enforcing policy because the allow-list
+    // was hand-verified against the components/AdManager and StructuredData files.
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.vox.com https://*.vox-cdn.com https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self' https://*.vox.com https://*.vox-cdn.com https://www.google-analytics.com https://*.doubleclick.net https://api.openai.com https://api.unsplash.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://*.vox.com",
+      "media-src 'self' https: data:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "upgrade-insecure-requests",
+    ].join('; ');
+
     return [
       {
         source: '/:path*',
@@ -41,6 +71,7 @@ const nextConfig = {
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
           { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
           { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
+          { key: 'Content-Security-Policy', value: csp },
         ],
       },
     ];

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -681,9 +682,18 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
     );
   }
 
+  // v10.20.0: WCAG focus trap — modal is always open while mounted
+  const dialogRef = useFocusTrap<HTMLDivElement>(true);
+
   // ===== RENDER =====
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Article creator"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+    >
       <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-700">
         
         {/* ===== HEADER ===== */}

@@ -39,7 +39,7 @@ export function FeedColumn({
           // Next.js image proxy. We trust admin-curated URLs in info_feeds.icon_url.
           <Image
             src={feed.icon_url}
-            alt=""
+            alt={`${displayTitle} icon`}
             width={20}
             height={20}
             unoptimized
@@ -97,7 +97,7 @@ export function FeedColumn({
                     // RSS item thumbnails — arbitrary domains, unoptimized to avoid wildcard remotePatterns.
                     <Image
                       src={item.image_url}
-                      alt=""
+                      alt={localizedItemTitle(item, locale)}
                       width={400}
                       height={128}
                       unoptimized

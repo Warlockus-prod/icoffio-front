@@ -21,6 +21,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    # v10.20.0: bound resource usage so a runaway query can't OOM-kill the host.
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.5"
+        reservations:
+          memory: 512M
     logging:
       driver: "json-file"
       options:
@@ -54,6 +62,15 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    # v10.20.0: bound resource usage. Next.js process + caches typically sit at 400-600MB;
+    # 1.5G ceiling leaves headroom for build-time/ISR spikes without risking host OOM.
+    deploy:
+      resources:
+        limits:
+          memory: 1500M
+          cpus: "1.5"
+        reservations:
+          memory: 512M
     logging:
       driver: "json-file"
       options:

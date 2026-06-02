@@ -14,6 +14,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
 // ─── Types ────────────────────────────────────────────
 
@@ -356,10 +357,19 @@ export default function ImagePickerModal({
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
+  // v10.20.0: WCAG focus trap
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pick image"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    >
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">

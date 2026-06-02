@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { ImageOption } from '@/lib/stores/admin-store';
 import toast from 'react-hot-toast';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
 /**
  * 🖼️ IMAGE SELECTION MODAL v8.2.0
@@ -221,6 +222,9 @@ export default function ImageSelectionModal({
     }
   }, [handleFileUpload]);
 
+  // v10.20.0: WCAG focus trap — keeps Tab inside the dialog, restores focus on close.
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
+
   // v10.7.0: early-return placed AFTER all hooks above to satisfy rules-of-hooks.
   if (!isOpen) return null;
 
@@ -286,7 +290,13 @@ export default function ImageSelectionModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-sm">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Select article image"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-sm"
+    >
       <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col my-8 shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">

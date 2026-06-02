@@ -506,16 +506,13 @@ async function resolveRoleByEmail(
     return null;
   }
 
+  // v10.20.0: tightened — bootstrap requires explicit whitelist (ADMIN_BOOTSTRAP_EMAILS
+  // or ADMIN_OWNER_EMAILS). The previous "open bootstrap when table is empty"
+  // flag (ADMIN_ENABLE_OPEN_BOOTSTRAP) was removed: if the role table is ever
+  // wiped (DB restore, accidental TRUNCATE), an attacker with any email could
+  // self-promote to admin. Now bootstrap is whitelist-only — always.
   const bootstrapEmails = Array.from(new Set([...getBootstrapEmails(), ...getConfiguredOwnerEmails()]));
-  const isExplicitBootstrap = bootstrapEmails.includes(normalizedEmail);
-
-  let canOpenBootstrap = false;
-  if (!isExplicitBootstrap && process.env.ADMIN_ENABLE_OPEN_BOOTSTRAP === 'true') {
-    const rowCount = await countRoleRows();
-    canOpenBootstrap = rowCount === 0;
-  }
-
-  if (!isExplicitBootstrap && !canOpenBootstrap) {
+  if (!bootstrapEmails.includes(normalizedEmail)) {
     return null;
   }
 

@@ -22,6 +22,14 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
+# v10.20.0: drop root.
+# `node` user (uid=1000) ships with node:20-bookworm-slim. Make /app writeable
+# for it (Next.js needs .next/cache writeable for ISR) and ensure runtime-logs/
+# exists so the volume mount lands on a real directory.
+RUN mkdir -p /app/runtime-logs \
+  && chown -R node:node /app
+USER node
+
 EXPOSE 4200
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \

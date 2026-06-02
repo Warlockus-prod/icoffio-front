@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.0] - 2026-06-02 - 🛡️ Audit cleanup: security + a11y + infra hardening
+
+Acts on the v10.19.1 full audit. Every "P1" agent finding was personally
+verified (some were false alarms — see notes) before being acted on.
+
+### 🔐 Security — P1
+- **S2**: Telegram webhook now requires secret token in **all** environments. Previously a non-prod (`NODE_ENV !== 'production'`) request without `x-telegram-bot-api-secret-token` was silently accepted, letting anyone forge a Telegram message and trigger article creation in dev/staging.
+- **S3**: Revalidate-token moved from query string to JSON body in `app/api/admin/publish-article`. Prevents the secret from leaking into web-server access logs and `Referer` headers.
+- **S1**: Removed the `ADMIN_ENABLE_OPEN_BOOTSTRAP` "open registration when role table is empty" path. Bootstrap is now whitelist-only (`ADMIN_BOOTSTRAP_EMAILS` / `ADMIN_OWNER_EMAILS`) — closes the foot-gun where a DB restore / accidental TRUNCATE would let any email self-promote to admin.
+
+### 🔐 Security — P2
+- **S4**: Added `Content-Security-Policy` header in `next.config.mjs`. Whitelist hand-built against the live integrations (VOX SSP ads, Google Tag Manager / GA, Unsplash, Vercel Blob, YouTube embeds, OpenAI). Enforcing (not Report-Only) — verified ad components against the policy.
+
+### 🐳 Infra — P1 / P2
+- **I1**: Container now runs as **non-root** (`USER node`, uid=1000). Dockerfile chowns `/app` and creates `/app/runtime-logs` for the bind-mount. Reduces blast radius if the app process is compromised.
+- **I3**: Added resource limits in `docker-compose.vps.yml` — `icoffio-front-app`: 1.5G/1.5cpu, `postgres`: 2G/1.5cpu. Stops a runaway query/build from OOM-killing the host.
+
+### ♿ Accessibility — P1
+- **F1**: Added `role="dialog"` + `aria-modal="true"` + `useFocusTrap` to **6 modal components** that previously had none: `ImageSelectionModal`, `ImagePickerModal`, `ImageOptionsConfigModal`, `ArticleCreatorModal`, `FeedbackModal` (form + success screens), and `ParsingProgressModal` (uses `role="status" aria-live="polite"` since it's a toast, not a true dialog).
+
+### ♿ Accessibility — P2
+- **F2**: Replaced empty `alt=""` with meaningful text on three content images — `FeedColumn` feed-icon + item-thumbnail, `InfoHome` board icon.
+
+### 🧹 Cleanup — P3
+- **Q1**: Removed `jsdom` from `package.json` (0 importers, verified).
+- **Q2**: Deleted `lib/admin-i18n.ts` (0 importers, verified).
+
+### 🔍 Audit false alarms (verified, NOT changed)
+Several agent-reported "criticals" were objectively wrong:
+- "3752 `: any` types" → **308** (agent counted every `any` literal including comments/strings).
+- "430 silent catch blocks" → **0** truly empty (all have at least a comment).
+- "translation-service / image-service / pg-query-builder DEAD" → **alive** (each has 1 importer via relative `./` path; the absolute-path grep missed them).
+- "X-Content-Type-Options missing" → **present** (`x-content-type-options: nosniff` confirmed live).
+- "Image 1.57 GB" → **360 MB** (agent looked at the wrong artifact).
+- "web_vitals / errors_log not written" → **populated** (2260 / 38 rows, last write 1 min before the audit).
+
+### 🧪 Validation
+- `npx tsc --noEmit` — OK
+- `npx vitest run` — 194/194 OK
+- `npx next lint` — 0 errors
+- `npm run build` — OK
+- Prod smoke (post-deploy) — to verify in next step
+
+### 🔐 Confidence
+**HIGH** on every shipped change. CSP policy is the only deployment-risk item — the allow-list was built from a manual sweep of `components/AdManager.tsx`, `components/StructuredData.tsx`, and the `images.unsplash.com` / `public.blob.vercel-storage.com` patterns; ad rendering will be re-verified post-deploy. Rollback = revert this commit.
+
 ## [10.19.1] - 2026-06-02 - 🧽 Supabase → PostgreSQL doc/script cleanup
 
 Patch release — runtime unchanged, ships legally-correct cookies page + finalized dev scripts.

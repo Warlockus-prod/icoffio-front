@@ -308,21 +308,17 @@ function verifyTelegramRequest(request: NextRequest): {
   );
 
   if (configuredSecrets.length === 0) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error(
-        '[TelegramSimple] Secret token is not configured in production; webhook request rejected'
-      );
-      return {
-        ok: false,
-        status: 503,
-        error: 'Webhook secret token is not configured',
-      };
-    }
-
-    console.warn(
-      '[TelegramSimple] Secret token is not configured; request accepted only in non-production mode'
+    // v10.20.0: reject in ALL environments — previously non-prod accepted any request,
+    // which let anyone forge Telegram messages and create articles in dev/staging.
+    // For local development, set TELEGRAM_SECRET_TOKEN to any value in .env.local.
+    console.error(
+      '[TelegramSimple] Secret token is not configured; webhook request rejected'
     );
-    return { ok: true, status: 200 };
+    return {
+      ok: false,
+      status: 503,
+      error: 'Webhook secret token is not configured',
+    };
   }
 
   if (configuredSecrets.length > 1) {

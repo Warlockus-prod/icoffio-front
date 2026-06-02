@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useToast } from '@/components/ToastNotification';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
 // Module-level console error buffer (not React state to avoid re-renders)
 const consoleErrors: string[] = [];
@@ -278,6 +279,9 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
     setStep('form');
   };
 
+  // v10.20.0: WCAG focus trap — hook MUST be before any early-return
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen && !isCapturing);
+
   if (!isOpen && !isCapturing) return null;
 
   // During capture — hide the modal completely
@@ -287,6 +291,10 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
   if (step === 'success') {
     return (
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isPl ? 'Zgłoszenie wysłane' : 'Feedback sent'}
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
@@ -325,6 +333,10 @@ export function FeedbackModal({ isOpen, onClose, locale = 'en' }: FeedbackModalP
 
   return (
     <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={isPl ? 'Zgłoś problem' : 'Report feedback'}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget && !isSubmitting) onClose(); }}
     >

@@ -57,7 +57,12 @@ export default function ParsingProgressModal({
   const minimized = isMinimized || localMinimized;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 transition-all duration-300">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Article parsing progress"
+      className="fixed bottom-6 right-6 z-50 transition-all duration-300"
+    >
       <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-blue-500 transition-all duration-300 ${
         minimized ? 'w-80' : 'w-[500px]'
       }`}>

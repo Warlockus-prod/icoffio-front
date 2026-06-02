@@ -194,7 +194,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
                     // unoptimized as defense in depth for legacy uploads from arbitrary domains.
                     <Image
                       src={board.icon_url}
-                      alt=""
+                      alt={`${localizedBoardTitle(board, locale)} icon`}
                       width={64}
                       height={64}
                       unoptimized

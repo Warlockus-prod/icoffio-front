@@ -160,14 +160,18 @@ export async function POST(request: NextRequest) {
     const postUrl = `${frontendUrl}/${language}/article/${slug}`;
 
     // Revalidate Next.js pages
+    // v10.20.0: pass secret + paths via JSON body (not querystring) — prevents the
+    // token from leaking into access logs / Referer headers.
     try {
       const revalidateToken = process.env.REVALIDATE_TOKEN || process.env.REVALIDATE_SECRET;
       if (revalidateToken) {
-        await fetch(`${frontendUrl}/api/revalidate?secret=${encodeURIComponent(revalidateToken)}&path=/${language}/article/${slug}`, {
-          method: 'POST'
-        });
-        await fetch(`${frontendUrl}/api/revalidate?secret=${encodeURIComponent(revalidateToken)}&path=/${language}`, {
-          method: 'POST'
+        await fetch(`${frontendUrl}/api/revalidate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            secret: revalidateToken,
+            paths: [`/${language}/article/${slug}`, `/${language}`],
+          }),
         });
         console.log(`[Publish] ✅ Revalidated pages for ${slug}`);
       } else {

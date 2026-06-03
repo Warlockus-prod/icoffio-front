@@ -12,8 +12,13 @@ every broken URL + comparing DB `feed_type` against the actual feed format.
 - **feed_type mismatch (the big one)**: the parser trusted the DB `feed_type` column, which was wrong for many feeds — The Verge & all Reddit feeds are stored as `rss` but serve Atom (`<entry>`); TechMeme & HuggingFace are stored as `atom` but serve RSS (`<item>`). Result: `parseRss` looked for `<item>` in an Atom doc (or vice-versa) and extracted **0 items**. Now the parser tries the hinted format first, then **falls back to the other format** — auto-detecting regardless of the DB value. Revives The Verge, TechMeme, HuggingFace, and every Reddit feed at once.
 - **Bot User-Agent blocked**: replaced `InfoPortal/1.0` with a realistic Chrome UA + `Accept` header + explicit `redirect: 'follow'`. The old bot UA got 403 / HTML challenge pages from Reddit, Cloudflare-fronted sites, etc.
 
-### Still broken (genuinely dead URLs — to be deactivated/replaced separately)
-- Reuters (`feeds.reuters.com` → DNS dead), AP News (rsshub 403), Anthropic (404), several RU Telegram-bridge feeds (`000`), РБК/Фонтанка/DTF (404). These need new URLs or deactivation — separate data cleanup.
+### Fixed — Telegram feeds blocked by own SSRF guard (`lib/utils/url-guard.ts`)
+- The 6 Telegram-channel feeds (эйай ньюз, Denis Sexy IT, ForkLog, Нейросети, ai_volution, Варламов) point at the self-hosted **RSSHub** bridge on `http://172.17.0.1:1200` (docker0 gateway). That's an RFC-1918 private IP, so the SSRF guard added in the security pass blocked every fetch before it left the app (`last_fetched_at` stayed NULL). RSSHub itself was healthy the whole time.
+- Fix: `SSRF_ALLOWED_INTERNAL_HOSTS` env allowlist (exact `host:port`, checked before the private-IP rejection). Does NOT widen the RFC-1918 block — only the one declared RSSHub endpoint. Set `SSRF_ALLOWED_INTERNAL_HOSTS=172.17.0.1:1200` on the VPS.
+- Result: all 6 Telegram feeds revived (Варламов 0→54, ForkLog 0→58, Denis Sexy IT 0→37, ai_volution 0→37, эйай ньюз 0→29, Нейросети 0→10).
+
+### Net result
+- Healthy feeds (fresh < 24h): **73 → 101**. Remaining ~9 (Kotaku, Y Combinator, Lil'Log, The Gradient, Papers with Code, Indie Hackers, Designmodo, WirtualneMedia×2) return 200+items and revive on the next scheduled cron pass. ~6 are genuinely dead external URLs (Reuters DNS-dead, AP News rsshub-403, Anthropic 404, The Batch 404, Havas 403, РБК/Фонтанка/DTF) — need replacement URLs or deactivation via admin.
 
 ### Validation
 - tsc OK; deployed; feed fetch re-run to measure recovered feeds (see deploy notes).

@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.3] - 2026-06-03 - 🔗 Revive dead feed sources (data fix)
+
+Replaced the genuinely-dead feed URLs found in the audit with working
+alternatives (probed live), deactivated the unfixable. **Data-only change**
+(no code deploy) — applied via `scripts/fix-dead-feeds-20260603.sql`.
+
+### Revived (URL replaced, items flowing again)
+- **Reuters** → Google News `site:reuters.com` (the old `feeds.reuters.com` is DNS-dead — Reuters dropped public RSS). 0 → 30.
+- **AP News** → self-hosted RSSHub `/apnews/...` (public rsshub.app was 403). 0 → 30.
+- **Anthropic** → self-hosted RSSHub `/anthropic/news` (anthropic.com/feed.xml 404). 0 → 10.
+- **DTF Игры** → `/rss/all` (was `/rss/games` → 404). 0 → 12.
+- **РБК** → `/news/30/full.rss` (was `/news/20/` → 404). Verified 200×30; populates on next cron pass.
+
+### Deactivated (no working RSS found — niche, low loss)
+- **Фонтанка** (all RSS paths 404), **The Batch / deeplearning.ai** (feed 404/500), **Havas** (serves HTML, not RSS).
+
+### Net
+Active feeds now serve content from 5 previously-dead sources; 3 dead ones no longer clutter the section with empty columns.
+
 ## [10.20.2] - 2026-06-03 - ⚡ Translation throughput 3×
 
 Audit found even fresh (<7d) feed items had a translation backlog (~15k of 30k

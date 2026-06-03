@@ -16,8 +16,14 @@ feeds stayed at 0 even after their URLs were fixed.
 - Per-feed errors isolated (`.catch` → 0) so one bad feed can't abort the batch.
 - `fetch-feeds` route: explicit `maxDuration = 120` for headroom.
 
-### Also
-- Removed duplicate **IAB Polska** feed (id 140) — it shared block "Media polskie" with id 138 (identical URL, identical 36 items), showing twice on `/pl/info/polska`.
+### Also in this pass
+- Fetch timeout 15s → **25s** — РБК's `full.rss` is slow and timed out at 15s (now 200×30).
+- Removed duplicate **IAB Polska** feed (id 140) — shared block "Media polskie" with id 138 (identical URL + 36 items), showed twice on `/pl/info/polska`.
+- Deactivated 6 anti-bot-walled feeds (Cloudflare 403 / IIS 449, no RSSHub route): Kotaku, Papers with Code, Indie Hackers, Designmodo, WirtualneMedia ×2 — only showed as empty columns. Reversible.
+
+### Final state of the news section
+- **0 "never" feeds** (was 7–14): every active source now returns content.
+- 95 healthy (<24h) + 10 slow (1–7d) = 105 fresh; 9 stale are genuinely rare-publishing blogs (Lil'Log, The Gradient, Y Combinator, AI Snake Oil — publish ~monthly), not bugs.
 
 ### Confidence
 **HIGH** — the tail-starvation hypothesis is consistent with the symptom (same high-id feeds always empty, low-id always fresh) and the sequential loop is confirmed in source. Parallelism is the standard fix.

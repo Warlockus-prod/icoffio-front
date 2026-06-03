@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.4] - 2026-06-03 - 🧪 Lock the feed/SSRF fixes with tests
+
+The v10.20.x fixes touched two critical, previously-untested paths. Added
+regression tests so they can't silently break.
+
+### feed-fetcher refactor + tests
+- Extracted the auto-detect logic into a pure exported `parseFeed(xml, hint)` and exported `parseRss` / `parseAtom`.
+- New `__tests__/feed-parser.test.ts` (10 tests): RSS + Atom extraction, CDATA/entity decoding, and the **mismatch-recovery** cases (hint=rss but body Atom → still parses, and vice-versa) — the exact The Verge / TechMeme bugs.
+
+### url-guard SSRF allowlist tests
+- New cases in `__tests__/url-guard.test.ts` (+5): allowlisted `host:port` passes; same host on a **different port** is still blocked (no range broadening); a different private host stays blocked; with no allowlist the RSSHub host is blocked again; cloud-metadata stays blocked. Guards against a regression turning the allowlist into an open SSRF door.
+
+### Validation
+- tsc OK; **vitest 209/209** (was 194); lint 0 errors.
+
 ## [10.20.3] - 2026-06-03 - 🔗 Revive dead feed sources (data fix)
 
 Replaced the genuinely-dead feed URLs found in the audit with working

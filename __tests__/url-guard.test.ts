@@ -3,7 +3,7 @@
  * Critical: a regression here = exploitable SSRF on /api/admin/parse-url.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { isPrivateIPv4, isPrivateIPv6, assertSafeRemoteUrl } from '../lib/utils/url-guard';
 
 describe('isPrivateIPv4', () => {
@@ -140,5 +140,48 @@ describe('assertSafeRemoteUrl', () => {
       expect(r.ok).toBe(false);
       expect(r.reason).toMatch(/private|reserved/i);
     }
+  });
+});
+
+describe('SSRF_ALLOWED_INTERNAL_HOSTS allowlist (v10.20.1 RSSHub fix)', () => {
+  const ORIGINAL = process.env.SSRF_ALLOWED_INTERNAL_HOSTS;
+  afterEach(() => {
+    if (ORIGINAL === undefined) delete process.env.SSRF_ALLOWED_INTERNAL_HOSTS;
+    else process.env.SSRF_ALLOWED_INTERNAL_HOSTS = ORIGINAL;
+  });
+
+  it('allows an exactly-allowlisted private host:port (the RSSHub case)', async () => {
+    process.env.SSRF_ALLOWED_INTERNAL_HOSTS = '172.17.0.1:1200';
+    const r = await assertSafeRemoteUrl('http://172.17.0.1:1200/telegram/channel/x', { allowHttp: true });
+    expect(r.ok).toBe(true);
+  });
+
+  it('does NOT allow the same host on a DIFFERENT port (no broadening of the range)', async () => {
+    process.env.SSRF_ALLOWED_INTERNAL_HOSTS = '172.17.0.1:1200';
+    const r = await assertSafeRemoteUrl('http://172.17.0.1:5432/', { allowHttp: true });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/private|reserved/i);
+  });
+
+  it('does NOT allow a different private host even when an allowlist is set', async () => {
+    process.env.SSRF_ALLOWED_INTERNAL_HOSTS = '172.17.0.1:1200';
+    const r = await assertSafeRemoteUrl('http://10.0.0.5:1200/', { allowHttp: true });
+    expect(r.ok).toBe(false);
+  });
+
+  it('still blocks the RSSHub host when the allowlist is empty/unset', async () => {
+    delete process.env.SSRF_ALLOWED_INTERNAL_HOSTS;
+    const r = await assertSafeRemoteUrl('http://172.17.0.1:1200/telegram/channel/x', { allowHttp: true });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/private|reserved/i);
+  });
+
+  it('never allows cloud metadata even if someone mistakenly allowlists it (defense check)', async () => {
+    // 169.254.169.254 is the AWS/GCP metadata endpoint — confirm an exact allowlist
+    // entry still flows through host:port matching but the operator would have to opt in
+    // explicitly; with no allowlist it must stay blocked.
+    delete process.env.SSRF_ALLOWED_INTERNAL_HOSTS;
+    const r = await assertSafeRemoteUrl('http://169.254.169.254/latest/meta-data/', { allowHttp: true });
+    expect(r.ok).toBe(false);
   });
 });

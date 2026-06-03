@@ -46,7 +46,7 @@ function cleanHtml(raw: string): string {
   return s;
 }
 
-function parseRss(xml: string): ParsedItem[] {
+export function parseRss(xml: string): ParsedItem[] {
   const items: ParsedItem[] = [];
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
   let match;
@@ -76,7 +76,7 @@ function parseRss(xml: string): ParsedItem[] {
   return items;
 }
 
-function parseAtom(xml: string): ParsedItem[] {
+export function parseAtom(xml: string): ParsedItem[] {
   const items: ParsedItem[] = [];
   const entryRegex = /<entry[\s>]([\s\S]*?)<\/entry>/gi;
   let match;
@@ -102,6 +102,20 @@ function parseAtom(xml: string): ParsedItem[] {
   }
 
   return items;
+}
+
+/**
+ * v10.20.1: parse a feed body auto-detecting RSS vs Atom.
+ *
+ * The DB `feed_type` column is only a HINT — it was frequently wrong (The Verge/
+ * Reddit stored as 'rss' but serve Atom; TechMeme/HuggingFace stored as 'atom'
+ * but serve RSS). So we parse with the hint first, then fall back to the other
+ * format if the primary yields nothing. Pure function — unit-tested.
+ */
+export function parseFeed(xml: string, feedTypeHint: string): ParsedItem[] {
+  const primary = feedTypeHint === 'atom' ? parseAtom(xml) : parseRss(xml);
+  if (primary.length > 0) return primary;
+  return feedTypeHint === 'atom' ? parseRss(xml) : parseAtom(xml);
 }
 
 export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedType: string): Promise<number> {
@@ -134,17 +148,7 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
   }
 
   const xml = await response.text();
-  // v10.20.0: auto-detect RSS vs Atom instead of trusting the DB `feed_type` column,
-  // which was frequently wrong (The Verge/Reddit stored as 'rss' but serve Atom <entry>;
-  // TechMeme/HuggingFace stored as 'atom' but serve RSS <item>). Parse with the hinted
-  // type first, then fall back to the other format if it yields nothing.
-  const primary = feedType === 'atom' ? parseAtom(xml) : parseRss(xml);
-  const items =
-    primary.length > 0
-      ? primary
-      : feedType === 'atom'
-        ? parseRss(xml)
-        : parseAtom(xml);
+  const items = parseFeed(xml, feedType);
 
   let inserted = 0;
   for (const item of items.slice(0, 30)) {

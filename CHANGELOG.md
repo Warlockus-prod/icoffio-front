@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.6] - 2026-06-04 - 🧹 God-file decomposition + Info Portal i18n
+
+Autonomous quality pass (no user input needed).
+
+### Decomposed `app/api/articles/route.ts` (1574 → 1534)
+- Extracted 6 pure helpers (`isLikelyTemporaryImage`, `isPlaceholderImage`, `truncateText`, `normalizeCategory`, `uniqueIssueList`, `isValidHttpUrl`) + the `SupportedCategory` type into `lib/articles/content-helpers.ts`.
+- New `__tests__/article-content-helpers.test.ts` (21 tests) — image/category/url validation now covered. Logic byte-for-byte identical.
+
+### Info Portal i18n
+- Localized the last public-facing hardcoded English strings (EN/PL): `No items yet`, `No feeds configured…`, `No boards configured yet.`, `Failed to load` — via new `infoUiText()` in `lib/info/feed-locale.ts`. Applied in FeedColumn, InfoBoardPage, InfoHome.
+
+### Validation
+- tsc OK; **vitest 230/230** (was 209); lint 0 errors.
+
 ## [10.20.5] - 2026-06-03 - ⚡ Parallel feed fetch (fix systematic tail starvation)
 
 ### The real root cause behind the "feed tail" never updating

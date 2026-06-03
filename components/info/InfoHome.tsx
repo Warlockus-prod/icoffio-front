@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { InfoBoard } from '@/lib/info/types';
 import { InfoThemeToggle } from './InfoThemeToggle';
-import { localizedBoardTitle, localizedBoardSubtitle } from '@/lib/info/feed-locale';
+import { localizedBoardTitle, localizedBoardSubtitle, infoUiText } from '@/lib/info/feed-locale';
 
 const BOARD_ICONS: Record<string, string> = {
   news: '📰',
@@ -147,7 +147,7 @@ export function InfoHome({ locale = 'en' }: { locale?: string } = {}) {
           </div>
         ) : boards.length === 0 && !editMode ? (
           <div className="text-center py-20">
-            <p className="text-xl text-gray-500 dark:text-gray-400">No boards configured yet.</p>
+            <p className="text-xl text-gray-500 dark:text-gray-400">{infoUiText('noBoards', locale)}</p>
           </div>
         ) : (
           <>

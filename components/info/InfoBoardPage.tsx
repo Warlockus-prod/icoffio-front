@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { InfoBoardFull, InfoBlockWithFeeds, InfoFeed, InfoFeedItem } from '@/lib/info/types';
 import { InfoThemeToggle } from './InfoThemeToggle';
 import { FeedColumn } from './FeedColumn';
-import { localizedBlockTitle, localizedBoardTitle, localizedBoardSubtitle } from '@/lib/info/feed-locale';
+import { localizedBlockTitle, localizedBoardTitle, localizedBoardSubtitle, infoUiText } from '@/lib/info/feed-locale';
 
 export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: string }) {
   const [board, setBoard] = useState<InfoBoardFull | null>(null);
@@ -33,7 +33,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
         else setError('Board not found');
         setLoading(false);
       })
-      .catch(() => { setError('Failed to load'); setLoading(false); });
+      .catch(() => { setError(infoUiText('failedToLoad', locale)); setLoading(false); });
   }, [slug]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
@@ -286,7 +286,7 @@ export function InfoBoardPage({ slug, locale = 'en' }: { slug: string; locale?: 
       <main className="max-w-[1400px] mx-auto px-6 pb-12">
         {board.blocks.length === 0 && !editMode ? (
           <div className="text-center py-16 text-gray-400">
-            <p>No feeds configured for this board yet.</p>
+            <p>{infoUiText('noFeeds', locale)}</p>
           </div>
         ) : (
           <div className="space-y-8">

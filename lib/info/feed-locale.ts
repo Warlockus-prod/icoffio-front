@@ -54,3 +54,19 @@ export function localizedItemDescription(item: LocalizableItemDesc, locale: stri
   if (locale === 'en' && item.description_en && item.description_en.trim()) return item.description_en;
   return item.description;
 }
+
+/**
+ * v10.20.6: localized UI chrome for the public Info Portal (empty/error states).
+ * Previously hardcoded in English in the components.
+ */
+const INFO_UI_STRINGS = {
+  noItems: { en: 'No items yet', pl: 'Brak materiałów' },
+  noFeeds: { en: 'No feeds configured for this board yet.', pl: 'Brak skonfigurowanych źródeł dla tej tablicy.' },
+  noBoards: { en: 'No boards configured yet.', pl: 'Brak skonfigurowanych tablic.' },
+  failedToLoad: { en: 'Failed to load', pl: 'Nie udało się załadować' },
+} as const;
+
+export function infoUiText(key: keyof typeof INFO_UI_STRINGS, locale: string): string {
+  const entry = INFO_UI_STRINGS[key];
+  return locale === 'pl' ? entry.pl : entry.en;
+}

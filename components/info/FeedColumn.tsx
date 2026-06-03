@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { InfoFeed, InfoFeedItem } from '@/lib/info/types';
-import { localizedFeedTitle, localizedItemTitle, localizedItemDescription } from '@/lib/info/feed-locale';
+import { localizedFeedTitle, localizedItemTitle, localizedItemDescription, infoUiText } from '@/lib/info/feed-locale';
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -72,7 +72,7 @@ export function FeedColumn({
 
       {/* Articles List */}
       {feed.items.length === 0 ? (
-        <p className="text-xs text-gray-400 italic">No items yet</p>
+        <p className="text-xs text-gray-400 italic">{infoUiText('noItems', locale)}</p>
       ) : (
         <ul className="space-y-1.5">
           {feed.items.map((item) => (

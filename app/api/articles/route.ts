@@ -18,30 +18,24 @@ import { appendServerLog } from '@/lib/server-log-store';
 import { requireAdminRole, type AdminRole } from '@/lib/admin-auth';
 import { createClient, isSupabaseConfigured } from '@/lib/pg-client';
 
-const DEFAULT_PLACEHOLDER_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
-const PLACEHOLDER_IMAGE_MARKERS = [
-  DEFAULT_PLACEHOLDER_IMAGE_MARKER,
-  'photo-1518770660439-4636190af475',
-  'photo-1518709268805-4e9042af2176'
-];
-const isLikelyTemporaryImage = (url?: string): boolean =>
-  Boolean(url && /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(url));
-const isPlaceholderImage = (url?: string): boolean =>
-  Boolean(
-    url &&
-      (PLACEHOLDER_IMAGE_MARKERS.some((marker) => url.includes(marker)) ||
-        isLikelyTemporaryImage(url))
-  );
+// v10.20.6: pure helpers extracted to lib/articles/content-helpers.ts (unit-tested).
+import {
+  type SupportedCategory,
+  isLikelyTemporaryImage,
+  isPlaceholderImage,
+  truncateText,
+  normalizeCategory,
+  uniqueIssueList,
+  isValidHttpUrl,
+} from '@/lib/articles/content-helpers';
+
 const MAX_MULTI_SOURCE_URLS = 5;
 const MAX_SOURCE_CHARS_PER_URL = 5000;
 const MAX_TOTAL_SOURCE_CHARS = 18000;
 const MAX_SOURCE_TEXT_CHARS = 6000;
 const MAX_MANUAL_TEXT_CHARS = 12000;
-const SUPPORTED_CATEGORIES = new Set(['ai', 'apple', 'games', 'tech']);
 // WordPress integration is fully decommissioned for VPS-first architecture.
 const ENABLE_WORDPRESS_PUBLISH = false;
-
-type SupportedCategory = 'ai' | 'apple' | 'games' | 'tech';
 
 // Поддерживаемые действия
 type ActionType = 
@@ -79,40 +73,6 @@ interface MultiSourceDigest {
 interface SourceAttribution {
   label: string;
   url: string;
-}
-
-function truncateText(value: string, maxChars: number): string {
-  if (!value) return '';
-  if (value.length <= maxChars) return value;
-  return `${value.slice(0, maxChars).trim()}\n\n[truncated]`;
-}
-
-function normalizeCategory(input?: string | null, fallback: SupportedCategory = 'tech'): SupportedCategory {
-  if (!input) return fallback;
-  const normalized = input.toLowerCase().trim();
-  if (SUPPORTED_CATEGORIES.has(normalized)) {
-    return normalized as SupportedCategory;
-  }
-  return fallback;
-}
-
-function uniqueIssueList(issues: string[]): string[] {
-  return Array.from(
-    new Set(
-      issues
-        .map((issue) => String(issue || '').trim())
-        .filter(Boolean)
-    )
-  );
-}
-
-function isValidHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 function extractSourceUrls(body: ApiRequest): string[] {

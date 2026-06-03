@@ -79,6 +79,25 @@ const BLOCKED_HOSTNAMES = new Set([
 ]);
 
 /**
+ * v10.20.1: allowlist of trusted INTERNAL services that legitimately live on a
+ * private IP — e.g. the self-hosted RSSHub bridge on the docker0 gateway that
+ * powers the Info Portal's Telegram-channel feeds.
+ *
+ * Format (env SSRF_ALLOWED_INTERNAL_HOSTS): comma-separated `host` or `host:port`.
+ * Matching is EXACT (host, or host:port). This does NOT open the whole RFC-1918
+ * range — only the specific declared endpoints — so the SSRF protection for every
+ * other private address stays intact.
+ *
+ * Example: SSRF_ALLOWED_INTERNAL_HOSTS=172.17.0.1:1200
+ */
+function getAllowedInternalHosts(): string[] {
+  return (process.env.SSRF_ALLOWED_INTERNAL_HOSTS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
  * Validate a user-supplied URL before any server-side fetch.
  *
  * @param raw         — the raw URL string from request body / query
@@ -121,6 +140,16 @@ export async function assertSafeRemoteUrl(
   // Reject named loopback aliases
   if (BLOCKED_HOSTNAMES.has(hostname)) {
     return { ok: false, reason: `Hostname ${hostname} is blocked` };
+  }
+
+  // v10.20.1: allow explicitly-trusted internal services (e.g. self-hosted RSSHub).
+  // Exact host or host:port match — checked BEFORE the private-IP rejection below.
+  const allowedInternal = getAllowedInternalHosts();
+  if (allowedInternal.length > 0) {
+    const port = parsed.port ? `:${parsed.port}` : '';
+    if (allowedInternal.includes(`${hostname}${port}`) || allowedInternal.includes(hostname)) {
+      return { ok: true, reason: 'allowlisted internal host', resolvedIp: hostname };
+    }
   }
 
   // If hostname is already a literal IP — check directly

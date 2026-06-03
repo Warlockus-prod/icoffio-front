@@ -139,7 +139,8 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
       Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
     },
     redirect: 'follow',
-    signal: AbortSignal.timeout(15000),
+    // v10.20.5: 25s (was 15s) — slow feeds like РБК's full.rss timed out at 15s.
+    signal: AbortSignal.timeout(25000),
   });
 
   if (!response.ok) {

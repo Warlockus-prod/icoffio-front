@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.5] - 2026-06-03 - ⚡ Parallel feed fetch (fix systematic tail starvation)
+
+### The real root cause behind the "feed tail" never updating
+`fetchAllFeeds` processed all ~120 active feeds **sequentially** (`await` per feed,
+~1-3s each = 2-6 min total). The single fetch HTTP request hit its timeout before
+reaching the end of the queue, so **high-id feeds (РБК, WirtualneMedia, Kotaku, …)
+were systematically never updated — regardless of URL health**. This is why some
+feeds stayed at 0 even after their URLs were fixed.
+
+### Fixed (`lib/info/feed-fetcher.ts`)
+- Process feeds in **parallel batches of 8** (`Promise.all`). Full pass drops from minutes to ~30s, so every feed is reached every run.
+- Per-feed errors isolated (`.catch` → 0) so one bad feed can't abort the batch.
+- `fetch-feeds` route: explicit `maxDuration = 120` for headroom.
+
+### Also
+- Removed duplicate **IAB Polska** feed (id 140) — it shared block "Media polskie" with id 138 (identical URL, identical 36 items), showing twice on `/pl/info/polska`.
+
+### Confidence
+**HIGH** — the tail-starvation hypothesis is consistent with the symptom (same high-id feeds always empty, low-id always fresh) and the sequential loop is confirmed in source. Parallelism is the standard fix.
+
 ## [10.20.4] - 2026-06-03 - 🧪 Lock the feed/SSRF fixes with tests
 
 The v10.20.x fixes touched two critical, previously-untested paths. Added

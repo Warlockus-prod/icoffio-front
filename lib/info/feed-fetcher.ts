@@ -184,6 +184,13 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
   return inserted;
 }
 
+// v10.20.5: process feeds in parallel batches. The old sequential for-loop took
+// ~1-3s/feed × 120 feeds = 2-6 min, so the single fetch HTTP request hit its
+// timeout before reaching the tail of the queue — feeds with high ids (РБК,
+// WirtualneMedia, …) were SYSTEMATICALLY never updated regardless of URL health.
+// Batched parallelism brings the full pass to ~30s.
+const FETCH_CONCURRENCY = 8;
+
 export async function fetchAllFeeds(): Promise<{ total: number; feeds: number }> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -191,13 +198,17 @@ export async function fetchAllFeeds(): Promise<{ total: number; feeds: number }>
   );
 
   let total = 0;
-  for (const feed of rows) {
-    try {
-      const count = await fetchAndStoreFeed(feed.id, feed.feed_url, feed.feed_type);
-      total += count;
-    } catch (err: any) {
-      console.error(`[FeedFetcher] Feed ${feed.id} error: ${err.message}`);
-    }
+  for (let i = 0; i < rows.length; i += FETCH_CONCURRENCY) {
+    const batch = rows.slice(i, i + FETCH_CONCURRENCY);
+    const counts = await Promise.all(
+      batch.map((feed) =>
+        fetchAndStoreFeed(feed.id, feed.feed_url, feed.feed_type).catch((err: any) => {
+          console.error(`[FeedFetcher] Feed ${feed.id} error: ${err?.message ?? err}`);
+          return 0;
+        }),
+      ),
+    );
+    total += counts.reduce((a, b) => a + b, 0);
   }
 
   return { total, feeds: rows.length };

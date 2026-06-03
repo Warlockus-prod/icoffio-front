@@ -3,6 +3,10 @@ import { fetchAllFeeds, fetchAndStoreFeed } from '@/lib/info/feed-fetcher';
 import { getPool } from '@/lib/pg-pool';
 import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
+// v10.20.5: full parallel fetch pass is ~30s; give headroom.
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 /**
  * Check whether the caller is the VPS cron (presenting INFO_FETCH_SECRET or CRON_SECRET as Bearer).
  * v10.10.1: needed because we added admin-only auth in 10.6.1, then in 10.8.0 replaced Vercel Cron

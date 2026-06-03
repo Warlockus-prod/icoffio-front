@@ -30,8 +30,8 @@ FAIL_FILE="${STATE_DIR}/consecutive_fails"
 DOWN_FILE="${STATE_DIR}/is_down"            # marker: we've already alerted about current outage
 LAST_RESTART_FILE="${STATE_DIR}/last_restart"
 
-FAIL_THRESHOLD=3        # consecutive 1-min failures before restarting
-RESTART_COOLDOWN=600    # seconds: don't restart more than once per 10 min
+FAIL_THRESHOLD=2        # consecutive failures before restarting (runs every 15 min → ~30 min max downtime)
+RESTART_COOLDOWN=1800   # seconds: don't restart more than once per 30 min
 CURL_TIMEOUT=15
 
 mkdir -p "${STATE_DIR}"

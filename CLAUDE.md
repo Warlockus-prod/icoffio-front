@@ -37,6 +37,10 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 - ⚠️ `.env.production` is **gitignored** as of v10.6.3 — historically it was tracked as a 53-byte placeholder which `git reset --hard` would blow away. If a fresh checkout has no `.env.production`, restore from a backup like `/root/projects/icoffio-front.predeploy-*` or rebuild from `.env.example`.
 - DB migrations: apply via `docker exec -i icoffio-postgres psql -U icoffio -d icoffio -v ON_ERROR_STOP=1 < supabase/migrations/<name>.sql`
 
+### VPS cron suite (`/etc/cron.d/icoffio-*`)
+- `icoffio-worker` (every min) · `icoffio-fetch-feeds` (30 min) · `icoffio-refresh-popularity` (15 min) · `icoffio-translate-items` (2h) · `icoffio-db-backup` (daily 03:30, local-only — owner declined off-site)
+- `icoffio-watchdog` (every min, v10.20.0): self-healing. Pings `web.icoffio.com/api/health`; after 3 consecutive failures restarts the app container (covers hung-but-alive processes Docker's `unless-stopped` won't auto-heal) and alerts via the Telegram bot. Source: `scripts/icoffio-watchdog.sh` → deployed to `/usr/local/bin/`. State in `/var/lib/icoffio-watchdog/`, log `/var/log/icoffio-watchdog.log`. 10-min restart cooldown prevents flapping.
+
 ## Key Files
 
 | Path | Purpose |

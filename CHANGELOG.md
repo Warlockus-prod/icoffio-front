@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.2] - 2026-06-03 - ⚡ Translation throughput 3×
+
+Audit found even fresh (<7d) feed items had a translation backlog (~15k of 30k
+untranslated). Cause: inflow (~5k items/day × 2 langs = ~10k translations needed)
+outpaced the cron capacity (every 2h × 4 cycles ≈ 4.8k/day).
+
+### Changed (`scripts/icoffio-translate-items.sh` + cron)
+- Cron cadence 2h → **hourly**; title cycles 4 → 6, desc cycles 2 → 3.
+- New capacity ≈ **14k titles/day** — covers inflow and chips the backlog.
+- Self-terminating: each batch stops early at `totalScanned:0`, so cost falls back to ~inflow once caught up. Still `days:7`-scoped (old archive intentionally skipped — stale news, low value).
+- Script now versioned in `scripts/` (was VPS-only).
+
+### Note
+Archive (>7d, ~28k untranslated) stays untranslated by design — those are old news items rarely surfaced. A one-off bulk pass can be run on request.
+
 ## [10.20.1] - 2026-06-03 - 📰 Fix news aggregator: feed-type auto-detect + UA
 
 Audit of the Info Portal news section found **40 of 124 active feeds broken**

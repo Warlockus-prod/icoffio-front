@@ -116,7 +116,15 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
   }
 
   const response = await fetch(feedUrl, {
-    headers: { 'User-Agent': 'InfoPortal/1.0' },
+    // v10.20.0: realistic browser User-Agent. The old 'InfoPortal/1.0' bot UA was
+    // blocked (403 / HTML challenge) by Reddit, Cloudflare-fronted sites, etc.,
+    // which made them return 0 parseable items.
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+    },
+    redirect: 'follow',
     signal: AbortSignal.timeout(15000),
   });
 
@@ -126,7 +134,17 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
   }
 
   const xml = await response.text();
-  const items = feedType === 'atom' ? parseAtom(xml) : parseRss(xml);
+  // v10.20.0: auto-detect RSS vs Atom instead of trusting the DB `feed_type` column,
+  // which was frequently wrong (The Verge/Reddit stored as 'rss' but serve Atom <entry>;
+  // TechMeme/HuggingFace stored as 'atom' but serve RSS <item>). Parse with the hinted
+  // type first, then fall back to the other format if it yields nothing.
+  const primary = feedType === 'atom' ? parseAtom(xml) : parseRss(xml);
+  const items =
+    primary.length > 0
+      ? primary
+      : feedType === 'atom'
+        ? parseRss(xml)
+        : parseAtom(xml);
 
   let inserted = 0;
   for (const item of items.slice(0, 30)) {

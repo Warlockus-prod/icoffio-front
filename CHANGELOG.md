@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.1] - 2026-06-03 - 📰 Fix news aggregator: feed-type auto-detect + UA
+
+Audit of the Info Portal news section found **40 of 124 active feeds broken**
+(24 never fetched, 10 dead >30d, 6 stale). Root causes were diagnosed by probing
+every broken URL + comparing DB `feed_type` against the actual feed format.
+
+### Fixed — feed parser (`lib/info/feed-fetcher.ts`)
+- **feed_type mismatch (the big one)**: the parser trusted the DB `feed_type` column, which was wrong for many feeds — The Verge & all Reddit feeds are stored as `rss` but serve Atom (`<entry>`); TechMeme & HuggingFace are stored as `atom` but serve RSS (`<item>`). Result: `parseRss` looked for `<item>` in an Atom doc (or vice-versa) and extracted **0 items**. Now the parser tries the hinted format first, then **falls back to the other format** — auto-detecting regardless of the DB value. Revives The Verge, TechMeme, HuggingFace, and every Reddit feed at once.
+- **Bot User-Agent blocked**: replaced `InfoPortal/1.0` with a realistic Chrome UA + `Accept` header + explicit `redirect: 'follow'`. The old bot UA got 403 / HTML challenge pages from Reddit, Cloudflare-fronted sites, etc.
+
+### Still broken (genuinely dead URLs — to be deactivated/replaced separately)
+- Reuters (`feeds.reuters.com` → DNS dead), AP News (rsshub 403), Anthropic (404), several RU Telegram-bridge feeds (`000`), РБК/Фонтанка/DTF (404). These need new URLs or deactivation — separate data cleanup.
+
+### Validation
+- tsc OK; deployed; feed fetch re-run to measure recovered feeds (see deploy notes).
+
+### Confidence
+**HIGH** on the parser fix — root cause directly confirmed (probed actual feed bytes: `<entry>` vs `<item>` vs DB `feed_type`). Fallback parse is strictly additive (only triggers when primary yields 0). Worst case: a feed that was already 0 stays 0.
+
 ## [10.20.0] - 2026-06-02 - 🛡️ Audit cleanup: security + a11y + infra hardening
 
 Acts on the v10.19.1 full audit. Every "P1" agent finding was personally

@@ -63,6 +63,12 @@ if [ "${code}" = "200" ]; then
     rm -f "${DOWN_FILE}"
   fi
   echo 0 > "${FAIL_FILE}"
+  # v10.20.6: hourly heartbeat so the log proves the watchdog is alive (it is
+  # otherwise silent on success). Writes at most once per hour (minute < 15 with
+  # the */15 cron means the top-of-hour run).
+  if [ "$(date +%M)" -lt 15 ]; then
+    echo "[$(date -u +%FT%TZ)] heartbeat: healthy (HTTP 200)" >> "${HEARTBEAT_LOG:-/var/log/icoffio-watchdog.log}"
+  fi
   exit 0
 fi
 

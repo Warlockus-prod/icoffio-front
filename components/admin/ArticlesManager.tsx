@@ -4,6 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { localArticleStorage, type StoredArticle } from '@/lib/local-article-storage';
 import { getLocalArticles } from '@/lib/local-articles';
 import { adminLogger } from '@/lib/admin-logger';
+import {
+  hasCustomPersistentImage,
+  normalizeArticleImage,
+  getCanonicalSlugKey,
+  getSourceGroup,
+  normalizeViews,
+} from '@/lib/admin/article-display-helpers';
 import { useAdminStore } from '@/lib/stores/admin-store';
 import type { Post } from '@/lib/types';
 import MobileArticleCard from './MobileArticleCard';
@@ -53,7 +60,6 @@ interface TableColumnFilters {
 }
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800';
-const DEFAULT_IMAGE_MARKER = 'photo-1485827404703-89b55fcc595e';
 const TABLE_SETTINGS_STORAGE_KEY = 'icoffio_admin_articles_table_settings_v1';
 const SORTABLE_COLUMNS: SortColumn[] = [
   'title',
@@ -99,67 +105,7 @@ const ESSENTIAL_VISIBLE_COLUMNS = {
   lastEdit: false,
   publishStatus: true,
 };
-const PLACEHOLDER_IMAGE_MARKERS = [
-  DEFAULT_IMAGE_MARKER,
-  'photo-1518770660439-4636190af475',
-  'photo-1518709268805-4e9042af2176'
-];
-
-const isLikelyTemporaryImage = (image?: string): boolean =>
-  Boolean(image && /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(image));
-
-const isKnownPlaceholderImage = (image?: string): boolean =>
-  Boolean(image && PLACEHOLDER_IMAGE_MARKERS.some((marker) => image.includes(marker)));
-
-const hasCustomPersistentImage = (image?: string): boolean =>
-  Boolean(image && !isKnownPlaceholderImage(image) && !isLikelyTemporaryImage(image));
-
-const normalizeArticleImage = (image?: string): string =>
-  image && image.trim() ? image : '';
-
-const getCanonicalSlugKey = (slug: string, language: string): string => {
-  const normalized = slug.trim().toLowerCase();
-  const match = normalized.match(/^(.*?)-(en|pl)(?:-\d+)?$/);
-  if (match) {
-    return `${match[1]}::${match[2]}`;
-  }
-
-  const lang = language === 'pl' ? 'pl' : 'en';
-  return `${normalized.replace(/-\d+$/, '')}::${lang}`;
-};
-
-const getSourceGroup = (source?: string): 'telegram' | 'admin' | 'static' | 'supabase' | 'other' => {
-  if (!source) return 'other';
-  if (source.startsWith('telegram')) return 'telegram';
-  if (source.includes('admin')) return 'admin';
-  if (source.includes('static')) return 'static';
-  if (
-    source.includes('supabase') ||
-    source.includes('url-parse') ||
-    source.includes('text-generate') ||
-    source.includes('api')
-  ) {
-    return 'supabase';
-  }
-  return 'other';
-};
-
-const normalizeViews = (...values: unknown[]): number => {
-  for (const value of values) {
-    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-      return value;
-    }
-
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        return parsed;
-      }
-    }
-  }
-
-  return 0;
-};
+// v10.20.6: pure helpers extracted to lib/admin/article-display-helpers.ts (unit-tested).
 
 export default function ArticlesManager() {
   const [articles, setArticles] = useState<ArticleItem[]>([]);

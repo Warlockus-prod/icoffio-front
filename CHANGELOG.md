@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.7] - 2026-06-04 - 🧹 Decompose ArticlesManager + watchdog heartbeat
+
+### Decomposed `components/admin/ArticlesManager.tsx` (1636 → 1582)
+- Extracted 7 pure helpers (image classification, `getCanonicalSlugKey`, `getSourceGroup`, `normalizeViews`) into `lib/admin/article-display-helpers.ts`.
+- New `__tests__/article-display-helpers.test.ts` (16 tests). Logic identical.
+
+### Watchdog observability
+- Added an hourly heartbeat line so `/var/log/icoffio-watchdog.log` proves the watchdog is alive (it was silent on success). Cleared stale pre-fix EOF errors from the VPS log.
+
+### Validation
+- tsc OK; **vitest 246/246** (was 230); lint 0 errors.
+
 ## [10.20.6] - 2026-06-04 - 🧹 God-file decomposition + Info Portal i18n
 
 Autonomous quality pass (no user input needed).

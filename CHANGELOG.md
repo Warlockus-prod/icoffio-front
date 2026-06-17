@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.8] - 2026-06-04 - 🔐 SECURITY: close public OpenAI endpoint (key-abuse incident)
+
+Incident: OpenAI API key showed unexpected usage ("stolen"). Investigation found
+the key was **never in git** (history clean, not in `NEXT_PUBLIC_*`) — the actual
+vector was an **unauthenticated endpoint burning the key**.
+
+### Fixed — P0
+- **`/api/translate` was PUBLIC** and called OpenAI `gpt-4` (max_tokens 4000). Anyone could POST to `web.icoffio.com/api/translate` and run up the bill. It is the only AI endpoint that lacked auth (all others were already gated). Now requires `editor` role (`requireAdminRole`). Legit callers are all admin components (MassTranslation, TranslationPanel, TestPanel) → no functional impact.
+
+### Fixed — P2
+- `/api/translate` no longer returns the raw error message to the client (OpenAI/SDK errors can echo request fragments) — generic message returned, full error logged server-side.
+- **Unsplash key moved out of the browser bundle**: `lib/image-options-generator.ts` + `image-options/route.ts` now prefer the server-only `UNSPLASH_ACCESS_KEY` over `NEXT_PUBLIC_UNSPLASH_ACCESS_KEY` (the `NEXT_PUBLIC_` form embeds the key in client JS).
+
+### Operator actions required (see chat for steps)
+- Rotate `OPENAI_API_KEY` on server + local (not git). **Revoke the old key in the OpenAI dashboard** — that's what actually stops the abuse.
+- Recommended: rotate all secrets as defense; drop the dead `NEXT_PUBLIC_ADMIN_PASSWORD` env var.
+
+### Validation
+- tsc OK; vitest 246/246; lint 0 errors.
+
 ## [10.20.7] - 2026-06-04 - 🧹 Decompose ArticlesManager + watchdog heartbeat
 
 ### Decomposed `components/admin/ArticlesManager.tsx` (1636 → 1582)

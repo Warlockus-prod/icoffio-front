@@ -102,7 +102,9 @@ export async function fetchUnsplashOptions(
           `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape`,
           {
             headers: {
-              'Authorization': `Client-ID ${process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY}`
+              // SECURITY: prefer the server-only key; NEXT_PUBLIC_* would embed the
+              // Unsplash key into the browser bundle. This lib runs server-side only.
+              'Authorization': `Client-ID ${process.env.UNSPLASH_ACCESS_KEY || process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY}`
             }
           }
         );

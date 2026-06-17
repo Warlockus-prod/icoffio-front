@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -10,6 +11,12 @@ function getOpenAIClient() {
 }
 
 export async function POST(request: NextRequest) {
+  // SECURITY (incident 2026-06): this endpoint calls OpenAI gpt-4 and was PUBLIC —
+  // anyone could POST to it and burn the API key (billing abuse). Now editor-gated,
+  // matching every other AI endpoint. Legit callers are all admin components.
+  const auth = await requireAdminRole(request, 'editor', { allowRefresh: false });
+  if (!auth.ok) return auth.response;
+
   try {
     const { content, targetLanguage, sourceLanguage = 'ru' } = await request.json();
 
@@ -124,16 +131,13 @@ Return the translation in JSON format.`;
     });
 
   } catch (error) {
+    // Log full error server-side; return a generic message to the client so raw
+    // OpenAI/SDK errors (which can echo request fragments) never reach the browser.
     console.error('Translation error:', error);
-    
-    let errorMessage = 'Translation failed';
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
 
     return NextResponse.json({
       success: false,
-      error: errorMessage,
+      error: 'Translation failed',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }

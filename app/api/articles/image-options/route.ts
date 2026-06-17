@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     service: 'Image Options Generator',
     status: 'operational',
     capabilities: {
-      unsplash: !!process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY,
+      unsplash: !!(process.env.UNSPLASH_ACCESS_KEY || process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY),
       ai: !!process.env.OPENAI_API_KEY
     }
   });

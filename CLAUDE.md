@@ -38,7 +38,8 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 - DB migrations: apply via `docker exec -i icoffio-postgres psql -U icoffio -d icoffio -v ON_ERROR_STOP=1 < supabase/migrations/<name>.sql`
 
 ### VPS cron suite (`/etc/cron.d/icoffio-*`)
-- `icoffio-worker` (every min) · `icoffio-fetch-feeds` (30 min) · `icoffio-refresh-popularity` (15 min) · `icoffio-translate-items` (2h) · `icoffio-db-backup` (daily 03:30, local-only — owner declined off-site)
+- `icoffio-worker` (every min) · `icoffio-fetch-feeds` (30 min) · `icoffio-refresh-popularity` (15 min) · `icoffio-translate-items` (hourly :15, v10.20.2) · `icoffio-cleanup-items` (daily 04:00, v10.20.9 — feed-items retention 30d) · `icoffio-db-backup` (daily 03:30, local-only — owner declined off-site)
+- **Feed error visibility (v10.20.9):** `info_feeds.last_error` / `consecutive_failures` track per-feed fetch failures. Ops query: `SELECT id,title,last_error,consecutive_failures FROM info_feeds WHERE is_active AND consecutive_failures>0 ORDER BY consecutive_failures DESC;`
 - `icoffio-watchdog` (every min, v10.20.0): self-healing. Pings `web.icoffio.com/api/health`; after 3 consecutive failures restarts the app container (covers hung-but-alive processes Docker's `unless-stopped` won't auto-heal) and alerts via the Telegram bot. Source: `scripts/icoffio-watchdog.sh` → deployed to `/usr/local/bin/`. State in `/var/lib/icoffio-watchdog/`, log `/var/log/icoffio-watchdog.log`. 10-min restart cooldown prevents flapping.
 
 ## Key Files

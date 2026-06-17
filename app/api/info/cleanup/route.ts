@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg-pool';
 import { requireInfoAdmin } from '@/lib/info/auth-guard';
 
+/** Allow VPS cron (Bearer INFO_FETCH_SECRET / CRON_SECRET) in addition to admin users. */
+function isCronRequest(request: NextRequest): boolean {
+  const secret = (process.env.INFO_FETCH_SECRET || process.env.CRON_SECRET || '').trim();
+  if (!secret) return false;
+  const auth = request.headers.get('authorization') || '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  return bearer === secret;
+}
+
 export async function POST(request: NextRequest) {
-  const denied = await requireInfoAdmin(request);
-  if (denied) return denied;
+  if (!isCronRequest(request)) {
+    const denied = await requireInfoAdmin(request);
+    if (denied) return denied;
+  }
   try {
     const pool = getPool();
 

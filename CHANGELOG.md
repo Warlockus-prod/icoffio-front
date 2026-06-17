@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.9] - 2026-06-17 - 📰 News pipeline robustness
+
+Deeper pass on the feed-update pipeline — found gaps that survived the earlier fixes.
+
+### Fixed — feed error visibility (`lib/info/feed-fetcher.ts` + migration)
+- Feeds failed **silently**: an HTTP error / timeout / 0-items response only logged to container stdout and left `last_fetched_at` untouched — no way to see WHICH feed is broken from the DB/admin. Added `last_error`, `last_attempt_at`, `consecutive_failures` columns (migration `20260617_info_feed_error_visibility.sql`) and the fetcher now records every failure and clears it on success. Network/timeout errors are now caught locally instead of bubbling up unrecorded.
+  - Ops query: `SELECT id,title,last_error,consecutive_failures FROM info_feeds WHERE is_active AND consecutive_failures>0 ORDER BY consecutive_failures DESC;`
+
+### Fixed — unbounded table growth
+- `/api/info/cleanup` (retention 30d) existed but **nothing called it** — `info_feed_items` had grown to 143k rows / 183 MB. Added cron-bypass auth to the endpoint + `scripts/icoffio-cleanup-items.sh` + daily cron.
+
+### Fixed — parser quality
+- `parseAtom` now extracts images (`media:content`/`media:thumbnail`/`<img>` in content) — Atom feeds (The Verge, Reddit, HuggingFace) previously had no thumbnails.
+- `sanitizePublishedAt`: invalid dates → null, future dates clamped to now (some feeds emit broken pubDates; 359 null + 3 future existed).
+
+### Validation
+- tsc OK; **vitest 250/250** (was 246); lint 0 errors.
+
 ## [10.20.8] - 2026-06-04 - 🔐 SECURITY: close public OpenAI endpoint (key-abuse incident)
 
 Incident: OpenAI API key showed unexpected usage ("stolen"). Investigation found

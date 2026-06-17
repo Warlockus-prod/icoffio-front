@@ -46,6 +46,19 @@ function cleanHtml(raw: string): string {
   return s;
 }
 
+/**
+ * v10.20.9: parse a feed date safely. Returns null for missing/invalid dates and
+ * clamps future dates (some feeds emit broken pubDates) to now — keeps sort order sane.
+ */
+function sanitizePublishedAt(raw: string): string | null {
+  if (!raw) return null;
+  const t = Date.parse(raw);
+  if (Number.isNaN(t)) return null;
+  const now = Date.now();
+  // tolerate small clock skew (1h), clamp anything further in the future
+  return new Date(Math.min(t, now + 3600_000)).toISOString();
+}
+
 export function parseRss(xml: string): ParsedItem[] {
   const items: ParsedItem[] = [];
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
@@ -67,7 +80,7 @@ export function parseRss(xml: string): ParsedItem[] {
         url: link.trim(),
         description: desc ? cleanHtml(desc).substring(0, 500) : null,
         image_url: enclosureUrl || mediaUrl || null,
-        published_at: pubDate ? new Date(pubDate).toISOString() : null,
+        published_at: sanitizePublishedAt(pubDate),
         guid: guid || link,
       });
     }
@@ -88,14 +101,19 @@ export function parseAtom(xml: string): ParsedItem[] {
     const summary = extractFromXml(block, 'summary') || extractFromXml(block, 'content');
     const updated = extractFromXml(block, 'updated') || extractFromXml(block, 'published');
     const id = extractFromXml(block, 'id') || link;
+    // v10.20.9: Atom feeds also carry images (media:* or <content type="html"> with <img>).
+    const atomImage =
+      extractAttr(block, 'media:content', 'url') ||
+      extractAttr(block, 'media:thumbnail', 'url') ||
+      (block.match(/<img[^>]+src="([^"]+)"/i)?.[1] ?? null);
 
     if (title && link) {
       items.push({
         title: cleanHtml(title),
         url: link.trim(),
         description: summary ? cleanHtml(summary).substring(0, 500) : null,
-        image_url: null,
-        published_at: updated ? new Date(updated).toISOString() : null,
+        image_url: atomImage,
+        published_at: sanitizePublishedAt(updated),
         guid: id || link,
       });
     }
@@ -118,6 +136,22 @@ export function parseFeed(xml: string, feedTypeHint: string): ParsedItem[] {
   return feedTypeHint === 'atom' ? parseRss(xml) : parseAtom(xml);
 }
 
+/** v10.20.9: record a feed-fetch failure so it's visible in the DB / admin UI. */
+async function recordFeedFailure(feedId: number, reason: string): Promise<void> {
+  try {
+    await getPool().query(
+      `UPDATE info_feeds
+         SET last_attempt_at = NOW(),
+             last_error = $2,
+             consecutive_failures = consecutive_failures + 1
+       WHERE id = $1`,
+      [feedId, reason.slice(0, 500)],
+    );
+  } catch {
+    /* never let bookkeeping break the fetch loop */
+  }
+}
+
 export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedType: string): Promise<number> {
   const pool = getPool();
 
@@ -126,30 +160,46 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
   const safe = await assertSafeRemoteUrl(feedUrl, { allowHttp: true });
   if (!safe.ok) {
     console.error(`[FeedFetcher] SSRF guard blocked feed ${feedId} (${feedUrl}): ${safe.reason}`);
+    await recordFeedFailure(feedId, `SSRF blocked: ${safe.reason}`);
     return 0;
   }
 
-  const response = await fetch(feedUrl, {
-    // v10.20.0: realistic browser User-Agent. The old 'InfoPortal/1.0' bot UA was
-    // blocked (403 / HTML challenge) by Reddit, Cloudflare-fronted sites, etc.,
-    // which made them return 0 parseable items.
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-      Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-    },
-    redirect: 'follow',
-    // v10.20.5: 25s (was 15s) — slow feeds like РБК's full.rss timed out at 15s.
-    signal: AbortSignal.timeout(25000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(feedUrl, {
+      // v10.20.0: realistic browser User-Agent. The old 'InfoPortal/1.0' bot UA was
+      // blocked (403 / HTML challenge) by Reddit, Cloudflare-fronted sites, etc.
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+        Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+      },
+      redirect: 'follow',
+      // v10.20.5: 25s (was 15s) — slow feeds like РБК's full.rss timed out at 15s.
+      signal: AbortSignal.timeout(25000),
+    });
+  } catch (err: any) {
+    // v10.20.9: catch network/timeout errors here so they're recorded, not swallowed upstream.
+    const reason = err?.name === 'TimeoutError' ? 'timeout (25s)' : `network: ${err?.message ?? err}`;
+    console.error(`[FeedFetcher] Fetch failed ${feedUrl}: ${reason}`);
+    await recordFeedFailure(feedId, reason);
+    return 0;
+  }
 
   if (!response.ok) {
     console.error(`[FeedFetcher] Failed to fetch ${feedUrl}: ${response.status}`);
+    await recordFeedFailure(feedId, `HTTP ${response.status}`);
     return 0;
   }
 
   const xml = await response.text();
   const items = parseFeed(xml, feedType);
+
+  if (items.length === 0) {
+    // 200 but nothing parseable (HTML challenge page, unexpected format, empty feed)
+    await recordFeedFailure(feedId, '0 items parsed (non-feed response?)');
+    return 0;
+  }
 
   let inserted = 0;
   for (const item of items.slice(0, 30)) {
@@ -177,8 +227,12 @@ export async function fetchAndStoreFeed(feedId: number, feedUrl: string, feedTyp
     }
   }
 
+  // Success: clear error state + mark both success and attempt timestamps.
   await pool.query(
-    'UPDATE info_feeds SET last_fetched_at = NOW() WHERE id = $1',
+    `UPDATE info_feeds
+       SET last_fetched_at = NOW(), last_attempt_at = NOW(),
+           last_error = NULL, consecutive_failures = 0
+     WHERE id = $1`,
     [feedId]
   );
 

@@ -65,6 +65,32 @@ describe('parseAtom', () => {
   });
 });
 
+describe('v10.20.9 hardening', () => {
+  it('Atom entries now extract media images', () => {
+    const atomWithImg = `<feed><entry>
+      <title>T</title><link href="https://e.com/1"/>
+      <media:content url="https://img.com/a.jpg"/>
+      <id>1</id></entry></feed>`;
+    expect(parseAtom(atomWithImg)[0].image_url).toBe('https://img.com/a.jpg');
+  });
+  it('Atom extracts <img> from content html when no media tag', () => {
+    const atom = `<feed><entry><title>T</title><link href="https://e.com/1"/>
+      <content type="html">&lt;p&gt;hi&lt;/p&gt;<img src="https://img.com/b.png"></content>
+      <id>1</id></entry></feed>`;
+    expect(parseAtom(atom)[0].image_url).toBe('https://img.com/b.png');
+  });
+  it('future-dated items are clamped (not stored in the future)', () => {
+    const future = new Date(Date.now() + 5 * 86400_000).toUTCString();
+    const rss = `<rss><channel><item><title>T</title><link>https://e.com/1</link><pubDate>${future}</pubDate></item></channel></rss>`;
+    const pub = parseRss(rss)[0].published_at!;
+    expect(new Date(pub).getTime()).toBeLessThanOrEqual(Date.now() + 3600_000 + 1000);
+  });
+  it('invalid date → null', () => {
+    const rss = `<rss><channel><item><title>T</title><link>https://e.com/1</link><pubDate>not-a-date</pubDate></item></channel></rss>`;
+    expect(parseRss(rss)[0].published_at).toBeNull();
+  });
+});
+
 describe('parseFeed auto-detect (the v10.20.1 fix)', () => {
   it('parses RSS when hint is correct', () => {
     expect(parseFeed(RSS, 'rss')).toHaveLength(2);

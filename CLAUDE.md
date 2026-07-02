@@ -83,6 +83,7 @@ All operations are pre-approved by the project owner. Work autonomously:
 - **VPS migration confusion**: project moved from `46.225.11.249` (VPS#1) to `178.104.223.93` (VPS#2) on 2026-04-22. Old SSH-to-VPS#1 commands will land on a different server; old git-pull paths won't find icoffio.
 - **Port 3000 on VPS = Metabase**, app is on port 4200 (`172.17.0.1:4200`)
 - **Video players with fake VOX PlaceIDs cause Chrome freeze** — keep `NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=false`
+- **VOX SSP = Hybrid.ai, NOT vox.com.** Ad domains are `st.hbrd.io` / `ssp.hbrd.io` / `ssp.hybrid.ai` — any CSP change in `next.config.mjs` must keep them in script-src/connect-src/frame-src (v10.20.0 allowlisted vox.com by mistake → ads dead for a month, fixed v10.20.10). Test ad changes with cookie-consent **Accepted** — AdManager won't even load the script after Reject All.
 - **PostgreSQL varchar→text cast** needs explicit `::text` in PL/pgSQL RETURNS TABLE
 - **Docker compose** reads `${POSTGRES_PASSWORD}` from `.env` by default, NOT `.env.production`. Pass `--env-file .env.production` always.
 - **Telegram reply_markup** can only be ONE of InlineKeyboard or ReplyKeyboard per message

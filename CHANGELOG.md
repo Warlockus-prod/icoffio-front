@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.10] - 2026-07-02 - 📢 FIX: ads broken by wrong CSP allowlist (since v10.20.0)
+
+### Root cause
+The CSP shipped in v10.20.0 allowlisted `*.vox.com` / `*.vox-cdn.com` for "VOX SSP
+advertising" — but VOX SSP is **Hybrid.ai's** product; its real domains are
+`st.hbrd.io` / `ssp.hbrd.io` / `ssp.hybrid.ai`. vox.com is Vox Media, an unrelated
+news company. The browser silently blocked the whole ad stack (`Refused to load …
+Content Security Policy`), so ads have been dead since 2026-06-04.
+
+Why the post-deploy check missed it: the verification run clicked **Reject All**
+on the cookie banner — AdManager gates the VOX script behind consent, so the
+script never even attempted to load and no CSP violation surfaced.
+
+An intermediate hot-patch (2026-07-02, directly on the VPS, uncommitted) added
+`hbrd.io` — the script started loading, but `ssp.hybrid.ai` (the actual bid +
+metrics endpoint) and GA4's regional `region1.google-analytics.com` were still
+blocked. That patch would also have been wiped by the next `git reset --hard` deploy.
+
+### Fixed (`next.config.mjs`, now in git)
+- `script-src` / `connect-src` / `frame-src`: replaced the wrong `*.vox.com` / `*.vox-cdn.com` entries with `https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai`.
+- `connect-src` / `script-src`: `www.google-analytics.com` → `*.google-analytics.com` (GA4 posts to regional endpoints like `region1.google-analytics.com`).
+
+### Validation
+- Live pre-fix repro with consent **accepted**: CSP violations on `ssp.hybrid.ai/scriptmetrics/load` + GA regional collect confirmed in browser console.
+- Post-deploy verification: same scenario → 0 CSP violations, ad requests flow (see deploy notes).
+
+### Lesson recorded
+Verify third-party domains from the actual `<script src>` in code (AdManager.tsx: `st.hbrd.io/ssp.js`) — never from the integration's marketing name. Test consent-gated features with consent **granted**.
+
 ## [10.20.9] - 2026-06-17 - 📰 News pipeline robustness
 
 Deeper pass on the feed-update pipeline — found gaps that survived the earlier fixes.

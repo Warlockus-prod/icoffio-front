@@ -30,28 +30,27 @@ const nextConfig = {
     ]
   },
   async headers() {
-    // v10.20.0: added Content-Security-Policy.
+    // v10.20.0: added Content-Security-Policy. v10.20.10: FIXED the ad allowlist.
     //
-    // Policy must allow the live integrations the site actually uses:
-    //   - VOX SSP advertising — vox-cdn.com, vox.com, doubleclick, googletagservices
-    //   - Google Tag Manager / Analytics — googletagmanager.com, google-analytics.com
-    //   - Unsplash images — images.unsplash.com
-    //   - Vercel Blob (admin uploads) — public.blob.vercel-storage.com
-    //   - YouTube embeds — youtube.com, ytimg.com
-    //   - Self-hosted everything else
+    // ⚠️ Lesson (broke ads for ~1 month): "VOX SSP" is Hybrid.ai's ad product.
+    // Its real domains are st.hbrd.io / ssp.hbrd.io / ssp.hybrid.ai — NOT vox.com
+    // (that's Vox Media, an unrelated news company). v10.20.0 allowlisted the
+    // wrong domains and the browser silently blocked the ad stack. Verified live:
+    //   script:  https://st.hbrd.io/ssp.js, prebid.js, simple-ad.js
+    //   connect: https://ssp.hybrid.ai/... (bid + scriptmetrics), ssp.hbrd.io/matching
+    //   GA4 also connects to REGIONAL endpoints (region1.google-analytics.com) —
+    //   the www-only entry blocked those too → wildcard *.google-analytics.com.
     //
     // 'unsafe-inline' on script-src is required by Next.js for hydration scripts.
-    // 'unsafe-eval' is required by react-dev-tools in dev — kept narrow to script-src.
-    // Report-Only is NOT used: we ship enforcing policy because the allow-list
-    // was hand-verified against the components/AdManager and StructuredData files.
+    // 'unsafe-eval' is required by the VOX/prebid stack and react-dev-tools.
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.vox.com https://*.vox-cdn.com https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.vox.com https://*.vox-cdn.com https://www.google-analytics.com https://*.doubleclick.net https://api.openai.com https://api.unsplash.com",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://*.vox.com",
+      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.google-analytics.com https://*.doubleclick.net https://api.openai.com https://api.unsplash.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai",
       "media-src 'self' https: data:",
       "object-src 'none'",
       "base-uri 'self'",

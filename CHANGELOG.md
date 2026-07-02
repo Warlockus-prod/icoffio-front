@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.11] - 2026-07-02 - 🎬 FIX: video preroll flag never reached the build
+
+### Root cause
+`NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=true` was set in `.env.production`, but
+`NEXT_PUBLIC_*` vars are baked at **build** time — and `.dockerignore` excludes
+`.env*` (secret hygiene), while the Dockerfile passed no build args. So `next build`
+inside Docker always saw the flag as undefined → `VIDEO_ENABLED=false` baked into
+the bundle → the DSP preroll player never rendered and no video ad requests were
+sent, regardless of the env value. The compose `env_file` only affects runtime,
+which is too late for `NEXT_PUBLIC_*`.
+
+### Fixed
+- `Dockerfile` (builder stage): `ARG/ENV NEXT_PUBLIC_VIDEO_PREROLL_ENABLED` + `NEXT_PUBLIC_DSP_PREROLL_AD_TAG` before `next build`.
+- `docker-compose.vps.yml`: `build.args` wired from `--env-file .env.production` (`${VAR:-default}`).
+
+### Also verified this session (no code change needed)
+- **Display / mobile interstitial** (320×480, PlaceID `68f63437…`): works as designed — `device: 'mobile'`, so it only mounts on mobile viewports. Verified via iPhone-13 emulation: container in DOM + bid request sent. Desktop correctly shows nothing.
+- Banner no-fill (204) remains a VOX-cabinet/campaign matter, not code.
+
+### Note
+`lib/config/adPlacements.ts` still has the legacy commented-out `video-1` VOX
+PlaceID block — intentionally untouched: video goes through the DSP preroll
+player (`lib/config/video-players.ts`), not VOX PlaceID (the old VOX video path
+caused Chrome freezes and was removed in v10.1.0).
+
 ## [10.20.10] - 2026-07-02 - 📢 FIX: ads broken by wrong CSP allowlist (since v10.20.0)
 
 ### Root cause

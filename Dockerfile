@@ -8,6 +8,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# v10.20.11: NEXT_PUBLIC_* is baked at BUILD time, but .dockerignore excludes
+# .env* (secret hygiene) — so runtime env_file can't feed these. Pass the few
+# public build-time flags explicitly via build args (wired in docker-compose).
+ARG NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=false
+ENV NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=$NEXT_PUBLIC_VIDEO_PREROLL_ENABLED
+ARG NEXT_PUBLIC_DSP_PREROLL_AD_TAG=
+ENV NEXT_PUBLIC_DSP_PREROLL_AD_TAG=$NEXT_PUBLIC_DSP_PREROLL_AD_TAG
 RUN npm run build
 
 FROM node:20-bookworm-slim AS runner

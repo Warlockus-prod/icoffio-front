@@ -40,6 +40,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # v10.20.11: NEXT_PUBLIC_* must reach `next build` (baked into the client
+      # bundle). Values come from --env-file .env.production at compose time.
+      args:
+        NEXT_PUBLIC_VIDEO_PREROLL_ENABLED: ${NEXT_PUBLIC_VIDEO_PREROLL_ENABLED:-false}
+        NEXT_PUBLIC_DSP_PREROLL_AD_TAG: ${NEXT_PUBLIC_DSP_PREROLL_AD_TAG:-}
     restart: unless-stopped
     env_file:
       - .env.production

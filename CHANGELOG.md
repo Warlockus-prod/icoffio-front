@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.12] - 2026-07-02 - 📐 Relax display ad size-gate
+
+### Changed (`components/UniversalAd.tsx`)
+- The size-check that decides whether a filled banner is shown or hidden was too strict (accepted only W 0.65–1.1×, H 0.7–1.35× of the nominal format), so legitimate DSP creatives in adjacent sizes (300×250 filled by 336×280, etc.) were marked `unsuitable` and hidden. Relaxed to accept any real creative (≥40×20, ≤2×/2.5× nominal) and only hide degenerate ones (tracking pixels / collapsed).
+
+### Diagnostic note (display "no ad" is NOT this code)
+Verified live in the real browser: all 6 display banner PlaceIDs
+(`63da9b57…`, `63daa3c2…`, `63da9e2a…`, `63daa2ea…`, `68f644dc…`, `68f6451d…`)
+receive **HTTP 204 (no-fill)** from `ssp.hybrid.ai`; the in-image PlaceID
+(`63d93bb5…`) receives 200 and renders. Banner containers hold **no iframe**
+(nothing to size-gate) — so the empty display slots are genuine no-fill, not a
+render bug. The in-image campaign ("Konglomerat in-image PL") is in-image format
+only; standard display banners need a display-format campaign whose creatives
+target these PlaceIDs. That's a DSP-console (euconsole) matter, not site code.
+This size-gate relaxation removes a latent blocker for when display fill returns.
+
 ## [10.20.11] - 2026-07-02 - 🎬 FIX: video preroll flag never reached the build
 
 ### Root cause

@@ -118,16 +118,25 @@ export function UniversalAd({
         return;
       }
 
-      // Разрешаем масштабирование, но не пропускаем явный mismatch.
-      const widthMin = expectedWidth * 0.65;
-      const widthMax = expectedWidth * 1.1;
-      const heightMin = expectedHeight * 0.7;
-      const heightMax = expectedHeight * 1.35;
-
-      const widthOk = measured.width >= widthMin && measured.width <= widthMax;
-      const heightOk = measured.height >= heightMin && measured.height <= heightMax;
+      // v10.20.12: relaxed size-gate. The old bands (W 0.65–1.1×, H 0.7–1.35×)
+      // hid legitimate DSP creatives that come in adjacent sizes (a 300×250 slot
+      // can be filled by a 336×280, a 728×90 by a 750×100, etc.). Now we only hide
+      // DEGENERATE creatives (tracking pixels / collapsed) — anything with real,
+      // non-absurd dimensions renders. This is the intended "show whatever fills".
+      const MIN_W = 40;   // below this = tracking pixel / not a real banner
+      const MIN_H = 20;
+      const widthOk = measured.width >= Math.max(MIN_W, expectedWidth * 0.4) && measured.width <= expectedWidth * 2;
+      const heightOk = measured.height >= Math.max(MIN_H, expectedHeight * 0.4) && measured.height <= expectedHeight * 2.5;
 
       if (widthOk && heightOk) {
+        setAdStatus('ready');
+        return;
+      }
+
+      // Only truly degenerate sizes get hidden.
+      const degenerate = measured.width < MIN_W || measured.height < MIN_H;
+      if (!degenerate) {
+        // Real creative, just an unusual size — show it rather than leave a blank slot.
         setAdStatus('ready');
         return;
       }
@@ -137,7 +146,7 @@ export function UniversalAd({
 
       if (lastUnsuitableReasonRef.current !== reason) {
         lastUnsuitableReasonRef.current = reason;
-        console.log(`[VOX] Hiding unsuitable ad ${placeId} (${format}): ${reason}`);
+        console.log(`[VOX] Hiding degenerate ad ${placeId} (${format}): ${reason}`);
       }
     };
 

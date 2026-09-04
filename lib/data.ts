@@ -3,6 +3,7 @@ import { getLocalArticles as getLocalArticlesFromFile, getLocalArticleBySlug as 
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client';
 import { sanitizeExcerptText, sanitizeArticleBodyText, normalizeAiGeneratedText } from './utils/content-formatter';
 import { normalizeTitleForPublishing, TITLE_MAX_LENGTH } from './utils/title-policy';
+import { withFeaturePosts } from './feature-pages';
 
 // Re-export from local-articles.ts
 const getLocalArticles = getLocalArticlesFromFile;
@@ -299,10 +300,10 @@ export async function getAllPosts(limit = 12, locale = 'en'): Promise<Post[]> {
       index === self.findIndex((a) => a.slug === article.slug)
     );
 
-    return unique.slice(0, limit);
+    return withFeaturePosts(unique, locale, limit);
   } catch (error) {
     console.warn('[data] Database query failed, using local only:', error);
-    return runtimeFiltered.slice(0, limit);
+    return withFeaturePosts(runtimeFiltered, locale, limit);
   }
 }
 
@@ -615,7 +616,7 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
     combinedByCategory.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
 
     if (combinedByCategory.length > 0) {
-      return combinedByCategory.slice(0, limit);
+      return withFeaturePosts(combinedByCategory, locale, limit, slug);
     }
 
     const fallbackRows = await fetchRows();
@@ -634,8 +635,8 @@ export async function getPostsByCategory(slug: string, limit = 24, locale: strin
   if (localFiltered.length > 0) {
     const sortedLocal = [...localFiltered];
     sortedLocal.sort((a, b) => new Date(b.publishedAt || b.date || 0).getTime() - new Date(a.publishedAt || a.date || 0).getTime());
-    return sortedLocal.slice(0, limit);
+    return withFeaturePosts(sortedLocal, locale, limit, slug);
   }
 
-  return filterArticlesByLanguage(localArticles, locale).slice(0, limit);
+  return withFeaturePosts(filterArticlesByLanguage(localArticles, locale), locale, limit, slug);
 }

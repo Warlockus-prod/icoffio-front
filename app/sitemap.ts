@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   // ── Static pages ──
-  const staticPages = ['articles', 'editorial', 'advertising', 'privacy', 'cookies'];
+  const staticPages = ['articles', 'editorial', 'advertising', 'leo-simulator', 'privacy', 'cookies'];
   locales.forEach(locale => {
     staticPages.forEach(page => {
       routes.push({

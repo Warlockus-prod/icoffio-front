@@ -42,7 +42,7 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
     <Container>
       <section className="py-8 grid md:grid-cols-3 gap-6">
         {/* Main Article - 2 columns */}
-        <Link href={`/${locale}/article/${main.slug}`} className="group col-span-2 block">
+        <Link href={main.href || `/${locale}/article/${main.slug}`} className="group col-span-2 block">
           <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100 relative">
             <Image
               src={getImage(main)}
@@ -70,7 +70,7 @@ export function Hero({ posts, locale = 'en' }: HeroProps) {
         <div className="flex flex-col gap-6">
           {rest.map((post) => {
             return (
-              <Link key={post.slug} href={`/${locale}/article/${post.slug}`} className="group block">
+              <Link key={post.slug} href={post.href || `/${locale}/article/${post.slug}`} className="group block">
                 <div className="aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100 relative">
                   <Image
                     src={getImage(post)}

@@ -47,6 +47,11 @@ export function Footer({ locale = 'en' }: FooterProps = {}) {
                   {t.advertising}
                 </Link>
               </li>
+              <li>
+                <Link href={`/${locale}/leo-simulator`} className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors">
+                  {locale === 'pl' ? 'Symulator LEO' : 'LEO Simulator'}
+                </Link>
+              </li>
             </ul>
           </div>
 

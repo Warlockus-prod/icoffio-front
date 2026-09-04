@@ -42,6 +42,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
   const fallback = fallbacks[fallbackIndex];
   const hasTemporaryImageUrl = /oaidalleapiprod|[?&](st|se|sp|sig)=/i.test(post.image || '');
   const img = post.image && !hasTemporaryImageUrl ? post.image : fallback;
+  const href = post.href || `/${locale}/article/${post.slug}`;
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -59,7 +60,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
       data-article-card="1"
       data-no-inimage="1"
     >
-      <Link href={`/${locale}/article/${post.slug}`} className="block">
+      <Link href={href} className="block">
         <div className="aspect-[16/9] bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
           <OptimizedImage
             src={img}
@@ -82,7 +83,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
           <time>{formatDate(post.publishedAt || post.date || '')}</time>
         </div>
         
-        <Link href={`/${locale}/article/${post.slug}`}>
+        <Link href={href}>
           <h3 className="text-[18px] font-semibold leading-snug line-clamp-2 text-neutral-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
             {post.title}
           </h3>
@@ -95,7 +96,7 @@ export function ArticleCard({ post, locale = 'en' }: { post: Post; locale?: stri
         {/* Кнопка "Читать далее" */}
         <div className="pt-2">
           <Link
-            href={`/${locale}/article/${post.slug}`}
+            href={href}
             className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 group/link"
           >
             <span>{t.readMore}</span>

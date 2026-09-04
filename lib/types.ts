@@ -39,6 +39,11 @@ export type Post = {
   views?: number;
   readingTime?: number;
   sourceUrl?: string;
+  /**
+   * Overrides the default `/{locale}/article/{slug}` destination.
+   * Used by standalone pages that appear in listings alongside normal articles.
+   */
+  href?: string;
 };
 
 // Article with required content (for full article pages)

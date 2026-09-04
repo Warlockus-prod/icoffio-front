@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAllPosts, getCategories } from "@/lib/data";
 import { getPopularArticles } from "@/lib/supabase-analytics";
+import { withFeaturePosts } from "@/lib/feature-pages";
 import { Hero } from "@/components/Hero";
 import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
@@ -84,7 +85,9 @@ export default async function Page({ params }: { params: { locale: string } }) {
         .slice(0, 9);
 
       if (popularPosts.length >= 3) {
-        posts = popularPosts as typeof allPosts;
+        // Popular slugs come from view analytics, which standalone feature pages
+        // only enter once they have traffic — re-add them so they stay findable.
+        posts = withFeaturePosts(popularPosts as typeof allPosts, params.locale, 9);
       }
     }
   } catch (error) {

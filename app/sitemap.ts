@@ -140,6 +140,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     try {
       const posts = postsByLocale.get(locale) || [];
       for (const post of posts) {
+        // Feature pages live on their own route and are listed under staticPages;
+        // emitting /article/{slug} for them would publish 404s to search engines.
+        if (post.href) continue;
+
         const baseSlug = post.slug.replace(/-en$/, '').replace(/-pl$/, '');
         const altLocale = locale === 'en' ? 'pl' : 'en';
         const altSlug = `${baseSlug}-${altLocale}`;

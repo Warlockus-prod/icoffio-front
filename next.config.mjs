@@ -41,16 +41,27 @@ const nextConfig = {
     //   GA4 also connects to REGIONAL endpoints (region1.google-analytics.com) —
     //   the www-only entry blocked those too → wildcard *.google-analytics.com.
     //
+    // Bidio (Prebid wrapper, web.icoffio.com test subdomain) — same lesson as
+    // above: without these entries the browser silently blocks the SDK and the
+    // console only says "failed to load". Verified live:
+    //   script:  https://files.bidio.pl/bidio-sdk-dev.js
+    //   connect: https://as.bidio.pl/o?websiteId=... (config), bid endpoints
+    // Listed unconditionally so ?ads=prebid debugging works on every build.
+    // They are inert on VOX deployments — PrebidManager only injects the SDK
+    // when NEXT_PUBLIC_ADS_PROVIDER is prebid/both.
+    // NOTE: creatives are served by DSPs on their own domains; if a winning bid
+    // renders blank, check the console for the blocked host and add it here.
+    //
     // 'unsafe-inline' on script-src is required by Next.js for hydration scripts.
     // 'unsafe-eval' is required by the VOX/prebid stack and react-dev-tools.
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://files.bidio.pl https://*.bidio.pl https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.google-analytics.com https://*.doubleclick.net https://api.openai.com https://api.unsplash.com",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai",
+      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://as.bidio.pl https://*.bidio.pl https://*.google-analytics.com https://*.doubleclick.net https://api.openai.com https://api.unsplash.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.bidio.pl",
       "media-src 'self' https: data:",
       "object-src 'none'",
       "base-uri 'self'",

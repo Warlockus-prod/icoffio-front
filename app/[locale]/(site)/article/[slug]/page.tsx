@@ -18,6 +18,8 @@ import { UniversalAd } from "@/components/UniversalAd";
 import { InterstitialAd } from "@/components/InterstitialAd";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { getAdPlacementsByLocation } from "@/lib/config/adPlacements";
+import { PrebidAd } from "@/components/PrebidAd";
+import { getPrebidPlacement } from "@/lib/config/prebidPlacements";
 import VideoPlayer from "@/components/VideoPlayer";
 import { getInstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
@@ -210,6 +212,12 @@ export default async function Article({ params }: { params: { locale: string; sl
   const interstitialAd = articleAds.find(ad => ad.placement === 'display' && ad.format === '320x480' && ad.device === 'mobile');
   const adsContentBottomMobile = articleAds.filter(ad => ad.position === 'content-bottom' && ad.device === 'mobile');
   const adsFooterMobile = articleAds.filter(ad => ad.position === 'footer' && ad.device === 'mobile');
+
+  // Bidio/Prebid slots. PrebidAd renders null unless the deployment runs Prebid,
+  // so these are inert on the main VOX site.
+  const prebidTop = getPrebidPlacement('article', 'content-top');
+  const prebidMid = getPrebidPlacement('article', 'content-middle');
+  const prebidBottom = getPrebidPlacement('article', 'content-bottom');
   
   const fallback = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop";
   const contentDerivedHero = extractFirstContentImage(cleanArticleContent);
@@ -323,11 +331,15 @@ export default async function Article({ params }: { params: { locale: string; sl
               </div>
             )}
 
+            {/* Prebid: top of article, right below the hero image */}
+            {prebidTop && <PrebidAd id={prebidTop.id} />}
+
             {/* Article Content with Mid-Content Ad */}
             <ArticleContentWithAd 
               content={renderContent(cleanArticleContent)}
               adsDesktop={adsContentTopDesktop}
               adsMobile={adsContentTopMobile}
+              midSlot={prebidMid ? <PrebidAd id={prebidMid.id} /> : undefined}
             />
 
             {/* Mid-content ads - Mobile ONLY (160x600) */}
@@ -435,6 +447,13 @@ export default async function Article({ params }: { params: { locale: string; sl
             />
           </div>
         ))}
+
+        {/* Prebid: full width, just before related articles */}
+        {prebidBottom && (
+          <div className="max-w-7xl mx-auto">
+            <PrebidAd id={prebidBottom.id} />
+          </div>
+        )}
 
         {/* Related Articles - Full Width */}
         <div className="mt-16">

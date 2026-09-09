@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
 
 export type AdFormat =
   | '728x90' | '970x250'
@@ -41,6 +42,9 @@ export function UniversalAd({
   className = '',
   enabled = true
 }: UniversalAdProps) {
+  const provider = useAdsProvider();
+  // VOX slots are dead weight when the deployment runs Prebid only.
+  const active = enabled && isVoxEnabled(provider);
   const containerRef = useRef<HTMLDivElement>(null);
   const [adStatus, setAdStatus] = useState<'loading' | 'ready' | 'unsuitable'>('loading');
   const lastUnsuitableReasonRef = useRef<string>('');
@@ -87,7 +91,7 @@ export function UniversalAd({
 
   // All hooks are above this early return — Rules of Hooks compliant
   useEffect(() => {
-    if (!enabled) return;
+    if (!active) return;
 
     const container = containerRef.current;
     if (!container) return;
@@ -190,10 +194,10 @@ export function UniversalAd({
       timers.forEach((timerId) => window.clearTimeout(timerId));
       if (evaluateDebounceRef.current) clearTimeout(evaluateDebounceRef.current);
     };
-  }, [enabled, expectedHeight, expectedWidth, format, placeId, resolveElementSize]);
+  }, [active, expectedHeight, expectedWidth, format, placeId, resolveElementSize]);
 
   // Early return after all hooks
-  if (!enabled) return null;
+  if (!active) return null;
 
   const isAdLoaded = adStatus === 'ready';
 

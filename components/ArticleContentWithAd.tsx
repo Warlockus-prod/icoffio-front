@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef } from 'react';
+import { Fragment, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { UniversalAd } from './UniversalAd';
 import type { AdPlacementConfig } from '@/lib/config/adPlacements';
 
@@ -8,6 +8,8 @@ interface ArticleContentWithAdProps {
   content: string;
   adsDesktop: AdPlacementConfig[];
   adsMobile: AdPlacementConfig[];
+  /** Provider-agnostic slot rendered at the first cut point (used for Prebid). */
+  midSlot?: ReactNode;
 }
 
 /**
@@ -17,10 +19,12 @@ interface ArticleContentWithAdProps {
 export function ArticleContentWithAd({ 
   content, 
   adsDesktop, 
-  adsMobile 
+  adsMobile,
+  midSlot
 }: ArticleContentWithAdProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const insertionTargets = Math.max(adsDesktop.length, adsMobile.length);
+  // midSlot alone is enough to justify splitting the content.
+  const insertionTargets = Math.max(adsDesktop.length, adsMobile.length, midSlot ? 1 : 0);
 
   // Разбиваем контент на сегменты и вставляем рекламу между ними.
   const { segments, insertions } = useMemo(() => {
@@ -103,6 +107,8 @@ export function ArticleContentWithAd({
     return (
       <div ref={rootRef} className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
         <div dangerouslySetInnerHTML={{ __html: content }} />
+        {/* Article too short to split — keep the slot rather than dropping it. */}
+        {midSlot}
       </div>
     );
   }
@@ -117,6 +123,8 @@ export function ArticleContentWithAd({
         return (
           <Fragment key={`segment-${index}`}>
             <div dangerouslySetInnerHTML={{ __html: segment }} />
+
+            {shouldRenderAd && index === 0 && midSlot}
 
             {shouldRenderAd && (
               <>

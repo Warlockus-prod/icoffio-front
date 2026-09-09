@@ -16,6 +16,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 import { AdManager } from "@/components/AdManager";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
+import { PrebidManager } from "@/components/PrebidManager";
 
 import { getTranslation } from "@/lib/i18n";
 import { getSiteBaseUrl } from "@/lib/site-url";
@@ -204,6 +205,7 @@ export default function LocaleLayout({
               <CookieConsent locale={params.locale} />
               <CookieSettingsManager locale={params.locale} />
               <AdManager />
+              <PrebidManager />
             </SearchProvider>
           </ToastProvider>
         </ThemeProvider>

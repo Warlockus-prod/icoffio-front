@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCookieConsent } from '@/lib/useCookieConsent';
+import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
 import { AD_PLACEMENTS } from '@/lib/config/adPlacements';
 
 declare global {
@@ -20,8 +21,13 @@ const ENABLED_DISPLAY_PLACE_IDS = new Set(
 
 export function AdManager() {
   const pathname = usePathname();
+  const provider = useAdsProvider();
   const { consentState } = useCookieConsent();
-  const hasConsent = consentState.hasConsented && consentState.preferences.advertising;
+  // On a prebid-only deployment (web.icoffio.com) VOX must not load at all.
+  const hasConsent =
+    isVoxEnabled(provider) &&
+    consentState.hasConsented &&
+    consentState.preferences.advertising;
   const scriptLoaded = useRef(false);
   const retryTimersRef = useRef<number[]>([]);
   const observerRef = useRef<MutationObserver | null>(null);

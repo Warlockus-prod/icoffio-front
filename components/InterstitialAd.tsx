@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
 
 interface InterstitialAdProps {
   placeId: string;
@@ -24,6 +25,8 @@ export function InterstitialAd({
   delaySeconds = 3,
   sessionKey = 'icoffio_interstitial_shown',
 }: InterstitialAdProps) {
+  const provider = useAdsProvider();
+  const voxActive = isVoxEnabled(provider);
   const [phase, setPhase] = useState<'init' | 'preloading' | 'visible' | 'closed' | 'skip'>('init');
   const [canClose, setCanClose] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +42,13 @@ export function InterstitialAd({
 
   // Step 1: Check eligibility (runs once on mount)
   useEffect(() => {
+    // Prebid-only deployment: VOX never loads, so this container would sit in
+    // the DOM waiting for a fill that cannot come.
+    if (!voxActive) {
+      setPhase('skip');
+      return;
+    }
+
     // Already shown this session?
     try {
       if (sessionStorage.getItem(sessionKey)) {
@@ -55,7 +65,8 @@ export function InterstitialAd({
 
     // Eligible — start preloading
     setPhase('preloading');
-  }, [sessionKey]);
+    // voxActive can flip after mount when ?ads= overrides the build default.
+  }, [sessionKey, voxActive]);
 
   // Step 2: Delay timer
   useEffect(() => {

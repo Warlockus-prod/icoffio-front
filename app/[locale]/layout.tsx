@@ -18,8 +18,12 @@ import { AdManager } from "@/components/AdManager";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { PrebidManager } from "@/components/PrebidManager";
 
+import { AdsProviderProvider } from "@/lib/ads-provider";
+import { resolveAdsProviderForHost } from "@/lib/ads-provider-core";
+
 import { getTranslation } from "@/lib/i18n";
 import { getSiteBaseUrl } from "@/lib/site-url";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 const locales = ['en', 'pl'];
@@ -141,6 +145,10 @@ export default function LocaleLayout({
     notFound();
   }
 
+  // One container serves icoffio.com, app.icoffio.com and web.icoffio.com, so
+  // the ad stack is chosen per request host — never by a build-time env var.
+  const adsProvider = resolveAdsProviderForHost(headers().get('host'));
+
   return (
     <html lang={params.locale} suppressHydrationWarning>
       <head>
@@ -189,6 +197,7 @@ export default function LocaleLayout({
         <OrganizationSchema locale={params.locale} />
       </head>
       <body className="min-h-dvh bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 antialiased selection:bg-neutral-900 selection:text-white dark:selection:bg-neutral-100 dark:selection:text-neutral-900 transition-colors duration-300">
+        <AdsProviderProvider value={adsProvider}>
         <ThemeProvider>
           <ToastProvider>
             <SearchProvider>
@@ -209,6 +218,7 @@ export default function LocaleLayout({
             </SearchProvider>
           </ToastProvider>
         </ThemeProvider>
+        </AdsProviderProvider>
       </body>
     </html>
   );

@@ -15,6 +15,12 @@ ARG NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=false
 ENV NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=$NEXT_PUBLIC_VIDEO_PREROLL_ENABLED
 ARG NEXT_PUBLIC_DSP_PREROLL_AD_TAG=
 ENV NEXT_PUBLIC_DSP_PREROLL_AD_TAG=$NEXT_PUBLIC_DSP_PREROLL_AD_TAG
+# Which ad stack the build ships (vox | prebid | both). Must be a build arg for
+# the same reason as above: the server reads it at runtime from env_file, but
+# the client bundle only gets what is inlined here. A mismatch renders the ad
+# slots server-side and then drops them on hydration.
+ARG NEXT_PUBLIC_ADS_PROVIDER=vox
+ENV NEXT_PUBLIC_ADS_PROVIDER=$NEXT_PUBLIC_ADS_PROVIDER
 RUN npm run build
 
 FROM node:20-bookworm-slim AS runner

@@ -45,6 +45,7 @@ services:
       args:
         NEXT_PUBLIC_VIDEO_PREROLL_ENABLED: ${NEXT_PUBLIC_VIDEO_PREROLL_ENABLED:-false}
         NEXT_PUBLIC_DSP_PREROLL_AD_TAG: ${NEXT_PUBLIC_DSP_PREROLL_AD_TAG:-}
+        NEXT_PUBLIC_ADS_PROVIDER: ${NEXT_PUBLIC_ADS_PROVIDER:-vox}
     restart: unless-stopped
     env_file:
       - .env.production

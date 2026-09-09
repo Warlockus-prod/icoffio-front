@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.23.3] - 2026-09-10 - 📐 Hero fits a 1280×720 window
+
+Follow-up to 10.23.2, measured live on 1366×768: the photo still started at y≈300 (the lead
+was hidden on most articles anyway) and needed a 694px viewport.
+
+### Changed
+- `app/[locale]/(site)/article/[slug]/page.tsx`: breadcrumbs and the Back button share one row
+  (−44px), category row `mb-3`, desktop hero **21:9** (`xl:aspect-[21/9]`, 338px at 788 wide).
+  Photo now starts at y≈252 → needs a **590px** viewport instead of 751 (before 10.23.2).
+- `components/Breadcrumbs.tsx`: optional `className` (default unchanged, `mb-6`).
+
 ## [10.23.2] - 2026-09-10 - 🎯 In-image viewability: earlier paint, hero that fits a laptop viewport
 
 Follow-up to the WOW in-image audit (Skyr Mlekpol / Harnaś at ~35% desktop viewability).

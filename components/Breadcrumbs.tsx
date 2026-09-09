@@ -10,9 +10,11 @@ interface BreadcrumbItem {
 interface BreadcrumbsProps {
   items: BreadcrumbItem[];
   locale: string;
+  /** Outer spacing; the article page overrides it to sit in a shared row with Back. */
+  className?: string;
 }
 
-export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
+export function Breadcrumbs({ items, locale, className = 'mb-6' }: BreadcrumbsProps) {
   const t = getTranslation(locale as any);
   
   // Всегда добавляем Home в начало
@@ -22,7 +24,7 @@ export function Breadcrumbs({ items, locale }: BreadcrumbsProps) {
   ];
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-6">
+    <nav aria-label="Breadcrumb" className={className}>
       <ol className="flex items-center text-sm text-neutral-600 dark:text-neutral-400 overflow-hidden">
         {allItems.map((item, index) => (
           <li key={index} className="flex items-center min-w-0">

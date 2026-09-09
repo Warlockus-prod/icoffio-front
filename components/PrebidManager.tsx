@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
 import { isPrebidEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { shouldBypassTcfForTest } from '@/lib/config/cmp';
 import {
   BIDIO_PREBID_GLOBAL,
   BIDIO_REINIT_ON_ROUTE_CHANGE,
@@ -59,6 +60,28 @@ export function PrebidManager() {
 
   const initialisedRef = useRef(false);
   const lastPathRef = useRef<string | null>(null);
+  const bypassTimerRef = useRef<number | null>(null);
+
+  /**
+   * TEST ONLY. Bidio's Prebid config sets defaultGdprScope: true, so a missing
+   * TCF CMP cancels every auction. Relaxing it lets the auction run.
+   *
+   * Applied on a short interval because Bidio writes its own consent config
+   * during init and may rewrite it before an auction — setConfig is idempotent,
+   * so re-applying is harmless and wins whichever order they land in.
+   */
+  const applyTcfBypass = useCallback(() => {
+    if (!shouldBypassTcfForTest()) return;
+    const pbjs = (window as any)[BIDIO_PREBID_GLOBAL];
+    if (!pbjs || typeof pbjs.setConfig !== 'function') return;
+
+    const relaxed = { cmpApi: 'iab', timeout: 1000, defaultGdprScope: false };
+    try {
+      pbjs.setConfig({ consentManagement: { gdpr: relaxed, tcf: relaxed } });
+    } catch (err) {
+      console.error('[Bidio] TCF bypass setConfig failed', err);
+    }
+  }, []);
 
   const initBidio = useCallback(() => {
     if (initialisedRef.current) return;
@@ -71,6 +94,23 @@ export function PrebidManager() {
         websiteId: BIDIO_WEBSITE_ID,
         prebidGlobal: BIDIO_PREBID_GLOBAL,
       });
+      if (shouldBypassTcfForTest()) {
+        console.warn(
+          '[Bidio] TEST MODE: relaxing Prebid defaultGdprScope so auctions run without a TCF CMP. Not a launch configuration — see lib/config/cmp.ts.'
+        );
+        applyTcfBypass();
+        if (bypassTimerRef.current === null) {
+          const startedAt = Date.now();
+          bypassTimerRef.current = window.setInterval(() => {
+            applyTcfBypass();
+            if (Date.now() - startedAt > 20000 && bypassTimerRef.current !== null) {
+              window.clearInterval(bypassTimerRef.current);
+              bypassTimerRef.current = null;
+            }
+          }, 150);
+        }
+      }
+
       console.log('[Bidio] init ok', {
         websiteId: BIDIO_WEBSITE_ID,
         prebidGlobal: BIDIO_PREBID_GLOBAL,
@@ -81,6 +121,15 @@ export function PrebidManager() {
       initialisedRef.current = false;
       console.error('[Bidio] init failed', err);
     }
+  }, [applyTcfBypass]);
+
+  useEffect(() => {
+    return () => {
+      if (bypassTimerRef.current !== null) {
+        window.clearInterval(bypassTimerRef.current);
+        bypassTimerRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {

@@ -38,6 +38,33 @@ export const CMP_PROVIDER: CmpProvider = 'none';
 /** Vendor-specific id. Empty means the CMP stays disabled. */
 export const CMP_ID = '';
 
+/**
+ * ⚠️ TEST ONLY — REMOVE BEFORE ANY REAL LAUNCH.
+ *
+ * Bidio configures Prebid with `defaultGdprScope: true`, which means "no CMP
+ * found → assume GDPR applies → cancel the auction". That is what stops every
+ * auction on web.icoffio.com today. Setting it to false lets the auction run
+ * without a TCF string.
+ *
+ * What this is NOT: it does not fabricate a consent string. The visitor's
+ * advertising consent is real — PrebidManager still refuses to load the SDK
+ * until the site's own banner grants it.
+ *
+ * What it IS: telling bidders GDPR scope is not asserted for this traffic,
+ * which for Polish visitors is not accurate. Most EU bidders geo-detect and
+ * will decline or bid non-personalised anyway, so this proves the pipeline
+ * works — it is not a revenue configuration.
+ *
+ * Retire it by either setting CMP_PROVIDER/CMP_ID above (the bypass then
+ * switches itself off) or having Bidio drop consentManagement server-side.
+ */
+export const PREBID_TEST_BYPASS_TCF = true;
+
+/** The bypass is pointless — and wrong — once a real CMP is present. */
+export function shouldBypassTcfForTest(): boolean {
+  return PREBID_TEST_BYPASS_TCF && !isCmpConfigured();
+}
+
 export interface CmpScript {
   src: string;
   attributes: Record<string, string>;

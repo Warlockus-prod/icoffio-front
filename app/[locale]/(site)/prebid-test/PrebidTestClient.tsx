@@ -5,7 +5,7 @@ import { Container } from '@/components/Container';
 import { PrebidAd } from '@/components/PrebidAd';
 import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
-import { CMP_PROVIDER, isCmpConfigured } from '@/lib/config/cmp';
+import { CMP_PROVIDER, isCmpConfigured, shouldBypassTcfForTest } from '@/lib/config/cmp';
 import { useAdsProvider, isPrebidEnabled, isVoxEnabled } from '@/lib/ads-provider';
 import {
   BIDIO_PREBID_GLOBAL,
@@ -175,8 +175,12 @@ export function PrebidTestClient() {
           <Row label="window.__tcfapi" value={String(tcfApi)} ok={tcfApi} />
           <Row
             label="TCF consent"
-            value={tcfConsent ?? 'n/a (no CMP — Prebid cancels every auction)'}
+            value={tcfConsent ?? 'n/a (no CMP)'}
             ok={tcfConsent === 'granted'}
+          />
+          <Row
+            label="TEST bypass (defaultGdprScope=false)"
+            value={shouldBypassTcfForTest() ? 'ACTIVE — test only, remove before launch' : 'off'}
           />
         </section>
 

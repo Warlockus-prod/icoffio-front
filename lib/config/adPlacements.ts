@@ -124,6 +124,21 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     addedDate: '2025-10-28',
     status: 'new'
   },
+  {
+    id: 'homepage-mobile-1',
+    placeId: '68f645bf810d98e1a08f272f',
+    format: '320x100',
+    placement: 'mobile',
+    name: 'Homepage Mobile Banner',
+    description: '320x100 banner on the homepage (Mobile). Rendered by app/[locale]/(site)/page.tsx; listed here so AdManager registers the PlaceID — until v10.23.2 it was skipped as unknown and never filled.',
+    location: 'homepage',
+    position: 'content-top',
+    enabled: true,
+    priority: 8,
+    device: 'mobile',
+    addedDate: '2026-09-10',
+    status: 'new'
+  },
   // ОТКЛЮЧЕНО: 160x600 слишком большой вертикальный баннер - плохой UX
   // {
   //   id: 'mobile-3',

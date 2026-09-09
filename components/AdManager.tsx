@@ -13,8 +13,9 @@ declare global {
 }
 
 const IN_IMAGE_PLACE_ID = "63d93bb54d506e95f039e2e3";
+// Late-container retries only. The FIRST init runs the moment the SDK is ready
+// (see runWhenSdkReady) — it used to wait for the 500ms timer on every pageview.
 const RETRY_DELAYS_MS = [500, 2500];
-const MAX_CONTAINER_INIT_ATTEMPTS = 3;
 const ENABLED_DISPLAY_PLACE_IDS = new Set(
   AD_PLACEMENTS.filter((ad) => ad.enabled).map((ad) => ad.placeId)
 );
@@ -47,14 +48,6 @@ export function AdManager() {
     }
   }, []);
 
-  const hasContainerContent = (container: HTMLElement): boolean => {
-    return (
-      container.children.length > 0 ||
-      container.querySelector('iframe') !== null ||
-      container.innerHTML.trim() !== ''
-    );
-  };
-
   // VOX SDK expects window._tx.cmds queue to exist before script execution.
   const ensureTxQueue = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -75,59 +68,40 @@ export function AdManager() {
       const currentPath = pathname || '';
       const isArticlePage = currentPath.includes('/article/');
       const shouldInitInImage = isArticlePage && lastInImagePathRef.current !== currentPath;
-      const displayPlaceIdsToInit = new Set<string>();
-      const adContainers = Array.from(
+      // Display slots are registered by _tx.init() itself: it scans every
+      // [data-hyb-ssp-ad-place] container, stamps data-hyb-ssp-ad-place-status on
+      // the ones it took, and skips those on later calls. So the only question is
+      // whether a visible, enabled container is still unregistered. (This used to
+      // call integrateInImage() once per display PlaceID as well — a no-op
+      // without an image selector that only left 11–13 duplicate registrations
+      // in the SDK per pageview.)
+      const unregisteredDisplay = Array.from(
         document.querySelectorAll<HTMLElement>('[data-hyb-ssp-ad-place]')
-      );
-
-      adContainers.forEach((container) => {
+      ).filter((container) => {
         const placeId = container.dataset.hybSspAdPlace;
-        if (!placeId || !ENABLED_DISPLAY_PLACE_IDS.has(placeId)) return;
-        if (container.dataset.adStatus === 'unsuitable') return;
+        if (!placeId || !ENABLED_DISPLAY_PLACE_IDS.has(placeId)) return false;
+        if (container.dataset.adStatus === 'unsuitable') return false;
+        if (container.dataset.hybSspAdPlaceStatus) return false;
+        // Responsive hiding (xl:hidden) lives on the wrapper, so the container's
+        // own computed display is never "none"; an empty rect list is the reliable
+        // signal for "inside a display:none subtree".
+        return container.getClientRects().length > 0;
+      }).length;
 
-        // Skip CSS-hidden placeholders from responsive breakpoints.
-        const computed = window.getComputedStyle(container);
-        if (computed.display === 'none' || computed.visibility === 'hidden') return;
-
-        if (hasContainerContent(container)) return;
-
-        const attempts = Number.parseInt(container.dataset.voxInitAttempts || '0', 10);
-        if (attempts >= MAX_CONTAINER_INIT_ATTEMPTS) return;
-
-        container.dataset.voxInitAttempts = String(attempts + 1);
-        displayPlaceIdsToInit.add(placeId);
-      });
-
-      // A. In-image ads only on article pages.
+      // A. In-image ads only on article pages. The image selector comes from
+      // VOX's server-side placement config (fetchSelector). `excludeSelectors`
+      // is not part of the SDK API — it was silently dropped — so exclusions
+      // have to be configured on the VOX side.
       if (shouldInitInImage) {
-        window._tx.integrateInImage({
-          placeId: IN_IMAGE_PLACE_ID,
-          fetchSelector: true,
-          excludeSelectors: [
-            '[data-no-inimage] img',
-            '[data-related-articles] img',
-            '[data-article-card] img',
-            'a[href*="/article/"] img',
-            '.group img',
-            '[class*="aspect-"] img',
-            'nav img',
-            'header img',
-            'footer img'
-          ].join(', ')
-        });
+        window._tx.integrateInImage({ placeId: IN_IMAGE_PLACE_ID, fetchSelector: true });
         lastInImagePathRef.current = currentPath;
       } else if (!isArticlePage) {
         // Reset when leaving article pages to allow next article-path init.
         lastInImagePathRef.current = null;
       }
 
-      // B. Display placements only for containers currently in DOM.
-      displayPlaceIdsToInit.forEach((placeId) => {
-        window._tx.integrateInImage({ placeId, setDisplayBlock: true });
-      });
-
-      // C. Trigger init if we have work to do.
-      if (shouldInitInImage || displayPlaceIdsToInit.size > 0) {
+      // B. Trigger init if we have work to do.
+      if (shouldInitInImage || unregisteredDisplay > 0) {
         window._tx.init();
       }
     } catch (err) {
@@ -154,6 +128,26 @@ export function AdManager() {
     });
   }, [clearRetryTimers, initVOX]);
 
+  // Run the first init the moment the SDK is usable — synchronously if it is
+  // already on the page (the <head> loader in layout.tsx normally gets it there
+  // before hydration), otherwise from the SDK's own command queue, which it
+  // drains on load — and only then fall back to the timed retries for
+  // containers that appear later. Measured before this change: the first init
+  // never ran earlier than 500ms after the script loaded.
+  const runWhenSdkReady = useCallback((reason: string) => {
+    ensureTxQueue();
+    scriptLoaded.current = true;
+    if (window._tx.integrateInImage && window._tx.init) {
+      initVOX(`${reason}:now`);
+      scheduleInitRetries(reason);
+      return;
+    }
+    window._tx.cmds.push(() => {
+      initVOX(`${reason}:sdk-ready`);
+      scheduleInitRetries(reason);
+    });
+  }, [ensureTxQueue, initVOX, scheduleInitRetries]);
+
   // 2. Load script when consent is granted.
   useEffect(() => {
     if (!hasConsent) {
@@ -165,31 +159,12 @@ export function AdManager() {
 
     ensureTxQueue();
 
-    if (typeof window._tx !== 'undefined' && window._tx.integrateInImage) {
-      scriptLoaded.current = true;
-      scheduleInitRetries('script-ready');
+    // Already requested — by the <head> loader, a previous mount or a cached
+    // shell. Loaded or still in flight, the command queue covers both cases; a
+    // `load` listener would miss a script that finished before we mounted.
+    if (document.querySelector('script[data-vox-ssp="1"]')) {
+      runWhenSdkReady('script-present');
       return;
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-vox-ssp="1"]');
-
-    const onScriptLoad = () => {
-      ensureTxQueue();
-      scriptLoaded.current = true;
-      scheduleInitRetries('script-load');
-    };
-
-    if (existingScript) {
-      existingScript.addEventListener('load', onScriptLoad, { once: true });
-      const readyPoll = window.setTimeout(() => {
-        if (window._tx && window._tx.integrateInImage) {
-          onScriptLoad();
-        }
-      }, 250);
-      return () => {
-        window.clearTimeout(readyPoll);
-        existingScript.removeEventListener('load', onScriptLoad);
-      };
     }
 
     const script = document.createElement("script");
@@ -197,7 +172,7 @@ export function AdManager() {
     script.async = true;
     script.src = "https://st.hbrd.io/ssp.js";
     script.dataset.voxSsp = "1";
-    script.onload = onScriptLoad;
+    script.onload = () => runWhenSdkReady('script-load');
     script.onerror = () => {
       console.error('VOX script failed to load');
     };
@@ -207,7 +182,7 @@ export function AdManager() {
       script.onload = null;
       script.onerror = null;
     };
-  }, [clearMutationDebounce, clearRetryTimers, ensureTxQueue, hasConsent, scheduleInitRetries]);
+  }, [clearMutationDebounce, clearRetryTimers, ensureTxQueue, hasConsent, runWhenSdkReady]);
 
   // 3. Re-init on route changes and when ad containers appear later.
   useEffect(() => {

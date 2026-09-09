@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { CONSENT_KEY, CONSENT_VERSION, consentExpiryMs, readStoredConsent } from '@/lib/consent-storage';
 
 export type CookieCategory = 'necessary' | 'analytics' | 'advertising';
 
@@ -16,9 +17,8 @@ export interface ConsentState {
   preferences: CookiePreferences;
 }
 
-const CONSENT_KEY = 'icoffio_cookie_consent';
-const CONSENT_VERSION = '1.0';
-const CONSENT_EXPIRY_DAYS = 365;
+// Storage key, version and expiry rules live in lib/consent-storage.ts — the
+// <head> loader in layout.tsx reads the same record before React hydrates.
 
 // Значения по умолчанию
 const defaultPreferences: CookiePreferences = {
@@ -44,34 +44,31 @@ export function useCookieConsent() {
   const [showBanner, setShowBanner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Загрузка сохраненных настроек при монтировании
-  useEffect(() => {
+  // Чтение сохранённых настроек. Вызывается при монтировании и при каждом
+  // изменении согласия — у каждого компонента свой экземпляр этого хука, так
+  // что выбор в баннере доходит до AdManager и остальных только через события.
+  // Раньше это делала перезагрузка страницы.
+  const readConsent = useCallback(() => {
     if (typeof window === 'undefined') return;
 
     try {
-      const saved = localStorage.getItem(CONSENT_KEY);
-      
-      if (saved) {
-        const parsed: ConsentState & { version?: string; expiryDate?: number } = JSON.parse(saved);
-        
-        // Проверяем версию и срок действия
-        const isExpired = parsed.expiryDate && parsed.expiryDate < Date.now();
-        const isOldVersion = parsed.version !== CONSENT_VERSION;
-        
-        if (isExpired || isOldVersion) {
-          // Сбрасываем устаревшее согласие
-          localStorage.removeItem(CONSENT_KEY);
-          setShowBanner(true);
-        } else {
-          // Восстанавливаем сохраненные настройки
-          setConsentState({
-            hasConsented: parsed.hasConsented,
-            timestamp: parsed.timestamp,
-            preferences: { ...defaultPreferences, ...parsed.preferences },
-          });
-          setShowBanner(!parsed.hasConsented);
-        }
+      const raw = localStorage.getItem(CONSENT_KEY);
+      const stored = readStoredConsent(raw);
+
+      if (raw && !stored) {
+        // Устаревшая версия или истёкший срок — спрашиваем заново
+        localStorage.removeItem(CONSENT_KEY);
+      }
+
+      if (stored) {
+        setConsentState({
+          hasConsented: stored.hasConsented,
+          timestamp: stored.timestamp,
+          preferences: { ...defaultPreferences, ...stored.preferences },
+        });
+        setShowBanner(!stored.hasConsented);
       } else {
+        setConsentState({ hasConsented: false, preferences: defaultPreferences });
         setShowBanner(true);
       }
     } catch (error) {
@@ -82,6 +79,22 @@ export function useCookieConsent() {
     }
   }, []);
 
+  useEffect(() => {
+    readConsent();
+
+    const onChanged = () => readConsent();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== CONSENT_KEY) return;
+      readConsent();
+    };
+    window.addEventListener('cookieConsentChanged', onChanged);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('cookieConsentChanged', onChanged);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [readConsent]);
+
   // Сохранение настроек в localStorage
   const saveConsent = useCallback((preferences: CookiePreferences) => {
     const newState: ConsentState = {
@@ -90,29 +103,26 @@ export function useCookieConsent() {
       preferences,
     };
 
-    const expiryDate = Date.now() + CONSENT_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-
     try {
       localStorage.setItem(
         CONSENT_KEY,
         JSON.stringify({
           ...newState,
           version: CONSENT_VERSION,
-          expiryDate,
+          // Согласие — на год, отказ — на месяц (см. lib/consent-storage.ts)
+          expiryDate: consentExpiryMs(preferences),
         })
       );
       setConsentState(newState);
       setShowBanner(false);
 
-      // Триггерим событие для других компонентов
-      window.dispatchEvent(new CustomEvent('cookieConsentChanged', { 
-        detail: preferences 
+      // Все остальные экземпляры хука (AdManager, Analytics, …) перечитают
+      // localStorage по этому событию — перезагрузка страницы больше не нужна.
+      // v10.23.2: раньше reload стоил ~2 с и сбрасывал позицию прокрутки на
+      // единственном pageview, где пользователь только что дал согласие.
+      window.dispatchEvent(new CustomEvent('cookieConsentChanged', {
+        detail: preferences
       }));
-
-      // Перезагружаем страницу если разрешили аналитику/рекламу
-      if (preferences.analytics || preferences.advertising) {
-        window.location.reload();
-      }
     } catch (error) {
       console.error('Cookie Consent: Ошибка сохранения настроек', error);
     }

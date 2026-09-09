@@ -20,7 +20,8 @@ import { PrebidManager } from "@/components/PrebidManager";
 import { CmpLoader } from "@/components/CmpLoader";
 
 import { AdsProviderProvider } from "@/lib/ads-provider";
-import { resolveAdsProviderForHost } from "@/lib/ads-provider-core";
+import { isVoxEnabled, resolveAdsProviderForHost } from "@/lib/ads-provider-core";
+import { buildEarlyVoxLoaderScript } from "@/lib/consent-storage";
 
 import { getTranslation } from "@/lib/i18n";
 import { getSiteBaseUrl } from "@/lib/site-url";
@@ -194,6 +195,18 @@ export default function LocaleLayout({
             `,
           }}
         />
+        {isVoxEnabled(adsProvider) && (
+          <>
+            <link rel="preconnect" href="https://st.hbrd.io" crossOrigin="" />
+            <link rel="preconnect" href="https://ssp.hybrid.ai" crossOrigin="" />
+            <link rel="preconnect" href="https://st.hybrid.ai" crossOrigin="" />
+            {/* v10.23.2: with advertising consent already stored, start the VOX SDK
+                download with the document. AdManager used to request it from a
+                post-hydration effect — at ~770ms, after the load event. The script
+                is a compile-time constant built in lib/consent-storage.ts. */}
+            <script dangerouslySetInnerHTML={{ __html: buildEarlyVoxLoaderScript() }} />
+          </>
+        )}
         <WebsiteSchema locale={params.locale} />
         <OrganizationSchema locale={params.locale} />
       </head>

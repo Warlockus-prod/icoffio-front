@@ -234,7 +234,7 @@ import { CookieConsent } from "@/components/CookieConsent";
    - Analytics (toggle switch)
    - Advertising (toggle switch)
 3. Кнопки: Save Settings, Accept All, Reject All
-4. После выбора - страница перезагружается (если разрешены analytics/advertising)
+4. После выбора страница НЕ перезагружается (с v10.23.2): компоненты перечитывают согласие по событию `cookieConsentChanged`; отказ хранится 30 дней, согласие — 365
 
 ### Повторные визиты
 

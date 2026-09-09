@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.23.2] - 2026-09-10 - 🎯 In-image viewability: earlier paint, hero that fits a laptop viewport
+
+Follow-up to the WOW in-image audit (Skyr Mlekpol / Harnaś at ~35% desktop viewability).
+VOX counts an in-image view only while >99% of the HOST PHOTO is on screen for a full
+second — the whole photo must fit the viewport — and the creative was painting ~1.9s into
+a page whose hero sat at y≈308 with 443px of height (751px viewport needed; 1366×768
+laptops have ~650). Site-side levers:
+
+### Changed
+- `app/[locale]/(site)/article/[slug]/page.tsx`: lead paragraph moves under the photo, the
+  hero is 2:1 on desktop (`xl:aspect-[2/1]`, 16:9 below). Photo starts ≈90px higher and is
+  394px tall → fits a ~620px viewport instead of 751px.
+- `app/[locale]/layout.tsx` + `lib/consent-storage.ts`: with advertising consent already
+  stored, an inline `<head>` script starts the VOX SDK download with the document (plus
+  `preconnect` to st.hbrd.io / ssp.hybrid.ai / st.hybrid.ai). It used to be requested from
+  a post-hydration effect at ~770ms, after the load event. VOX hosts only.
+- `components/AdManager.tsx`: the first init runs the moment the SDK is usable (synchronously
+  if present, else via `_tx.cmds`) instead of after a hard-coded 500ms timer; display slots
+  are left to `_tx.init()` (the per-PlaceID `integrateInImage` calls were no-ops that left
+  11–13 duplicate registrations per pageview); "already registered" is read from
+  `data-hyb-ssp-ad-place-status`; the dead `excludeSelectors` option is gone — it is not
+  part of the SDK API and was silently dropped.
+- `lib/useCookieConsent.ts`: consent changes propagate through `cookieConsentChanged` /
+  `storage` listeners — **no page reload** on accept any more (it cost ~2s and a scroll
+  reset on the one pageview where the visitor had just said yes). A refusal is stored for
+  30 days instead of 365, so "Reject All" no longer silences ads from that browser for a year.
+- `lib/config/adPlacements.ts`: homepage 320×100 (`68f645bf…`) registered — the homepage
+  rendered it but AdManager skipped the unknown PlaceID, so it never filled.
+
+### Tests
+- `__tests__/consent-storage.test.ts`: record parsing, expiry rules, and the `<head>` loader
+  executed in a sandbox (no consent → no tag; grant → one tag with the attribute AdManager
+  keys on; never a second tag).
+
+### Context
+- **10.23.0 / 10.23.1** (parallel change) — test-only TCF bypass on Prebid hosts so Bidio auctions can run
+  (`defaultGdprScope:false` when no CMP answers; documented as not a launch configuration).
+
+### Not changed (deliberately)
+- `UniversalAd` still hides slots with `opacity:0` until filled — separate ad-quality item.
+- The biggest lever is in the creative, not the site: with `outside` declared VOX measures
+  the host photo instead of the 200px ad strip. See the audit report.
+
 ## [10.22.6] - 2026-09-10 - 🩹 Build unblocked: unconditional useFocusTrap in ArticleCreatorModal
 
 ### Fixed

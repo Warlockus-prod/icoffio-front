@@ -262,7 +262,7 @@ export default async function Article({ params }: { params: { locale: string; sl
           
           {/* Main Article Content */}
           <article className="min-w-0">
-            <header className="mb-8">
+            <header className="mb-6">
               <div className="flex items-center gap-3 mb-4">
                 <Link 
                   href={`/${params.locale}/category/${post.category.slug}`} 
@@ -281,14 +281,9 @@ export default async function Article({ params }: { params: { locale: string; sl
                   })}
                 </time>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-6 text-neutral-900 dark:text-neutral-100 leading-tight">
+              <h1 className="text-3xl md:text-4xl font-bold mb-0 text-neutral-900 dark:text-neutral-100 leading-tight">
                 {post.title}
               </h1>
-              {showExcerpt && (
-                <p className="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                  {normalizedExcerpt}
-                </p>
-              )}
             </header>
 
             {/* Mobile Header Ads (above hero) */}
@@ -312,9 +307,20 @@ export default async function Article({ params }: { params: { locale: string; sl
                 height={675}
                 priority
                 sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
-                className="w-full rounded-xl aspect-[16/9] object-cover"
+                className="w-full rounded-xl aspect-[16/9] xl:aspect-[2/1] object-cover"
               />
             </div>
+
+            {/* v10.23.2: the lead sits under the photo and the desktop hero is 2:1.
+                VOX counts an in-image (WOW) view only while >99% of the host photo
+                is on screen for a full second, so the photo has to fit a laptop
+                viewport (~650px tall on 1366×768). At y≈308 with 443px of height it
+                needed 751px; now it starts ≈90px higher and is 394px tall. */}
+            {showExcerpt && (
+              <p className="mb-8 text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                {normalizedExcerpt}
+              </p>
+            )}
 
             {/* Source Attribution */}
             {post.sourceUrl && (

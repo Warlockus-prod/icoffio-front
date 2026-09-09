@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.22.5] - 2026-09-10 - ⏱ Preroll resolver: stop waiting on a stalled DSP tag
+
+### Fixed (`app/api/video/preroll/route.ts`)
+- The route proxied the DSP VAST tag with no upstream limit: `VideoPlayer` aborts its own
+  request after 15s, but the server kept the `ssp.hybrid.ai` socket open until the DSP answered
+  (observed live: 10.5s on a single tag). Now: 8s upstream timeout (`PREROLL_UPSTREAM_TIMEOUT_MS`
+  to override), the DSP call is cancelled when the browser abandons the request, and both cases
+  answer `504 { success:false, vastEmpty:true, timedOut:true }` — which the player already treats
+  as "no ad".
+- `__tests__/video-preroll-route.test.ts`: stalled-DSP timeout, client-abort cancellation,
+  allowlist still enforced before any upstream call.
+
 ## [10.22.4] - 2026-09-10 - 🔒 Harden per-host ad provider + unblock commits
 
 ### Changed

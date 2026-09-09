@@ -5,6 +5,12 @@ const ALLOWED_DSP_HOSTS = new Set([
   'dsa-eu.hybrid.ai',
 ]);
 
+// The player (components/VideoPlayer.tsx) gives up on this route after 15s.
+// Give the DSP less than that: a slow or no-fill VAST tag must not keep a
+// worker socket open after the browser has already moved on. Observed live:
+// a single tag held the route for 10.5s before this guard existed.
+const PREROLL_UPSTREAM_TIMEOUT_MS = Number(process.env.PREROLL_UPSTREAM_TIMEOUT_MS) || 8000;
+
 interface VastMediaCandidate {
   url: string;
   type: string;
@@ -200,6 +206,11 @@ export async function GET(request: NextRequest) {
   const clientUa = request.headers.get('user-agent') || '';
   const clientReferer = request.headers.get('referer') || '';
 
+  const upstream = new AbortController();
+  const upstreamTimer = setTimeout(() => upstream.abort(), PREROLL_UPSTREAM_TIMEOUT_MS);
+  // If the browser abandons the request, drop the DSP call with it.
+  request.signal?.addEventListener('abort', () => upstream.abort(), { once: true });
+
   try {
     const response = await fetch(validatedUrl.toString(), {
       method: 'GET',
@@ -212,6 +223,7 @@ export async function GET(request: NextRequest) {
       },
       cache: 'no-store',
       redirect: 'follow',
+      signal: upstream.signal,
     });
 
     if (!response.ok) {
@@ -256,6 +268,18 @@ export async function GET(request: NextRequest) {
       candidateCount: candidates.length,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      // Timed out or the client went away — either way there is no ad to play.
+      return NextResponse.json(
+        {
+          success: false,
+          error: `DSP tag did not answer within ${PREROLL_UPSTREAM_TIMEOUT_MS} ms`,
+          vastEmpty: true,
+          timedOut: true,
+        },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       {
         success: false,
@@ -263,5 +287,7 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    clearTimeout(upstreamTimer);
   }
 }

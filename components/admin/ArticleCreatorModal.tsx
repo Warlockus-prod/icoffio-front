@@ -136,6 +136,9 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isPublishMinimized, setIsPublishMinimized] = useState(false);
+  // v10.20.0: WCAG focus trap. Hooks must run on every render, so this sits above the
+  // early return for the minimised "publishing" pill — the trap is simply inactive then.
+  const dialogRef = useFocusTrap<HTMLDivElement>(!isPublishMinimized);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Editable fields - ENGLISH
@@ -681,9 +684,6 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
       </div>
     );
   }
-
-  // v10.20.0: WCAG focus trap — modal is always open while mounted
-  const dialogRef = useFocusTrap<HTMLDivElement>(true);
 
   // ===== RENDER =====
   return (

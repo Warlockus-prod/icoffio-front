@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.22.6] - 2026-09-10 - 🩹 Build unblocked: unconditional useFocusTrap in ArticleCreatorModal
+
+### Fixed
+- `components/admin/ArticleCreatorModal.tsx`: `useFocusTrap` was called after the early return
+  for the minimised "publishing" state — i.e. conditionally (`react-hooks/rules-of-hooks`). It now
+  runs on every render with `active = !isPublishMinimized`. The violation dates from v10.20.0 and
+  went unnoticed because the invalid `.eslintrc.json` (repaired in 10.22.4) had been silencing
+  ESLint inside `next build`; with a valid config the production build failed on it.
+
 ## [10.22.5] - 2026-09-10 - ⏱ Preroll resolver: stop waiting on a stalled DSP tag
 
 ### Fixed (`app/api/video/preroll/route.ts`)

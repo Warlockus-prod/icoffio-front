@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.22.4] - 2026-09-10 - 🔒 Harden per-host ad provider + unblock commits
+
+### Changed
+- `lib/ads-provider-core.ts`: `NEXT_PUBLIC_ADS_PROVIDER=prebid` is no longer honoured for
+  hosts outside `PREBID_HOSTS`. v10.21.2 made the provider per-host, but the env var still
+  ranked above the `vox` fallback, so the exact value behind the 2026-09-09 outage (VOX off on
+  icoffio.com / app.icoffio.com — no ads anywhere) could still switch the main site off. Prebid
+  is now strictly a per-host decision; `both` stays available for side-by-side fill comparison.
+- `__tests__/ads-provider.test.ts`: locks host resolution, the incident case and the `?ads=`
+  override policy (7+2+1 cases).
+- `.eslintrc.json`: drops the invalid `overrides[1].comment` key that made `next lint` abort
+  (every ts/tsx commit failed the pre-commit hook) and sets `root: true` so git worktrees stop
+  inheriting the parent checkout's config.
+
+### Context for the versions missing from this changelog
+- **10.21.0 / 10.21.1** — Bidio/Prebid integration for web.icoffio.com behind a build-time
+  `NEXT_PUBLIC_ADS_PROVIDER`. One container serves all icoffio domains, so `prebid` switched VOX
+  off site-wide from the 2026-09-09 13:49 UTC rebuild.
+- **10.21.2** — provider resolved from the request Host header (root layout → context, so SSR
+  and hydration agree). Ads restored on icoffio.com / app.icoffio.com.
+- **10.22.0** — TCF v2.2 CMP wiring for Prebid hosts (`CMP_PROVIDER` stays `none` until a
+  vendor account exists, so no behaviour change yet).
+- **10.22.1 – 10.22.3** — `/prebid-test` debug page is a real 404 off Prebid hosts (page +
+  middleware).
+
 ## [10.20.12] - 2026-07-02 - 📐 Relax display ad size-gate
 
 ### Changed (`components/UniversalAd.tsx`)

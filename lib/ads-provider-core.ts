@@ -45,13 +45,18 @@ export function allowsAdsOverride(host: string | null | undefined): boolean {
 }
 
 /**
- * Resolution order: known prebid host → NEXT_PUBLIC_ADS_PROVIDER → vox.
- * The env var stays useful for a future standalone deployment, but it can no
- * longer flip the shared container's main domains by accident.
+ * Resolution: known prebid host → prebid; everything else → vox, or `both`
+ * when NEXT_PUBLIC_ADS_PROVIDER=both (side-by-side fill comparison).
+ *
+ * A build-time `prebid` is deliberately NOT honoured outside PREBID_HOSTS: that
+ * exact value took VOX down on icoffio.com and app.icoffio.com (v10.21.1), and
+ * with the env var ranked above the fallback it could do so again. Prebid is a
+ * per-host decision — add the host to PREBID_HOSTS instead.
  */
 export function resolveAdsProviderForHost(host: string | null | undefined): AdsProvider {
   if ((PREBID_HOSTS as readonly string[]).includes(bareHost(host))) return 'prebid';
-  return normalizeAdsProvider(process.env.NEXT_PUBLIC_ADS_PROVIDER) ?? ADS_PROVIDER_FALLBACK;
+  const configured = normalizeAdsProvider(process.env.NEXT_PUBLIC_ADS_PROVIDER);
+  return configured === 'both' ? 'both' : ADS_PROVIDER_FALLBACK;
 }
 
 export function isVoxEnabled(provider: AdsProvider): boolean {

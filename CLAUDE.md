@@ -84,6 +84,7 @@ All operations are pre-approved by the project owner. Work autonomously:
 - **Port 3000 on VPS = Metabase**, app is on port 4200 (`172.17.0.1:4200`)
 - **Video players with fake VOX PlaceIDs cause Chrome freeze** — keep `NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=false`
 - **VOX SSP = Hybrid.ai, NOT vox.com.** Ad domains are `st.hbrd.io` / `ssp.hbrd.io` / `ssp.hybrid.ai` — any CSP change in `next.config.mjs` must keep them in script-src/connect-src/frame-src (v10.20.0 allowlisted vox.com by mistake → ads dead for a month, fixed v10.20.10). Test ad changes with cookie-consent **Accepted** — AdManager won't even load the script after Reject All.
+- **Ad provider is per-HOST, not per-build.** One container serves icoffio.com / app.icoffio.com / web.icoffio.com. `lib/ads-provider-core.ts` gives `prebid` only to `PREBID_HOSTS` (`web.icoffio.com`) and `vox` to everything else; `NEXT_PUBLIC_ADS_PROVIDER=prebid` is inert for the main site since v10.22.4 (v10.21.1 set it for the subdomain and killed all ads site-wide for a day). Keep the VPS value at `vox`.
 - **PostgreSQL varchar→text cast** needs explicit `::text` in PL/pgSQL RETURNS TABLE
 - **Docker compose** reads `${POSTGRES_PASSWORD}` from `.env` by default, NOT `.env.production`. Pass `--env-file .env.production` always.
 - **Telegram reply_markup** can only be ONE of InlineKeyboard or ReplyKeyboard per message

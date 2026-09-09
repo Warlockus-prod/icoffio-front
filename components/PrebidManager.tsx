@@ -180,6 +180,21 @@ export function PrebidManager() {
     initBidio();
 
     if (!document.querySelector(`script[${SCRIPT_ATTR}]`)) {
+      // Claim pbjs.que before the SDK loads. Prebid drains this queue the moment
+      // it initialises — earlier than any polling can reach it, and earlier than
+      // Bidio's own auction, which is queued after ours. Measured on the live
+      // subdomain: patching after bidio.init() always lost the race, the console
+      // showed "init ok" before the patch and the auction was already cancelled.
+      if (shouldBypassTcfForTest()) {
+        const w = window as any;
+        w[BIDIO_PREBID_GLOBAL] = w[BIDIO_PREBID_GLOBAL] || {};
+        w[BIDIO_PREBID_GLOBAL].que = w[BIDIO_PREBID_GLOBAL].que || [];
+        w[BIDIO_PREBID_GLOBAL].que.push(() => {
+          patchRequestBids();
+          applyTcfBypass();
+        });
+      }
+
       const script = document.createElement('script');
       script.src = BIDIO_SDK_URL;
       script.async = true;
@@ -193,7 +208,7 @@ export function PrebidManager() {
     return () => {
       window.removeEventListener('BidioReady', initBidio);
     };
-  }, [enabled, hasConsent, initBidio, tcfConsent]);
+  }, [applyTcfBypass, enabled, hasConsent, initBidio, patchRequestBids, tcfConsent]);
 
   // Client-side navigation replaces the slot <div>s with fresh empty ones, so
   // the wrapper has to fill them again. SDK v1.0.6 exposes only getVersion and

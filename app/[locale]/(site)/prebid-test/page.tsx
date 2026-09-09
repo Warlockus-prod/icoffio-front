@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notFound } from 'next/navigation';
 import { Container } from '@/components/Container';
 import { PrebidAd } from '@/components/PrebidAd';
 import { useCookieConsent } from '@/lib/useCookieConsent';
@@ -127,6 +128,8 @@ export default function PrebidTestPage() {
   const { consentState } = useCookieConsent();
   const tcfConsent = useTcfConsent();
   const [tcfApi, setTcfApi] = useState(false);
+  // Debug-only page: it must not exist on icoffio.com / app.icoffio.com.
+  const prebidHost = isPrebidEnabled(provider);
   const [diag, setDiag] = useState<Diagnostics>(EMPTY);
   const [elapsed, setElapsed] = useState(0);
 
@@ -142,6 +145,8 @@ export default function PrebidTestPage() {
     const intervalId = window.setInterval(tick, 2000);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  if (!prebidHost) notFound();
 
   return (
     <Container>

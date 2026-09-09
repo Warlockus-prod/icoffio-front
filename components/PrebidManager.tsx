@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCookieConsent } from '@/lib/useCookieConsent';
+import { useTcfConsent } from '@/lib/useTcfConsent';
 import { isPrebidEnabled, useAdsProvider } from '@/lib/ads-provider';
 import {
   BIDIO_PREBID_GLOBAL,
@@ -46,9 +47,15 @@ export function PrebidManager() {
   const pathname = usePathname();
   const provider = useAdsProvider();
   const { consentState } = useCookieConsent();
+  const tcfConsent = useTcfConsent();
 
   const enabled = isPrebidEnabled(provider);
-  const hasConsent = consentState.hasConsented && consentState.preferences.advertising;
+  // With a TCF CMP the CMP dialog is the consent UI, so the site's own banner
+  // must not be required a second time. Without one, fall back to it.
+  const hasConsent =
+    tcfConsent !== null
+      ? tcfConsent === 'granted'
+      : consentState.hasConsented && consentState.preferences.advertising;
 
   const initialisedRef = useRef(false);
   const lastPathRef = useRef<string | null>(null);
@@ -80,7 +87,11 @@ export function PrebidManager() {
     if (!enabled) return;
 
     if (!hasConsent) {
-      console.log('[Bidio] waiting for advertising consent — SDK not loaded');
+      console.log(
+        tcfConsent !== null
+          ? `[Bidio] waiting for TCF consent (status=${tcfConsent}) — SDK not loaded`
+          : '[Bidio] waiting for advertising consent — SDK not loaded'
+      );
       return;
     }
 
@@ -103,7 +114,7 @@ export function PrebidManager() {
     return () => {
       window.removeEventListener('BidioReady', initBidio);
     };
-  }, [enabled, hasConsent, initBidio]);
+  }, [enabled, hasConsent, initBidio, tcfConsent]);
 
   // Client-side navigation replaces the slot <div>s with fresh empty ones, so
   // the wrapper has to fill them again. SDK v1.0.6 exposes only getVersion and

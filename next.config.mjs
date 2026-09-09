@@ -52,6 +52,17 @@ const nextConfig = {
     // NOTE: creatives are served by DSPs on their own domains; if a winning bid
     // renders blank, check the console for the blocked host and add it here.
     //
+    // ⚠️ WHEN ENABLING THE CMP (lib/config/cmp.ts): its host must be added to
+    // script-src and connect-src below, or it is blocked exactly like Bidio was
+    // and Prebid keeps cancelling auctions. Nothing is listed yet because no
+    // vendor is chosen. Entries per vendor:
+    //   google-funding-choices: https://fundingchoicesmessages.google.com
+    //                           https://*.googlesyndication.com
+    //   cookiebot:              https://consent.cookiebot.com
+    //                           https://consentcdn.cookiebot.com
+    //   usercentrics:           https://web.cmp.usercentrics.eu
+    //                           https://api.usercentrics.eu
+    //
     // 'unsafe-inline' on script-src is required by Next.js for hydration scripts.
     // 'unsafe-eval' is required by the VOX/prebid stack and react-dev-tools.
     const csp = [

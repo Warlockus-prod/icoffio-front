@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Container } from '@/components/Container';
 import { PrebidAd } from '@/components/PrebidAd';
 import { useCookieConsent } from '@/lib/useCookieConsent';
+import { useTcfConsent } from '@/lib/useTcfConsent';
+import { CMP_PROVIDER, isCmpConfigured } from '@/lib/config/cmp';
 import { useAdsProvider, isPrebidEnabled, isVoxEnabled } from '@/lib/ads-provider';
 import {
   BIDIO_PREBID_GLOBAL,
@@ -123,6 +125,8 @@ function Row({ label, value, ok }: { label: string; value: string; ok?: boolean 
 export default function PrebidTestPage() {
   const provider = useAdsProvider();
   const { consentState } = useCookieConsent();
+  const tcfConsent = useTcfConsent();
+  const [tcfApi, setTcfApi] = useState(false);
   const [diag, setDiag] = useState<Diagnostics>(EMPTY);
   const [elapsed, setElapsed] = useState(0);
 
@@ -131,6 +135,7 @@ export default function PrebidTestPage() {
   useEffect(() => {
     const tick = () => {
       setDiag(collect());
+      setTcfApi(typeof (window as any).__tcfapi === 'function');
       setElapsed((n) => n + 1);
     };
     tick();
@@ -161,6 +166,18 @@ export default function PrebidTestPage() {
           />
           <Row label="websiteId" value={BIDIO_WEBSITE_ID} />
           <Row label="SDK url" value={BIDIO_SDK_URL} />
+        </section>
+
+        <section className="mb-10">
+          <h2 className="mb-3 text-xl font-semibold">Consent / CMP</h2>
+          <Row label="CMP vendor" value={CMP_PROVIDER} ok={CMP_PROVIDER !== 'none'} />
+          <Row label="CMP configured" value={String(isCmpConfigured())} ok={isCmpConfigured()} />
+          <Row label="window.__tcfapi" value={String(tcfApi)} ok={tcfApi} />
+          <Row
+            label="TCF consent"
+            value={tcfConsent ?? 'n/a (no CMP — Prebid cancels every auction)'}
+            ok={tcfConsent === 'granted'}
+          />
         </section>
 
         <section className="mb-10">

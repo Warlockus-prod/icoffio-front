@@ -17,6 +17,7 @@ import { CookieSettingsManager } from "@/components/CookieSettingsManager";
 import { AdManager } from "@/components/AdManager";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { PrebidManager } from "@/components/PrebidManager";
+import { CmpLoader } from "@/components/CmpLoader";
 
 import { AdsProviderProvider } from "@/lib/ads-provider";
 import { resolveAdsProviderForHost } from "@/lib/ads-provider-core";
@@ -213,6 +214,7 @@ export default function LocaleLayout({
               <TestPanel locale={params.locale} />
               <CookieConsent locale={params.locale} />
               <CookieSettingsManager locale={params.locale} />
+              <CmpLoader />
               <AdManager />
               <PrebidManager />
             </SearchProvider>

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useCookieConsent } from '@/lib/useCookieConsent';
+import { isPrebidEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { isCmpConfigured } from '@/lib/config/cmp';
 import { CookieSettings } from '@/components/CookieSettings';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 
@@ -69,10 +71,16 @@ const translations: Record<string, {
 export function CookieConsent({ locale = 'en' }: CookieConsentProps) {
   const { showBanner, acceptAll, rejectAll } = useCookieConsent();
   const [showSettings, setShowSettings] = useState(false);
+  const adsProvider = useAdsProvider();
   // v10.18.0: WCAG focus trap for the consent dialog
   const dialogRef = useFocusTrap<HTMLDivElement>(showBanner && !showSettings);
 
   const t = translations[locale] || translations.en;
+
+  // On a Prebid host with a TCF CMP, the CMP dialog is the consent UI — showing
+  // this banner too would ask the same question twice, with only the CMP's
+  // answer reaching the bidders.
+  if (isPrebidEnabled(adsProvider) && isCmpConfigured()) return null;
 
   // Не показываем баннер если пользователь уже дал согласие
   if (!showBanner) return null;

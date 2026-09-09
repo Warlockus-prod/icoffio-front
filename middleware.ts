@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { allowsAdsOverride } from '@/lib/ads-provider-core'
 
-const locales = ['en', 'pl']  
+const locales = ['en', 'pl']
 const defaultLocale = 'en'
 
 function getLocale(request: NextRequest): string {
@@ -46,6 +47,15 @@ export function middleware(request: NextRequest) {
     // Root or non-info/admin path → redirect to info portal
     const locale = getLocale(request)
     return NextResponse.redirect(new URL(`/${locale}/info`, request.url))
+  }
+
+  // The Prebid diagnostics page exists only on the Bidio test subdomain.
+  // It has to be blocked here rather than with notFound() in the page: the
+  // (site) segment has a loading.tsx, so the response starts streaming with a
+  // 200 before the page renders and the status can no longer change — which
+  // left a soft 404 indexable on icoffio.com.
+  if (/^\/(en|pl)\/prebid-test(\/|$)/.test(pathname) && !allowsAdsOverride(hostname)) {
+    return new NextResponse(null, { status: 404 })
   }
 
   const pathnameHasLocale = locales.some(

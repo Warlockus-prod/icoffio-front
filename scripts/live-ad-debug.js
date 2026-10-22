@@ -129,6 +129,7 @@ function attachNetwork(page, run) {
       const task = response.json().then((data) => {
         item.result = {
           success: data?.success === true,
+          reason: typeof data?.reason === 'string' ? safeText(data.reason) : null,
           error: typeof data?.error === 'string' ? safeText(data.error) : null,
           vastEmpty: data?.vastEmpty === true,
           timedOut: data?.timedOut === true,
@@ -257,7 +258,7 @@ function summarize(run) {
     `${state.label} SDK=${state.sdkLoaded} rendered=${state.slots.filter((slot) => slot.actualStatus === 'rendered').length} no-fill=${state.slots.filter((slot) => slot.actualStatus === 'no-fill').length}`).join('; ')}`);
   for (const [placement, result] of Object.entries(auctions)) console.log(`  ${placement}: ${JSON.stringify(result.responses)}`);
   for (const item of run.network.filter((entry) => entry.kind === 'video-preroll' && entry.status)) {
-    console.log(`  video ${item.phase}: HTTP ${item.status} ${item.result?.error || (item.result?.success ? 'media resolved' : 'no media')}`);
+    console.log(`  video ${item.phase}: HTTP ${item.status} ${item.result?.reason || 'unknown'} ${item.result?.error || (item.result?.success ? 'media resolved' : 'no media')}`);
   }
   if (run.cspFailures.length) console.log(`  CSP failures: ${run.cspFailures.length}`);
   delete run.startedAt;

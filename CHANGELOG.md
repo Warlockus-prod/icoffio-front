@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Publish the official VOX seller authorization at `/ads.txt` so buyers can verify the site's authorized seller.
 - Advertising audit now identifies the three active Hybrid campaigns, confirms eligible-domain lists and available video assets, records Display size mismatches, and distinguishes the working browser Console session from unavailable server telemetry. Paid delivery remains unverified; no campaign settings or budgets were changed.
 
 ## [10.23.5] - 2026-10-22 - Advertising lifecycle and delivery audit

@@ -129,6 +129,8 @@ icoffio-front/
 │   ├── vox-advertising.ts            # VOX SSP инициализация
 │   ├── monetization-settings.ts      # Конфиг рекламных мест
 │   ├── config/adPlacements.ts        # Декларация placements
+├── public/
+│   ├── ads.txt                      # Official VOX seller authorization, served at /ads.txt
 ├── supabase/
 │   ├── init/001_schema.sql           # Полная схема при первом запуске
 │   ├── migrations/*.sql              # 16 миграций последовательно
@@ -832,6 +834,9 @@ export async function generateMetadata({ params }) {
 Bidio test host. `lib/consent-storage.ts` owns the persisted advertising consent
 contract shared by the early SDK loader and `lib/useCookieConsent.ts`.
 
+- `public/ads.txt` serves the publisher panel's official VOX seller authorization
+  at `/ads.txt` without locale redirects. The same static file is included in
+  the Docker image for the primary domains.
 - `components/AdManager.tsx` starts `lib/vox-ad-lifecycle.ts` only after advertising
   consent. The helper attaches observers before requesting the SDK, initializes
   visible unregistered display containers, and registers each article image once

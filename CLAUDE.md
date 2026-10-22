@@ -6,7 +6,7 @@ Next.js 14 + React 18 + TypeScript + Tailwind CSS news aggregation platform with
 
 - **Domain:** https://web.icoffio.com
 - **Branch:** `feature/info-portal` (active)
-- **Version:** check `package.json` (current 10.18.x line)
+- **Version:** check `package.json` (current 10.23.x line)
 
 ## Architecture
 
@@ -59,6 +59,7 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 | `components/VideoPlayer.tsx` | Consent-gated, one-pass DSP video playback and VAST tracking |
 | `app/api/video/preroll/route.ts` | Allowlisted DSP resolver; separate no-fill, timeout and unsupported wrapper reasons |
 | `scripts/live-ad-debug.js` | Browser-level ad network, CSP, consent and navigation checks |
+| `public/ads.txt` | Official VOX seller authorization from the Goleta VOX PL EN publisher account |
 | `docs/ADVERTISING_AUDIT_2026-10-22.md` | Delivery audit, supplier-side blockers, validation and release evidence |
 | `components/InterstitialAd.tsx` | Fullscreen interstitial ad (320x480) |
 | `components/feedback/FeedbackWidget.tsx` | Admin-only feedback button |

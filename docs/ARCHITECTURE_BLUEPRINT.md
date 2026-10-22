@@ -825,30 +825,41 @@ export async function generateMetadata({ params }) {
 - **Video preroll** — VAST через `/api/video/preroll` (server-side proxy, whitelist DSP hosts)
 - **Interstitial** — 320×480 fullscreen mobile-only, 1× per session (`sessionStorage`)
 
-### Init
+### Init and delivery lifecycle (2026-10-22)
 
-```ts
-// components/AdManager.tsx (client component)
-useEffect(() => {
-  if (!hasConsent) return;
+`app/[locale]/layout.tsx` resolves the provider from the request host. The main
+`icoffio.com` and `app.icoffio.com` hosts use VOX; `web.icoffio.com` remains the
+Bidio test host. `lib/consent-storage.ts` owns the persisted advertising consent
+contract shared by the early SDK loader and `lib/useCookieConsent.ts`.
 
-  // Загружаем VOX SDK
-  const script = document.createElement('script');
-  script.src = 'https://st.hbrd.io/ssp.js';
-  script.async = true;
-  script.onload = () => {
-    window._tx?.integrateInImage({ placeId: IN_IMAGE_PLACE_ID });
-    window._tx?.init();
-  };
-  document.head.appendChild(script);
+- `components/AdManager.tsx` starts `lib/vox-ad-lifecycle.ts` only after advertising
+  consent. The helper attaches observers before requesting the SDK, initializes
+  visible unregistered display containers, and registers each article image once
+  using the verified SDK `image`/`imageSelector` API. It also handles later image
+  loads and navigation; cleanup cancels timers, listeners and queued callbacks.
+- `app/[locale]/(site)/article/[slug]/page.tsx` marks the hero image with
+  `data-article-image` and keys its wrapper by article slug. Article body images
+  under `.prose` are eligible; card and ad-injected images are excluded. Native
+  VOX size checks remain active.
+- `components/UniversalAd.tsx` measures the real creative among children/media,
+  so a preceding tracking iframe cannot hide a filled banner. The SDK's
+  `data-hyb-ssp-ad-place-status="empty"` becomes `data-ad-status="empty"`.
+- `components/VideoPlayer.tsx` resolves and plays ads only with advertising
+  consent, records impressions/start at actual playback once, and traverses
+  the resolved queue once. Skip and complete are separate outcomes.
+- `app/api/video/preroll/route.ts` allows only the configured DSP hostnames and
+  refuses redirects. It exposes `reason` values for filled/no_fill,
+  upstream_timeout/client_aborted, invalid_tag/invalid_vast, blocked_redirect,
+  unsupported_wrapper/missing_media and upstream errors. Wrapper resolution is
+  not implemented; do not describe a wrapper as an empty auction.
+- `scripts/live-ad-debug.js` captures browser delivery evidence on primary
+  domains. Tests: `__tests__/vox-ad-lifecycle.test.ts` (SDK timing, images,
+  navigation, cleanup/consent), `__tests__/universal-ad.test.ts` (tracking-first
+  creatives, no-fill), `__tests__/video-player.test.ts` (consent and event
+  lifecycle), `__tests__/video-preroll-route.test.ts` (VAST, timeouts and redirects).
 
-  // MutationObserver для динамически добавленных ad-контейнеров
-  const observer = new MutationObserver(debounce(reinit, 450));
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  return () => observer.disconnect();
-}, [hasConsent]);
-```
+Supplier no-fill and application bugs are different outcomes. Details and
+release evidence: [2026-10-22 audit](ADVERTISING_AUDIT_2026-10-22.md).
 
 ### Размещение на странице статьи
 

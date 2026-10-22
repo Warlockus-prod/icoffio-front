@@ -54,6 +54,12 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 | `app/api/telegram-simple/webhook/route.ts` | Main Telegram webhook |
 | `lib/telegram-simple/content-processor.ts` | AI article processing |
 | `components/AdManager.tsx` | VOX SSP ad integration |
+| `lib/vox-ad-lifecycle.ts` | Consent-scoped VOX SDK queue, per-image registration and late-container lifecycle |
+| `components/UniversalAd.tsx` | Display creative measurement and explicit supplier no-fill state |
+| `components/VideoPlayer.tsx` | Consent-gated, one-pass DSP video playback and VAST tracking |
+| `app/api/video/preroll/route.ts` | Allowlisted DSP resolver; separate no-fill, timeout and unsupported wrapper reasons |
+| `scripts/live-ad-debug.js` | Browser-level ad network, CSP, consent and navigation checks |
+| `docs/ADVERTISING_AUDIT_2026-10-22.md` | Delivery audit, supplier-side blockers, validation and release evidence |
 | `components/InterstitialAd.tsx` | Fullscreen interstitial ad (320x480) |
 | `components/feedback/FeedbackWidget.tsx` | Admin-only feedback button |
 | `components/feedback/FeedbackModal.tsx` | Screenshot + annotation + submit |
@@ -82,7 +88,9 @@ All operations are pre-approved by the project owner. Work autonomously:
 
 - **VPS migration confusion**: project moved from `46.225.11.249` (VPS#1) to `178.104.223.93` (VPS#2) on 2026-04-22. Old SSH-to-VPS#1 commands will land on a different server; old git-pull paths won't find icoffio.
 - **Port 3000 on VPS = Metabase**, app is on port 4200 (`172.17.0.1:4200`)
-- **Video players with fake VOX PlaceIDs cause Chrome freeze** — keep `NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=false`
+- **Video uses DSP VAST, never fake VOX video PlaceIDs** (those caused browser freezes). `NEXT_PUBLIC_VIDEO_PREROLL_ENABLED=true` must reach the Docker build to enable the DSP player. An enabled player still needs a filled, playable VAST response; no-fill and timeout intentionally leave no player.
+- **VOX lifecycle:** article hero images carry `data-article-image`; body images are under `.prose`. Register each image node once through `lib/vox-ad-lifecycle.ts`, keep provider size checks enabled, and clean route/consent callbacks. Do not restore a single path-wide “InImage done” flag or count a first tracking iframe as the banner creative.
+- **Audit evidence:** primary hosts are `icoffio.com` / `app.icoffio.com`; `web.icoffio.com` is the separate Bidio test host. Check actual SSP responses and VAST `reason`, not merely script presence or an HTTP 200 health check. Supplier `204`/empty VAST cannot be fixed by fabricating creatives, tracking or consent.
 - **VOX SSP = Hybrid.ai, NOT vox.com.** Ad domains are `st.hbrd.io` / `ssp.hbrd.io` / `ssp.hybrid.ai` — any CSP change in `next.config.mjs` must keep them in script-src/connect-src/frame-src (v10.20.0 allowlisted vox.com by mistake → ads dead for a month, fixed v10.20.10). Test ad changes with cookie-consent **Accepted** — AdManager won't even load the script after Reject All.
 - **Ad provider is per-HOST, not per-build.** One container serves icoffio.com / app.icoffio.com / web.icoffio.com. `lib/ads-provider-core.ts` gives `prebid` only to `PREBID_HOSTS` (`web.icoffio.com`) and `vox` to everything else; `NEXT_PUBLIC_ADS_PROVIDER=prebid` is inert for the main site since v10.22.4 (v10.21.1 set it for the subdomain and killed all ads site-wide for a day). Keep the VPS value at `vox`.
 - **In-image (WOW) viewability is geometry.** VOX fires the view pixel only when >99% of the HOST PHOTO is on screen for 1s (not MRC 50%), so the article hero must fit a ~650px laptop viewport: keep the lead under the photo, breadcrumbs + Back on one row, and the desktop hero at 21:9 (v10.23.2–10.23.3: photo at y≈252, 338px tall → 590px viewport). VOX SDK starts from the `<head>` loader (`lib/consent-storage.ts`) — AdManager keys on `script[data-vox-ssp="1"]` and `_tx.cmds`; `excludeSelectors` is NOT a VOX option.

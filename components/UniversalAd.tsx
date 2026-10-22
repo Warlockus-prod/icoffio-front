@@ -46,7 +46,7 @@ export function UniversalAd({
   // VOX slots are dead weight when the deployment runs Prebid only.
   const active = enabled && isVoxEnabled(provider);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [adStatus, setAdStatus] = useState<'loading' | 'ready' | 'unsuitable'>('loading');
+  const [adStatus, setAdStatus] = useState<'loading' | 'ready' | 'empty' | 'unsuitable'>('loading');
   const lastUnsuitableReasonRef = useRef<string>('');
   const evaluateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -106,17 +106,22 @@ export function UniversalAd({
       );
 
       if (!hasContent) {
+        setAdStatus(container.dataset.hybSspAdPlaceStatus === 'empty' ? 'empty' : 'loading');
+        return;
+      }
+
+      // A creative can ship tracking iframes before the actual banner. Measuring
+      // only the first iframe hid the whole slot when that iframe was 1×1.
+      const candidates = [
+        ...Array.from(container.querySelectorAll('iframe, img, video')),
+        ...Array.from(container.children),
+      ].map(resolveElementSize);
+      const measured = candidates.sort((a, b) => (b.width * b.height) - (a.width * a.height))[0];
+      if (!measured) {
         setAdStatus('loading');
         return;
       }
 
-      const creative = container.querySelector('iframe') || container.firstElementChild;
-      if (!creative) {
-        setAdStatus('loading');
-        return;
-      }
-
-      const measured = resolveElementSize(creative);
       if (measured.width <= 0 || measured.height <= 0) {
         setAdStatus('loading');
         return;
@@ -166,7 +171,8 @@ export function UniversalAd({
     const observer = new MutationObserver((mutations) => {
       // Filter out attribute changes on the container itself (caused by React re-rendering data-ad-status)
       const hasRelevantMutation = mutations.some((mutation) => {
-        if (mutation.type === 'attributes' && mutation.target === container) {
+        if (mutation.type === 'attributes' && mutation.target === container &&
+            mutation.attributeName !== 'data-hyb-ssp-ad-place-status') {
           return false; // Ignore self-attribute changes to prevent feedback loop
         }
         return (
@@ -184,7 +190,7 @@ export function UniversalAd({
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['style', 'class', 'width', 'height', 'src'], // Only relevant attributes, NOT data-ad-status
+      attributeFilter: ['style', 'class', 'width', 'height', 'src', 'data-hyb-ssp-ad-place-status'],
     });
 
     evaluateAd();

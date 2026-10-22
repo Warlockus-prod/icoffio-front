@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+## [10.23.5] - 2026-10-22 - Advertising lifecycle and delivery audit
+
+- InImage now registers each article image once, including images arriving after the SDK or a client-side navigation. Thumbnail and injected creative images are excluded; expired route callbacks cannot initialize ads after navigation or consent withdrawal.
+- Display banners containing a tracking iframe before their real creative stay visible. Supplier no-fill is reported as `empty`, rather than remaining `loading` indefinitely.
+- Video requests require advertising consent and stop when it is withdrawn. Impression/start fire once on playback, skips do not count as completed views, resolved auctions do not loop, and quartile tracking preserves the VAST event names.
+- The video resolver distinguishes actual no-fill from upstream timeout, invalid VAST, missing media and unsupported wrappers. Redirects cannot bypass the existing DSP hostname allowlist.
+- Live diagnostics now capture SDK/auction status, CSP errors, video responses and direct versus client navigation. Full evidence and outstanding supplier-side work: [advertising audit](docs/ADVERTISING_AUDIT_2026-10-22.md). An SSP `204` or empty VAST is not proof of a recovered paid impression.
+
 ## [10.23.3] - 2026-09-10 - 📐 Hero fits a 1280×720 window
 
 Follow-up to 10.23.2, measured live on 1366×768: the photo still started at y≈300 (the lead

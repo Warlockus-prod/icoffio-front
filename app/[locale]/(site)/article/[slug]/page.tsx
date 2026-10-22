@@ -300,8 +300,9 @@ export default async function Article({ params }: { params: { locale: string; sl
             ))}
 
             {/* Hero Image — v10.7.0: next/image with priority for LCP optimization */}
-            <div className="mb-8">
+            <div key={`hero-${post.slug}`} className="mb-8">
               <Image
+                data-article-image="1"
                 src={heroImage}
                 alt={post.imageAlt || post.title}
                 width={1200}

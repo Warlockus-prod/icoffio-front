@@ -125,14 +125,19 @@ function extractTrackingEvents(xml: string): VastTrackingEvents {
   }
 
   // <Tracking event="..."> URLs
-  const trackingRegex = /<Tracking\s+event\s*=\s*["'](\w+)["'][^>]*>([\s\S]*?)<\/Tracking>/gi;
+  const eventKeys: Record<string, keyof VastTrackingEvents> = {
+    start: 'start', firstquartile: 'firstQuartile', midpoint: 'midpoint',
+    thirdquartile: 'thirdQuartile', complete: 'complete', skip: 'skip',
+    mute: 'mute', unmute: 'unmute', pause: 'pause', resume: 'resume',
+  };
+  const trackingRegex = /<Tracking\b([^>]*)>([\s\S]*?)<\/Tracking>/gi;
   while ((m = trackingRegex.exec(xml)) !== null) {
-    const event = m[1].toLowerCase();
+    const event = m[1].match(/\bevent\s*=\s*["']([^"']+)["']/i)?.[1].toLowerCase();
     const url = decodeXmlText(m[2]).trim();
     if (!/^https?:\/\//i.test(url)) continue;
 
-    const key = event as keyof VastTrackingEvents;
-    if (key in tracking && Array.isArray(tracking[key])) {
+    const key = event ? eventKeys[event] : undefined;
+    if (key && Array.isArray(tracking[key])) {
       (tracking[key] as string[]).push(url);
     }
   }
@@ -196,6 +201,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: 'Invalid or unsupported DSP/VAST tag URL',
+        reason: 'invalid_tag',
       },
       { status: 400 }
     );
@@ -222,34 +228,53 @@ export async function GET(request: NextRequest) {
         ...(clientReferer ? { Referer: clientReferer } : {}),
       },
       cache: 'no-store',
-      redirect: 'follow',
+      // The hostname allowlist must apply to every outbound hop. This resolver
+      // does not support redirect chains or VAST wrappers; never follow one to
+      // an arbitrary destination from this public endpoint.
+      redirect: 'manual',
       signal: upstream.signal,
     });
+
+    if (response.status >= 300 && response.status < 400) {
+      return NextResponse.json(
+        { success: false, error: 'DSP redirect is not supported', reason: 'blocked_redirect', vastEmpty: false },
+        { status: 502 }
+      );
+    }
 
     if (!response.ok) {
       return NextResponse.json(
         {
           success: false,
           error: `Failed to load VAST XML (${response.status})`,
+          reason: 'upstream_http_error',
         },
         { status: 502 }
       );
     }
 
     const xml = await response.text();
+    if (response.status !== 204 && !/<VAST\b/i.test(xml)) {
+      return NextResponse.json(
+        { success: false, error: 'DSP returned an invalid VAST document', reason: 'invalid_vast', vastEmpty: false },
+        { status: 502 }
+      );
+    }
     const candidates = extractVastMediaCandidates(xml);
     const mediaUrl = pickBestMediaUrl(candidates);
 
     if (!mediaUrl) {
       // Check if it's an empty VAST (no ad available) vs error
       const hasAd = /<Ad\b/i.test(xml);
+      const hasWrapper = /<Wrapper\b/i.test(xml);
       return NextResponse.json(
         {
           success: false,
           error: hasAd
-            ? 'No media file found in VAST response'
+            ? hasWrapper ? 'VAST wrapper is not supported by this player' : 'No media file found in VAST response'
             : 'No ad available (empty VAST)',
           vastEmpty: !hasAd,
+          reason: !hasAd ? 'no_fill' : hasWrapper ? 'unsupported_wrapper' : 'missing_media',
         },
         { status: 422 }
       );
@@ -261,6 +286,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      reason: 'filled',
       mediaUrl,
       durationSeconds,
       tracking,
@@ -274,8 +300,9 @@ export async function GET(request: NextRequest) {
         {
           success: false,
           error: `DSP tag did not answer within ${PREROLL_UPSTREAM_TIMEOUT_MS} ms`,
-          vastEmpty: true,
+          vastEmpty: false,
           timedOut: true,
+          reason: request.signal?.aborted ? 'client_aborted' : 'upstream_timeout',
         },
         { status: 504 }
       );
@@ -284,6 +311,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: error instanceof Error ? error.message : 'VAST resolver error',
+        reason: 'upstream_error',
       },
       { status: 500 }
     );

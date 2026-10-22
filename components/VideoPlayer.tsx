@@ -7,7 +7,7 @@
  * - Resolves VAST tags via /api/video/preroll → MP4 + tracking URLs
  * - Plays preroll ad with skip button
  * - Fires all VAST tracking pixels (impression, start, quartiles, complete, skip)
- * - Loops ad playlist when no content video
+ * - Plays each resolved ad once, only after advertising consent
  * - Zero MutationObservers — no Chrome freeze risk
  *
  * @version 10.3.1
@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { VideoPlayerPosition, VideoPlayerType } from '@/lib/config/video-players';
+import { useCookieConsent } from '@/lib/useCookieConsent';
 
 interface VastTracking {
   impression: string[];
@@ -96,19 +97,23 @@ export default function VideoPlayer({
   adTagUrl,
   adTagPlaylist,
   videoTitle,
+  autoplay = true,
   muted = true,
   className = '',
 }: VideoPlayerProps) {
+  const { consentState } = useCookieConsent();
+  const hasConsent = consentState.hasConsented && consentState.preferences.advertising;
   // Use stable reference for empty playlist
   const playlist = adTagPlaylist && adTagPlaylist.length > 0 ? adTagPlaylist : EMPTY_PLAYLIST;
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<PlayerState>('loading');
   const [adQueue, setAdQueue] = useState<ResolvedAd[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
   const [skipAvailable, setSkipAvailable] = useState(false);
   const [skipCountdown, setSkipCountdown] = useState(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
   const [needsInteraction, setNeedsInteraction] = useState(false);
+  const [mediaDuration, setMediaDuration] = useState<number | null>(null);
   const skipTimerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
 
@@ -116,6 +121,20 @@ export default function VideoPlayer({
   const firedQuartilesRef = useRef<Set<string>>(new Set());
   // Track if impression was fired for current ad
   const impressionFiredRef = useRef(false);
+  const finishedAdRef = useRef(false);
+  const attachVideo = useCallback((video: HTMLVideoElement | null) => {
+    const previous = videoRef.current;
+    if (!video && previous) {
+      // Removing a media element must also stop its playback/downloads, in
+      // particular when advertising consent is withdrawn mid-ad.
+      finishedAdRef.current = true;
+      previous.pause();
+      previous.querySelector('source')?.removeAttribute('src');
+      previous.removeAttribute('src');
+      previous.load();
+    }
+    videoRef.current = video;
+  }, []);
 
   // Serialize ad tag URLs for stable dependency
   const adTagUrlsKey = useMemo(
@@ -150,6 +169,12 @@ export default function VideoPlayer({
 
   // --- Resolve VAST tags on mount (uses serialized key for stable deps) ---
   useEffect(() => {
+    if (!hasConsent) {
+      clearTimers();
+      setAdQueue([]);
+      setState('loading');
+      return;
+    }
     if (isUnsupported || noAds) return;
 
     let cancelled = false;
@@ -174,7 +199,7 @@ export default function VideoPlayer({
             const data = await res.json().catch(() => null);
 
             if (!res.ok || !data?.success || !data?.mediaUrl) {
-              throw new Error(data?.error || `HTTP ${res.status}`);
+              throw new Error(data?.reason || data?.error || `HTTP ${res.status}`);
             }
 
             return {
@@ -200,6 +225,9 @@ export default function VideoPlayer({
         });
 
         if (unique.length === 0) {
+          console.info('[VideoAd] No playable preroll:', results
+            .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+            .map((result) => result.reason instanceof Error ? result.reason.message : 'resolve_failed'));
           setState('failed');
           return;
         }
@@ -222,25 +250,26 @@ export default function VideoPlayer({
       window.clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adTagUrlsKey]);
+  }, [adTagUrlsKey, hasConsent, isUnsupported, noAds, clearTimers]);
 
   // --- Autoplay when ad is ready ---
   useEffect(() => {
-    if (state !== 'ready' || !currentAd) return;
+    if (state !== 'ready' || !currentAd || !hasConsent) return;
 
     // Reset tracking state for new ad
     firedQuartilesRef.current.clear();
     impressionFiredRef.current = false;
+    finishedAdRef.current = false;
+    setMediaDuration(null);
+    setSkipAvailable(false);
+    setSkipCountdown(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
+    setNeedsInteraction(!autoplay);
 
     const video = videoRef.current;
     if (!video) return;
 
-    // Fire impression pixels when ad is ready to play
-    if (currentAd.tracking.impression.length > 0) {
-      firePixels(currentAd.tracking.impression);
-      impressionFiredRef.current = true;
-      console.log('[VideoAd] Fired impression pixels:', currentAd.tracking.impression.length);
-    }
+    // Resolving a creative is not an impression. Only onPlaying records it.
+    if (!autoplay) return;
 
     // Small delay for React to render the video element
     const id = window.setTimeout(() => {
@@ -250,7 +279,7 @@ export default function VideoPlayer({
     }, 150);
 
     return () => window.clearTimeout(id);
-  }, [state, currentAd, queueIndex]);
+  }, [state, currentAd, queueIndex, hasConsent, autoplay]);
 
   // --- Cleanup on unmount ---
   useEffect(() => {
@@ -284,21 +313,27 @@ export default function VideoPlayer({
 
   // --- Handlers ---
   const handlePlay = useCallback(() => {
+    if (!hasConsent || finishedAdRef.current) return;
     setNeedsInteraction(false);
     setState('playing');
+    // `playing` also fires after buffering or resuming. Count this ad once.
+    if (impressionFiredRef.current) return;
+    impressionFiredRef.current = true;
     startSkipCountdown();
+    if (currentAd?.tracking.impression.length) {
+      firePixels(currentAd.tracking.impression);
+    }
 
     // Fire start tracking
     if (currentAd?.tracking.start.length) {
       firePixels(currentAd.tracking.start);
-      console.log('[VideoAd] Fired start pixels:', currentAd.tracking.start.length);
     }
-  }, [startSkipCountdown, currentAd]);
+  }, [startSkipCountdown, currentAd, hasConsent]);
 
   /** Fire quartile tracking based on video progress */
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current;
-    if (!video || !currentAd) return;
+    if (!video || !currentAd || !hasConsent || !impressionFiredRef.current || finishedAdRef.current) return;
 
     const duration = video.duration;
     if (!Number.isFinite(duration) || duration <= 0) return;
@@ -310,47 +345,43 @@ export default function VideoPlayer({
     if (progress >= 0.25 && !fired.has('firstQuartile') && t.firstQuartile.length > 0) {
       fired.add('firstQuartile');
       firePixels(t.firstQuartile);
-      console.log('[VideoAd] Fired firstQuartile pixels');
     }
     if (progress >= 0.50 && !fired.has('midpoint') && t.midpoint.length > 0) {
       fired.add('midpoint');
       firePixels(t.midpoint);
-      console.log('[VideoAd] Fired midpoint pixels');
     }
     if (progress >= 0.75 && !fired.has('thirdQuartile') && t.thirdQuartile.length > 0) {
       fired.add('thirdQuartile');
       firePixels(t.thirdQuartile);
-      console.log('[VideoAd] Fired thirdQuartile pixels');
     }
-  }, [currentAd]);
+  }, [currentAd, hasConsent]);
+
+  const advanceToNextAd = useCallback(() => {
+    if (queueIndex + 1 < adQueue.length) {
+      setQueueIndex(queueIndex + 1);
+      setState('ready');
+    } else {
+      setState('ended');
+    }
+  }, [queueIndex, adQueue.length]);
 
   const handleEnded = useCallback(() => {
+    if (!hasConsent || finishedAdRef.current) return;
+    finishedAdRef.current = true;
     clearTimers();
 
     // Fire complete tracking
     if (currentAd?.tracking.complete.length) {
       firePixels(currentAd.tracking.complete);
-      console.log('[VideoAd] Fired complete pixels:', currentAd.tracking.complete.length);
     }
 
-    // Loop through ad queue
-    if (adQueue.length > 1) {
-      const next = (queueIndex + 1) % adQueue.length;
-      setQueueIndex(next);
-      setSkipAvailable(false);
-      setSkipCountdown(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
-      setState('ready');
-    } else if (adQueue.length === 1) {
-      // Single ad — loop it
-      setSkipAvailable(false);
-      setSkipCountdown(Math.ceil(PREROLL_SKIP_DELAY_MS / 1000));
-      setState('ready');
-    } else {
-      setState('ended');
-    }
-  }, [adQueue.length, clearTimers, queueIndex, currentAd]);
+    // A resolved auction and its tracking URLs must never be replayed in a loop.
+    advanceToNextAd();
+  }, [clearTimers, currentAd, hasConsent, advanceToNextAd]);
 
   const handleError = useCallback(() => {
+    if (!hasConsent || finishedAdRef.current) return;
+    finishedAdRef.current = true;
     clearTimers();
 
     // Fire error tracking
@@ -359,63 +390,63 @@ export default function VideoPlayer({
     }
 
     // Try next ad in queue
-    if (adQueue.length > 1) {
-      const next = (queueIndex + 1) % adQueue.length;
-      setQueueIndex(next);
-      setState('ready');
+    if (queueIndex + 1 < adQueue.length) {
+      advanceToNextAd();
     } else {
       setState('failed');
     }
-  }, [adQueue.length, clearTimers, queueIndex, currentAd]);
+  }, [adQueue.length, clearTimers, queueIndex, currentAd, hasConsent, advanceToNextAd]);
 
   const handleSkip = useCallback(() => {
+    if (!hasConsent || !skipAvailable || finishedAdRef.current) return;
+    finishedAdRef.current = true;
     clearTimers();
     if (videoRef.current) videoRef.current.pause();
 
     // Fire skip tracking
     if (currentAd?.tracking.skip.length) {
       firePixels(currentAd.tracking.skip);
-      console.log('[VideoAd] Fired skip pixels:', currentAd.tracking.skip.length);
     }
 
-    // Advance to next or loop
-    handleEnded();
-  }, [clearTimers, handleEnded, currentAd]);
+    // A skip is not a completion.
+    advanceToNextAd();
+  }, [clearTimers, advanceToNextAd, currentAd, hasConsent, skipAvailable]);
 
   const handleManualPlay = useCallback(() => {
+    if (!hasConsent) return;
     videoRef.current?.play().catch(() => undefined);
-  }, []);
+  }, [hasConsent]);
 
   /** Handle click on the video — open clickThrough + fire clickTracking */
   const handleVideoClick = useCallback(() => {
-    if (!currentAd) return;
+    if (!currentAd || !hasConsent || finishedAdRef.current) return;
     const t = currentAd.tracking;
 
     // Fire click tracking pixels
     if (t.clickTracking.length > 0) {
       firePixels(t.clickTracking);
-      console.log('[VideoAd] Fired clickTracking pixels:', t.clickTracking.length);
     }
 
     // Open clickThrough URL in new tab
     if (t.clickThrough) {
       window.open(t.clickThrough, '_blank', 'noopener,noreferrer');
     }
-  }, [currentAd]);
+  }, [currentAd, hasConsent]);
 
   const handlePause = useCallback(() => {
     // Only fire pause if we're in playing state (not when skip/ended triggers pause)
-    if (state === 'playing' && currentAd?.tracking.pause.length) {
+    if (hasConsent && !finishedAdRef.current && state === 'playing' && currentAd?.tracking.pause.length) {
       firePixels(currentAd.tracking.pause);
     }
-  }, [state, currentAd]);
+  }, [state, currentAd, hasConsent]);
 
   // --- Don't render if unsupported, no ads, failed, or ended ---
-  if (isUnsupported || noAds || state === 'failed' || state === 'ended') return null;
+  if (!hasConsent || isUnsupported || noAds || state === 'failed' || state === 'ended') return null;
 
+  const durationSeconds = currentAd?.durationSeconds || mediaDuration;
   const durationLabel =
-    currentAd?.durationSeconds && currentAd.durationSeconds > 0
-      ? ` · ${Math.ceil(currentAd.durationSeconds)}s`
+    durationSeconds && durationSeconds > 0
+      ? ` · ${Math.ceil(durationSeconds)}s`
       : '';
 
   return (
@@ -451,13 +482,13 @@ export default function VideoPlayer({
           <>
             <video
               key={`${currentAd.mediaUrl}-${queueIndex}`}
-              ref={videoRef}
+              ref={attachVideo}
               className="w-full object-cover"
               style={{ maxHeight: '450px', cursor: currentAd.tracking.clickThrough ? 'pointer' : undefined }}
               playsInline
               muted={muted}
               controls={false}
-              onPlay={handlePlay}
+              onPlaying={handlePlay}
               onEnded={handleEnded}
               onError={handleError}
               onTimeUpdate={handleTimeUpdate}
@@ -467,15 +498,11 @@ export default function VideoPlayer({
                 if (currentAd.durationSeconds) return;
                 const d = e.currentTarget.duration;
                 if (Number.isFinite(d) && d > 0) {
-                  setAdQueue((prev) =>
-                    prev.map((ad, i) =>
-                      i === queueIndex ? { ...ad, durationSeconds: d } : ad
-                    )
-                  );
+                  setMediaDuration(d);
                 }
               }}
             >
-              <source src={currentAd.mediaUrl} type="video/mp4" />
+              <source src={currentAd.mediaUrl} />
             </video>
 
             {/* Skip button */}

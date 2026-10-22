@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Advertising audit now identifies the three active Hybrid campaigns, confirms eligible-domain lists and available video assets, records Display size mismatches, and distinguishes the working browser Console session from unavailable server telemetry. Paid delivery remains unverified; no campaign settings or budgets were changed.
+
 ## [10.23.5] - 2026-10-22 - Advertising lifecycle and delivery audit
 
 - InImage now registers each article image once, including images arriving after the SDK or a client-side navigation. Thumbnail and injected creative images are excluded; expired route callbacks cannot initialize ads after navigation or consent withdrawal.
@@ -11,7 +13,7 @@ All notable changes to this project will be documented in this file.
 - Video requests require advertising consent and stop when it is withdrawn. Impression/start fire once on playback, skips do not count as completed views, resolved auctions do not loop, and quartile tracking preserves the VAST event names.
 - The video resolver distinguishes actual no-fill from upstream timeout, invalid VAST, missing media and unsupported wrappers. Redirects cannot bypass the existing DSP hostname allowlist.
 - Live diagnostics now capture SDK/auction status, CSP errors, video responses and direct versus client navigation. Full evidence and outstanding supplier-side work: [advertising audit](docs/ADVERTISING_AUDIT_2026-10-22.md). An SSP `204` or empty VAST is not proof of a recovered paid impression.
-- Deployed at 07:25 UTC and verified on main desktop/mobile EN/PL: InImage requests work after navigation, rejection prevents all SSP/video requests, and no CSP/page errors were observed. Supplier responses remain `204`/empty VAST; absent `ads.txt` and expired full-console access are documented as outstanding items. The diagnostics script also preserves the VAST API's explicit `reason`.
+- Deployed at 07:25 UTC and verified on main desktop/mobile EN/PL: InImage requests work after navigation, rejection prevents all SSP/video requests, and no CSP/page errors were observed. Supplier responses remain `204`/empty VAST; missing `ads.txt` and unavailable supplier rejection reasons are documented as outstanding items. The diagnostics script also preserves the VAST API's explicit `reason`.
 
 ## [10.23.3] - 2026-09-10 - 📐 Hero fits a 1280×720 window
 

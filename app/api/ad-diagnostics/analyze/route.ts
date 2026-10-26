@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminRole } from '@/lib/admin-auth';
+import { assertSafeRemoteUrl } from '@/lib/utils/url-guard';
 import { saveScanLog } from '@/lib/ad-diagnostics-logs';
 
 interface AdScript {
@@ -362,6 +364,9 @@ function findPolicyIssues(html: string, scripts: AdScript[], inImage: AnalysisRe
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor');
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const { url } = body;
@@ -377,14 +382,31 @@ export async function POST(request: NextRequest) {
 
     const startTime = Date.now();
 
-    const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    // Every hop is checked against private/loopback/metadata addresses — the
+    // route used to fetch any URL, redirects included (SSRF).
+    let response: Response | null = null;
+    for (let hop = 0; hop < 4; hop++) {
+      const guard = await assertSafeRemoteUrl(targetUrl, { allowHttp: true });
+      if (!guard.ok) {
+        return NextResponse.json({ error: `URL rejected: ${guard.reason}` }, { status: 400 });
+      }
+      response = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+      });
+      const location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
+      if (!location) break;
+      targetUrl = new URL(location, targetUrl).toString();
+      response = null;
+    }
+    if (!response) {
+      return NextResponse.json({ error: 'Too many redirects' }, { status: 400 });
+    }
 
     const html = await response.text();
     const fetchTime = Date.now() - startTime;

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listScanLogs, getScanLog, deleteScanLog, deleteAllScanLogs } from '@/lib/ad-diagnostics-logs';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor');
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const format = searchParams.get('format');
@@ -45,6 +49,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAdminRole(request, 'editor');
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 

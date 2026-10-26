@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveScanLog } from '@/lib/ad-diagnostics-logs';
+import { requireAdminRole } from '@/lib/admin-auth';
 
 export async function POST(request: NextRequest) {
+  // Writes files to the server's disk: admin session required. The old
+  // cross-site bookmarklet flow (wildcard CORS, no auth) let anyone fill the disk.
+  const auth = await requireAdminRole(request, 'editor');
+  if (!auth.ok) return auth.response;
+
   try {
     const data = await request.json();
 
@@ -79,28 +85,12 @@ export async function POST(request: NextRequest) {
       issues: data.issues?.length || 0,
       overlays: data.inImageOverlays?.length || 0,
       gamSlots: data.gamSlots?.length || 0,
-    }, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, {
-      status: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      status: 500
     });
   }
 }
 
-// CORS headers for bookmarklet use from other domains
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
-}

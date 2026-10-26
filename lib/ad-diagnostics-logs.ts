@@ -33,6 +33,14 @@ async function ensureDir() {
   await fs.mkdir(LOGS_DIR, { recursive: true });
 }
 
+/** Log ids are `YYYYMMDDhhmmss-<base36>` (see generateId). Anything else is rejected
+ * before it reaches path.join — `?id=../../package` used to read /app/package.json. */
+const SCAN_LOG_ID = /^\d{14}-[a-z0-9]{1,12}$/;
+
+export function isValidScanLogId(id: string): boolean {
+  return SCAN_LOG_ID.test(id);
+}
+
 function generateId(): string {
   const now = new Date();
   const ts = now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
@@ -114,6 +122,7 @@ export async function listScanLogs(): Promise<ScanLogEntry[]> {
 }
 
 export async function getScanLog(id: string): Promise<ScanLogFull | null> {
+  if (!isValidScanLogId(id)) return null;
   await ensureDir();
 
   const filename = `${id}.json`;
@@ -128,6 +137,7 @@ export async function getScanLog(id: string): Promise<ScanLogFull | null> {
 }
 
 export async function deleteScanLog(id: string): Promise<boolean> {
+  if (!isValidScanLogId(id)) return false;
   await ensureDir();
 
   const filename = `${id}.json`;

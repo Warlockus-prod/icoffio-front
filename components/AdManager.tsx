@@ -6,6 +6,7 @@ import { useCookieConsent } from '@/lib/useCookieConsent';
 import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
 import { AD_PLACEMENTS } from '@/lib/config/adPlacements';
 import { startVoxAdLifecycle } from '@/lib/vox-ad-lifecycle';
+import { startAdTelemetry } from '@/lib/ad-telemetry';
 
 declare global {
   interface Window {
@@ -23,6 +24,14 @@ export function AdManager() {
   const { consentState } = useCookieConsent();
   const hasConsent = isVoxEnabled(provider) && consentState.hasConsented &&
     consentState.preferences.advertising;
+
+  // Site-side accounting of auction outcomes (filled / empty) per place.
+  useEffect(() => {
+    if (!hasConsent) return;
+    // One observer for the whole session: it sees every status change, including
+    // containers added by client-side navigation, and never counts one twice.
+    return startAdTelemetry(window, document);
+  }, [hasConsent]);
 
   useEffect(() => {
     if (!hasConsent) return;

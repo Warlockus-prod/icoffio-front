@@ -1,6 +1,6 @@
 import { CONSENT_KEY, hasAdvertisingConsent, VOX_SDK_URL } from './consent-storage';
 
-const IN_IMAGE_PLACE_ID = '63d93bb54d506e95f039e2e3';
+import { IN_IMAGE_PLACE_ID } from './config/adPlacements';
 const ARTICLE_IMAGE_SELECTOR = 'main article img[data-article-image], main article .prose img';
 const EXCLUDED_IMAGE_ANCESTORS = [
   '[data-no-inimage]', '[data-related-articles]', '[data-article-card]',

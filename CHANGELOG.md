@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Ad accounting: the site now records, per day and per VOX place, how many auctions came back filled or empty (table `ad_slot_daily`, beacon `/api/ads/telemetry`). The admin Advertising tab shows these numbers next to the place inventory and links to the VOX panel and Hybrid console.
+- Admin Advertising tab: the on/off and priority controls were removed — they only wrote to the admin's own browser and never changed the site. The tab now shows the real place list with formats and VOX slot names.
+- Ad formats: the mobile slot after the article requested VOX place "Ad slot #12 160×600" inside a 320×50 box; it now uses the 320×100 place, matching its size. All PlaceIDs live in one file (`lib/config/adPlacements.ts`); dead VOX code and fake video PlaceIDs were removed.
+- Older articles now show ad places added after they were written (e.g. the mobile interstitial); before, their saved settings silently hid every newer place. Settings saved from now on remember which places existed at the time.
+- Advertising documentation consolidated into `docs/ADVERTISING.md`; outdated guides moved to `docs/archive/`.
 - Security: the ad-diagnostics API is now admin-only. Before, anyone could read or delete any `.json` file inside the app container through `/api/ad-diagnostics/logs?id=../…` (verified on production: it returned `package.json`), make the server fetch arbitrary URLs including internal addresses, and write scan files to disk. Log ids are validated, every fetch hop is checked against private addresses, and the cross-site bookmarklet endpoint lost its wildcard CORS.
 - Ad slots hidden at the current screen width (mobile 320×50 on desktop, desktop banners on mobile) no longer take part in auctions. With the new Hybrid campaigns filling on 2026-10-26, two of the three display impressions on a desktop article were going to invisible mobile slots — paid, never seen, and counted against the daily limit.
 - Publish the official VOX seller authorization at `/ads.txt` so buyers can verify the site's authorized seller.

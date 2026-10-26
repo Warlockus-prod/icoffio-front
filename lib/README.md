@@ -8,7 +8,6 @@ This document describes the organization of the `/lib` directory.
 lib/
 ├── config/                  # Configuration files
 │   ├── adPlacements.ts     # Ad placement definitions
-│   ├── adPlacementsManager.ts
 │   ├── content-prompts.ts  # AI content prompts
 │   └── video-players.ts    # Video ad players config
 │
@@ -45,7 +44,6 @@ lib/
 │   └── telegram-i18n.ts    # Telegram bot translations
 │
 ├── advertising/             # Ad system
-│   └── vox-advertising.ts  # VOX integration
 │
 └── *.ts                     # Root-level files
     ├── types.ts            # Main type definitions

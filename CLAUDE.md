@@ -60,6 +60,7 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 | `app/api/video/preroll/route.ts` | Allowlisted DSP resolver; separate no-fill, timeout and unsupported wrapper reasons |
 | `scripts/live-ad-debug.js` | Browser-level ad network, CSP, consent and navigation checks |
 | `public/ads.txt` | Official VOX seller authorization from the Goleta VOX PL EN publisher account |
+| `docs/ADVERTISING.md` | **Current ad setup**: places ↔ VOX slots, code map, rules, how to check fill |
 | `docs/ADVERTISING_AUDIT_2026-10-22.md` | Delivery audit, supplier-side blockers, validation and release evidence |
 | `components/InterstitialAd.tsx` | Fullscreen interstitial ad (320x480) |
 | `components/feedback/FeedbackWidget.tsx` | Admin-only feedback button |

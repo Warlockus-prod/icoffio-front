@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'editor', label: 'Article Editor', icon: '✏️', description: 'Edit content', hidden: false },
     { id: 'queue', label: 'Publish Queue', icon: '📤', description: 'Publication queue', hidden: false },
     { id: 'images', label: 'Images', icon: '🖼️', description: 'Image gallery', hidden: false },
-    { id: 'advertising', label: 'Advertising', icon: '📊', description: 'Manage ad placements', hidden: false },
+    { id: 'advertising', label: 'Advertising', icon: '📊', description: 'Ad fill and places', hidden: false },
     { id: 'content-prompts', label: 'Content Prompts', icon: '📝', description: 'Manage text processing styles', hidden: false },
     { id: 'activity', label: 'Activity', icon: '📊', description: 'User activity log', hidden: false },
     { id: 'telegram', label: 'Telegram', icon: '🤖', description: 'Telegram bot settings', hidden: false },

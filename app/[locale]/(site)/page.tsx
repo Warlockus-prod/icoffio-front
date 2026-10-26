@@ -7,7 +7,7 @@ import { CategoryNav } from "@/components/CategoryNav";
 import { Container } from "@/components/Container";
 import { ArticlesList } from "@/components/ArticlesList";
 import { UniversalAd } from "@/components/UniversalAd";
-import { VOX_PLACES } from "@/lib/vox-advertising";
+import { getAdPlacement } from "@/lib/config/adPlacements";
 import { getTranslation } from "@/lib/i18n";
 import type { Metadata } from "next";
 import { getSiteBaseUrl } from "@/lib/site-url";
@@ -94,6 +94,9 @@ export default async function Page({ params }: { params: { locale: string } }) {
     console.warn('[home] Popular stats unavailable, showing latest:', error);
   }
 
+  const homeDesktopAd = getAdPlacement('homepage', 'homepage-desktop-1');
+  const homeMobileAd = getAdPlacement('homepage', 'homepage-mobile-1');
+
   return (
     <>
       <Container>
@@ -120,13 +123,17 @@ export default async function Page({ params }: { params: { locale: string } }) {
           </Link>
         </div>
 
-        <div className="mt-16 hidden text-center xl:block">
-          <UniversalAd placeId={VOX_PLACES.LARGE_LEADERBOARD} format="970x250" placement="inline" />
-        </div>
+        {homeDesktopAd && (
+          <div className="mt-16 hidden text-center xl:block">
+            <UniversalAd placeId={homeDesktopAd.placeId} format={homeDesktopAd.format} placement={homeDesktopAd.placement} />
+          </div>
+        )}
 
-        <div className="mt-12 flex justify-center xl:hidden">
-          <UniversalAd placeId={VOX_PLACES.MOBILE_LARGE} format="320x100" placement="mobile" />
-        </div>
+        {homeMobileAd && (
+          <div className="mt-12 flex justify-center xl:hidden">
+            <UniversalAd placeId={homeMobileAd.placeId} format={homeMobileAd.format} placement={homeMobileAd.placement} />
+          </div>
+        )}
       </div>
     </>
   );

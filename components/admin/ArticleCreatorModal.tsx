@@ -11,7 +11,7 @@ import { useAdminStore, type Article } from '@/lib/stores/admin-store';
 import { renderContent } from '@/lib/markdown';
 import { normalizeAiGeneratedText } from '@/lib/utils/content-formatter';
 import type { AdPlacementConfig } from '@/lib/config/adPlacements';
-import { getAdPlacements } from '@/lib/config/adPlacementsManager';
+import { getAdPlacementsByLocation } from '@/lib/config/adPlacements';
 import { VIDEO_PLAYERS, type VideoPlayerConfig } from '@/lib/config/video-players';
 import {
   extractMonetizationSettingsFromContent,
@@ -227,7 +227,7 @@ export default function ArticleCreatorModal({ article, onClose, onPublish }: Art
   }, [isPublishing]);
 
   useEffect(() => {
-    const articlePlacements = getAdPlacements().filter((ad) => ad.location === 'article');
+    const articlePlacements = getAdPlacementsByLocation('article');
     setAvailableAdPlacements(articlePlacements);
 
     const defaultAdPlacementIds = articlePlacements

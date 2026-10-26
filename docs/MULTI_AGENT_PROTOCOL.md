@@ -36,7 +36,7 @@ This protocol defines the operating procedures for the "Four Agents" workflow si
 - **Responsibilities:**
     - Manages `lib/config/adPlacements.ts`.
     - Optimizes `UniversalAd` component.
-    - Maintains `ADVERTISING_CODES_GUIDE.md`.
+    - Maintains `docs/ADVERTISING.md`.
     - Monitors Core Web Vitals impact of scripts.
     - **Authority:** Can veto changes that degrade ad performance or SEO.
 

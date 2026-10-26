@@ -23,7 +23,7 @@ import { getPrebidPlacement } from "@/lib/config/prebidPlacements";
 import VideoPlayer from "@/components/VideoPlayer";
 import { getInstreamPlayers } from "@/lib/config/video-players";
 import { renderContent } from "@/lib/markdown";
-import { extractMonetizationSettingsFromContent } from "@/lib/monetization-settings";
+import { extractMonetizationSettingsFromContent, resolveArticleAdPlacements, resolveArticleVideoPlayers } from "@/lib/monetization-settings";
 import { buildSiteUrl } from "@/lib/site-url";
 import { normalizeTitleForPublishing } from "@/lib/utils/title-policy";
 import Link from "next/link";
@@ -181,21 +181,15 @@ export default async function Article({ params }: { params: { locale: string; sl
   const { settings: articleMonetizationSettings, cleanContent: cleanArticleContent } =
     extractMonetizationSettingsFromContent(post.content || post.contentHtml || '');
 
-  const defaultArticleAds = getAdPlacementsByLocation('article');
-  const enabledAdIds = articleMonetizationSettings
-    ? new Set(articleMonetizationSettings.enabledAdPlacementIds)
-    : null;
-  const articleAds = enabledAdIds
-    ? defaultArticleAds.filter((ad) => enabledAdIds.has(ad.id))
-    : defaultArticleAds;
-
-  const defaultInstreamPlayers = getInstreamPlayers();
-  const enabledVideoIds = articleMonetizationSettings
-    ? new Set(articleMonetizationSettings.enabledVideoPlayerIds)
-    : null;
-  const articleInstreamPlayers = enabledVideoIds
-    ? defaultInstreamPlayers.filter((player) => enabledVideoIds.has(player.id))
-    : defaultInstreamPlayers;
+  const articleAds = resolveArticleAdPlacements(
+    articleMonetizationSettings,
+    getAdPlacementsByLocation('article'),
+    post.publishedAt || post.date
+  );
+  const articleInstreamPlayers = resolveArticleVideoPlayers(
+    articleMonetizationSettings,
+    getInstreamPlayers()
+  );
 
   // Split by position AND device for proper display
   // Desktop banners

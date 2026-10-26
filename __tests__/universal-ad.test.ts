@@ -87,3 +87,39 @@ describe('UniversalAd creative visibility and supplier no-fill', () => {
     expect(slot.dataset.adStatus).toBe('ready');
   });
 });
+
+describe('UniversalAd breakpoint gating', () => {
+  // _tx.init() registers every [data-hyb-ssp-ad-place] on the page by itself, so
+  // a slot inside a display:none breakpoint wrapper (mobile 320×50 on desktop,
+  // desktop 970×250 on mobile) used to win an auction nobody could see.
+  async function renderInWrapper(wrapperStyle: string) {
+    const host = document.createElement('div');
+    host.setAttribute('style', wrapperStyle);
+    document.body.appendChild(host);
+    const r = createRoot(host);
+    await act(async () => r.render(React.createElement(UniversalAd, {
+      placeId: 'hidden-display', format: '320x50',
+    })));
+    return { host, r };
+  }
+
+  it('does not expose a VOX slot inside a hidden wrapper', async () => {
+    const { host, r } = await renderInWrapper('display:none');
+    expect(host.querySelector('[data-hyb-ssp-ad-place]')).toBeNull();
+    expect(host.querySelector('[data-vox-slot-pending="320x50"]')).not.toBeNull();
+    await act(async () => r.unmount());
+  });
+
+  it('exposes the slot once the wrapper becomes visible (breakpoint change)', async () => {
+    const { host, r } = await renderInWrapper('display:none');
+    host.setAttribute('style', 'display:block');
+    await act(async () => { window.dispatchEvent(new window.Event('resize')); });
+    expect(host.querySelector('[data-hyb-ssp-ad-place="hidden-display"]')).not.toBeNull();
+    await act(async () => r.unmount());
+  });
+
+  it('renders the slot straight away when nothing hides it', () => {
+    expect(slot).not.toBeNull();
+    expect(slot.getAttribute('data-hyb-ssp-ad-place')).toBe('test-display');
+  });
+});

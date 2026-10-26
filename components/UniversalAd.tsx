@@ -46,6 +46,12 @@ export function UniversalAd({
   // VOX slots are dead weight when the deployment runs Prebid only.
   const active = enabled && isVoxEnabled(provider);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLSpanElement>(null);
+  // The slot (and its data-hyb-ssp-ad-place attribute) only enters the DOM once
+  // the breakpoint wrapper actually shows it. _tx.init() scans every container
+  // on the page by itself, so a mobile 320×50 inside an `xl:hidden` wrapper used
+  // to win an auction on desktop and burn a paid impression nobody could see.
+  const [inLayout, setInLayout] = useState(false);
   const [adStatus, setAdStatus] = useState<'loading' | 'ready' | 'empty' | 'unsuitable'>('loading');
   const lastUnsuitableReasonRef = useRef<string>('');
   const evaluateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -89,9 +95,27 @@ export function UniversalAd({
     return { width, height };
   }, [parseSize]);
 
+  // Mount the slot only while no ancestor is display:none. Once mounted it stays:
+  // the SDK owns the node from then on, and removing it would orphan an auction.
+  useEffect(() => {
+    if (!active || inLayout) return;
+    const check = () => {
+      let node: HTMLElement | null = sentinelRef.current?.parentElement ?? null;
+      if (!node) return;
+      while (node && node !== document.body) {
+        if (window.getComputedStyle(node).display === 'none') return;
+        node = node.parentElement;
+      }
+      setInLayout(true);
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [active, inLayout]);
+
   // All hooks are above this early return — Rules of Hooks compliant
   useEffect(() => {
-    if (!active) return;
+    if (!active || !inLayout) return;
 
     const container = containerRef.current;
     if (!container) return;
@@ -200,10 +224,13 @@ export function UniversalAd({
       timers.forEach((timerId) => window.clearTimeout(timerId));
       if (evaluateDebounceRef.current) clearTimeout(evaluateDebounceRef.current);
     };
-  }, [active, expectedHeight, expectedWidth, format, placeId, resolveElementSize]);
+  }, [active, inLayout, expectedHeight, expectedWidth, format, placeId, resolveElementSize]);
 
   // Early return after all hooks
   if (!active) return null;
+  if (!inLayout) {
+    return <span ref={sentinelRef} aria-hidden="true" data-vox-slot-pending={format} style={{ display: 'block', width: 0, height: 0 }} />;
+  }
 
   const isAdLoaded = adStatus === 'ready';
 

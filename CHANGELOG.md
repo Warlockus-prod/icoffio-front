@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Ad slots hidden at the current screen width (mobile 320×50 on desktop, desktop banners on mobile) no longer take part in auctions. With the new Hybrid campaigns filling on 2026-10-26, two of the three display impressions on a desktop article were going to invisible mobile slots — paid, never seen, and counted against the daily limit.
 - Publish the official VOX seller authorization at `/ads.txt` so buyers can verify the site's authorized seller.
 - Advertising audit now identifies the three active Hybrid campaigns, confirms eligible-domain lists and available video assets, records Display size mismatches, and distinguishes the working browser Console session from unavailable server telemetry. Paid delivery remains unverified; no campaign settings or budgets were changed.
 

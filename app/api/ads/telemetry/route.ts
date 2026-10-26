@@ -2,7 +2,7 @@
  * Ad accounting beacon — counts VOX auction outcomes per place, seen by the page.
  *
  *   POST /api/ads/telemetry
- *   Body: { device: 'desktop'|'mobile', events: [{ placeId, format, outcome: 'filled'|'empty' }] }
+ *   Body: { events: [{ placeId, format, outcome: 'filled'|'empty', device: 'desktop'|'mobile' }] }
  *
  * Public (sent from every consented pageview), rate-limited, accepts only
  * PlaceIDs from lib/config/adPlacements.ts. Never blocks the page: failures are silent.
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 const KNOWN_HOSTS = new Set(['icoffio.com', 'app.icoffio.com', 'web.icoffio.com']);
 const MAX_EVENTS = 20;
 
-interface TelemetryEvent { placeId?: unknown; format?: unknown; outcome?: unknown }
+interface TelemetryEvent { placeId?: unknown; format?: unknown; outcome?: unknown; device?: unknown }
 
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(request, 'PUBLIC_API');
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   const host = (request.headers.get('host') || '').toLowerCase().split(':')[0].replace(/^www\./, '');
   if (!KNOWN_HOSTS.has(host)) return NextResponse.json({ ok: false }, { status: 400 });
-  const device = body.device === 'mobile' ? 'mobile' : 'desktop';
+  const fallbackDevice = body.device === 'mobile' ? 'mobile' : 'desktop';
   const known = getKnownPlaceIds();
 
   const rows = (Array.isArray(body.events) ? body.events : [])
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       placeId: typeof e.placeId === 'string' ? e.placeId : '',
       format: typeof e.format === 'string' ? e.format.slice(0, 20) : '',
       outcome: e.outcome === 'filled' ? 'filled' : e.outcome === 'empty' ? 'empty' : '',
+      device: e.device === 'mobile' ? 'mobile' : e.device === 'desktop' ? 'desktop' : fallbackDevice,
     }))
     .filter((e) => known.has(e.placeId) && e.format && e.outcome);
 
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
            empty  = ad_slot_daily.empty + EXCLUDED.empty,
            format = EXCLUDED.format,
            updated_at = NOW()`,
-        [host, row.placeId, row.format, device, row.outcome === 'filled' ? 1 : 0, row.outcome === 'empty' ? 1 : 0]
+        [host, row.placeId, row.format, row.device, row.outcome === 'filled' ? 1 : 0, row.outcome === 'empty' ? 1 : 0]
       );
     }
     return NextResponse.json({ ok: true, stored: rows.length });

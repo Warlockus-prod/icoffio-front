@@ -9,13 +9,14 @@
 
 const ENDPOINT = '/api/ads/telemetry';
 const FLUSH_DELAY_MS = 3000;
-/** Tailwind `xl` — the breakpoint that switches the article between mobile and desktop slots. */
-const DESKTOP_MIN_WIDTH = 1280;
+/** Tailwind `xl` — the same media query that switches the article between mobile and desktop slots. */
+const DESKTOP_QUERY = '(min-width: 1280px)';
 
 export interface AdTelemetryEvent {
   placeId: string;
   format: string;
   outcome: 'filled' | 'empty';
+  device?: 'desktop' | 'mobile';
 }
 
 /** Outcome for a VOX status value; intermediate states (init, ready…) are not counted. */
@@ -42,10 +43,7 @@ export function startAdTelemetry(win: Window & typeof globalThis, doc: Document)
     if (timer !== undefined) win.clearTimeout(timer);
     timer = undefined;
     if (!queue.length) return;
-    const payload = JSON.stringify({
-      device: win.innerWidth >= DESKTOP_MIN_WIDTH ? 'desktop' : 'mobile',
-      events: queue,
-    });
+    const payload = JSON.stringify({ events: queue });
     queue = [];
     try {
       if (!win.navigator.sendBeacon?.(ENDPOINT, payload)) {
@@ -63,7 +61,10 @@ export function startAdTelemetry(win: Window & typeof globalThis, doc: Document)
     // VOX statuses are terminal: count the first outcome per container only.
     if (reported.has(el)) return;
     reported.set(el, outcome);
-    queue.push({ ...info, outcome });
+    // Decided when the outcome happens, with the CSS breakpoint's own query — the
+    // window may be resized before the batch is sent.
+    const device = win.matchMedia?.(DESKTOP_QUERY).matches ? 'desktop' : 'mobile';
+    queue.push({ ...info, outcome, device });
     if (timer === undefined) timer = win.setTimeout(flush, FLUSH_DELAY_MS);
   };
 

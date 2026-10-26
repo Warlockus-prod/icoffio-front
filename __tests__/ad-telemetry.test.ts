@@ -21,6 +21,7 @@ describe('ad telemetry', () => {
     const sent: string[] = [];
     win.navigator.sendBeacon = (_url: string, body: string) => { sent.push(body); return true; };
     win.setTimeout = (fn: () => void) => { setTimeout(fn, 0); return 1; };
+    win.matchMedia = (q: string) => ({ matches: q === '(min-width: 1280px)' });
     const stop = startAdTelemetry(win, win.document);
     const d = win.document.getElementById('d');
     const i = win.document.getElementById('i');
@@ -34,8 +35,8 @@ describe('ad telemetry', () => {
     expect(sent).toHaveLength(1);
     const payload = JSON.parse(sent[0]);
     expect(payload.events).toEqual([
-      { placeId: 'P1', format: '970x250', outcome: 'filled' },
-      { placeId: 'IMG', format: 'in-image', outcome: 'empty' },
+      { placeId: 'P1', format: '970x250', outcome: 'filled', device: 'desktop' },
+      { placeId: 'IMG', format: 'in-image', outcome: 'empty', device: 'desktop' },
     ]);
   });
 });

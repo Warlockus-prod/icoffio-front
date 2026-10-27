@@ -55,7 +55,7 @@ ssh -i ~/.ssh/aiw_new_vps_ed25519 -o ServerAliveInterval=30 root@178.104.223.93 
 | `lib/telegram-simple/content-processor.ts` | AI article processing |
 | `components/AdManager.tsx` | VOX SSP ad integration |
 | `lib/vox-ad-lifecycle.ts` | Consent-scoped VOX SDK queue, per-image registration and late-container lifecycle |
-| `components/UniversalAd.tsx` | Display creative measurement and explicit supplier no-fill state |
+| `components/UniversalAd.tsx` | Display slot mount (only when displayed and within 300px of the viewport), creative measurement, explicit supplier no-fill state |
 | `components/VideoPlayer.tsx` | Consent-gated, one-pass DSP video playback and VAST tracking |
 | `app/api/video/preroll/route.ts` | Allowlisted DSP resolver; separate no-fill, timeout and unsupported wrapper reasons |
 | `scripts/live-ad-debug.js` | Browser-level ad network, CSP, consent and navigation checks |

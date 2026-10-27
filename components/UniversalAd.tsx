@@ -35,6 +35,9 @@ const AD_DIMENSIONS: Record<AdFormat, { width: string; height: string }> = {
   '320x480': { width: '320px', height: '480px' },
 };
 
+/** How far ahead of the viewport a slot enters the auction. */
+const LAZY_MARGIN_PX = 300;
+
 export function UniversalAd({
   placeId,
   format,
@@ -95,22 +98,40 @@ export function UniversalAd({
     return { width, height };
   }, [parseSize]);
 
-  // Mount the slot only while no ancestor is display:none. Once mounted it stays:
-  // the SDK owns the node from then on, and removing it would orphan an auction.
+  // Mount the slot only while no ancestor is display:none AND the reader is within
+  // LAZY_MARGIN_PX of it. Once mounted it stays: the SDK owns the node from then on,
+  // and removing it would orphan an auction.
+  // VOX counts a display impression when the creative loads, but the view only once
+  // half of it has been on screen for 1 s. The 970×250 sits ~2700px down an article,
+  // so loading it on page open billed impressions nobody saw (test campaign
+  // 2026-10-26/27: 19 impressions, 5 views). Bench 2026-10-27: 60% → 100% with the
+  // same number of views.
   useEffect(() => {
     if (!active || inLayout) return;
-    const check = () => {
-      let node: HTMLElement | null = sentinelRef.current?.parentElement ?? null;
-      if (!node) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const isDisplayed = () => {
+      let node: HTMLElement | null = sentinel.parentElement;
+      if (!node) return false;
       while (node && node !== document.body) {
-        if (window.getComputedStyle(node).display === 'none') return;
+        if (window.getComputedStyle(node).display === 'none') return false;
         node = node.parentElement;
       }
-      setInLayout(true);
+      return true;
     };
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    if (typeof window.IntersectionObserver === 'undefined') {
+      const check = () => { if (isDisplayed()) setInLayout(true); };
+      check();
+      window.addEventListener('resize', check);
+      return () => window.removeEventListener('resize', check);
+    }
+    // A sentinel under a display:none wrapper has no box and never intersects, so
+    // this also covers the breakpoint gate (it fires when the wrapper appears).
+    const observer = new window.IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting) && isDisplayed()) setInLayout(true);
+    }, { rootMargin: `${LAZY_MARGIN_PX}px 0px` });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, [active, inLayout]);
 
   // All hooks are above this early return — Rules of Hooks compliant

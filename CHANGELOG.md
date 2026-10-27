@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Display banners below the fold (970×250 before related articles, mobile 320×100 after the text) now enter the VOX auction only when the reader scrolls within 300px of them. VOX bills the impression as soon as the banner loads, so a billboard ~2700px down the page was counted for readers who never reached it: the Hybrid test Display campaign showed 19 impressions and 5 views (26%) on 2026-10-26/27. On a local bench with intercepted ad traffic, viewability went from 60% to 100% with the same number of views.
 - Ad accounting: the site now records, per day and per VOX place, how many auctions came back filled or empty (table `ad_slot_daily`, beacon `/api/ads/telemetry`). The admin Advertising tab shows these numbers next to the place inventory and links to the VOX panel and Hybrid console.
 - Admin Advertising tab: the on/off and priority controls were removed — they only wrote to the admin's own browser and never changed the site. The tab now shows the real place list with formats and VOX slot names.
 - Ad formats: the mobile slot after the article requested VOX place "Ad slot #12 160×600" inside a 320×50 box; it now uses the 320×100 place, matching its size. All PlaceIDs live in one file (`lib/config/adPlacements.ts`); dead VOX code and fake video PlaceIDs were removed.

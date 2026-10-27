@@ -123,3 +123,54 @@ describe('UniversalAd breakpoint gating', () => {
     expect(slot.getAttribute('data-hyb-ssp-ad-place')).toBe('test-display');
   });
 });
+
+describe('UniversalAd lazy mount', () => {
+  // VOX bills a display impression when the creative loads; a billboard far below
+  // the fold must not enter the auction until the reader approaches it.
+  let observers: Array<{ callback: (entries: Array<{ isIntersecting: boolean }>) => void; options: any; disconnected: boolean }>;
+
+  beforeEach(() => {
+    observers = [];
+    (window as any).IntersectionObserver = class {
+      record: (typeof observers)[number];
+      constructor(callback: any, options: any) {
+        this.record = { callback, options, disconnected: false };
+        observers.push(this.record);
+      }
+      observe() {}
+      disconnect() { this.record.disconnected = true; }
+    };
+  });
+
+  async function renderLazy(wrapperStyle = 'display:block') {
+    const host = document.createElement('div');
+    host.setAttribute('style', wrapperStyle);
+    document.body.appendChild(host);
+    const r = createRoot(host);
+    await act(async () => r.render(React.createElement(UniversalAd, {
+      placeId: 'below-fold', format: '970x250',
+    })));
+    return { host, r };
+  }
+
+  it('waits until the slot is near the viewport', async () => {
+    const { host, r } = await renderLazy();
+    expect(host.querySelector('[data-hyb-ssp-ad-place]')).toBeNull();
+    expect(observers.at(-1)!.options.rootMargin).toBe('300px 0px');
+
+    await act(async () => observers.at(-1)!.callback([{ isIntersecting: false }]));
+    expect(host.querySelector('[data-hyb-ssp-ad-place]')).toBeNull();
+
+    await act(async () => observers.at(-1)!.callback([{ isIntersecting: true }]));
+    expect(host.querySelector('[data-hyb-ssp-ad-place="below-fold"]')).not.toBeNull();
+    expect(observers.at(-1)!.disconnected).toBe(true);
+    await act(async () => r.unmount());
+  });
+
+  it('still keeps a slot under a hidden breakpoint wrapper out of the DOM', async () => {
+    const { host, r } = await renderLazy('display:none');
+    await act(async () => observers.at(-1)!.callback([{ isIntersecting: true }]));
+    expect(host.querySelector('[data-hyb-ssp-ad-place]')).toBeNull();
+    await act(async () => r.unmount());
+  });
+});

@@ -23,6 +23,15 @@ describe('per-article monetization', () => {
     expect(resolveArticleAdPlacements(settings, PLACES, '2025-06-01T10:00:00Z').map((p) => p.id)).toEqual(['a', 'later']);
   });
 
+  it('accepts the Date the PostgreSQL adapter returns for timestamptz (was "r.slice is not a function")', () => {
+    const settings = { version: 1 as const, enabledAdPlacementIds: ['a'], enabledVideoPlayerIds: [] };
+    const asDate = new Date('2025-06-01T10:00:00Z');
+    expect(() => resolveArticleAdPlacements(settings, PLACES, asDate)).not.toThrow();
+    // Same answer as the ISO-string form of the same instant.
+    expect(resolveArticleAdPlacements(settings, PLACES, asDate).map((p) => p.id)).toEqual(['a', 'later']);
+    expect(resolveArticleAdPlacements(settings, PLACES, new Date('invalid')).map((p) => p.id)).toEqual(['a']);
+  });
+
   it('v2 marker: only places the editor actually saw can be opted out', () => {
     const settings = { version: 2 as const, enabledAdPlacementIds: ['a'], enabledVideoPlayerIds: [], knownAdPlacementIds: ['a', 'b'] };
     expect(resolveArticleAdPlacements(settings, PLACES, null).map((p) => p.id)).toEqual(['a', 'later']);

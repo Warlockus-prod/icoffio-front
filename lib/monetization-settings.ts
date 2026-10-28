@@ -102,15 +102,38 @@ export function injectMonetizationSettingsIntoContent(
  * the ones the editor kept plus any added after the settings were saved.
  * `articleDate` (ISO) is only used for v1 markers.
  */
+/**
+ * Calendar day (YYYY-MM-DD) of an article date, whatever shape it arrives in.
+ *
+ * The type says string, but the PostgreSQL adapter returns `timestamptz`
+ * columns as JS `Date` objects. Calling `.slice` on one threw
+ * "r.slice is not a function" during server render, so every article that
+ * carries saved monetization settings crashed with "Something went wrong" on
+ * client-side navigation — on icoffio.com and app.icoffio.com too, i.e. a
+ * reader clicking from article to article got an error page with no ads.
+ */
+export function toIsoDay(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  }
+  if (typeof value === 'string') return value.slice(0, 10) || null;
+  if (typeof value === 'number') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
 export function resolveArticleAdPlacements(
   settings: ArticleMonetizationSettings | null,
   placements: AdPlacementConfig[],
-  articleDate?: string | null
+  articleDate?: string | Date | null
 ): AdPlacementConfig[] {
   if (!settings) return placements;
   const enabled = new Set(settings.enabledAdPlacementIds);
   const known = settings.knownAdPlacementIds ? new Set(settings.knownAdPlacementIds) : null;
-  const savedDay = articleDate ? articleDate.slice(0, 10) : null;
+  const savedDay = toIsoDay(articleDate);
   return placements.filter((ad) => {
     if (enabled.has(ad.id)) return true;
     if (known) return !known.has(ad.id);

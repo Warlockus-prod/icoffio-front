@@ -77,7 +77,7 @@ const nextConfig = {
       // thing stopping it. Scoped to the one directory on purpose —
       // cdn.jsdelivr.net serves any npm package, so the bare host would let
       // anyone's code run here.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://files.bidio.pl https://*.bidio.pl https://cdn.jsdelivr.net/npm/prebid-universal-creative@latest/dist/ https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://files.bidio.pl https://*.bidio.pl https://cdn.jsdelivr.net/npm/prebid-universal-creative@latest/dist/ https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com https://*.adtrafficquality.google",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
@@ -85,8 +85,15 @@ const nextConfig = {
       // (securepubads.g.doubleclick.net) and GAM renders winning creatives in
       // safeframe iframes on googlesyndication — without it the auction can be
       // won and the slot still paints nothing.
-      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://as.bidio.pl https://*.bidio.pl https://*.google-analytics.com https://*.doubleclick.net https://*.googlesyndication.com https://api.openai.com https://api.unsplash.com",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://*.googlesyndication.com https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.bidio.pl",
+      // cdn.jsdelivr.net/gh/prebid/currency-file@1/: Prebid's currency module.
+      // Bidio runs the auction in PLN; without the rates file a bid priced in
+      // another currency cannot be converted and is dropped. Path-scoped for
+      // the same reason as the creative entry in script-src.
+      // *.adtrafficquality.google: GPT's SODAR anti-fraud signals (config
+      // fetch, runner script, runner iframe). Blocked, GAM sees lower-quality
+      // traffic and demand may back off.
+      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://as.bidio.pl https://*.bidio.pl https://cdn.jsdelivr.net/gh/prebid/currency-file@1/ https://*.google-analytics.com https://*.doubleclick.net https://*.googlesyndication.com https://*.adtrafficquality.google https://api.openai.com https://api.unsplash.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://*.googlesyndication.com https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.bidio.pl https://*.adtrafficquality.google",
       "media-src 'self' https: data:",
       "object-src 'none'",
       "base-uri 'self'",

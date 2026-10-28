@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- web.icoffio.com: VOX in-image now runs on article photos alongside the Prebid display slots (before, the Prebid test host had no in-image at all). icoffio.com and app.icoffio.com are unchanged.
 - Ad accounting: the site now records, per day and per VOX place, how many auctions came back filled or empty (table `ad_slot_daily`, beacon `/api/ads/telemetry`). The admin Advertising tab shows these numbers next to the place inventory and links to the VOX panel and Hybrid console.
 - Admin Advertising tab: the on/off and priority controls were removed — they only wrote to the admin's own browser and never changed the site. The tab now shows the real place list with formats and VOX slot names.
 - Ad formats: the mobile slot after the article requested VOX place "Ad slot #12 160×600" inside a 320×50 box; it now uses the 320×100 place, matching its size. All PlaceIDs live in one file (`lib/config/adPlacements.ts`); dead VOX code and fake video PlaceIDs were removed.

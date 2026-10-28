@@ -6,6 +6,7 @@ import {
   isLocalHost,
   isPrebidEnabled,
   isVoxEnabled,
+  isVoxInImageEnabled,
   normalizeAdsProvider,
   resolveAdsProviderForHost,
 } from '@/lib/ads-provider-core';
@@ -90,5 +91,12 @@ describe('provider helpers', () => {
     expect(isPrebidEnabled('prebid')).toBe(true);
     expect(isPrebidEnabled('both')).toBe(true);
     expect(isPrebidEnabled('vox')).toBe(false);
+  });
+
+  it('VOX in-image stays on for Prebid hosts while VOX display is off there', () => {
+    const webHost = resolveAdsProviderForHost('web.icoffio.com');
+    expect(isVoxEnabled(webHost)).toBe(false);
+    expect(isVoxInImageEnabled(webHost)).toBe(true);
+    expect(isVoxInImageEnabled(resolveAdsProviderForHost('icoffio.com'))).toBe(true);
   });
 });

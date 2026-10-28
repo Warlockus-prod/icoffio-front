@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCookieConsent } from '@/lib/useCookieConsent';
-import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { isVoxEnabled, isVoxInImageEnabled, useAdsProvider } from '@/lib/ads-provider';
 import { AD_PLACEMENTS } from '@/lib/config/adPlacements';
 import { startVoxAdLifecycle } from '@/lib/vox-ad-lifecycle';
 import { startAdTelemetry } from '@/lib/ad-telemetry';
@@ -14,15 +14,18 @@ declare global {
   }
 }
 
-const ENABLED_DISPLAY_PLACE_IDS = new Set(
+const ENABLED_DISPLAY_PLACE_IDS: ReadonlySet<string> = new Set(
   AD_PLACEMENTS.filter((ad) => ad.enabled).map((ad) => ad.placeId)
 );
+const NO_DISPLAY_PLACE_IDS: ReadonlySet<string> = new Set();
 
 export function AdManager() {
   const pathname = usePathname();
   const provider = useAdsProvider();
   const { consentState } = useCookieConsent();
-  const hasConsent = isVoxEnabled(provider) && consentState.hasConsented &&
+  // On Prebid hosts the SDK still runs, for in-image only: display is Prebid's.
+  const voxDisplay = isVoxEnabled(provider);
+  const hasConsent = isVoxInImageEnabled(provider) && consentState.hasConsented &&
     consentState.preferences.advertising;
 
   // Site-side accounting of auction outcomes (filled / empty) per place.
@@ -39,9 +42,9 @@ export function AdManager() {
       window,
       document,
       pathname: pathname || '',
-      displayPlaceIds: ENABLED_DISPLAY_PLACE_IDS,
+      displayPlaceIds: voxDisplay ? ENABLED_DISPLAY_PLACE_IDS : NO_DISPLAY_PLACE_IDS,
     });
-  }, [hasConsent, pathname]);
+  }, [hasConsent, pathname, voxDisplay]);
 
   return null;
 }

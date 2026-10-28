@@ -6,7 +6,7 @@ import { PrebidAd } from '@/components/PrebidAd';
 import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
 import { CMP_PROVIDER, isCmpConfigured } from '@/lib/config/cmp';
-import { useAdsProvider, isPrebidEnabled, isVoxEnabled } from '@/lib/ads-provider';
+import { useAdsProvider, isPrebidEnabled, isVoxEnabled, isVoxInImageEnabled } from '@/lib/ads-provider';
 import {
   BIDIO_GDPR_ENABLED,
   BIDIO_PREBID_GLOBAL,
@@ -156,7 +156,8 @@ export function PrebidTestClient() {
           <h2 className="mb-3 text-xl font-semibold">Environment</h2>
           <Row label="Ads provider" value={provider} />
           <Row label="Prebid active" value={String(isPrebidEnabled(provider))} ok={isPrebidEnabled(provider)} />
-          <Row label="VOX active" value={String(isVoxEnabled(provider))} />
+          <Row label="VOX display" value={String(isVoxEnabled(provider))} />
+          <Row label="VOX in-image" value={String(isVoxInImageEnabled(provider))} ok={isVoxInImageEnabled(provider)} />
           <Row
             label="Advertising consent"
             value={hasAdConsent ? 'granted' : 'NOT granted — accept the cookie banner'}

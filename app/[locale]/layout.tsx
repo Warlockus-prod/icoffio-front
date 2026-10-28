@@ -20,7 +20,7 @@ import { PrebidManager } from "@/components/PrebidManager";
 import { CmpLoader } from "@/components/CmpLoader";
 
 import { AdsProviderProvider } from "@/lib/ads-provider";
-import { isVoxEnabled, resolveAdsProviderForHost } from "@/lib/ads-provider-core";
+import { isVoxInImageEnabled, resolveAdsProviderForHost } from "@/lib/ads-provider-core";
 import { buildEarlyVoxLoaderScript } from "@/lib/consent-storage";
 
 import { getTranslation } from "@/lib/i18n";
@@ -195,7 +195,7 @@ export default function LocaleLayout({
             `,
           }}
         />
-        {isVoxEnabled(adsProvider) && (
+        {isVoxInImageEnabled(adsProvider) && (
           <>
             <link rel="preconnect" href="https://st.hbrd.io" crossOrigin="" />
             <link rel="preconnect" href="https://ssp.hybrid.ai" crossOrigin="" />

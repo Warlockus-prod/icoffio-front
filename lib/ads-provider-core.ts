@@ -59,8 +59,18 @@ export function resolveAdsProviderForHost(host: string | null | undefined): AdsP
   return configured === 'both' ? 'both' : ADS_PROVIDER_FALLBACK;
 }
 
+/** VOX display banners (UniversalAd, interstitial). Off on Prebid hosts: Prebid owns display there. */
 export function isVoxEnabled(provider: AdsProvider): boolean {
   return provider === 'vox' || provider === 'both';
+}
+
+/**
+ * VOX in-image runs on every host. It overlays article photos and competes with
+ * no Prebid slot, so on web.icoffio.com display goes through Prebid while the
+ * photos keep VOX in-image — the partner test needs both formats live.
+ */
+export function isVoxInImageEnabled(_provider: AdsProvider): boolean {
+  return true;
 }
 
 export function isPrebidEnabled(provider: AdsProvider): boolean {

@@ -6,6 +6,7 @@ import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
 import { isPrebidEnabled, useAdsProvider } from '@/lib/ads-provider';
 import {
+  BIDIO_FULL_RELOAD_NAVIGATION,
   BIDIO_GDPR_ENABLED,
   BIDIO_SDK_URL,
   buildBidioLazyConfig,
@@ -86,11 +87,39 @@ export function PrebidManager() {
     console.log('[Bidio] SDK requested', BIDIO_SDK_URL);
   }, [enabled, hasConsent, tcfConsent]);
 
-  // Client-side navigation swaps the slot <div>s for fresh empty ones. The lazy
-  // build attaches its IntersectionObserver during its own startup and exposes
-  // no refresh API, so slots created after that may never be requested. Logged
-  // rather than guessed at: check this line against whether the slots fill
-  // after an in-app navigation before adding any reload workaround.
+  // The lazy SDK initialises once per document and cannot refill slots after a
+  // client-side navigation (measured: 0 new auctions, slots empty). So on Prebid
+  // hosts, internal link clicks become full document loads. Capture phase on
+  // `document` runs before React's root listener, so Next's <Link> never starts
+  // its own transition.
+  useEffect(() => {
+    // No consent means no SDK, so there is nothing to re-initialise.
+    if (!enabled || !hasConsent || !BIDIO_FULL_RELOAD_NAVIGATION) return;
+
+    const onClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor || anchor.hasAttribute('download')) return;
+      if (anchor.target && anchor.target !== '_self') return;
+
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      // Same document (pure #hash jump): nothing to re-initialise.
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      window.location.assign(url.href);
+    };
+
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [enabled, hasConsent]);
+
+  // Fallback for navigations the click hook cannot see — back/forward, and
+  // programmatic router.push. The URL has already changed, so a reload lands
+  // on the new page with a fresh SDK. A remount resets the ref, so this cannot
+  // loop.
   useEffect(() => {
     if (!enabled) return;
 
@@ -98,11 +127,14 @@ export function PrebidManager() {
     lastPathRef.current = pathname;
     if (previousPath === null || previousPath === pathname) return;
 
-    const adUnits = window.pbjs?.adUnits?.length ?? 'n/a';
-    console.log(
-      `[Bidio] route change → ${pathname} (lazy SDK has no refresh API; pbjs adUnits=${adUnits})`
-    );
-  }, [enabled, pathname]);
+    if (BIDIO_FULL_RELOAD_NAVIGATION && hasConsent) {
+      console.log(`[Bidio] client-side route change → ${pathname}; reloading so the lazy SDK re-initialises`);
+      window.location.reload();
+      return;
+    }
+
+    console.log(`[Bidio] route change → ${pathname} (lazy SDK has no refresh API; slots will stay empty)`);
+  }, [enabled, hasConsent, pathname]);
 
   return null;
 }

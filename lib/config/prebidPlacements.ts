@@ -50,6 +50,21 @@ export const BIDIO_PREBID_GLOBAL = 'pbjs';
 export const BIDIO_GDPR_ENABLED = false;
 
 /**
+ * Turn in-app navigation into full document loads on Prebid hosts.
+ *
+ * The lazy SDK initialises once per document and has no refresh API. After a
+ * Next.js client-side navigation the new slot <div>s are never requested —
+ * measured on web.icoffio.com 2026-10-28: 0 new auction requests, both slots
+ * empty, while a full load of the same article rendered a 20 PLN VOX bid.
+ * Without this, Prebid fills only the first page of every visit.
+ *
+ * Cost: navigation on the test subdomain is a normal page load instead of an
+ * instant route change. VOX hosts are unaffected. Retire this the day Bidio
+ * ships a refresh/re-scan API.
+ */
+export const BIDIO_FULL_RELOAD_NAVIGATION = true;
+
+/**
  * The config object the lazy SDK reads from `window.BIDIO_LAZY_CONFIG`.
  * Everything else (endpoints, timeouts, lazy-load margin, price granularity)
  * keeps the SDK's own defaults.

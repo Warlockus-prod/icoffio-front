@@ -67,7 +67,17 @@ const nextConfig = {
     // 'unsafe-eval' is required by the VOX/prebid stack and react-dev-tools.
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://files.bidio.pl https://*.bidio.pl https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
+      // Prebid Universal Creative — the creative GAM serves for a winning
+      // header bid. GAM writes it into a *friendly* iframe (about:blank), and
+      // such an iframe inherits THIS page's CSP, so without this entry the
+      // script is blocked before it hits the network (0 ms, status 0), the bid
+      // is never rendered (bidWon 0) and the slot collapses to a 1x1 iframe.
+      // Measured live on web.icoffio.com 2026-10-28: a 20 PLN VOX bid reached
+      // GAM, GAM served the PUC with the right hb_adid, and this was the only
+      // thing stopping it. Scoped to the one directory on purpose —
+      // cdn.jsdelivr.net serves any npm package, so the bare host would let
+      // anyone's code run here.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://files.bidio.pl https://*.bidio.pl https://cdn.jsdelivr.net/npm/prebid-universal-creative@latest/dist/ https://www.googletagmanager.com https://*.google-analytics.com https://pagead2.googlesyndication.com https://*.doubleclick.net https://*.googletagservices.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",

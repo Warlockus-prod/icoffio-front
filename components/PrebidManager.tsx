@@ -68,72 +68,23 @@ export function PrebidManager() {
 
     if (document.querySelector(`script[${SCRIPT_ATTR}]`)) return;
 
-    const inject = () => {
-      if (document.querySelector(`script[${SCRIPT_ATTR}]`)) return;
+    // Must precede the script: the SDK snapshots this object as it executes.
+    window.BIDIO_LAZY_CONFIG = buildBidioLazyConfig();
 
-      // Must precede the script: the SDK snapshots this object as it executes.
-      window.BIDIO_LAZY_CONFIG = buildBidioLazyConfig();
+    if (!BIDIO_GDPR_ENABLED) {
+      console.warn(
+        '[Bidio] gdprEnabled=false — Prebid consentManagement is OFF. Vendor-supported test setting; must be true (plus a CMP) before real traffic.'
+      );
+    }
 
-      if (!BIDIO_GDPR_ENABLED) {
-        console.warn(
-          '[Bidio] gdprEnabled=false — Prebid consentManagement is OFF. Vendor-supported test setting; must be true (plus a CMP) before real traffic.'
-        );
-      }
-
-      const script = document.createElement('script');
-      script.src = BIDIO_SDK_URL;
-      script.async = true;
-      script.setAttribute(SCRIPT_ATTR, '1');
-      script.onerror = () => console.error('[Bidio] SDK failed to load', BIDIO_SDK_URL);
-      script.onload = () => console.log('[Bidio] lazy SDK loaded', window.BIDIO_LAZY_CONFIG);
-      (document.head || document.body).appendChild(script);
-      console.log('[Bidio] SDK requested', BIDIO_SDK_URL);
-    };
-
-    // The SDK runs getElementById + getComputedStyle on every placement exactly
-    // once at startup, inside a try/catch. If a slot is not in the DOM yet,
-    // getComputedStyle(null) throws and the whole startup is silently dropped:
-    // no auction, and not even the failsafe GAM call. The (site) segment has a
-    // loading.tsx, so article content streams in after the layout — and on a
-    // warm-cache in-site navigation this effect won the race. Measured: direct
-    // load → 2 auctions + a rendered 20 PLN bid; same URL reached by a link →
-    // 0 auctions, 0 GAM calls, twice in a row.
-    //
-    // So: wait until the document has finished loading (streaming is over) and
-    // a slot exists, then give React one frame to commit. Pages with no slots
-    // never load the SDK at all.
-    const hasSlot = () => document.querySelector('[data-prebid-slot]') !== null;
-    let settled = false;
-    let frame = 0;
-
-    const tryInject = () => {
-      if (settled || document.readyState !== 'complete') return;
-      settled = true;
-      cleanup();
-      if (!hasSlot()) {
-        console.log('[Bidio] no Prebid slots on this page — SDK not loaded');
-        return;
-      }
-      frame = window.requestAnimationFrame(inject);
-    };
-
-    const observer = new MutationObserver(() => {
-      if (hasSlot()) tryInject();
-    });
-    const cleanup = () => {
-      observer.disconnect();
-      window.removeEventListener('load', tryInject);
-    };
-
-    observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('load', tryInject);
-    tryInject();
-
-    return () => {
-      settled = true;
-      cleanup();
-      if (frame) window.cancelAnimationFrame(frame);
-    };
+    const script = document.createElement('script');
+    script.src = BIDIO_SDK_URL;
+    script.async = true;
+    script.setAttribute(SCRIPT_ATTR, '1');
+    script.onerror = () => console.error('[Bidio] SDK failed to load', BIDIO_SDK_URL);
+    script.onload = () => console.log('[Bidio] lazy SDK loaded', window.BIDIO_LAZY_CONFIG);
+    (document.head || document.body).appendChild(script);
+    console.log('[Bidio] SDK requested', BIDIO_SDK_URL);
   }, [enabled, hasConsent, tcfConsent]);
 
   // The lazy SDK initialises once per document and cannot refill slots after a

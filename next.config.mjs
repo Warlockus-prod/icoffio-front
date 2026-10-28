@@ -71,8 +71,12 @@ const nextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://as.bidio.pl https://*.bidio.pl https://*.google-analytics.com https://*.doubleclick.net https://api.openai.com https://api.unsplash.com",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.bidio.pl",
+      // *.googlesyndication.com: the Bidio lazy build injects GPT
+      // (securepubads.g.doubleclick.net) and GAM renders winning creatives in
+      // safeframe iframes on googlesyndication — without it the auction can be
+      // won and the slot still paints nothing.
+      "connect-src 'self' https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://as.bidio.pl https://*.bidio.pl https://*.google-analytics.com https://*.doubleclick.net https://*.googlesyndication.com https://api.openai.com https://api.unsplash.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.doubleclick.net https://*.googlesyndication.com https://st.hbrd.io https://*.hbrd.io https://*.hybrid.ai https://*.bidio.pl",
       "media-src 'self' https: data:",
       "object-src 'none'",
       "base-uri 'self'",

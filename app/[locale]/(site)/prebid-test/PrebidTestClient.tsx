@@ -5,9 +5,10 @@ import { Container } from '@/components/Container';
 import { PrebidAd } from '@/components/PrebidAd';
 import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
-import { CMP_PROVIDER, isCmpConfigured, shouldBypassTcfForTest } from '@/lib/config/cmp';
+import { CMP_PROVIDER, isCmpConfigured } from '@/lib/config/cmp';
 import { useAdsProvider, isPrebidEnabled, isVoxEnabled } from '@/lib/ads-provider';
 import {
+  BIDIO_GDPR_ENABLED,
   BIDIO_PREBID_GLOBAL,
   BIDIO_SDK_URL,
   BIDIO_WEBSITE_ID,
@@ -16,8 +17,7 @@ import {
 
 interface Diagnostics {
   scriptTagPresent: boolean;
-  bidioPresent: boolean;
-  bidioApi: string[];
+  lazyConfig: string;
   pbjsPresent: boolean;
   pbjsVersion: string;
   adUnitCodes: string[];
@@ -28,8 +28,7 @@ interface Diagnostics {
 
 const EMPTY: Diagnostics = {
   scriptTagPresent: false,
-  bidioPresent: false,
-  bidioApi: [],
+  lazyConfig: '—',
   pbjsPresent: false,
   pbjsVersion: '—',
   adUnitCodes: [],
@@ -41,7 +40,7 @@ const EMPTY: Diagnostics = {
 function collect(): Diagnostics {
   const w = window as any;
   const pbjs = w[BIDIO_PREBID_GLOBAL];
-  const bidio = w.bidio;
+  const lazyConfig = w.BIDIO_LAZY_CONFIG;
 
   const bids: Diagnostics['bids'] = [];
   const winners: Diagnostics['winners'] = [];
@@ -92,8 +91,7 @@ function collect(): Diagnostics {
 
   return {
     scriptTagPresent: document.querySelector('script[data-bidio-sdk]') !== null,
-    bidioPresent: Boolean(bidio),
-    bidioApi: bidio ? Object.keys(bidio) : [],
+    lazyConfig: lazyConfig ? JSON.stringify(lazyConfig) : '—',
     pbjsPresent: Boolean(pbjs),
     pbjsVersion,
     adUnitCodes,
@@ -179,16 +177,19 @@ export function PrebidTestClient() {
             ok={tcfConsent === 'granted'}
           />
           <Row
-            label="TEST bypass (defaultGdprScope=false)"
-            value={shouldBypassTcfForTest() ? 'ACTIVE — test only, remove before launch' : 'off'}
+            label="BIDIO_LAZY_CONFIG.gdprEnabled"
+            value={
+              BIDIO_GDPR_ENABLED
+                ? 'true — consentManagement ON, needs a CMP'
+                : 'false — consentManagement OFF (vendor test switch)'
+            }
           />
         </section>
 
         <section className="mb-10">
           <h2 className="mb-3 text-xl font-semibold">SDK</h2>
           <Row label="Script tag injected" value={String(diag.scriptTagPresent)} ok={diag.scriptTagPresent} />
-          <Row label="window.bidio" value={String(diag.bidioPresent)} ok={diag.bidioPresent} />
-          <Row label="bidio API" value={diag.bidioApi.join(', ') || '—'} />
+          <Row label="BIDIO_LAZY_CONFIG" value={diag.lazyConfig} ok={diag.lazyConfig !== '—'} />
           <Row label={`window.${BIDIO_PREBID_GLOBAL}`} value={String(diag.pbjsPresent)} ok={diag.pbjsPresent} />
           <Row label="Prebid version" value={diag.pbjsVersion} />
           <Row label="Registered adUnits" value={diag.adUnitCodes.join(', ') || '—'} />

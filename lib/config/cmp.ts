@@ -39,33 +39,26 @@ export const CMP_PROVIDER: CmpProvider = 'none';
 export const CMP_ID = '';
 
 /**
- * ⚠️ OFF — TRIED ON THE LIVE SUBDOMAIN, DOES NOT WORK. Kept as a record so the
- * next person does not spend the same afternoon on it.
+ * HISTORY — the TCF wall, and what actually solved it.
  *
- * The theory was that Bidio's `defaultGdprScope: true` is what cancels the
- * auction when no TCF CMP answers, so flipping it to false would let bidding
- * proceed without a consent string.
+ * On the old `bidio-sdk-dev.js` build every auction died with "TCF2 CMP not
+ * found. Canceling auction as per consentManagement config." We tried relaxing
+ * Prebid's `defaultGdprScope` from the page (v10.23.0–10.23.3). It does not
+ * work: the override held — pbjs reported `{cmpApi:'iab', timeout:1000,
+ * defaultGdprScope:false}` — and the auction was still cancelled, auctionInit
+ * 0. Prebid cancels because the CMP is unreachable; `defaultGdprScope` only
+ * decides what `gdprApplies` becomes *after* a CMP replies. That code is gone.
  *
- * Measured on web.icoffio.com (v10.23.3): the override does hold — pbjs
- * reported `{cmpApi:'iab', timeout:1000, defaultGdprScope:false}` — and the
- * auction was STILL cancelled with "TCF2 CMP not found. Canceling auction as
- * per consentManagement config.", auctionInit stayed 0. Prebid cancels on the
- * CMP being unreachable; defaultGdprScope only decides the value of
- * `gdprApplies` once a CMP has actually replied.
+ * The lazy build the partner shipped on 2026-10-28 has a first-class switch:
+ * `BIDIO_LAZY_CONFIG.gdprEnabled = false` skips consentManagement entirely.
+ * See `BIDIO_GDPR_ENABLED` in lib/config/prebidPlacements.ts — that is the
+ * supported test path, and the one in use.
  *
- * That leaves exactly two real options, both requiring a genuine TCF signal:
- *   1. a certified CMP (set CMP_PROVIDER + CMP_ID above), or
- *   2. Bidio dropping consentManagement for this account server-side.
- *
+ * For real traffic the answer is still a genuine TCF signal: set
+ * CMP_PROVIDER + CMP_ID above and turn `BIDIO_GDPR_ENABLED` back on.
  * `cmpApi: 'static'` with a hand-written consentData would also "work" — do not
  * do it. That is a fabricated GDPR consent string sent to real bidders.
  */
-export const PREBID_TEST_BYPASS_TCF = false;
-
-/** The bypass is pointless — and wrong — once a real CMP is present. */
-export function shouldBypassTcfForTest(): boolean {
-  return PREBID_TEST_BYPASS_TCF && !isCmpConfigured();
-}
 
 export interface CmpScript {
   src: string;

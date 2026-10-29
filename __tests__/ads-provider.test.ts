@@ -5,6 +5,7 @@ import {
   allowsAdsOverride,
   isLocalHost,
   isPrebidEnabled,
+  isPrebidInImageEnabled,
   isVoxEnabled,
   isVoxInImageEnabled,
   normalizeAdsProvider,
@@ -93,10 +94,18 @@ describe('provider helpers', () => {
     expect(isPrebidEnabled('vox')).toBe(false);
   });
 
-  it('VOX in-image stays on for Prebid hosts while VOX display is off there', () => {
+  it('in-image goes through Prebid on Prebid hosts and through the VOX SDK elsewhere', () => {
     const webHost = resolveAdsProviderForHost('web.icoffio.com');
     expect(isVoxEnabled(webHost)).toBe(false);
-    expect(isVoxInImageEnabled(webHost)).toBe(true);
-    expect(isVoxInImageEnabled(resolveAdsProviderForHost('icoffio.com'))).toBe(true);
+    expect(isVoxInImageEnabled(webHost)).toBe(false);
+    expect(isPrebidInImageEnabled(webHost)).toBe(true);
+    for (const host of ['icoffio.com', 'app.icoffio.com']) {
+      const provider = resolveAdsProviderForHost(host);
+      expect(isVoxInImageEnabled(provider)).toBe(true);
+      expect(isPrebidInImageEnabled(provider)).toBe(false);
+    }
+    // Side-by-side mode keeps one in-image path, never two overlays on a photo.
+    expect(isVoxInImageEnabled('both')).toBe(true);
+    expect(isPrebidInImageEnabled('both')).toBe(false);
   });
 });

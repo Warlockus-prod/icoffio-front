@@ -30,6 +30,19 @@ console.hybrid.ai          partners.voxexchange.io        lib/config/adPlacement
 | Экран в админке | `components/admin/AdvertisingManager.tsx` (вкладка Advertising) |
 | Настройки рекламы отдельной статьи | `lib/monetization-settings.ts` |
 | Какой стек на каком домене | `lib/ads-provider-core.ts` (Prebid только на `web.icoffio.com`) |
+| Prebid (Bidio) на `web.icoffio.com`: дисплей | `components/PrebidManager.tsx`, `lib/config/prebidPlacements.ts` |
+| In-image через Prebid на `web.icoffio.com` | `lib/prebid-inimage.ts` (запускается из `PrebidManager`) |
+
+### In-image на web.icoffio.com (через Prebid)
+
+На `web.icoffio.com` in-image идёт не через VOX SDK (`_tx.integrateInImage`), а через
+биддер `vox` в сборке Prebid от Bidio: на каждое фото статьи — отдельный аукцион
+`{ placement: 'inImage', placementId: IN_IMAGE_PLACE_ID, imageUrl }` →
+`POST ssp.hybrid.ai/auction/prebid`. Победившая ставка рисуется в iframe поверх фото
+(рендерер VOX `st.hybrid.ai/prebidrenderer.js`). Спрос тот же — кампании Hybrid на
+place `63d93bb54d506e95f039e2e3`. VOX SDK на этом хосте не грузится, чтобы на фото не
+было двух оверлеев. Видимость — то же правило: >99% фото на экране 1 с.
+Проверка: в консоли `[Bidio] in-image icoffio-inimage-N: vox <cpm> rendered` или `no bid`.
 | Видео preroll | `lib/config/video-players.ts`, `components/VideoPlayer.tsx`, `app/api/video/preroll` |
 
 ## Места (сверено с VOX-панелью 2026-10-26)

@@ -65,12 +65,17 @@ export function isVoxEnabled(provider: AdsProvider): boolean {
 }
 
 /**
- * VOX in-image runs on every host. It overlays article photos and competes with
- * no Prebid slot, so on web.icoffio.com display goes through Prebid while the
- * photos keep VOX in-image — the partner test needs both formats live.
+ * In-image through the VOX SDK (`_tx.integrateInImage`). Off on Prebid hosts:
+ * there the same VOX demand is bought through the Prebid `vox` bidder
+ * (isPrebidInImageEnabled), and two overlays on one photo would compete.
  */
-export function isVoxInImageEnabled(_provider: AdsProvider): boolean {
-  return true;
+export function isVoxInImageEnabled(provider: AdsProvider): boolean {
+  return provider !== 'prebid';
+}
+
+/** In-image through Prebid (lib/prebid-inimage.ts). `both` keeps the VOX SDK path. */
+export function isPrebidInImageEnabled(provider: AdsProvider): boolean {
+  return provider === 'prebid';
 }
 
 export function isPrebidEnabled(provider: AdsProvider): boolean {

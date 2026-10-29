@@ -1,8 +1,8 @@
 import { CONSENT_KEY, hasAdvertisingConsent, VOX_SDK_URL } from './consent-storage';
 
 import { IN_IMAGE_PLACE_ID } from './config/adPlacements';
-const ARTICLE_IMAGE_SELECTOR = 'main article img[data-article-image], main article .prose img';
-const EXCLUDED_IMAGE_ANCESTORS = [
+export const ARTICLE_IMAGE_SELECTOR = 'main article img[data-article-image], main article .prose img';
+export const EXCLUDED_IMAGE_ANCESTORS = [
   '[data-no-inimage]', '[data-related-articles]', '[data-article-card]',
   '[data-hyb-ssp-ad-place]', '[data-hyb-ssp-in-image-overlay]',
   'nav', 'header', 'footer', 'aside',

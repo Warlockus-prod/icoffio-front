@@ -23,7 +23,7 @@ export function AdManager() {
   const pathname = usePathname();
   const provider = useAdsProvider();
   const { consentState } = useCookieConsent();
-  // On Prebid hosts the SDK still runs, for in-image only: display is Prebid's.
+  // Off entirely on Prebid hosts: display and in-image both go through Prebid there.
   const voxDisplay = isVoxEnabled(provider);
   const hasConsent = isVoxInImageEnabled(provider) && consentState.hasConsented &&
     consentState.preferences.advertising;

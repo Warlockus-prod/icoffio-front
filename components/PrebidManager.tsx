@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
-import { isPrebidEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { isPrebidEnabled, isPrebidInImageEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { startPrebidInImage } from '@/lib/prebid-inimage';
 import {
   BIDIO_FULL_RELOAD_NAVIGATION,
   BIDIO_GDPR_ENABLED,
+  BIDIO_PREBID_GLOBAL,
   BIDIO_SDK_URL,
   buildBidioLazyConfig,
 } from '@/lib/config/prebidPlacements';
@@ -20,6 +22,7 @@ declare global {
 }
 
 const SCRIPT_ATTR = 'data-bidio-sdk';
+const LOADED_ATTR = 'data-bidio-loaded';
 
 /**
  * Loads the Bidio lazy Prebid wrapper.
@@ -53,6 +56,7 @@ export function PrebidManager() {
       : consentState.hasConsented && consentState.preferences.advertising;
 
   const lastPathRef = useRef<string | null>(null);
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -66,7 +70,12 @@ export function PrebidManager() {
       return;
     }
 
-    if (document.querySelector(`script[${SCRIPT_ATTR}]`)) return;
+    const existing = document.querySelector(`script[${SCRIPT_ATTR}]`);
+    if (existing) {
+      if (existing.hasAttribute(LOADED_ATTR)) setSdkLoaded(true);
+      else existing.addEventListener('load', () => setSdkLoaded(true), { once: true });
+      return;
+    }
 
     // Must precede the script: the SDK snapshots this object as it executes.
     window.BIDIO_LAZY_CONFIG = buildBidioLazyConfig();
@@ -82,10 +91,27 @@ export function PrebidManager() {
     script.async = true;
     script.setAttribute(SCRIPT_ATTR, '1');
     script.onerror = () => console.error('[Bidio] SDK failed to load', BIDIO_SDK_URL);
-    script.onload = () => console.log('[Bidio] lazy SDK loaded', window.BIDIO_LAZY_CONFIG);
+    script.onload = () => {
+      script.setAttribute(LOADED_ATTR, '1');
+      setSdkLoaded(true);
+      console.log('[Bidio] lazy SDK loaded', window.BIDIO_LAZY_CONFIG);
+    };
     (document.head || document.body).appendChild(script);
     console.log('[Bidio] SDK requested', BIDIO_SDK_URL);
   }, [enabled, hasConsent, tcfConsent]);
+
+  // In-image auctions run on Bidio's pbjs. They start only after the lazy SDK
+  // has executed: it queues setConfig (currency, consent) on pbjs.que, and our
+  // requestBids must come after it in that queue.
+  useEffect(() => {
+    if (!enabled || !hasConsent || !sdkLoaded || !isPrebidInImageEnabled(provider)) return;
+    return startPrebidInImage({
+      window,
+      document,
+      pathname: pathname || '',
+      prebidGlobal: BIDIO_PREBID_GLOBAL,
+    });
+  }, [enabled, hasConsent, sdkLoaded, provider, pathname]);
 
   // The lazy SDK initialises once per document and cannot refill slots after a
   // client-side navigation (measured: 0 new auctions, slots empty). So on Prebid

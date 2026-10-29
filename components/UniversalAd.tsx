@@ -6,7 +6,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { isPrebidVoxEnabled, isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { PrebidVoxAd } from '@/components/PrebidVoxAd';
 
 export type AdFormat =
   | '728x90' | '970x250'
@@ -22,6 +23,8 @@ interface UniversalAdProps {
   placement?: AdPlacement;
   className?: string;
   enabled?: boolean;
+  /** On Prebid hosts, buy this place through the Prebid `vox` bidder (AdPlacementConfig.prebid). */
+  prebid?: boolean;
 }
 
 const AD_DIMENSIONS: Record<AdFormat, { width: string; height: string }> = {
@@ -40,11 +43,13 @@ export function UniversalAd({
   format,
   placement = 'inline',
   className = '',
-  enabled = true
+  enabled = true,
+  prebid = false,
 }: UniversalAdProps) {
   const provider = useAdsProvider();
   // VOX slots are dead weight when the deployment runs Prebid only.
   const active = enabled && isVoxEnabled(provider);
+  const viaPrebid = enabled && prebid && isPrebidVoxEnabled(provider);
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLSpanElement>(null);
   // The slot (and its data-hyb-ssp-ad-place attribute) only enters the DOM once
@@ -227,7 +232,11 @@ export function UniversalAd({
   }, [active, inLayout, expectedHeight, expectedWidth, format, placeId, resolveElementSize]);
 
   // Early return after all hooks
-  if (!active) return null;
+  if (!active) {
+    return viaPrebid
+      ? <PrebidVoxAd placeId={placeId} format={format} placement={placement} className={className} />
+      : null;
+  }
   if (!inLayout) {
     return <span ref={sentinelRef} aria-hidden="true" data-vox-slot-pending={format} style={{ display: 'block', width: 0, height: 0 }} />;
   }

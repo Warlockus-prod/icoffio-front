@@ -125,13 +125,13 @@ export default async function Page({ params }: { params: { locale: string } }) {
 
         {homeDesktopAd && (
           <div className="mt-16 hidden text-center xl:block">
-            <UniversalAd placeId={homeDesktopAd.placeId} format={homeDesktopAd.format} placement={homeDesktopAd.placement} />
+            <UniversalAd placeId={homeDesktopAd.placeId} format={homeDesktopAd.format} placement={homeDesktopAd.placement} prebid={homeDesktopAd.prebid} />
           </div>
         )}
 
         {homeMobileAd && (
           <div className="mt-12 flex justify-center xl:hidden">
-            <UniversalAd placeId={homeMobileAd.placeId} format={homeMobileAd.format} placement={homeMobileAd.placement} />
+            <UniversalAd placeId={homeMobileAd.placeId} format={homeMobileAd.format} placement={homeMobileAd.placement} prebid={homeMobileAd.prebid} />
           </div>
         )}
       </div>

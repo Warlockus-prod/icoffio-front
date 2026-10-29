@@ -17,6 +17,15 @@ import type { AdFormat, AdPlacement } from '@/components/UniversalAd';
 /** VOX in-image place (Ad slot "InImage Ad slot #1", CPMV floor 5 PLN). */
 export const IN_IMAGE_PLACE_ID = '63d93bb54d506e95f039e2e3';
 
+/**
+ * VOX video place for the Prebid `vox` bidder (Ad slot "Ad slot #9", VideoPlace,
+ * CPM floor 5 PLN; 274 impressions 23–29.10.2026, so the Hybrid video campaign
+ * buys it). The panel also has "Video preroll Ad slot #14"
+ * (69036eff810d982b30508d46, floor 6 PLN, no traffic yet). The direct DSP VAST
+ * tag in video-players.ts is opaque and is not tied to either ID in code.
+ */
+export const VIDEO_PLACE_ID = '64b662024d506ede18ffa441';
+
 export interface AdPlacementConfig {
   id: string;
   placeId: string;
@@ -36,6 +45,12 @@ export interface AdPlacementConfig {
    * monetization settings predate it still show it (see lib/monetization-settings.ts).
    */
   addedDate: string;
+  /**
+   * Also served on Prebid hosts (web.icoffio.com), through the Prebid `vox`
+   * bidder with this same placeId (components/PrebidVoxAd.tsx). False where a
+   * Bidio slot (lib/config/prebidPlacements.ts) already sits at that spot.
+   */
+  prebid?: boolean;
 }
 
 export const AD_PLACEMENTS: AdPlacementConfig[] = [
@@ -54,6 +69,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 9,
     device: 'desktop',
     addedDate: '2025-01-13',
+    prebid: false, // Bidio slot art_2 sits here
   },
   {
     id: 'desktop-inline-2-before-related',
@@ -69,6 +85,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 8,
     device: 'desktop',
     addedDate: '2025-01-13',
+    prebid: false, // Bidio slot art_3 sits here
   },
   {
     id: 'sidebar-1',
@@ -84,6 +101,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 10,
     device: 'desktop',
     addedDate: '2025-01-13',
+    prebid: true,
   },
   {
     id: 'sidebar-2',
@@ -99,6 +117,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 7,
     device: 'desktop',
     addedDate: '2025-01-13',
+    prebid: true,
   },
 
   // ==================== ARTICLE — MOBILE ====================
@@ -116,6 +135,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 9,
     device: 'mobile',
     addedDate: '2025-10-28',
+    prebid: true,
   },
   {
     // Until 2026-10-26 this rendered PlaceID 68f6451d… (VOX "Ad slot #12 160x600")
@@ -133,6 +153,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 8,
     device: 'mobile',
     addedDate: '2025-10-28',
+    prebid: true,
   },
   {
     id: 'mobile-interstitial',
@@ -148,6 +169,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 7,
     device: 'mobile',
     addedDate: '2026-02-26',
+    prebid: true,
   },
 
   // ==================== HOMEPAGE ====================
@@ -165,6 +187,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 8,
     device: 'desktop',
     addedDate: '2025-01-13',
+    prebid: true,
   },
   {
     id: 'homepage-mobile-1',
@@ -180,6 +203,7 @@ export const AD_PLACEMENTS: AdPlacementConfig[] = [
     priority: 8,
     device: 'mobile',
     addedDate: '2026-09-10',
+    prebid: true,
   },
 ];
 

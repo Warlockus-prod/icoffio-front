@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { isPrebidVoxEnabled, isVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { BIDIO_PREBID_GLOBAL } from '@/lib/config/prebidPlacements';
+import { buildVoxBannerUnit, nextUnitCode, onPrebidReady, renderVoxBanner, requestVoxBid } from '@/lib/prebid-vox';
 
 interface InterstitialAdProps {
   placeId: string;
@@ -9,12 +11,15 @@ interface InterstitialAdProps {
   delaySeconds?: number;
   /** Session storage key to prevent repeated shows */
   sessionKey?: string;
+  /** On Prebid hosts, buy the place through the Prebid `vox` bidder (AdPlacementConfig.prebid). */
+  prebid?: boolean;
 }
 
 /**
  * Fullscreen interstitial ad overlay (320x480).
  *
- * 1. Renders ad container immediately (hidden, off-screen) so AdManager + VOX can fill it
+ * 1. Renders ad container immediately (hidden, off-screen) so VOX (or, on Prebid
+ *    hosts, a Prebid `vox` bid) can fill it
  * 2. Watches for ad content to appear via MutationObserver
  * 3. Only shows the fullscreen overlay when BOTH delay has passed AND ad is actually filled
  * 4. If ad doesn't fill within 20 seconds, gives up silently (no empty black box)
@@ -24,9 +29,11 @@ export function InterstitialAd({
   placeId,
   delaySeconds = 3,
   sessionKey = 'icoffio_interstitial_shown',
+  prebid = false,
 }: InterstitialAdProps) {
   const provider = useAdsProvider();
   const voxActive = isVoxEnabled(provider);
+  const prebidActive = prebid && isPrebidVoxEnabled(provider);
   const [phase, setPhase] = useState<'init' | 'preloading' | 'visible' | 'closed' | 'skip'>('init');
   const [canClose, setCanClose] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,9 +49,9 @@ export function InterstitialAd({
 
   // Step 1: Check eligibility (runs once on mount)
   useEffect(() => {
-    // Prebid-only deployment: VOX never loads, so this container would sit in
-    // the DOM waiting for a fill that cannot come.
-    if (!voxActive) {
+    // Prebid-only deployment without the Prebid path: VOX never loads, so this
+    // container would sit in the DOM waiting for a fill that cannot come.
+    if (!voxActive && !prebidActive) {
       setPhase('skip');
       return;
     }
@@ -66,7 +73,7 @@ export function InterstitialAd({
     // Eligible — start preloading
     setPhase('preloading');
     // voxActive can flip after mount when ?ads= overrides the build default.
-  }, [sessionKey, voxActive]);
+  }, [sessionKey, voxActive, prebidActive]);
 
   // Step 2: Delay timer
   useEffect(() => {
@@ -146,9 +153,43 @@ export function InterstitialAd({
     };
   }, [phase, sessionKey]);
 
+  // Step 4 (Prebid hosts): one Prebid auction with the vox bidder; a winning bid
+  // is rendered into the container, which the fill watcher above picks up.
+  useEffect(() => {
+    if (phase !== 'preloading' || voxActive || !prebidActive) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    let cancelled = false;
+    let removeCreative: (() => void) | null = null;
+    const stopReady = onPrebidReady(window, async () => {
+      const unit = buildVoxBannerUnit(nextUnitCode('banner'), placeId, [320, 480]);
+      const bid = await requestVoxBid(window, BIDIO_PREBID_GLOBAL, unit);
+      if (cancelled) return;
+      if (!bid) {
+        console.log(`[Bidio] vox interstitial ${unit.code}: no bid`);
+        setPhase('skip');
+        return;
+      }
+      try {
+        removeCreative = renderVoxBanner(window, document, BIDIO_PREBID_GLOBAL, bid, container, [320, 480]);
+        console.log(`[Bidio] vox interstitial ${unit.code}: ${bid.bidder} ${bid.cpm} rendered`);
+      } catch (error) {
+        console.error('[Bidio] vox interstitial error:', error);
+        setPhase('skip');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      stopReady();
+      removeCreative?.();
+    };
+  }, [phase, placeId, voxActive, prebidActive]);
+
   // Step 4: Poll for VOX SDK and initialize the ad container
   useEffect(() => {
-    if (phase !== 'preloading') return;
+    if (phase !== 'preloading' || !voxActive) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -180,7 +221,7 @@ export function InterstitialAd({
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [phase, placeId]);
+  }, [phase, placeId, voxActive]);
 
   // Step 5: Enable close button after 2s delay when visible
   useEffect(() => {

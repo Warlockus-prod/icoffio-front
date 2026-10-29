@@ -6,6 +6,7 @@ import { useCookieConsent } from '@/lib/useCookieConsent';
 import { useTcfConsent } from '@/lib/useTcfConsent';
 import { isPrebidEnabled, isPrebidInImageEnabled, useAdsProvider } from '@/lib/ads-provider';
 import { startPrebidInImage } from '@/lib/prebid-inimage';
+import { markPrebidReady } from '@/lib/prebid-vox';
 import {
   BIDIO_FULL_RELOAD_NAVIGATION,
   BIDIO_GDPR_ENABLED,
@@ -100,9 +101,13 @@ export function PrebidManager() {
     console.log('[Bidio] SDK requested', BIDIO_SDK_URL);
   }, [enabled, hasConsent, tcfConsent]);
 
-  // In-image auctions run on Bidio's pbjs. They start only after the lazy SDK
-  // has executed: it queues setConfig (currency, consent) on pbjs.que, and our
-  // requestBids must come after it in that queue.
+  // In-image, VOX banner and video auctions run on Bidio's pbjs. They start
+  // only after the lazy SDK has executed: it queues setConfig (currency,
+  // consent) on pbjs.que, and our requestBids must come after it in that queue.
+  useEffect(() => {
+    if (enabled && hasConsent && sdkLoaded) markPrebidReady(window);
+  }, [enabled, hasConsent, sdkLoaded]);
+
   useEffect(() => {
     if (!enabled || !hasConsent || !sdkLoaded || !isPrebidInImageEnabled(provider)) return;
     return startPrebidInImage({

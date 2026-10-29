@@ -242,7 +242,7 @@ export default async function Article({ params }: { params: { locale: string; sl
 
       {/* Mobile Interstitial Ad (once per session, after 15s) */}
       {interstitialAd && (
-        <InterstitialAd placeId={interstitialAd.placeId} delaySeconds={3} />
+        <InterstitialAd placeId={interstitialAd.placeId} delaySeconds={3} prebid={interstitialAd.prebid} />
       )}
 
       <Container>
@@ -288,6 +288,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                   placeId={ad.placeId}
                   format={ad.format}
                   placement={ad.placement}
+                  prebid={ad.prebid}
                   enabled={ad.enabled}
                 />
               </div>
@@ -352,6 +353,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                   placeId={ad.placeId}
                   format={ad.format}
                   placement={ad.placement}
+                  prebid={ad.prebid}
                   enabled={ad.enabled}
                 />
               </div>
@@ -364,6 +366,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                   placeId={ad.placeId}
                   format={ad.format}
                   placement={ad.placement}
+                  prebid={ad.prebid}
                   enabled={ad.enabled}
                 />
               </div>
@@ -376,6 +379,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                   placeId={ad.placeId}
                   format={ad.format}
                   placement={ad.placement}
+                  prebid={ad.prebid}
                   enabled={ad.enabled}
                 />
               </div>
@@ -409,6 +413,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 placeId={ad.placeId} 
                 format={ad.format}
                 placement={ad.placement}
+                prebid={ad.prebid}
                 enabled={ad.enabled}
               />
             ))}
@@ -420,6 +425,7 @@ export default async function Article({ params }: { params: { locale: string; sl
                 placeId={ad.placeId} 
                 format={ad.format}
                 placement={ad.placement}
+                prebid={ad.prebid}
                 enabled={ad.enabled}
               />
             ))}
@@ -434,6 +440,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               placeId={ad.placeId}
               format={ad.format}
               placement={ad.placement}
+              prebid={ad.prebid}
               enabled={ad.enabled}
             />
           </div>
@@ -446,6 +453,7 @@ export default async function Article({ params }: { params: { locale: string; sl
               placeId={ad.placeId}
               format={ad.format}
               placement={ad.placement}
+              prebid={ad.prebid}
               enabled={ad.enabled}
             />
           </div>

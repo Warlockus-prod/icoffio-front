@@ -134,6 +134,7 @@ export function ArticleContentWithAd({
                       placeId={desktopAd.placeId}
                       format={desktopAd.format}
                       placement={desktopAd.placement}
+                      prebid={desktopAd.prebid}
                       enabled={desktopAd.enabled}
                     />
                   </div>
@@ -145,6 +146,7 @@ export function ArticleContentWithAd({
                       placeId={mobileAd.placeId}
                       format={mobileAd.format}
                       placement={mobileAd.placement}
+                      prebid={mobileAd.prebid}
                       enabled={mobileAd.enabled}
                     />
                   </div>

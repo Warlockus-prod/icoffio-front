@@ -5,6 +5,7 @@
  *
  * Instream video ad player:
  * - Resolves VAST tags via /api/video/preroll → MP4 + tracking URLs
+ * - On Prebid hosts, takes the VAST from a Prebid `vox` video bid instead
  * - Plays preroll ad with skip button
  * - Fires all VAST tracking pixels (impression, start, quartiles, complete, skip)
  * - Plays each resolved ad once, only after advertising consent
@@ -16,6 +17,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { VideoPlayerPosition, VideoPlayerType } from '@/lib/config/video-players';
 import { useCookieConsent } from '@/lib/useCookieConsent';
+import { isPrebidVoxEnabled, useAdsProvider } from '@/lib/ads-provider';
+import { VIDEO_PLACE_ID } from '@/lib/config/adPlacements';
+import { BIDIO_PREBID_GLOBAL } from '@/lib/config/prebidPlacements';
+import {
+  buildVoxVideoUnit,
+  markVoxVideoBidUsed,
+  nextUnitCode,
+  onPrebidReady,
+  requestVoxBid,
+} from '@/lib/prebid-vox';
+import { parseInlineVast } from '@/lib/vast';
 
 interface VastTracking {
   impression: string[];
@@ -73,6 +85,42 @@ interface ResolvedAd {
   mediaUrl: string;
   durationSeconds: number | null;
   tracking: VastTracking;
+  /** Prebid bid this ad came from, reported as used once it plays. */
+  prebidAdId?: string;
+}
+
+/**
+ * One Prebid auction for the VOX video place. The vox adapter returns inline
+ * VAST in `bid.vastXml`; parse it like the server resolver does.
+ */
+function resolvePrebidVideoAd(signal: AbortSignal): Promise<ResolvedAd> {
+  return new Promise((resolve, reject) => {
+    // The Bidio SDK may never load (blocked, failed): the resolve timeout aborts.
+    const stopReady = onPrebidReady(window, async () => {
+      const unit = buildVoxVideoUnit(nextUnitCode('video'), VIDEO_PLACE_ID);
+      const bid = await requestVoxBid(window, BIDIO_PREBID_GLOBAL, unit);
+      if (!bid?.vastXml) {
+        reject(new Error('no_fill'));
+        return;
+      }
+      const parsed = parseInlineVast(bid.vastXml);
+      if (!parsed.ok) {
+        reject(new Error(parsed.reason));
+        return;
+      }
+      console.log(`[Bidio] vox video ${unit.code}: ${bid.bidder} ${bid.cpm}`);
+      resolve({
+        mediaUrl: parsed.mediaUrl,
+        durationSeconds: parsed.durationSeconds,
+        tracking: parsed.tracking,
+        prebidAdId: bid.adId,
+      });
+    });
+    signal.addEventListener('abort', () => {
+      stopReady();
+      reject(new Error('prebid_timeout'));
+    }, { once: true });
+  });
 }
 
 /**
@@ -103,6 +151,8 @@ export default function VideoPlayer({
 }: VideoPlayerProps) {
   const { consentState } = useCookieConsent();
   const hasConsent = consentState.hasConsented && consentState.preferences.advertising;
+  // Prebid hosts buy video through the Prebid vox bidder, not the direct DSP tag.
+  const viaPrebid = isPrebidVoxEnabled(useAdsProvider());
   // Use stable reference for empty playlist
   const playlist = adTagPlaylist && adTagPlaylist.length > 0 ? adTagPlaylist : EMPTY_PLAYLIST;
 
@@ -151,7 +201,7 @@ export default function VideoPlayer({
   }, [adTagUrl, playlist]);
 
   const isUnsupported = type !== 'instream';
-  const noAds = adTagUrls.length === 0;
+  const noAds = !viaPrebid && adTagUrls.length === 0;
 
   const currentAd = adQueue[queueIndex] || null;
 
@@ -185,7 +235,7 @@ export default function VideoPlayer({
       setState('loading');
 
       try {
-        const results = await Promise.allSettled(
+        const results = viaPrebid ? await Promise.allSettled([resolvePrebidVideoAd(controller.signal)]) : await Promise.allSettled(
           adTagUrls.map(async (tagUrl): Promise<ResolvedAd> => {
             // Direct MP4 URLs don't need resolution
             if (/\.(mp4|webm|ogg)(\?|$)/i.test(tagUrl)) {
@@ -250,7 +300,7 @@ export default function VideoPlayer({
       window.clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adTagUrlsKey, hasConsent, isUnsupported, noAds, clearTimers]);
+  }, [adTagUrlsKey, hasConsent, isUnsupported, noAds, viaPrebid, clearTimers]);
 
   // --- Autoplay when ad is ready ---
   useEffect(() => {
@@ -319,6 +369,7 @@ export default function VideoPlayer({
     // `playing` also fires after buffering or resuming. Count this ad once.
     if (impressionFiredRef.current) return;
     impressionFiredRef.current = true;
+    if (currentAd?.prebidAdId) markVoxVideoBidUsed(window, BIDIO_PREBID_GLOBAL, currentAd.prebidAdId);
     startSkipCountdown();
     if (currentAd?.tracking.impression.length) {
       firePixels(currentAd.tracking.impression);

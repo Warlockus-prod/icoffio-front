@@ -10,7 +10,7 @@ import {
 } from './ads-provider-core';
 
 export type { AdsProvider };
-export { isPrebidEnabled, isPrebidInImageEnabled, isVoxEnabled, isVoxInImageEnabled, PREBID_HOSTS } from './ads-provider-core';
+export { isPrebidEnabled, isPrebidInImageEnabled, isPrebidVoxEnabled, isVoxEnabled, isVoxInImageEnabled, PREBID_HOSTS } from './ads-provider-core';
 
 const OVERRIDE_KEY = 'icoffio_ads_provider_override';
 

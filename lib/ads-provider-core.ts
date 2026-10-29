@@ -81,3 +81,11 @@ export function isPrebidInImageEnabled(provider: AdsProvider): boolean {
 export function isPrebidEnabled(provider: AdsProvider): boolean {
   return provider === 'prebid' || provider === 'both';
 }
+
+/**
+ * VOX display and video through the Prebid `vox` bidder (lib/prebid-vox.ts),
+ * for the places Bidio's own slots do not cover. Prebid hosts only.
+ */
+export function isPrebidVoxEnabled(provider: AdsProvider): boolean {
+  return provider === 'prebid';
+}

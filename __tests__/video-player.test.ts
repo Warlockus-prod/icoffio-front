@@ -9,6 +9,11 @@ import VideoPlayer from '@/components/VideoPlayer';
 const require = createRequire(import.meta.url);
 const { JSDOM } = createRequire(require.resolve('isomorphic-dompurify'))('jsdom');
 const consent = vi.hoisted(() => ({ enabled: false }));
+const ads = vi.hoisted(() => ({ provider: 'vox' as 'vox' | 'prebid' }));
+vi.mock('@/lib/ads-provider', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/ads-provider')>()),
+  useAdsProvider: () => ads.provider,
+}));
 vi.mock('@/lib/useCookieConsent', () => ({
   useCookieConsent: () => ({
     consentState: { hasConsented: consent.enabled, preferences: { advertising: consent.enabled } },
@@ -33,6 +38,7 @@ const tracking = {
 beforeEach(() => {
   vi.useFakeTimers();
   consent.enabled = false;
+  ads.provider = 'vox';
   pixels = [];
   dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://web.icoffio.com/pl/article/test' });
   vi.stubGlobal('window', dom.window);
@@ -155,5 +161,38 @@ describe('VideoPlayer advertising consent and one-pass tracking', () => {
     expect(container.querySelector('video')).toBeNull();
     expect(pixels.filter((url) => url === tracking.error[0])).toHaveLength(2);
     expect(pixels).not.toContain(tracking.impression[0]);
+  });
+
+  it('on Prebid hosts plays the VAST of a Prebid vox bid instead of the DSP tag', async () => {
+    consent.enabled = true;
+    ads.provider = 'prebid';
+    const vastXml = `<VAST version="3.0"><Ad><InLine>
+      <Impression><![CDATA[https://track.example/pb-impression]]></Impression>
+      <Creatives><Creative><Linear><Duration>00:00:15</Duration>
+        <TrackingEvents><Tracking event="start"><![CDATA[https://track.example/pb-start]]></Tracking></TrackingEvents>
+        <MediaFiles><MediaFile type="video/mp4" bitrate="900"><![CDATA[https://media.example/pb.mp4]]></MediaFile></MediaFiles>
+      </Linear></Creative></Creatives></InLine></Ad></VAST>`;
+    const que: Array<() => void> = [];
+    que.push = (fn: () => void) => { fn(); return 0; };
+    const requestBids = vi.fn(({ bidsBackHandler }: { adUnits: any[]; bidsBackHandler: () => void }) => bidsBackHandler());
+    const markWinningBidAsUsed = vi.fn();
+    dom.window.pbjs = {
+      que,
+      requestBids,
+      getHighestCpmBids: () => [{ adId: 'pb-1', cpm: 5, bidder: 'vox', adUnitCode: 'x', vastXml }],
+      markWinningBidAsUsed,
+    };
+    dom.window.__icoffioPrebidReady = true;
+
+    await render();
+    expect(fetchMock).not.toHaveBeenCalled();
+    const unit = requestBids.mock.calls[0][0].adUnits[0];
+    expect(unit.mediaTypes.video.context).toBe('instream');
+    expect(unit.bids[0]).toEqual({ bidder: 'vox', params: { placement: 'video', placementId: '64b662024d506ede18ffa441' } });
+    expect(container.querySelector('source')!.getAttribute('src')).toBe('https://media.example/pb.mp4');
+
+    await emit(container.querySelector('video')!, 'playing');
+    expect(pixels).toEqual(['https://track.example/pb-impression', 'https://track.example/pb-start']);
+    expect(markWinningBidAsUsed).toHaveBeenCalledWith({ adId: 'pb-1', analytics: true });
   });
 });

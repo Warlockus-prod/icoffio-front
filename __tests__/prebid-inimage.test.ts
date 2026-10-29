@@ -132,6 +132,34 @@ describe('startPrebidInImage', () => {
     expect(image.parentElement!.querySelector('iframe')).toBeNull();
   });
 
+  it('stretches the nested creative frame Prebid sizes to the 0-wide bid', async () => {
+    const image = hero();
+    // What Prebid 11's renderer does: a nested frame at bid width × height.
+    pbjs.renderAd.mockImplementation((frameDoc: Document) => {
+      const nested = frameDoc.createElement('iframe');
+      nested.setAttribute('width', '0');
+      nested.setAttribute('height', '120');
+      frameDoc.body.appendChild(nested);
+    });
+    start();
+    intersect(image);
+    const { adUnits, bidsBackHandler } = pbjs.requestBids.mock.calls[0][0];
+    pbjs.getHighestCpmBids.mockReturnValue([{ adId: 'ad-1', cpm: 10, bidder: 'vox', adUnitCode: adUnits[0].code }]);
+    bidsBackHandler();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const frameDoc = image.parentElement!.querySelector('iframe')!.contentDocument!;
+    const nested = frameDoc.querySelector('iframe')!;
+    expect(nested.hasAttribute('width')).toBe(false);
+    expect(nested.style.width).toBe('100%');
+    expect(nested.style.height).toBe('100%');
+    expect(frameDoc.body.style.margin).toBe('0px');
+
+    stop!();
+    stop = undefined;
+    expect(image.parentElement!.querySelector('iframe')).toBeNull();
+  });
+
   it('leaves the photo untouched without a bid', () => {
     const image = hero();
     start();

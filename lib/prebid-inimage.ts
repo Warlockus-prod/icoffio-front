@@ -163,6 +163,25 @@ export function startPrebidInImage({
     return { box, frame, stop };
   };
 
+  // Prebid 11's renderer puts the creative in a nested frame sized to the bid,
+  // and VOX in-image bids report width 0 (height = stripe height): the creative
+  // loaded and fired its pixels at 0 px wide, invisible (measured 2026-10-29).
+  // The in-image creative positions itself inside the photo area, so its frame
+  // must fill the overlay box instead.
+  const stretchCreativeFrame = (frameDoc: Document) => {
+    frameDoc.documentElement.style.cssText = 'width:100%;height:100%;margin:0;padding:0;';
+    if (frameDoc.body) frameDoc.body.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
+    const fill = (frame: HTMLIFrameElement) => {
+      frame.removeAttribute('width');
+      frame.removeAttribute('height');
+      frame.style.cssText = 'display:block;width:100%;height:100%;border:0;';
+    };
+    frameDoc.querySelectorAll('iframe').forEach(fill);
+    const watcher = new win.MutationObserver(() => frameDoc.querySelectorAll('iframe').forEach(fill));
+    watcher.observe(frameDoc.documentElement, { childList: true, subtree: true });
+    return () => watcher.disconnect();
+  };
+
   const runAuction = (image: HTMLImageElement) => {
     if (!active || !candidate(image)) return;
     if (!isInImageSizeEligible(image.offsetWidth, image.offsetHeight)) return;
@@ -188,10 +207,13 @@ export function startPrebidInImage({
           const overlay = placeOverlay(image, code);
           const frameDoc = overlay?.frame.contentDocument;
           if (!overlay || !frameDoc) return;
+          const unstretch = stretchCreativeFrame(frameDoc);
+          overlays.push({ box: overlay.box, stop: unstretch });
           try {
             instance.renderAd!(frameDoc, bid.adId);
             console.log(`[Bidio] in-image ${code}: ${bid.bidder} ${bid.cpm} rendered`);
           } catch (error) {
+            unstretch();
             overlay.stop();
             overlay.box.remove();
             onError(error);

@@ -141,8 +141,21 @@ export function startPrebidInImage({
     frame.setAttribute('scrolling', 'no');
     frame.setAttribute('frameborder', '0');
     frame.setAttribute('allowtransparency', 'true');
-    frame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:auto;';
+    const FRAME_STYLE = 'display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:auto;';
+    frame.style.cssText = FRAME_STYLE;
     box.appendChild(frame);
+    // After rendering, Prebid resizes the frame it rendered into to the bid size
+    // (height 120, the stripe). The VOX overlay pins the stripe to the bottom of
+    // its frame, so the frame must keep covering the whole photo or the stripe
+    // ends up across the top of it.
+    const keepFullSize = new win.MutationObserver(() => {
+      if (frame.style.width === '100%' && frame.style.height === '100%' &&
+          !frame.hasAttribute('width') && !frame.hasAttribute('height')) return;
+      frame.removeAttribute('width');
+      frame.removeAttribute('height');
+      frame.style.cssText = FRAME_STYLE;
+    });
+    keepFullSize.observe(frame, { attributes: true, attributeFilter: ['style', 'width', 'height'] });
 
     const sync = () => {
       box.style.top = `${image.offsetTop}px`;
@@ -156,6 +169,7 @@ export function startPrebidInImage({
     resize?.observe(image);
     win.addEventListener('resize', sync);
     const stop = () => {
+      keepFullSize.disconnect();
       resize?.disconnect();
       win.removeEventListener('resize', sync);
     };

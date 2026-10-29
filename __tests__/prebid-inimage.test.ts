@@ -134,12 +134,15 @@ describe('startPrebidInImage', () => {
 
   it('stretches the nested creative frame Prebid sizes to the 0-wide bid', async () => {
     const image = hero();
-    // What Prebid 11's renderer does: a nested frame at bid width × height.
+    // What Prebid 11 does: a nested frame at bid width × height, then it
+    // resizes the frame it rendered into to the bid size.
     pbjs.renderAd.mockImplementation((frameDoc: Document) => {
       const nested = frameDoc.createElement('iframe');
       nested.setAttribute('width', '0');
       nested.setAttribute('height', '120');
       frameDoc.body.appendChild(nested);
+      const outer = frameDoc.defaultView!.frameElement as HTMLIFrameElement;
+      outer.style.height = '120px';
     });
     start();
     intersect(image);
@@ -148,7 +151,9 @@ describe('startPrebidInImage', () => {
     bidsBackHandler();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const frameDoc = image.parentElement!.querySelector('iframe')!.contentDocument!;
+    const outer = image.parentElement!.querySelector('iframe')!;
+    expect(outer.style.height).toBe('100%');
+    const frameDoc = outer.contentDocument!;
     const nested = frameDoc.querySelector('iframe')!;
     expect(nested.hasAttribute('width')).toBe(false);
     expect(nested.style.width).toBe('100%');

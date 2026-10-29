@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-- web.icoffio.com: in-image now goes through Prebid — each article photo gets its own auction with the VOX bidder (`placement: inImage`), and the winning banner is drawn over the photo. The direct VOX SDK no longer runs on that host, so a photo never carries two overlays. icoffio.com and app.icoffio.com are unchanged. (v10.25.8: the banner is stretched over the whole photo — in v10.25.7 Prebid drew it 0 px wide, invisible while its pixels fired.)
+- web.icoffio.com: in-image now goes through Prebid — each article photo gets its own auction with the VOX bidder (`placement: inImage`), and the winning banner is drawn over the photo. The direct VOX SDK no longer runs on that host, so a photo never carries two overlays. icoffio.com and app.icoffio.com are unchanged. (v10.25.8–10.25.9: the banner now sits at the bottom of the photo like direct VOX in-image — in v10.25.7 Prebid drew it 0 px wide, invisible while its pixels fired.)
 - web.icoffio.com: VOX in-image now runs on article photos alongside the Prebid display slots (before, the Prebid test host had no in-image at all). icoffio.com and app.icoffio.com are unchanged.
 - Ad accounting: the site now records, per day and per VOX place, how many auctions came back filled or empty (table `ad_slot_daily`, beacon `/api/ads/telemetry`). The admin Advertising tab shows these numbers next to the place inventory and links to the VOX panel and Hybrid console.
 - Admin Advertising tab: the on/off and priority controls were removed — they only wrote to the admin's own browser and never changed the site. The tab now shows the real place list with formats and VOX slot names.

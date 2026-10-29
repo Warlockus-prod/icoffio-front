@@ -10,8 +10,8 @@
  *   banner: mediaTypes.banner.sizes + params { placement: 'banner', placementId }
  *           → bid.ad loads st.hybrid.ai/prebidrenderer.js (`registerAds`)
  *   video:  mediaTypes.video { context, playerSize } + params { placement: 'video', placementId }
- *           → bid.vastXml (inline VAST); for `instream` the adapter attaches no
- *             renderer, so the site's own player plays it (components/VideoPlayer.tsx)
+ *           → bid.vastXml (inline VAST), played by the site's own player
+ *             (components/VideoPlayer.tsx); see buildVoxVideoUnit for the context
  *   → POST https://ssp.hybrid.ai/auction/prebid
  */
 
@@ -82,16 +82,26 @@ export function buildVoxBannerUnit(code: string, placeId: string, size: [number,
   };
 }
 
+/**
+ * Video unit. Prebid drops an `instream` bid that carries only `vastXml`
+ * unless a prebid cache is configured ("will not work when a prebid cache url
+ * is not specified" — measured live 2026-10-29: SSP bid 5 PLN, 0 bids in
+ * Prebid), and the cache is Bidio's global config. An `outstream` bid instead
+ * needs a renderer; one with no `url` is installed with renderNow and never
+ * loads a script. It is never called either: the site's player takes
+ * `bid.vastXml` itself.
+ */
 export function buildVoxVideoUnit(code: string, placeId: string) {
   return {
     code,
     mediaTypes: {
       video: {
-        context: 'instream',
+        context: 'outstream',
         playerSize: [VOX_VIDEO_PLAYER_SIZE],
         mimes: ['video/mp4'],
         protocols: [2, 3, 5, 6],
         skip: 1,
+        renderer: { render: () => {} },
       },
     },
     bids: [{ bidder: 'vox', params: { placement: 'video', placementId: placeId } }],

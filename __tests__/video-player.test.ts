@@ -187,7 +187,7 @@ describe('VideoPlayer advertising consent and one-pass tracking', () => {
     await render();
     expect(fetchMock).not.toHaveBeenCalled();
     const unit = requestBids.mock.calls[0][0].adUnits[0];
-    expect(unit.mediaTypes.video.context).toBe('instream');
+    expect(unit.mediaTypes.video.context).toBe('outstream');
     expect(unit.bids[0]).toEqual({ bidder: 'vox', params: { placement: 'video', placementId: '64b662024d506ede18ffa441' } });
     expect(container.querySelector('source')!.getAttribute('src')).toBe('https://media.example/pb.mp4');
 

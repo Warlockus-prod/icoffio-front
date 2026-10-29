@@ -58,13 +58,15 @@ VOX на этом хосте покупаются так же, как in-image: 
 | Мобайл 320×50 над фото / 320×100 после текста | `PrebidVoxAd` | Ad slot #11 / #13 |
 | Interstitial 320×480 | `InterstitialAd` | Ad slot #10 |
 | Главная 970×250 / 320×100 | `PrebidVoxAd` | Ad slot #5 / #13 |
-| Видео в конце статьи | `VideoPlayer`: `placement: 'video'`, `context: 'instream'`, VAST из `bid.vastXml` | Ad slot #9 `64b662024d506ede18ffa441` |
+| Видео в конце статьи | `VideoPlayer`: `placement: 'video'`, `context: 'outstream'` + renderer без url, VAST из `bid.vastXml` | Ad slot #9 `64b662024d506ede18ffa441` |
 
 Выключены на этом хосте (`prebid: false`): 728×90 в тексте и 970×250 перед похожими —
 там стоят `art_2` и `art_3`. Аукцион места идёт, когда оно подходит к экрану; слот в
 скрытой обёртке (мобильный на десктопе) не участвует. Видео-VAST VOX — inline VAST 3.0
 с MP4, плеер играет его сам и после старта помечает ставку как выигравшую
-(`markWinningBidAsUsed`). В панели VOX есть и второе видеоместо «Video preroll Ad slot #14»
+(`markWinningBidAsUsed`). Почему outstream: ставку `instream`, в которой есть только `vastXml`,
+Prebid отбрасывает без prebid cache (а `cache` — общий конфиг Bidio); outstream-ставке нужен
+renderer, и renderer без `url` Prebid ставит без загрузки скрипта. В панели VOX есть и второе видеоместо «Video preroll Ad slot #14»
 (`69036eff810d982b30508d46`, floor 6 PLN) — пока без трафика.
 Проверка: `[Bidio] vox <формат> icoffio-vox-banner-N: vox <cpm> rendered`, `[Bidio] vox video …`.
 | Видео preroll | `lib/config/video-players.ts`, `components/VideoPlayer.tsx`, `app/api/video/preroll` |

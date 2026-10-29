@@ -22,8 +22,11 @@ describe('vox bidder units', () => {
       bids: [{ bidder: 'vox', params: { placement: 'banner', placementId: 'place' } }],
     });
     const video = buildVoxVideoUnit('c2', VIDEO_PLACE_ID);
-    // isBidRequestValid: context instream|outstream and an array playerSize
-    expect(video.mediaTypes.video.context).toBe('instream');
+    // isBidRequestValid: context instream|outstream and an array playerSize.
+    // Outstream with a url-less renderer: Prebid keeps a vastXml-only bid without a cache.
+    expect(video.mediaTypes.video.context).toBe('outstream');
+    expect(typeof video.mediaTypes.video.renderer.render).toBe('function');
+    expect('url' in video.mediaTypes.video.renderer).toBe(false);
     expect(video.mediaTypes.video.playerSize).toEqual([[640, 360]]);
     expect(video.bids[0].params).toEqual({ placement: 'video', placementId: VIDEO_PLACE_ID });
   });

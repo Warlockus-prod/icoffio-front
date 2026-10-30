@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Docs: instructions "VOX through Prebid" (in-image, banners, video) in Polish, Russian and English in `docs/prebid-vox/`, for partners who want the same setup.
 - web.icoffio.com: video, the sidebar 300×250 and 300×600, the mobile 320×50 and 320×100, the mobile interstitial and the homepage banners now also go through Prebid, with the VOX bidder and the same VOX places as the main site (video: VOX "Ad slot #9"). Before, only Bidio's three article slots and in-image ran there, and video went straight to the DSP tag. The 728×90 inside the text and the 970×250 before related articles stay off on that host because Bidio's own slots sit in the same spots. icoffio.com and app.icoffio.com are unchanged.
 - web.icoffio.com: in-image now goes through Prebid — each article photo gets its own auction with the VOX bidder (`placement: inImage`), and the winning banner is drawn over the photo. The direct VOX SDK no longer runs on that host, so a photo never carries two overlays. icoffio.com and app.icoffio.com are unchanged. (v10.25.8–10.25.9: the banner now sits at the bottom of the photo like direct VOX in-image — in v10.25.7 Prebid drew it 0 px wide, invisible while its pixels fired.)
 - web.icoffio.com: VOX in-image now runs on article photos alongside the Prebid display slots (before, the Prebid test host had no in-image at all). icoffio.com and app.icoffio.com are unchanged.

@@ -11,7 +11,7 @@ echo "================================="
 VPS_HOST="77.55.211.1"
 VPS_PORT="8908"
 VPS_USER="andrlock"
-VPS_PASSWORD="Pgrass890!#Brot23"
+VPS_PASSWORD="${VPS_PASSWORD:?set VPS_PASSWORD in the environment}"
 
 echo ""
 echo "⚠️  ВНИМАНИЕ: Удаляю ТОЛЬКО icoffio-front проект"

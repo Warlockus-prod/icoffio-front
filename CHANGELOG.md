@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - Docs: instructions "VOX through Prebid" (in-image, banners, video) in Polish, Russian and English in `docs/prebid-vox/`, for partners who want the same setup, plus the owner's status note (`docs/prebid-vox/status-2026-10-30.ru.md`): what works, the money chain, what a publisher needs.
 - Project map for agents: `AGENTS.md` (entry point, rules, deploy, which docs are current and which are wrong today) and `ARCHITECTURE.md` (every file, flows, cron suite, tests). `CLAUDE.md` now imports `AGENTS.md`; `__tests__/project-map.test.ts` fails when a file is missing from the map. The VPS watchdog really runs every 15 minutes and restarts after 2 failures (the old CLAUDE.md said every minute / 3).
 - Security: removed three old Supabase keys from `PROJECT_MASTER_DOCUMENTATION.md` and a hardcoded SSH password from `scripts/clean-vps-project.sh` (now read from the environment). They remain in git history; rotate them at the source.
+- Docs: ciastoeli.pl audit corrected after checking the server (ads.txt does list VOX; the real fault was the `art_1` auction being cancelled because the consent script loaded too late). Records the fix applied on that site, how to roll it back, its consent setup and what is left for Bidio.
 
 ## [10.26.1] - 2026-10-30 - Prebid formats on web.icoffio.com (10.24.0–10.26.1, deployed)
 

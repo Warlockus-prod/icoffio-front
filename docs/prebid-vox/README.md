@@ -6,6 +6,8 @@ How VOX in-image, banners and video are sold through the public Prebid `vox` ada
 - [Русский](ru.md)
 - [English](en.md)
 
+Partner case ciastoeli.pl (Russian): current setup, ads.txt gap, in-image snippet for WordPress — [ciastoeli-pl.ru.md](ciastoeli-pl.ru.md).
+
 Owner's status note (Russian): what works, the money chain, what a publisher needs — [status-2026-10-30.ru.md](status-2026-10-30.ru.md).
 
 The site's ad setup as a whole (places, providers per host, VOX on icoffio.com / app.icoffio.com): [docs/ADVERTISING.md](../ADVERTISING.md).

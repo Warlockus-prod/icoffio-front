@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [10.26.2] - 2026-11-24 - In-image overlay sits on the image itself
+
+- Ads: body images in articles now get their own VOX in-image container. Before, the SDK used the image's parent, which is the whole article text block: the stripe was drawn under the text and an impression was only counted once the bottom of that tall block reached the screen. The hero photo keeps its existing wrapper.
+
+### Earlier unreleased notes
+
 - Docs: instructions "VOX through Prebid" (in-image, banners, video) in Polish, Russian and English in `docs/prebid-vox/`, for partners who want the same setup, plus the owner's status note (`docs/prebid-vox/status-2026-10-30.ru.md`): what works, the money chain, what a publisher needs.
 - Project map for agents: `AGENTS.md` (entry point, rules, deploy, which docs are current and which are wrong today) and `ARCHITECTURE.md` (every file, flows, cron suite, tests). `CLAUDE.md` now imports `AGENTS.md`; `__tests__/project-map.test.ts` fails when a file is missing from the map. The VPS watchdog really runs every 15 minutes and restarts after 2 failures (the old CLAUDE.md said every minute / 3).
 - Security: removed three old Supabase keys from `PROJECT_MASTER_DOCUMENTATION.md` and a hardcoded SSH password from `scripts/clean-vps-project.sh` (now read from the environment). They remain in git history; rotate them at the source.

@@ -42,7 +42,7 @@ function sdkReady() {
   const queued = win._tx?.cmds || [];
   const sdk = {
     cmds: queued,
-    integrateInImage: vi.fn((_options: { image: HTMLImageElement; placeId: string }) => undefined),
+    integrateInImage: vi.fn((_options: { image: HTMLImageElement; placeId: string; addContainer?: boolean }) => undefined),
     init: vi.fn(() => {
       doc.querySelectorAll<HTMLElement>('[data-hyb-ssp-ad-place]').forEach((slot) => {
         slot.dataset.hybSspAdPlaceStatus = 'init';
@@ -72,6 +72,18 @@ afterEach(() => {
 });
 
 describe('VOX lifecycle', () => {
+  it('wraps body images in their own overlay container, not the whole article body', async () => {
+    const prose = doc.createElement('div');
+    prose.className = 'prose';
+    prose.innerHTML = '<p>Lead</p><img src="https://example.com/body.jpg" alt=""><p>More text</p>';
+    doc.querySelector('article')!.appendChild(prose);
+    const sdk = sdkReady();
+    start();
+    await vi.advanceTimersByTimeAsync(150);
+    expect(sdk.integrateInImage).toHaveBeenCalledTimes(1);
+    expect(sdk.integrateInImage.mock.calls[0][0]).toMatchObject({ image: prose.querySelector('img'), addContainer: true });
+  });
+
   it('watches late images after the first consent loads an asynchronous SDK', async () => {
     start();
     expect(doc.querySelectorAll('script[data-vox-ssp="1"]')).toHaveLength(1);
@@ -81,7 +93,7 @@ describe('VOX lifecycle', () => {
     const image = hero();
     await vi.advanceTimersByTimeAsync(150);
     expect(sdk.integrateInImage).toHaveBeenCalledTimes(1);
-    expect(sdk.integrateInImage.mock.calls[0][0]).toMatchObject({ image, placeId: '63d93bb54d506e95f039e2e3' });
+    expect(sdk.integrateInImage.mock.calls[0][0]).toMatchObject({ image, placeId: '63d93bb54d506e95f039e2e3', addContainer: false });
   });
 
   it('registers existing images once despite retries, loads, resize and remount', async () => {

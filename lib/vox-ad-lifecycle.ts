@@ -14,6 +14,7 @@ interface VoxSdk {
     placeId: string;
     imageSelector: string;
     image: HTMLImageElement;
+    addContainer?: boolean;
   }) => void | Promise<unknown>;
   init?: () => void;
 }
@@ -78,6 +79,14 @@ export function startVoxAdLifecycle({
               placeId: IN_IMAGE_PLACE_ID,
               imageSelector: ARTICLE_IMAGE_SELECTOR,
               image,
+              // Wrap each image in its own overlay container. Without it the
+              // SDK uses image.parentElement, which for .prose images is the
+              // whole article body: the stripe then renders under the text and
+              // an impression only counts once that tall block's bottom edge
+              // is on screen (seen live 2026-11-24: 788x1269 container).
+              // The hero <Image> is React-managed and already sits alone in
+              // its own wrapper, so it keeps the default (no DOM move).
+              addContainer: !image.hasAttribute('data-article-image'),
             });
             addedImage = true;
             Promise.resolve(result).catch((error) => {
